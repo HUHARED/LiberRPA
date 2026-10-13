@@ -25,7 +25,7 @@
       </v-btn>
     </v-col>
   </v-row>
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form aria-label="Asset filters" @submit.prevent="applyFilters">
         <v-row>
@@ -75,8 +75,8 @@
           <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
             Apply
           </v-btn>
-          <v-btn variant="outlined" :disabled="boolLoading" @click="clearFilters">
-            Clear Filters
+          <v-btn variant="tonal" :disabled="boolLoading" @click="clearFilters">
+            Reset Filters
           </v-btn>
         </div>
       </form>
@@ -136,7 +136,7 @@
       <template #item.name="{ item }">
         <RouterLink
           :to="getDetailsLocation(item.id)"
-          class="d-inline-block table-text-narrow text-primary">
+          class="d-inline-block table-text-narrow text-primary text-decoration-none">
           {{ item.name }}
         </RouterLink>
       </template>
@@ -156,7 +156,15 @@
         <span class="text-no-wrap">{{ formatDateTime(item.updated_at, strTimeZone) }}</span>
       </template>
       <template #item.actions="{ item }">
-        <v-btn variant="text" size="small" @click="copyPath(item.path)">Copy Path</v-btn>
+        <div class="d-flex align-center ga-1">
+          <v-btn
+            v-tooltip:bottom="'Copy Path'"
+            variant="text"
+            size="small"
+            aria-label="Copy Path"
+            icon="mdi-content-copy"
+            @click="copyPath(item.path)" />
+        </div>
       </template>
       <template #no-data>
         {{
@@ -229,7 +237,7 @@ const ARR_HEADER = [
   { title: "Value", key: "value_summary", minWidth: 220 },
   { title: "Notes", key: "notes", minWidth: 200 },
   { title: "Updated At", key: "updated_at", minWidth: 240 },
-  { title: "Actions", key: "actions", minWidth: 170 },
+  { title: "Actions", key: "actions", width: 72 },
 ];
 const sessionStore = useSessionStore();
 const route = useRoute();

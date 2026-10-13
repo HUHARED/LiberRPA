@@ -41,31 +41,35 @@
         <template v-if="invitationInfo">
           <dl class="detail-fields mb-4">
             <div>
-              <dt>Email</dt>
+              <dt class="text-caption text-medium-emphasis">Email</dt>
               <dd>{{ invitationInfo.email }}</dd>
             </div>
             <div>
-              <dt>Status</dt>
+              <dt class="text-caption text-medium-emphasis">Status</dt>
               <dd class="text-capitalize">{{ strStatus }}</dd>
             </div>
             <div>
-              <dt>Organization Role</dt>
+              <dt class="text-caption text-medium-emphasis">Organization Role</dt>
               <dd>{{ invitationInfo.is_org_admin ? "OrgAdmin" : "Member" }}</dd>
             </div>
             <div>
-              <dt>Email Delivery</dt>
+              <dt class="text-caption text-medium-emphasis">Email Delivery</dt>
               <dd>{{ getDeliveryLabel(invitationInfo.email_delivery) }}</dd>
             </div>
             <div>
-              <dt>Expires At ({{ strTimeZone }})</dt>
+              <dt class="text-caption text-medium-emphasis">
+                Expires At ({{ strTimeZone }})
+              </dt>
               <dd>{{ formatDateTime(invitationInfo.expires_at, strTimeZone) }}</dd>
             </div>
             <div>
-              <dt>Last Requested At ({{ strTimeZone }})</dt>
+              <dt class="text-caption text-medium-emphasis">
+                Last Requested At ({{ strTimeZone }})
+              </dt>
               <dd>{{ formatDateTime(invitationInfo.requested_at, strTimeZone) }}</dd>
             </div>
             <div class="full-width-field">
-              <dt>Department Roles</dt>
+              <dt class="text-caption text-medium-emphasis">Department Roles</dt>
               <dd>
                 <ul v-if="invitationInfo.department_roles.length" class="pl-4">
                   <li
@@ -79,11 +83,11 @@
                       }"
                       target="_blank"
                       rel="noopener"
-                      class="text-primary">
+                      class="text-primary text-decoration-none">
                       {{ assignment.department_path }}
                     </RouterLink>
                     <span v-else>{{ assignment.department_path }} (Deleted)</span>
-                    <span class="text-capitalize">— {{ assignment.role }}</span>
+                    <span class="text-capitalize ms-1">— {{ assignment.role }}</span>
                   </li>
                 </ul>
                 <template v-else>
@@ -96,7 +100,7 @@
               </dd>
             </div>
             <div class="full-width-field">
-              <dt>Notes</dt>
+              <dt class="text-caption text-medium-emphasis">Notes</dt>
               <dd class="text-pre-wrap">{{ invitationInfo.notes || "—" }}</dd>
             </div>
           </dl>
@@ -124,7 +128,7 @@
       </v-card-text>
       <v-card-actions class="flex-wrap ga-2">
         <v-spacer />
-        <v-btn variant="text" :disabled="boolSaving" @click="closeDialog">
+        <v-btn variant="tonal" :disabled="boolSaving" @click="closeDialog">
           {{ action === "view" ? "Close" : "Cancel" }}
         </v-btn>
         <v-btn

@@ -1,17 +1,23 @@
 <!-- FileName: BuiltInRunOptions.vue -->
 <template>
   <v-row class="w-100">
-    <v-col cols="12">
+    <v-col v-if="$slots.environment" cols="6">
+      <slot name="environment" />
+    </v-col>
+    <v-col :cols="$slots.environment ? 6 : 12">
       <v-number-input
         v-model="intMaxRetryCount"
-        label="Max Retries"
+        label="Max Retry Count"
         :min="0"
         :max="INT_MAX_RETRY_COUNT"
         :precision="0"
         density="compact"
         variant="underlined"
-        hint="Extra attempts after an unhandled execution error, 60 seconds apart."
-        persistent-hint />
+        hide-details>
+        <v-tooltip activator="parent" location="top">
+          Extra attempts after an unhandled execution error, 60 seconds apart.
+        </v-tooltip>
+      </v-number-input>
     </v-col>
 
     <v-col :cols="props.timeoutCols">

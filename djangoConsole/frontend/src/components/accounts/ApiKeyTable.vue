@@ -58,12 +58,18 @@
   </v-alert>
 
   <p v-if="keyList" class="mb-3">
-    Active key limit: {{ keyList.limits.active_keys }} per account.
+    Active key limit:
+    <span class="font-weight-bold">{{ keyList.limits.active_keys }}</span>
+    per account.
     <template
       v-if="keyList.limits.inactive_retention_days && keyList.limits.inactive_records">
       Expired and revoked records are kept for at most
-      {{ keyList.limits.inactive_retention_days }} days, up to the most recent
-      {{ keyList.limits.inactive_records }} records.
+      <span class="font-weight-bold">
+        {{ keyList.limits.inactive_retention_days }} days,
+      </span>
+      up to the most recent
+      <span class="font-weight-bold">{{ keyList.limits.inactive_records }}</span>
+      records.
     </template>
 
     <template v-else>Expired and revoked records are not retained.</template>
@@ -108,26 +114,28 @@
       </template>
 
       <template #item.actions="{ item }">
-        <v-btn
-          v-if="!member"
-          variant="text"
-          size="small"
-          :disabled="boolActionBlocked"
-          :aria-label="`Edit Notes for API key ${item.name}`"
-          @click="openAction(item, 'edit')">
-          Edit Notes
-        </v-btn>
+        <div class="d-flex align-center ga-1">
+          <v-btn
+            v-if="!member"
+            v-tooltip:bottom="'Edit Notes'"
+            variant="text"
+            size="small"
+            :disabled="boolActionBlocked"
+            :aria-label="`Edit Notes for API key ${item.name}`"
+            icon="mdi-note-edit-outline"
+            @click="openAction(item, 'edit')" />
 
-        <v-btn
-          v-if="getApiKeyStatus(item, intCurrentTimeMs) === 'active'"
-          color="error"
-          variant="text"
-          size="small"
-          :disabled="boolActionBlocked"
-          :aria-label="`Revoke API key ${item.name}`"
-          @click="openAction(item, 'revoke')">
-          Revoke
-        </v-btn>
+          <v-btn
+            v-if="getApiKeyStatus(item, intCurrentTimeMs) === 'active'"
+            v-tooltip:bottom="'Revoke'"
+            color="error"
+            variant="text"
+            size="small"
+            :disabled="boolActionBlocked"
+            :aria-label="`Revoke API key ${item.name}`"
+            icon="mdi-cancel"
+            @click="openAction(item, 'revoke')" />
+        </div>
       </template>
 
       <template #no-data>
@@ -199,7 +207,7 @@ const arrHeader = computed(() => [
   { title: `Expires At (${strTimeZone.value})`, key: "expires_at", minWidth: 240 },
   { title: `Last Used At (${strTimeZone.value})`, key: "last_used_at", minWidth: 240 },
   { title: "Notes", key: "notes", minWidth: 200 },
-  { title: "Actions", key: "actions", width: props.member ? 120 : 230 },
+  { title: "Actions", key: "actions", width: props.member ? 72 : 112 },
 ]);
 const keyList = shallowRef<ApiKeyListResponse | null>(null);
 const arrVisibleKey = computed(() =>

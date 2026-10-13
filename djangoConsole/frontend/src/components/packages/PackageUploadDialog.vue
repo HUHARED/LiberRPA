@@ -2,7 +2,7 @@
 <template>
   <v-dialog :model-value="true" persistent max-width="680">
     <v-card>
-      <v-card-title>Import Package</v-card-title>
+      <v-card-title>Upload Package</v-card-title>
       <v-card-text>
         <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
           {{ strError }}
@@ -35,13 +35,14 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolBusy" @click="cancel">Cancel</v-btn>
+        <v-btn variant="tonal" :disabled="boolBusy" @click="cancel">Cancel</v-btn>
         <v-btn
+          variant="tonal"
           color="primary"
           :loading="boolBusy"
           :disabled="!file || !strDepartmentId"
           @click="submit">
-          {{ upload ? "Resume / Check" : "Import" }}
+          {{ upload ? "Resume / Check" : "Upload" }}
         </v-btn>
       </v-card-actions>
     </v-card>

@@ -2,7 +2,7 @@
 <template>
   <v-btn
     :to="{ name: 'departments' }"
-    variant="text"
+    variant="tonal"
     prepend-icon="mdi-arrow-left"
     class="mb-4">
     Back to Departments
@@ -77,11 +77,11 @@
       <v-card-text>
         <dl class="detail-fields">
           <div>
-            <dt>Name</dt>
+            <dt class="text-caption text-medium-emphasis">Name</dt>
             <dd>{{ detailsInfo.department.name }}</dd>
           </div>
           <div>
-            <dt>Parent Department</dt>
+            <dt class="text-caption text-medium-emphasis">Parent Department</dt>
             <dd>
               <RouterLink
                 v-if="detailsInfo.department.parent_id !== null"
@@ -89,18 +89,18 @@
                   name: 'department-details',
                   params: { departmentId: detailsInfo.department.parent_id },
                 }"
-                class="text-primary">
+                class="text-primary text-decoration-none">
                 {{ strParentPath }}
               </RouterLink>
               <template v-else>No parent (top level)</template>
             </dd>
           </div>
           <div class="full-width-field">
-            <dt>Path</dt>
+            <dt class="text-caption text-medium-emphasis">Path</dt>
             <dd>{{ detailsInfo.department.path }}</dd>
           </div>
           <div class="full-width-field">
-            <dt>Notes</dt>
+            <dt class="text-caption text-medium-emphasis">Notes</dt>
             <dd class="text-pre-wrap">{{ detailsInfo.department.notes || "—" }}</dd>
           </div>
         </dl>
@@ -126,7 +126,7 @@
             <div class="text-anywhere">
               <RouterLink
                 :to="{ name: 'member-details', params: { userId: item.user.id } }"
-                class="text-primary">
+                class="text-primary text-decoration-none">
                 {{ item.user.username || item.user.email }}
               </RouterLink>
               <p v-if="item.user.username" class="text-body-2 text-medium-emphasis">

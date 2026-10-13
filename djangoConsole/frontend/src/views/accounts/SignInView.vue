@@ -131,7 +131,7 @@
 
     <v-btn
       :to="{ name: 'forgot-password' }"
-      variant="text"
+      variant="tonal"
       block
       class="mt-3"
       :disabled="sessionStore.busy">
@@ -145,7 +145,7 @@
     </p>
     <v-btn
       :to="{ name: 'create-organization' }"
-      variant="text"
+      variant="tonal"
       block
       class="mt-3"
       :disabled="sessionStore.busy">

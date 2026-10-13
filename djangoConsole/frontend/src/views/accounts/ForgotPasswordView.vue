@@ -47,7 +47,7 @@
 
     <v-btn
       :to="{ name: 'sign-in' }"
-      variant="text"
+      variant="tonal"
       block
       class="mt-4"
       :disabled="boolSending">

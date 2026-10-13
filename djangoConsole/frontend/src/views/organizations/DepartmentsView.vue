@@ -73,7 +73,7 @@
             aria-hidden="true" />
           <RouterLink
             :to="{ name: 'department-details', params: { departmentId: item.id } }"
-            class="table-text text-primary"
+            class="table-text text-primary text-decoration-none"
             :title="item.path">
             {{ item.name }}
           </RouterLink>
@@ -85,37 +85,36 @@
         </div>
       </template>
       <template #item.actions="{ item }">
-        <v-btn
-          v-if="boolCanManage"
-          variant="text"
-          size="small"
-          prepend-icon="mdi-plus"
-          :disabled="boolActionBlocked"
-          :aria-label="`New subdepartment of ${item.path}`"
-          @click="openNewDepartment(item.id)">
-          New Subdepartment
-        </v-btn>
-        <v-btn
-          v-if="boolCanManage"
-          variant="text"
-          size="small"
-          prepend-icon="mdi-pencil-outline"
-          :disabled="boolActionBlocked"
-          :aria-label="`Edit department ${item.path}`"
-          @click="openEditDepartment(item)">
-          Edit
-        </v-btn>
-        <v-btn
-          v-if="boolCanManage"
-          color="error"
-          variant="text"
-          size="small"
-          prepend-icon="mdi-delete-outline"
-          :disabled="boolActionBlocked"
-          :aria-label="`Delete department ${item.path}`"
-          @click="openDeleteDepartment(item)">
-          Delete
-        </v-btn>
+        <div class="d-flex align-center ga-1">
+          <v-btn
+            v-if="boolCanManage"
+            v-tooltip:bottom="'New Subdepartment'"
+            variant="text"
+            size="small"
+            :disabled="boolActionBlocked"
+            :aria-label="`New subdepartment of ${item.path}`"
+            icon="mdi-folder-plus-outline"
+            @click="openNewDepartment(item.id)" />
+          <v-btn
+            v-if="boolCanManage"
+            v-tooltip:bottom="'Edit'"
+            variant="text"
+            size="small"
+            :disabled="boolActionBlocked"
+            :aria-label="`Edit department ${item.path}`"
+            icon="mdi-pencil-outline"
+            @click="openEditDepartment(item)" />
+          <v-btn
+            v-if="boolCanManage"
+            v-tooltip:bottom="'Delete'"
+            color="error"
+            variant="text"
+            size="small"
+            :disabled="boolActionBlocked"
+            :aria-label="`Delete department ${item.path}`"
+            icon="mdi-delete-outline"
+            @click="openDeleteDepartment(item)" />
+        </div>
       </template>
       <template #no-data>
         {{
@@ -165,7 +164,7 @@ interface DepartmentRow extends DepartmentListEntryResponse {
 const ARR_HEADER = [
   { title: "Name", key: "name", minWidth: 240 },
   { title: "Notes", key: "notes", minWidth: 240 },
-  { title: "Actions", key: "actions", width: 480 },
+  { title: "Actions", key: "actions", width: 152 },
 ];
 
 const sessionStore = useSessionStore();

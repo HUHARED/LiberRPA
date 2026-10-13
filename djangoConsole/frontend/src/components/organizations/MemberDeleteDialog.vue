@@ -77,7 +77,7 @@
 
       <v-card-actions class="flex-wrap ga-2">
         <v-spacer />
-        <v-btn variant="text" :disabled="boolDeleting" @click="closeDialog">
+        <v-btn variant="tonal" :disabled="boolDeleting" @click="closeDialog">
           {{ boolOwnDeletionBlocked ? "Close" : "Cancel" }}
         </v-btn>
 

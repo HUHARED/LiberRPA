@@ -1,6 +1,6 @@
 <!-- FileName: ExecutorDetailsView.vue -->
 <template>
-  <v-btn to="/executors" variant="text" prepend-icon="mdi-arrow-left" class="mb-4">
+  <v-btn to="/executors" variant="tonal" prepend-icon="mdi-arrow-left" class="mb-4">
     Back to Executors
   </v-btn>
   <v-row align="center" class="mb-4">
@@ -40,7 +40,7 @@
       </v-btn>
       <v-btn
         v-if="executorInfo?.can_manage"
-        variant="outlined"
+        variant="tonal"
         prepend-icon="mdi-link-off"
         :disabled="boolActionBlocked || executorInfo.session_id === null"
         @click="openUnassociate">
@@ -49,7 +49,7 @@
       <v-btn
         v-if="executorInfo?.can_manage"
         color="error"
-        variant="outlined"
+        variant="tonal"
         prepend-icon="mdi-delete-outline"
         :disabled="boolActionBlocked"
         @click="openDelete">
@@ -97,15 +97,15 @@
       <v-card-text>
         <dl class="detail-fields">
           <div>
-            <dt>Name</dt>
+            <dt class="text-caption text-medium-emphasis">Name</dt>
             <dd>{{ executorInfo.name }}</dd>
           </div>
           <div>
-            <dt>Department</dt>
+            <dt class="text-caption text-medium-emphasis">Department</dt>
             <dd>{{ executorInfo.department.path }}</dd>
           </div>
           <div>
-            <dt>Association</dt>
+            <dt class="text-caption text-medium-emphasis">Association</dt>
             <dd>
               <v-chip
                 size="small"
@@ -123,7 +123,7 @@
             </dd>
           </div>
           <div>
-            <dt>Console Dispatch</dt>
+            <dt class="text-caption text-medium-emphasis">Console Dispatch</dt>
             <dd>
               <v-chip
                 size="small"
@@ -137,7 +137,7 @@
             </dd>
           </div>
           <div>
-            <dt>Account</dt>
+            <dt class="text-caption text-medium-emphasis">Account</dt>
             <dd>
               {{
                 executorInfo.account
@@ -149,19 +149,19 @@
             </dd>
           </div>
           <div>
-            <dt>Computer</dt>
+            <dt class="text-caption text-medium-emphasis">Computer</dt>
             <dd>{{ executorInfo.computer_name ?? "—" }}</dd>
           </div>
           <div>
-            <dt>Version</dt>
+            <dt class="text-caption text-medium-emphasis">Version</dt>
             <dd>{{ executorInfo.client_version ?? "—" }}</dd>
           </div>
           <div>
-            <dt>Last Seen</dt>
+            <dt class="text-caption text-medium-emphasis">Last Seen</dt>
             <dd>{{ formatDateTime(executorInfo.last_seen_at, strTimeZone) }}</dd>
           </div>
           <div>
-            <dt>Created At</dt>
+            <dt class="text-caption text-medium-emphasis">Created At</dt>
             <dd>{{ formatDateTime(executorInfo.created_at, strTimeZone) }}</dd>
           </div>
         </dl>
@@ -183,15 +183,17 @@
         <v-table>
           <tbody>
             <tr>
-              <td>Other Active Runs</td>
+              <th scope="row" class="text-caption text-medium-emphasis">
+                Other Active Runs
+              </th>
               <td>{{ executorInfo.other_active_run_count ?? "Unknown" }}</td>
             </tr>
             <tr>
-              <td>Console Running</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Console Running</th>
               <td>{{ executorInfo.central_running_count ?? "Unknown" }}</td>
             </tr>
             <tr>
-              <td>Local Waiting</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Local Waiting</th>
               <td>{{ executorInfo.local_waiting_count ?? "Unknown" }}</td>
             </tr>
           </tbody>
@@ -214,7 +216,7 @@
               <td>
                 <RouterLink
                   :to="{ name: 'schedule-details', params: { scheduleId: schedule.id } }"
-                  class="text-primary"
+                  class="text-primary text-decoration-none"
                   target="_blank"
                   rel="noopener">
                   {{ schedule.name }}
@@ -298,7 +300,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" :disabled="boolSaving" @click="closeEdit">Cancel</v-btn>
+          <v-btn variant="tonal" :disabled="boolSaving" @click="closeEdit">Cancel</v-btn>
           <v-btn
             type="submit"
             color="primary"
@@ -329,15 +331,15 @@
         </v-alert>
         <dl class="detail-fields mb-4">
           <div>
-            <dt>Executor</dt>
+            <dt class="text-caption text-medium-emphasis">Executor</dt>
             <dd>{{ unassociateTarget.name }}</dd>
           </div>
           <div>
-            <dt>Computer</dt>
+            <dt class="text-caption text-medium-emphasis">Computer</dt>
             <dd>{{ unassociateTarget.computer_name ?? "—" }}</dd>
           </div>
           <div>
-            <dt>Account</dt>
+            <dt class="text-caption text-medium-emphasis">Account</dt>
             <dd>
               {{
                 unassociateTarget.account
@@ -358,7 +360,7 @@
       </v-card-text>
       <v-card-actions class="flex-wrap ga-2">
         <v-spacer />
-        <v-btn variant="text" :disabled="boolBusy" @click="closeUnassociate">Cancel</v-btn>
+        <v-btn variant="tonal" :disabled="boolBusy" @click="closeUnassociate">Cancel</v-btn>
         <v-btn
           v-if="unassociateError?.code === 'executor_association_changed'"
           variant="tonal"
@@ -394,11 +396,11 @@
         </v-alert>
         <dl class="detail-fields mb-4">
           <div>
-            <dt>Executor</dt>
+            <dt class="text-caption text-medium-emphasis">Executor</dt>
             <dd>{{ deleteTarget.name }}</dd>
           </div>
           <div>
-            <dt>Department</dt>
+            <dt class="text-caption text-medium-emphasis">Department</dt>
             <dd>{{ deleteTarget.department.path }}</dd>
           </div>
         </dl>
@@ -430,7 +432,7 @@
       </v-card-text>
       <v-card-actions class="flex-wrap ga-2">
         <v-spacer />
-        <v-btn variant="text" :disabled="boolBusy" @click="closeDelete">Cancel</v-btn>
+        <v-btn variant="tonal" :disabled="boolBusy" @click="closeDelete">Cancel</v-btn>
         <v-btn
           v-if="
             deleteTarget.executor_groups.length ||

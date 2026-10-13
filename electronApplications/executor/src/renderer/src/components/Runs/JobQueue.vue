@@ -55,7 +55,11 @@
               :loading="setPendingAction.has(item.queue_id)"
               :disabled="setPendingAction.has(item.queue_id)"
               color="medium-emphasis"
-              icon="mdi-stop-circle-outline"
+              :icon="
+                item.state === JobQueueState.Running
+                  ? 'mdi-stop-circle-outline'
+                  : 'mdi-cancel'
+              "
               variant="text"
               size="x-small"
               @click="controlRun(item)"></v-btn>
@@ -149,10 +153,10 @@ const arrUpcomingHeader: DataTableHeader<JobQueueItem>[] = [
 ];
 
 function getControlLabel(item: JobQueueItem): string {
-  if (item.state === JobQueueState.WaitingRetry) return "Cancel Retry";
-  if (item.state === JobQueueState.Waiting) return "Cancel Run";
+  if (item.state === JobQueueState.WaitingRetry) return "Cancel Retries";
+  if (item.state === JobQueueState.Waiting) return "Cancel";
   if (item.state === JobQueueState.Running && item.history_id !== null) {
-    return "Stop Current Run";
+    return "Stop";
   }
   return "";
 }

@@ -33,8 +33,10 @@
           {{ strSuccessMessage }}
         </v-alert>
         <template v-if="asset">
-          <p v-if="boolConfirmDelete" class="mb-4">
-            Delete "{{ asset.path }}"? This permanently removes the asset and its value.
+          <p v-if="boolConfirmDelete" class="text-anywhere mb-4">
+            Delete
+            <span class="text-highlight font-weight-bold">"{{ asset.path }}"?</span>
+            This permanently removes the asset and its value.
           </p>
           <v-alert v-if="boolConfirmDelete" type="warning" variant="tonal" class="mb-4">
             Future Jobs that need this asset will fail to read it. Inputs for Jobs already
@@ -64,7 +66,7 @@
                           ? { packageId: reference.id }
                           : { scheduleId: reference.id },
                     }"
-                    class="text-primary"
+                    class="text-primary text-decoration-none"
                     target="_blank"
                     rel="noopener">
                     {{ reference.name }}
@@ -77,27 +79,31 @@
           </v-table>
           <dl class="detail-fields">
             <div>
-              <dt>Name</dt>
+              <dt class="text-caption text-medium-emphasis">Name</dt>
               <dd>{{ asset.name }}</dd>
             </div>
             <div>
-              <dt>Department</dt>
+              <dt class="text-caption text-medium-emphasis">Department</dt>
               <dd>{{ asset.department.path }}</dd>
             </div>
             <div>
-              <dt>Type</dt>
+              <dt class="text-caption text-medium-emphasis">Type</dt>
               <dd>{{ getAssetTypeLabel(asset.asset_type) }}</dd>
             </div>
             <div>
-              <dt>Updated At ({{ strTimeZone }})</dt>
+              <dt class="text-caption text-medium-emphasis">
+                Updated At ({{ strTimeZone }})
+              </dt>
               <dd>{{ formatDateTime(asset.updated_at, strTimeZone) }}</dd>
             </div>
             <div>
-              <dt>Created At ({{ strTimeZone }})</dt>
+              <dt class="text-caption text-medium-emphasis">
+                Created At ({{ strTimeZone }})
+              </dt>
               <dd>{{ formatDateTime(asset.created_at, strTimeZone) }}</dd>
             </div>
             <div class="full-width-field">
-              <dt>Path</dt>
+              <dt class="text-caption text-medium-emphasis">Path</dt>
               <dd>{{ asset.path }}</dd>
             </div>
           </dl>
@@ -127,7 +133,7 @@
       <v-card-actions class="flex-wrap ga-2">
         <template v-if="boolConfirmDelete">
           <v-spacer />
-          <v-btn variant="text" :disabled="boolBusy" @click="boolConfirmDelete = false">
+          <v-btn variant="tonal" :disabled="boolBusy" @click="boolConfirmDelete = false">
             Cancel
           </v-btn>
           <v-btn
@@ -142,7 +148,7 @@
         <template v-else>
           <v-btn
             v-if="requestError && !boolDeleted"
-            variant="text"
+            variant="tonal"
             :disabled="boolBusy"
             @click="loadDetails">
             Retry
@@ -173,7 +179,7 @@
           <v-btn
             :to="{ name: 'assets', query: route.query }"
             replace
-            variant="text"
+            variant="tonal"
             :disabled="boolBusy">
             Close
           </v-btn>

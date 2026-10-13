@@ -10,11 +10,11 @@
     class="clean-space fill-height"
     style="width: 55px">
     <v-tab value="projects">
-      <v-icon size="x-large" icon="mdi-format-list-bulleted-square"></v-icon>
-      <v-tooltip activator="parent" location="bottom">Projects</v-tooltip>
+      <v-icon size="x-large" icon="mdi-package-variant-closed"></v-icon>
+      <v-tooltip activator="parent" location="bottom">Packages</v-tooltip>
     </v-tab>
     <v-tab value="schedules">
-      <v-icon size="x-large" icon="mdi-timer-outline"></v-icon>
+      <v-icon size="x-large" icon="mdi-calendar-clock-outline"></v-icon>
       <v-tooltip activator="parent" location="bottom">Schedules</v-tooltip>
     </v-tab>
     <v-tab value="jobQueue">

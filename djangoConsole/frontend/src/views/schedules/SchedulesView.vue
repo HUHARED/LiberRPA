@@ -8,7 +8,7 @@
     </v-btn>
     <v-btn variant="tonal" :loading="boolLoading" @click="load()">Refresh</v-btn>
   </div>
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form @submit.prevent="apply">
         <v-row>
@@ -50,7 +50,7 @@
         </v-row>
         <div class="d-flex ga-2 mt-4">
           <v-btn type="submit" color="primary" variant="tonal">Apply</v-btn>
-          <v-btn variant="outlined" @click="clearFilters">Clear Filters</v-btn>
+          <v-btn variant="tonal" @click="clearFilters">Reset Filters</v-btn>
         </div>
       </form>
     </v-card-text>
@@ -70,7 +70,7 @@
       <template #item.name="{ item }">
         <RouterLink
           :to="{ name: 'schedule-details', params: { scheduleId: item.id } }"
-          class="text-primary">
+          class="text-primary text-decoration-none">
           {{ item.name }}
         </RouterLink>
       </template>
@@ -89,6 +89,7 @@
       <template #item.enabled="{ item }">
         <v-switch
           :model-value="item.enabled"
+          true-icon="mdi-flash"
           hide-details
           density="compact"
           :disabled="!item.can_manage || boolLoading || strChangingId === item.id"
@@ -101,13 +102,16 @@
         }}
       </template>
       <template #item.actions="{ item }">
-        <v-btn
-          v-if="item.can_manage"
-          size="small"
-          variant="text"
-          @click="strEditId = item.id">
-          Edit
-        </v-btn>
+        <div class="d-flex align-center ga-1">
+          <v-btn
+            v-if="item.can_manage"
+            v-tooltip:bottom="'Edit'"
+            size="small"
+            variant="text"
+            aria-label="Edit"
+            icon="mdi-pencil-outline"
+            @click="strEditId = item.id" />
+        </div>
       </template>
       <template #no-data>No schedules match the current filters.</template>
     </v-data-table-server>

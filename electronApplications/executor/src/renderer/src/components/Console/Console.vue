@@ -157,16 +157,23 @@
         </v-card-text>
 
         <v-card-actions>
-          <v-btn :disabled="boolBusy" @click="loadChoices(executorPage.page)">
+          <v-btn
+            variant="tonal"
+            :disabled="boolBusy"
+            @click="loadChoices(executorPage.page)">
             Refresh
           </v-btn>
 
           <v-spacer />
-          <v-btn :disabled="boolBusy || account.hasActiveRun" @click="signOut">
+          <v-btn
+            variant="tonal"
+            :disabled="boolBusy || account.hasActiveRun"
+            @click="signOut">
             Cancel
           </v-btn>
 
           <v-btn
+            variant="tonal"
             color="primary"
             :disabled="boolBusy || !strExecutorId"
             :loading="boolBusy"
@@ -197,8 +204,11 @@
 
           <v-card-actions>
             <v-spacer />
-            <v-btn :disabled="boolBusy" @click="boolShowAddress = false">Cancel</v-btn>
+            <v-btn variant="tonal" :disabled="boolBusy" @click="boolShowAddress = false">
+              Cancel
+            </v-btn>
             <v-btn
+              variant="tonal"
               type="submit"
               color="primary"
               :disabled="boolBusy || !strAddress.trim() || account.hasActiveRun"
@@ -238,8 +248,11 @@
 
           <v-card-actions>
             <v-spacer />
-            <v-btn :disabled="boolBusy" @click="closeSignInDialog">Cancel</v-btn>
+            <v-btn variant="tonal" :disabled="boolBusy" @click="closeSignInDialog">
+              Cancel
+            </v-btn>
             <v-btn
+              variant="tonal"
               color="primary"
               type="submit"
               :disabled="boolBusy || !strEmail.trim() || !strPassword"

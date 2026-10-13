@@ -9,7 +9,7 @@
     <v-card>
       <v-card-title id="department-delete-title">Delete Department</v-card-title>
       <v-card-text>
-        <p class="text-subtitle-1 font-weight-medium text-anywhere mb-4">
+        <p class="text-subtitle-1 font-weight-bold text-anywhere mb-4">
           {{ deletionInfo?.department.name ?? department.name }}
         </p>
         <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
@@ -55,23 +55,26 @@
                 <td>{{ blocker.count }}</td>
                 <td>
                   <v-btn
+                    v-tooltip:bottom="
+                      `Open ${dictBlockerDisplay[blocker.code].label} in a new tab`
+                    "
                     :to="dictBlockerDisplay[blocker.code].location"
                     target="_blank"
                     rel="noopener"
                     variant="text"
                     size="small"
-                    append-icon="mdi-open-in-new"
+                    icon="mdi-open-in-new"
+                    :active="false"
                     :disabled="boolBusy || !boolCanManage"
-                    :aria-label="`View ${dictBlockerDisplay[blocker.code].label} in a new tab`">
-                    View
-                  </v-btn>
+                    :aria-label="`Open ${dictBlockerDisplay[blocker.code].label} in a new tab`" />
                 </td>
               </tr>
             </tbody>
           </v-table>
           <p v-if="deletionInfo.blockers.length" class="mb-4">
-            View opens a new tab. After removing dependencies, return here and select Check
-            Again. Pausing or unassociating an Executor does not remove it.
+            Open dependencies in a new tab. After removing them, return here and select
+            <span class="font-weight-bold">Check Again.</span>
+            Pausing or unassociating an Executor does not remove it.
           </p>
         </template>
         <p class="mb-3">
@@ -86,7 +89,7 @@
       </v-card-text>
       <v-card-actions class="flex-wrap ga-2">
         <v-spacer />
-        <v-btn variant="text" :disabled="boolDeleting" @click="closeDialog">Cancel</v-btn>
+        <v-btn variant="tonal" :disabled="boolDeleting" @click="closeDialog">Cancel</v-btn>
         <v-btn
           v-if="requestError || deleteError || (deletionInfo && !deletionInfo.can_delete)"
           variant="tonal"

@@ -18,11 +18,13 @@
       </v-btn>
     </v-col>
   </v-row>
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form aria-label="Audit filters" @submit.prevent="applyFilters">
         <p class="mb-4">
-          Time range uses {{ strTimeZone }} and includes both selected dates.
+          Time range uses
+          <span class="font-weight-bold">{{ strTimeZone }}</span>
+          and includes both selected dates.
         </p>
         <v-row>
           <v-col cols="12" sm="6">
@@ -116,8 +118,8 @@
           <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
             Apply
           </v-btn>
-          <v-btn variant="outlined" :disabled="boolLoading" @click="resetFilters">
-            Reset
+          <v-btn variant="tonal" :disabled="boolLoading" @click="resetFilters">
+            Reset Filters
           </v-btn>
         </div>
       </form>
@@ -171,9 +173,15 @@
         </v-chip>
       </template>
       <template #item.actions="{ item }">
-        <v-btn variant="text" size="small" @click="strDetailsId = item.id">
-          View Details
-        </v-btn>
+        <div class="d-flex align-center ga-1">
+          <v-btn
+            v-tooltip:bottom="'View Details'"
+            variant="text"
+            size="small"
+            aria-label="View Details"
+            icon="mdi-eye-outline"
+            @click="strDetailsId = item.id" />
+        </div>
       </template>
       <template #no-data>
         {{
@@ -239,7 +247,7 @@ const ARR_HEADER = [
   { title: "Action", key: "action", minWidth: 180 },
   { title: "Object", key: "object", minWidth: 200 },
   { title: "Result", key: "result", minWidth: 110 },
-  { title: "Actions", key: "actions", minWidth: 100 },
+  { title: "Actions", key: "actions", width: 72 },
 ];
 
 const sessionStore = useSessionStore();

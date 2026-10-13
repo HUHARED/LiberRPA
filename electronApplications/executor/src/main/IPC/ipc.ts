@@ -47,7 +47,7 @@ import { fileOpenFolder } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import { installProjectPackage } from "../Package/packageInstallation";
 import { deleteInstalledProject } from "../Package/projectDeletion";
-import { runInstalledProject, rerunLocalRun } from "../Run/manualRun";
+import { runInstalledProject, getLocalRerunProject } from "../Run/manualRun";
 import { ensureExistingRunLogFolderPath } from "../Run/logPath";
 import { cancelRunByHistoryId } from "../Run/projectRunner";
 import {
@@ -130,7 +130,8 @@ const INVOKE_VALIDATOR = {
   openRunLogFolder: (rawData: unknown) =>
     ensurePositiveIntegerData(rawData, "openRunLogFolder"),
   pythonCancel: (rawData: unknown) => ensurePositiveIntegerData(rawData, "pythonCancel"),
-  rerunLocalRun: (rawData: unknown) => ensurePositiveIntegerData(rawData, "rerunLocalRun"),
+  getLocalRerunProject: (rawData: unknown) =>
+    ensurePositiveIntegerData(rawData, "getLocalRerunProject"),
 
   // Settings.
   saveExecutorConfig: (rawData: unknown) => parseExecutorConfig(rawData),
@@ -243,7 +244,7 @@ function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvo
       cancelRunByHistoryId(runHistoryId);
     },
 
-    rerunLocalRun,
+    getLocalRerunProject,
 
     // Settings.
     saveExecutorConfig(dictConfig) {

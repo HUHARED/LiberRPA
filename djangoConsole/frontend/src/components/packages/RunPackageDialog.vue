@@ -15,7 +15,8 @@
           The original Job is still active. This creates a new independent Job.
         </v-alert>
         <v-alert v-if="intCreatedJobCount !== null" type="success" variant="tonal">
-          {{ intCreatedJobCount }} {{ intCreatedJobCount === 1 ? "Job" : "Jobs" }} created.
+          <span class="font-weight-bold">{{ intCreatedJobCount }}</span>
+          {{ intCreatedJobCount === 1 ? "Job" : "Jobs" }} created.
         </v-alert>
         <v-progress-linear v-if="boolLoading" indeterminate />
         <v-form
@@ -26,7 +27,12 @@
           <p class="text-h6">
             {{ packageInfo.project_name }} · {{ packageInfo.project_version }}
           </p>
-          <p class="mb-4">Python Environment: {{ packageInfo.python_environment_name }}</p>
+          <p class="text-anywhere">
+            Department:
+            <span class="text-highlight font-weight-bold">
+              {{ packageInfo.department_path }}
+            </span>
+          </p>
           <TargetSelector
             v-model:executor-ids="arrExecutorId"
             v-model:group-id="strGroupId"
@@ -40,7 +46,16 @@
             :department-id="packageInfo.department_id"
             :disabled="boolBusy"
             :field-errors="dictFieldError"
-            @valid="boolArgsValid = $event" />
+            @valid="boolArgsValid = $event">
+            <template #environment>
+              <v-text-field
+                :model-value="packageInfo.python_environment_name"
+                label="Python Environment"
+                variant="underlined"
+                density="compact"
+                readonly />
+            </template>
+          </RunOptionsEditor>
           <v-divider class="my-5" />
           <h2 class="text-h6 mb-4">Dispatch &amp; Email</h2>
           <RunDispatchEmailEditor
@@ -48,20 +63,28 @@
             :disabled="boolBusy"
             :field-errors="dictFieldError" />
           <p class="text-body-2 mt-4">
-            {{ strGroupId ? 1 : arrExecutorId.length }} Jobs will be created.
+            <span class="font-weight-bold">
+              {{ strGroupId ? 1 : arrExecutorId.length }}
+            </span>
+            Jobs will be created.
           </p>
         </v-form>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolBusy" @click="emit('close')">
+        <v-btn variant="tonal" :disabled="boolBusy" @click="emit('close')">
           {{ intCreatedJobCount === null ? "Cancel" : "Close" }}
         </v-btn>
-        <v-btn v-if="intCreatedJobCount !== null" color="primary" @click="emit('saved')">
+        <v-btn
+          v-if="intCreatedJobCount !== null"
+          variant="tonal"
+          color="primary"
+          @click="emit('saved')">
           View Job Queue
         </v-btn>
         <v-btn
           v-else
+          variant="tonal"
           color="primary"
           :loading="boolBusy"
           :disabled="!settings || boolLoading || boolBusy || !boolArgsValid"

@@ -89,31 +89,33 @@
         {{ getDeliveryLabel(item.email_delivery) }}
       </template>
       <template #item.actions="{ item }">
-        <v-btn
-          variant="text"
-          size="small"
-          :disabled="boolActionBlocked"
-          :aria-label="`View invitation for ${item.email}`"
-          @click="openInvitation(item.id, 'view')">
-          View
-        </v-btn>
-        <v-btn
-          variant="text"
-          size="small"
-          :disabled="boolActionBlocked"
-          :aria-label="`Resend invitation to ${item.email}`"
-          @click="openInvitation(item.id, 'resend')">
-          Resend
-        </v-btn>
-        <v-btn
-          color="error"
-          variant="text"
-          size="small"
-          :disabled="boolActionBlocked"
-          :aria-label="`Revoke invitation for ${item.email}`"
-          @click="openInvitation(item.id, 'revoke')">
-          Revoke
-        </v-btn>
+        <div class="d-flex align-center ga-1">
+          <v-btn
+            v-tooltip:bottom="'View'"
+            variant="text"
+            size="small"
+            :disabled="boolActionBlocked"
+            :aria-label="`View invitation for ${item.email}`"
+            icon="mdi-eye-outline"
+            @click="openInvitation(item.id, 'view')" />
+          <v-btn
+            v-tooltip:bottom="'Resend'"
+            variant="text"
+            size="small"
+            :disabled="boolActionBlocked"
+            :aria-label="`Resend invitation to ${item.email}`"
+            icon="mdi-email-sync-outline"
+            @click="openInvitation(item.id, 'resend')" />
+          <v-btn
+            v-tooltip:bottom="'Revoke'"
+            color="error"
+            variant="text"
+            size="small"
+            :disabled="boolActionBlocked"
+            :aria-label="`Revoke invitation for ${item.email}`"
+            icon="mdi-cancel"
+            @click="openInvitation(item.id, 'revoke')" />
+        </div>
       </template>
       <template #no-data>
         {{
@@ -184,7 +186,7 @@ const arrHeader = computed(() => [
   { title: "Roles / Departments", key: "roles", minWidth: 220 },
   { title: `Expires At (${strTimeZone.value})`, key: "expires_at", minWidth: 240 },
   { title: "Email Delivery", key: "email_delivery", minWidth: 150 },
-  { title: "Actions", key: "actions", width: 260 },
+  { title: "Actions", key: "actions", width: 152 },
 ]);
 const invitationPage = shallowRef<InvitationListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);

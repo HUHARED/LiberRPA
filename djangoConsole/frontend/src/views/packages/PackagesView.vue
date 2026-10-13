@@ -3,12 +3,17 @@
   <div class="d-flex align-center flex-wrap ga-3 mb-4">
     <h1 class="text-h5">Packages</h1>
     <v-spacer />
-    <v-btn v-if="boolCanCreate" color="primary" variant="tonal" @click="boolImport = true">
-      Import
+    <v-btn
+      v-if="boolCanCreate"
+      color="primary"
+      variant="tonal"
+      prepend-icon="mdi-upload"
+      @click="boolUpload = true">
+      Upload Package
     </v-btn>
     <v-btn variant="tonal" :loading="boolLoading" @click="load()">Refresh</v-btn>
   </div>
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form @submit.prevent="apply">
         <v-row>
@@ -34,7 +39,7 @@
         </v-row>
         <div class="d-flex ga-2 mt-4">
           <v-btn type="submit" color="primary" variant="tonal">Apply</v-btn>
-          <v-btn variant="outlined" @click="clearFilters">Clear Filters</v-btn>
+          <v-btn variant="tonal" @click="clearFilters">Reset Filters</v-btn>
         </div>
       </form>
     </v-card-text>
@@ -55,7 +60,7 @@
       <template #item.project_name="{ item }">
         <RouterLink
           :to="{ name: 'package-details', params: { packageId: item.id } }"
-          class="text-primary">
+          class="text-primary text-decoration-none">
           {{ item.project_name }}
         </RouterLink>
       </template>
@@ -63,13 +68,16 @@
         {{ formatDateTime(item.uploaded_at, strTimeZone) }}
       </template>
       <template #item.actions="{ item }">
-        <v-btn
-          v-if="canRun(item.department_id)"
-          size="small"
-          variant="text"
-          @click="strRunPackageId = item.id">
-          Run
-        </v-btn>
+        <div class="d-flex align-center ga-1">
+          <v-btn
+            v-if="canRun(item.department_id)"
+            v-tooltip:bottom="'Run'"
+            size="small"
+            variant="text"
+            aria-label="Run"
+            icon="mdi-play-outline"
+            @click="strRunPackageId = item.id" />
+        </div>
       </template>
       <template #no-data>No packages match the current filters.</template>
     </v-data-table-server>
@@ -86,9 +94,9 @@
     </div>
   </v-card>
   <PackageUploadDialog
-    v-if="boolImport"
-    @close="boolImport = false"
-    @saved="handleImported" />
+    v-if="boolUpload"
+    @close="boolUpload = false"
+    @saved="handleUploaded" />
   <RunPackageDialog
     v-if="strRunPackageId"
     :package-id="strRunPackageId"
@@ -131,7 +139,7 @@ let appliedFilters = {
   projectName: strProjectName.value ?? "",
 };
 const page = shallowRef<PackagePage | null>(null);
-const boolImport = ref(false);
+const boolUpload = ref(false);
 const boolLoading = ref(false);
 const strError = ref("");
 const strRunPackageId = ref<string | null>(null);
@@ -174,8 +182,8 @@ function clearFilters(): void {
   strProjectName.value = "";
   apply();
 }
-function handleImported(packageInfo: PackageInfo): void {
-  boolImport.value = false;
+function handleUploaded(packageInfo: PackageInfo): void {
+  boolUpload.value = false;
   void router.push({ name: "package-details", params: { packageId: packageInfo.id } });
 }
 function handleRun(): void {

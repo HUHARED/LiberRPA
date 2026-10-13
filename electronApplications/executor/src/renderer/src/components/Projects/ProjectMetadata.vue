@@ -41,7 +41,7 @@
 
     <v-container fluid class="pa-2 ma-0">
       <v-row class="w-100">
-        <v-col cols="8">
+        <v-col cols="6">
           <v-text-field
             :model-value="projectStore.dictDetailEdit.name"
             label="Name"
@@ -53,7 +53,7 @@
           </v-text-field>
         </v-col>
 
-        <v-col cols="4">
+        <v-col cols="6">
           <v-text-field
             :model-value="projectStore.dictDetailEdit.version"
             label="Version"

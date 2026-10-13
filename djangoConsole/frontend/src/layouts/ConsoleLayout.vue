@@ -46,7 +46,7 @@
       <NotificationsPanel />
       <v-menu location="bottom end">
         <template #activator="{ props }">
-          <v-btn v-bind="props" class="mr-2" aria-label="Open account menu">
+          <v-btn variant="text" v-bind="props" class="mr-2" aria-label="Open account menu">
             <v-avatar color="primary" variant="tonal" size="32" class="mr-2">
               {{ strAvatarInitial }}
             </v-avatar>
@@ -124,8 +124,8 @@ const ARR_NAVIGATION = [
   { title: "Packages", icon: "mdi-package-variant-closed", path: "/packages" },
   { title: "Executors", icon: "mdi-monitor", path: "/executors" },
   { title: "Schedules", icon: "mdi-calendar-clock-outline", path: "/schedules" },
-  { title: "Job Queue", icon: "mdi-list-box-outline", path: "/jobs" },
-  { title: "Run History", icon: "mdi-history", path: "/runs" },
+  { title: "Job Queue", icon: "mdi-queue-first-in-last-out", path: "/jobs" },
+  { title: "Run History", icon: "mdi-clipboard-text-clock-outline", path: "/runs" },
   { title: "Assets", icon: "mdi-archive-outline", path: "/assets" },
   { title: "Data Queues", icon: "mdi-database-outline", path: "/data-queues" },
   { title: "Shared Files", icon: "mdi-folder-outline", path: "/shared-files" },

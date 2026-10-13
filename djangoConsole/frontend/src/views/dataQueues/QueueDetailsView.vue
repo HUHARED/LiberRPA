@@ -2,13 +2,16 @@
 <template>
   <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
     <h1 class="text-h5">Queue Details{{ page ? ` — ${page.queue.name}` : "" }}</h1>
-    <v-btn :to="{ name: 'data-queues', query: listQuery }" variant="text">
-      Back to Queues
+    <v-btn
+      :to="{ name: 'data-queues', query: listQuery }"
+      variant="tonal"
+      prepend-icon="mdi-arrow-left">
+      Back to Data Queues
     </v-btn>
   </div>
   <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
     {{ error.message }}
-    <v-btn v-if="!page" variant="text" :disabled="boolLoading" @click="load">Retry</v-btn>
+    <v-btn v-if="!page" variant="tonal" :disabled="boolLoading" @click="load">Retry</v-btn>
   </v-alert>
   <v-alert
     v-if="strActionError"
@@ -25,24 +28,26 @@
   </v-alert>
   <v-progress-linear v-if="boolLoading && !page" indeterminate />
   <template v-if="page">
-    <v-card variant="outlined" class="mb-4">
+    <v-card variant="elevated" class="mb-4">
       <v-card-text>
         <v-text-field
           :model-value="page.queue.path"
           label="Path"
-          variant="outlined"
+          variant="plain"
           readonly
           hide-details />
         <v-textarea
           :model-value="page.queue.notes || '—'"
           label="Notes"
-          variant="outlined"
+          variant="plain"
           rows="2"
           readonly
           hide-details
           class="mt-4" />
         <p class="mt-4">
-          Unclaimed: {{ page.queue.unclaimed_count }} · Claimed:
+          <span class="text-caption text-medium-emphasis">Unclaimed:</span>
+          {{ page.queue.unclaimed_count }} ·
+          <span class="text-caption text-medium-emphasis">Claimed:</span>
           {{ page.queue.claimed_count }}
         </p>
         <div class="d-flex flex-wrap ga-2 mt-4">
@@ -65,7 +70,7 @@
         </div>
       </v-card-text>
     </v-card>
-    <v-card variant="outlined" class="mb-4">
+    <v-card variant="elevated" class="mb-4">
       <v-card-text>
         <form @submit.prevent="applyFilters">
           <v-row>
@@ -90,11 +95,17 @@
                 :disabled="boolBusy" />
             </v-col>
             <v-col cols="12" md="4">
-              <v-select
+              <v-switch
                 v-model="strOrder"
-                :items="QUEUE_ORDERS"
-                label="Order"
-                variant="outlined"
+                :label="
+                  strOrder === 'newest_first'
+                    ? 'Order: Newest First'
+                    : 'Order: Oldest First'
+                "
+                true-value="newest_first"
+                false-value="oldest_first"
+                true-icon="mdi-sort-clock-descending-outline"
+                false-icon="mdi-sort-clock-ascending-outline"
                 density="compact"
                 hide-details
                 :disabled="boolBusy" />
@@ -104,8 +115,8 @@
             <v-btn type="submit" variant="tonal" color="primary" :disabled="boolBusy">
               Apply
             </v-btn>
-            <v-btn variant="outlined" :disabled="boolBusy" @click="clearFilters">
-              Clear Filters
+            <v-btn variant="tonal" :disabled="boolBusy" @click="clearFilters">
+              Reset Filters
             </v-btn>
           </div>
         </form>
@@ -115,6 +126,7 @@
       <v-btn
         color="primary"
         variant="tonal"
+        prepend-icon="mdi-upload"
         :disabled="boolBusy || !!error"
         @click="boolUploadOpen = true">
         Upload Items
@@ -184,16 +196,19 @@
           </span>
         </template>
         <template #item.actions="{ item }">
-          <v-btn
-            :to="{
-              name: 'queue-item-details',
-              params: { queueId, itemId: item.id },
-              query: route.query,
-            }"
-            variant="text"
-            size="small">
-            View
-          </v-btn>
+          <div class="d-flex align-center ga-1">
+            <v-btn
+              v-tooltip:bottom="'View'"
+              :to="{
+                name: 'queue-item-details',
+                params: { queueId, itemId: item.id },
+                query: route.query,
+              }"
+              variant="text"
+              size="small"
+              aria-label="View"
+              icon="mdi-eye-outline" />
+          </div>
         </template>
         <template #no-data>No items match the current filters.</template>
       </v-data-table-server>
@@ -258,7 +273,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn :disabled="boolSaving" @click="closeConfirm">Cancel</v-btn>
+          <v-btn variant="tonal" :disabled="boolSaving" @click="closeConfirm">Cancel</v-btn>
           <v-btn
             :color="strConfirm === 'reset' ? 'primary' : 'error'"
             variant="tonal"
@@ -288,7 +303,6 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { type ApiError, getApiError } from "@/api/errors";
 import {
   QUEUE_STATUSES,
-  QUEUE_ORDERS,
   getQueueItems,
   deleteQueue,
   changeQueueItems,

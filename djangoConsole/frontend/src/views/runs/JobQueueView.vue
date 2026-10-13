@@ -5,7 +5,7 @@
     <v-spacer />
     <v-btn variant="tonal" :loading="boolLoading" @click="load()">Refresh</v-btn>
   </div>
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form @submit.prevent="apply">
         <v-row>
@@ -40,7 +40,7 @@
         </v-row>
         <div class="d-flex ga-2 mt-4">
           <v-btn type="submit" color="primary" variant="tonal">Apply</v-btn>
-          <v-btn variant="outlined" @click="clearFilters">Clear Filters</v-btn>
+          <v-btn variant="tonal" @click="clearFilters">Reset Filters</v-btn>
         </div>
       </form>
     </v-card-text>
@@ -65,7 +65,7 @@
         <RouterLink
           v-if="item.schedule_id"
           :to="{ name: 'schedule-details', params: { scheduleId: item.schedule_id } }"
-          class="text-primary">
+          class="text-primary text-decoration-none">
           {{ item.schedule_name }}
         </RouterLink>
         <span v-else>—</span>
@@ -80,14 +80,14 @@
                 ? { groupId: item.target_id }
                 : { executorId: item.target_id },
           }"
-          class="text-primary">
+          class="text-primary text-decoration-none">
           {{ item.target_name }}
         </RouterLink>
         <template v-if="item.target_type === 'group' && item.executor_id">
           →
           <RouterLink
             :to="{ name: 'executor-details', params: { executorId: item.executor_id } }"
-            class="text-primary">
+            class="text-primary text-decoration-none">
             {{ item.executor_name }}
           </RouterLink>
         </template>
@@ -104,14 +104,15 @@
         </v-chip>
       </template>
       <template #item.actions="{ item }">
-        <div class="d-flex align-center">
+        <div class="d-flex align-center ga-1">
           <v-btn
+            v-tooltip:bottom="'View Job Details'"
             :to="{ name: 'job-details', params: { jobId: item.id } }"
             size="small"
-            variant="text">
-            View
-          </v-btn>
-          <JobActions :job="item" @updated="load()" @error="strError = $event" />
+            variant="text"
+            aria-label="View Job Details"
+            icon="mdi-eye-outline" />
+          <JobActions :job="item" icon-only @updated="load()" @error="strError = $event" />
         </div>
       </template>
       <template #no-data>No active Jobs match the current filters.</template>

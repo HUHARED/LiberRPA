@@ -1,7 +1,9 @@
 <!-- FileName: JobDetailsView.vue -->
 <template>
   <div class="d-flex align-center ga-2 mb-4">
-    <v-btn to="/jobs" variant="text" prepend-icon="mdi-arrow-left">Job Queue</v-btn>
+    <v-btn to="/jobs" variant="tonal" prepend-icon="mdi-arrow-left">
+      Back to Job Queue
+    </v-btn>
     <v-spacer />
     <v-btn variant="tonal" :loading="boolLoading" @click="load">Refresh</v-btn>
   </div>
@@ -28,19 +30,19 @@
         <v-table>
           <tbody>
             <tr>
-              <td>Source</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Source</th>
               <td>{{ JOB_SOURCE_LABELS[job.source] }}</td>
             </tr>
             <tr>
-              <td>Schedule</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Schedule</th>
               <td>{{ job.schedule_name || "—" }}</td>
             </tr>
             <tr>
-              <td>Scheduled At</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Scheduled At</th>
               <td>{{ formatDateTime(job.scheduled_at, strTimeZone) }}</td>
             </tr>
             <tr>
-              <td>Target</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Target</th>
               <td>
                 {{ job.target_name }}
                 <span v-if="job.target_type === 'group' && job.executor_id">
@@ -49,19 +51,19 @@
               </td>
             </tr>
             <tr>
-              <td>Queued At</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Queued At</th>
               <td>{{ formatDateTime(job.queued_at, strTimeZone) }}</td>
             </tr>
             <tr>
-              <td>Retry At</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Retry At</th>
               <td>{{ formatDateTime(job.retry_at, strTimeZone) }}</td>
             </tr>
             <tr>
-              <td>Priority</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Priority</th>
               <td>{{ PRIORITY_LABELS[job.priority] }}</td>
             </tr>
             <tr v-if="job.closed_at">
-              <td>Closed At</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Closed At</th>
               <td>{{ formatDateTime(job.closed_at, strTimeZone) }}</td>
             </tr>
           </tbody>
@@ -105,8 +107,14 @@
     <v-expansion-panels>
       <v-expansion-panel title="Identifiers">
         <v-expansion-panel-text>
-          <p>Job ID: {{ job.id }}</p>
-          <p>Job Request ID: {{ job.job_request_id }}</p>
+          <p>
+            <span class="text-caption text-medium-emphasis">Job ID:</span>
+            {{ job.id }}
+          </p>
+          <p>
+            <span class="text-caption text-medium-emphasis">Job Request ID:</span>
+            {{ job.job_request_id }}
+          </p>
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>

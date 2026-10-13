@@ -53,7 +53,7 @@
               <v-icon
                 v-bind="props"
                 color="medium-emphasis"
-                icon="mdi-pencil"
+                icon="mdi-pencil-outline"
                 size="small"
                 @click="editSchedule(item.name)"></v-icon>
             </template>
@@ -64,7 +64,7 @@
               <v-icon
                 v-bind="props"
                 color="medium-emphasis"
-                icon="mdi-delete"
+                icon="mdi-delete-outline"
                 size="small"
                 @click="openDeleteDialog(item.name)"></v-icon>
             </template>
@@ -124,6 +124,7 @@ function newSchedule(): void {
     project_id: undefined,
     project_name: undefined,
     project_version: undefined,
+    python_environment_name: "",
     cron: "0 8 * * *",
     run_conflict_policy: RunConflictPolicy.Skip,
     period_start: dictDefaultPeriod.periodStartLocal,

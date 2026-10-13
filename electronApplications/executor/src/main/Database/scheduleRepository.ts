@@ -53,6 +53,7 @@ export function dbSelectScheduleDetail(name: string): ScheduleDetails | undefine
           s.project_id,
           p.name AS project_name,
           p.version AS project_version,
+          p.python_environment_name,
           s.cron,
           s.run_conflict_policy,
           s.period_start_ms,

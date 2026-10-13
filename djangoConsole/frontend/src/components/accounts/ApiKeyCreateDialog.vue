@@ -12,8 +12,10 @@
       </v-card-title>
       <v-card-text>
         <template v-if="createdKey">
-          <v-alert type="success" variant="tonal" class="mb-4" role="status">
-            API key {{ createdKey.name }} created.
+          <v-alert type="success" variant="tonal" class="text-anywhere mb-4" role="status">
+            API key
+            <span class="font-weight-bold">{{ createdKey.name }}</span>
+            created.
           </v-alert>
           <p class="mb-4">
             Copy and save this key now. You won't be able to view it again.
@@ -88,7 +90,9 @@
             :disabled="boolSaving || boolUncertain" />
           <p>
             API keys perform Operator actions within your current department access. Your
-            account can have up to {{ activeKeyLimit }} active keys.
+            account can have up to
+            <span class="font-weight-bold">{{ activeKeyLimit }}</span>
+            active keys.
           </p>
         </v-form>
       </v-card-text>
@@ -99,7 +103,7 @@
           <v-btn color="primary" variant="tonal" @click="finishCreation">Done</v-btn>
         </template>
         <template v-else>
-          <v-btn variant="text" :disabled="boolSaving" @click="closeDialog">Cancel</v-btn>
+          <v-btn variant="tonal" :disabled="boolSaving" @click="closeDialog">Cancel</v-btn>
           <v-btn v-if="boolUncertain" variant="tonal" @click="emit('refresh')">
             Check List
           </v-btn>
@@ -138,7 +142,9 @@ const sessionStore = useSessionStore();
 const strTimeZone = sessionStore.session?.user.time_zone ?? "UTC";
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 const strName = ref("");
-const strExpiresAt = ref(formatDateTimeInput(props.defaultExpiresAt, strTimeZone));
+const strExpiresAt = ref(
+  `${formatDateTimeInput(props.defaultExpiresAt, strTimeZone).slice(0, 10)}T00:00`,
+);
 const strNotes = ref("");
 const strSecret = ref("");
 const createdKey = shallowRef<ApiKeyResponse | null>(null);

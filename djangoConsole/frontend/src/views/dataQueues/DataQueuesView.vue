@@ -24,7 +24,7 @@
       </v-btn>
     </v-col>
   </v-row>
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form @submit.prevent="applyFilters">
         <v-row>
@@ -60,8 +60,8 @@
           <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
             Apply
           </v-btn>
-          <v-btn variant="outlined" :disabled="boolLoading" @click="clearFilters">
-            Clear Filters
+          <v-btn variant="tonal" :disabled="boolLoading" @click="clearFilters">
+            Reset Filters
           </v-btn>
         </div>
       </form>
@@ -100,7 +100,7 @@
       <template #item.name="{ item }">
         <RouterLink
           :to="getDetailsLocation(item.id)"
-          class="table-text-narrow text-primary">
+          class="table-text-narrow text-primary text-decoration-none">
           {{ item.name }}
         </RouterLink>
       </template>
@@ -111,16 +111,23 @@
         <div class="table-text notes-summary">{{ item.notes || "—" }}</div>
       </template>
       <template #item.actions="{ item }">
-        <div class="d-flex ga-1">
-          <v-btn variant="text" size="small" @click="copyPath(item.path)">Copy Path</v-btn>
+        <div class="d-flex align-center ga-1">
+          <v-btn
+            v-tooltip:bottom="'Copy Path'"
+            variant="text"
+            size="small"
+            aria-label="Copy Path"
+            icon="mdi-content-copy"
+            @click="copyPath(item.path)" />
           <v-btn
             v-if="item.can_manage"
+            v-tooltip:bottom="'Edit'"
             variant="text"
             size="small"
             :disabled="boolLoading || !!error"
-            @click="form = item">
-            Edit
-          </v-btn>
+            aria-label="Edit"
+            icon="mdi-pencil-outline"
+            @click="form = item" />
         </div>
       </template>
       <template #no-data>
@@ -172,7 +179,7 @@ const ARR_HEADER = [
   { title: "Unclaimed", key: "unclaimed_count" },
   { title: "Claimed", key: "claimed_count" },
   { title: "Notes", key: "notes", minWidth: 220 },
-  { title: "Actions", key: "actions", minWidth: 240 },
+  { title: "Actions", key: "actions", width: 112 },
 ];
 const sessionStore = useSessionStore();
 const route = useRoute();

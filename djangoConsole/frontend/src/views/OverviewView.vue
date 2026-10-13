@@ -14,8 +14,9 @@
           )
         }}.
       </h2>
-      <p class="text-body-1">
-        You're signed in to {{ sessionStore.access?.organization.name }}.
+      <p class="text-body-1 text-anywhere">
+        You're signed in to
+        <span class="font-weight-bold">{{ sessionStore.access?.organization.name }}.</span>
       </p>
     </v-card-text>
   </v-card>
@@ -28,7 +29,7 @@
         title="Organization"
         prepend-icon="mdi-office-building-outline">
         <v-card-text>
-          <p class="text-body-1 font-weight-medium mb-2">
+          <p class="text-body-1 font-weight-bold mb-2">
             {{ sessionStore.access?.organization.name }}
           </p>
           <p class="text-medium-emphasis">Business access available</p>
@@ -43,7 +44,7 @@
         title="Your role"
         prepend-icon="mdi-shield-account-outline">
         <v-card-text>
-          <p class="text-body-1 font-weight-medium mb-2">
+          <p class="text-body-1 font-weight-bold mb-2">
             {{
               sessionStore.access?.is_org_admin
                 ? "Organization administrator"
@@ -68,16 +69,13 @@
         title="Signed in as"
         prepend-icon="mdi-account-circle-outline">
         <v-card-text>
-          <p class="text-body-1 font-weight-medium mb-2">
+          <p class="text-body-1 font-weight-bold mb-2">
             {{ sessionStore.session?.user.username || "Your account" }}
           </p>
           <p class="text-medium-emphasis text-break">
             {{ sessionStore.session?.user.email }}
           </p>
         </v-card-text>
-        <v-card-actions>
-          <v-btn to="/my-profile" append-icon="mdi-arrow-right">View My Profile</v-btn>
-        </v-card-actions>
       </v-card>
     </v-col>
   </v-row>

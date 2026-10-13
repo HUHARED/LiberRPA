@@ -1,7 +1,7 @@
 <!-- FileName: DeleteProjectDialog.vue -->
 <template>
   <v-dialog v-model="projectStore.showDeleteDialog" width="800px" height="400px">
-    <v-card title="Delete Project?">
+    <v-card title="Delete Package">
       <template #text>
         <v-container
           v-if="projectStore.dictDetailEdit"
@@ -16,8 +16,7 @@
                 density="compact"
                 hide-details
                 variant="plain"
-                readonly>
-              </v-text-field>
+                readonly></v-text-field>
             </v-col>
 
             <v-col cols="3">
@@ -28,8 +27,7 @@
                 class="clean-space"
                 density="compact"
                 hide-details
-                readonly>
-              </v-text-field>
+                readonly></v-text-field>
             </v-col>
           </v-row>
 
@@ -37,19 +35,18 @@
             v-if="projectStore.arrBoundSchedule.length !== 0"
             fluid
             class="border-thin flex-column-grow-1 flex-column">
-            The following schedules use this project. Modify or delete them before deleting
-            the project:
+            The following schedules use this package. Modify or delete them before deleting
+            the package:
             <v-list
               :items="projectStore.arrBoundSchedule"
               class="clean-space w-100"
               style="width: max-content; flex: 1; min-width: 0px"
               density="compact"
-              variant="flat">
-            </v-list>
+              variant="flat"></v-list>
           </v-container>
 
           <v-container v-else fluid class="border-thin flex-column-grow-1 flex-column">
-            No Schedule uses this Project. A Project with a starting, running, or waiting
+            No Schedule uses this Package. A Package with a starting, running, or waiting
             Run still cannot be deleted.
           </v-container>
         </v-container>
@@ -59,7 +56,8 @@
 
       <v-card-actions class="bg-surface-light">
         <v-btn
-          prepend-icon="mdi-delete-off-outline"
+          variant="tonal"
+          prepend-icon="mdi-close"
           @click="projectStore.showDeleteDialog = false">
           Cancel
         </v-btn>
@@ -67,7 +65,8 @@
         <v-spacer></v-spacer>
 
         <v-btn
-          prepend-icon="mdi-delete-empty-outline"
+          variant="tonal"
+          prepend-icon="mdi-delete-outline"
           :disabled="projectStore.arrBoundSchedule.length !== 0"
           @click="deleteProject()">
           Delete

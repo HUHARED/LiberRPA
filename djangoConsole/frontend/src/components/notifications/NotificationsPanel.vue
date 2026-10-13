@@ -17,12 +17,12 @@
       <v-card-text>
         <v-alert v-if="strError" type="error" variant="tonal">{{ strError }}</v-alert>
         <div class="d-flex ga-2">
-          <v-btn size="small" variant="text" :disabled="boolBusy" @click="act('read-all')">
+          <v-btn size="small" variant="tonal" :disabled="boolBusy" @click="act('read-all')">
             Mark All as Read
           </v-btn>
           <v-btn
             size="small"
-            variant="text"
+            variant="tonal"
             :disabled="boolBusy || !arrNotification.length"
             @click="boolClear = true">
             Clear All
@@ -62,7 +62,7 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn @click="details = null">Close</v-btn>
+        <v-btn variant="tonal" @click="details = null">Close</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -72,8 +72,12 @@
       <v-card-text>Clear all your notifications?</v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolBusy" @click="boolClear = false">Cancel</v-btn>
-        <v-btn :loading="boolBusy" color="warning" @click="act('clear')">Clear All</v-btn>
+        <v-btn variant="tonal" :disabled="boolBusy" @click="boolClear = false">
+          Cancel
+        </v-btn>
+        <v-btn variant="tonal" :loading="boolBusy" color="warning" @click="act('clear')">
+          Clear All
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

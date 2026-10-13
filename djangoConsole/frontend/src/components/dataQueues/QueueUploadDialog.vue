@@ -56,7 +56,10 @@
           </v-alert>
           <template v-else>
             <p class="mb-3">
-              {{ preview.rows.length }} items · {{ preview.skipped }} empty entries skipped
+              <span class="font-weight-bold">{{ preview.rows.length }}</span>
+              items ·
+              <span class="font-weight-bold">{{ preview.skipped }}</span>
+              empty entries skipped
             </p>
             <v-table density="compact">
               <thead>
@@ -85,7 +88,7 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolSaving" @click="emit('close')">Cancel</v-btn>
+        <v-btn variant="tonal" :disabled="boolSaving" @click="emit('close')">Cancel</v-btn>
         <v-btn
           color="primary"
           variant="tonal"

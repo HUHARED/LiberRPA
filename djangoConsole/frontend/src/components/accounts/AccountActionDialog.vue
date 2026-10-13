@@ -10,9 +10,17 @@
       <v-card-title id="account-action-title">{{ strTitle }}</v-card-title>
 
       <v-card-text>
-        <v-alert v-if="boolEmailQueued" type="success" variant="tonal" role="status">
-          Verification email queued for {{ strNewEmail }}. Open the link in that mailbox and
-          select Confirm Email Change. Your current email remains unchanged until then.
+        <v-alert
+          v-if="boolEmailQueued"
+          type="success"
+          variant="tonal"
+          class="text-anywhere"
+          role="status">
+          Verification email queued for
+          <span class="font-weight-bold">{{ strNewEmail }}.</span>
+          Open the link in that mailbox and select
+          <span class="font-weight-bold">Confirm Email Change.</span>
+          Your current email remains unchanged until then.
         </v-alert>
 
         <template v-else>
@@ -27,8 +35,11 @@
           </p>
           <p v-else class="mb-4">
             Confirm the new address through its verification email. Your password, sessions
-            and API keys remain active. The link expires after one hour; wait at least five
-            minutes before requesting another email.
+            and API keys remain active. The link expires after
+            <span class="font-weight-bold">one hour;</span>
+            wait at least
+            <span class="font-weight-bold">five minutes</span>
+            before requesting another email.
           </p>
 
           <v-alert
@@ -106,7 +117,7 @@
 
       <v-card-actions class="flex-wrap ga-2">
         <v-spacer />
-        <v-btn variant="text" :disabled="boolSubmitting" @click="emit('close')">
+        <v-btn variant="tonal" :disabled="boolSubmitting" @click="emit('close')">
           {{ boolEmailQueued ? "Done" : "Cancel" }}
         </v-btn>
 

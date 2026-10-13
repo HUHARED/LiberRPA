@@ -1,7 +1,9 @@
 <!-- FileName: ScheduleDetailsView.vue -->
 <template>
   <div class="d-flex align-center ga-2 mb-4">
-    <v-btn to="/schedules" variant="text" prepend-icon="mdi-arrow-left">Schedules</v-btn>
+    <v-btn to="/schedules" variant="tonal" prepend-icon="mdi-arrow-left">
+      Back to Schedules
+    </v-btn>
     <v-spacer />
     <v-btn :loading="boolLoading" variant="tonal" @click="load">Refresh</v-btn>
   </div>
@@ -19,7 +21,7 @@
       <v-btn
         v-if="schedule.can_manage"
         color="error"
-        variant="text"
+        variant="tonal"
         @click="boolDelete = true">
         Delete
       </v-btn>
@@ -29,13 +31,14 @@
         <v-table>
           <tbody>
             <tr>
-              <td>Department</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Department</th>
               <td>{{ schedule.department.path }}</td>
             </tr>
             <tr>
-              <td>Package</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Package</th>
               <td>
                 <RouterLink
+                  class="text-primary text-decoration-none"
                   :to="{
                     name: 'package-details',
                     params: { packageId: schedule.package_id },
@@ -45,10 +48,11 @@
               </td>
             </tr>
             <tr>
-              <td>Target</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Target</th>
               <td>
                 <RouterLink
                   v-if="schedule.group_id"
+                  class="text-primary text-decoration-none"
                   :to="{
                     name: 'executor-group-details',
                     params: { groupId: schedule.group_id },
@@ -58,6 +62,7 @@
                 <template v-else>
                   <p v-for="executor in schedule.executors ?? []" :key="executor.id">
                     <RouterLink
+                      class="text-primary text-decoration-none"
                       :to="{
                         name: 'executor-details',
                         params: { executorId: executor.id },
@@ -69,15 +74,15 @@
               </td>
             </tr>
             <tr>
-              <td>Notes</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Notes</th>
               <td class="text-pre-wrap">{{ schedule.notes || "—" }}</td>
             </tr>
             <tr>
-              <td>Conflict Policy</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Conflict Policy</th>
               <td>{{ CONFLICT_POLICY_LABELS[schedule.settings.run_conflict_policy] }}</td>
             </tr>
             <tr>
-              <td>Priority</td>
+              <th scope="row" class="text-caption text-medium-emphasis">Priority</th>
               <td>{{ PRIORITY_LABELS[schedule.settings.priority] }}</td>
             </tr>
           </tbody>
@@ -88,10 +93,22 @@
       <v-card-title>Time</v-card-title>
       <v-card-text>
         <p>{{ strDescription }}</p>
-        <p>Cron: {{ schedule.cron }}</p>
-        <p>Time Zone: {{ schedule.time_zone }}</p>
-        <p>Active From: {{ formatDateTime(schedule.active_from, schedule.time_zone) }}</p>
-        <p>Active Until: {{ formatDateTime(schedule.active_until, schedule.time_zone) }}</p>
+        <p>
+          <span class="text-caption text-medium-emphasis">Cron:</span>
+          {{ schedule.cron }}
+        </p>
+        <p>
+          <span class="text-caption text-medium-emphasis">Time Zone:</span>
+          {{ schedule.time_zone }}
+        </p>
+        <p>
+          <span class="text-caption text-medium-emphasis">Active From:</span>
+          {{ formatDateTime(schedule.active_from, schedule.time_zone) }}
+        </p>
+        <p>
+          <span class="text-caption text-medium-emphasis">Active Until:</span>
+          {{ formatDateTime(schedule.active_until, schedule.time_zone) }}
+        </p>
         <h3 class="text-subtitle-1 mt-4">Upcoming Triggers</h3>
         <p v-for="time in schedule.upcoming_triggers" :key="time">
           {{ formatDateTime(time, schedule.time_zone) }}
@@ -149,8 +166,12 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolBusy" @click="boolDelete = false">Cancel</v-btn>
-        <v-btn color="error" :loading="boolBusy" @click="remove">Delete</v-btn>
+        <v-btn variant="tonal" :disabled="boolBusy" @click="boolDelete = false">
+          Cancel
+        </v-btn>
+        <v-btn variant="tonal" color="error" :loading="boolBusy" @click="remove">
+          Delete
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

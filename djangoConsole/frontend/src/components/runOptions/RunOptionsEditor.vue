@@ -1,148 +1,123 @@
 <!-- FileName: RunOptionsEditor.vue -->
 <template>
   <v-row>
-    <v-col cols="12" sm="4">
-      <v-number-input
-        v-model="settings.max_retry_count"
-        :error-messages="getFieldErrors(fieldErrors, 'settings.max_retry_count')"
-        label="Max Retry Count"
-        :min="0"
-        :max="3"
-        :precision="0"
-        :rules="[validateMaxRetryCount]"
+    <v-col cols="12" md="6">
+      <h3 class="text-subtitle-1 mb-3">Built-in Arguments</h3>
+      <BuiltInRunOptions
+        v-model="settings"
         :disabled="disabled"
-        hint="Maximum extra attempts after an execution error."
-        persistent-hint />
-    </v-col>
-    <v-col cols="12" sm="4">
-      <v-number-input
-        v-model="settings.timeout_min"
-        :error-messages="getFieldErrors(fieldErrors, 'settings.timeout_min')"
-        label="Timeout (min)"
-        :min="0"
-        :max="INT_MAX_TIMEOUT_MIN"
-        :precision="0"
-        :rules="[validateTimeout]"
-        :disabled="disabled"
-        hint="0 means no limit. Applies to each attempt."
-        persistent-hint />
-    </v-col>
-    <v-col cols="12" sm="4">
-      <v-select
-        v-model="settings.builtin_log_level"
-        :error-messages="getFieldErrors(fieldErrors, 'settings.builtin_log_level')"
-        label="Log Level"
-        :items="ARR_LOG_LEVEL"
-        :disabled="disabled" />
-    </v-col>
-  </v-row>
-  <v-row>
-    <v-col cols="12" sm="4">
-      <v-switch
-        v-model="settings.builtin_record_video"
-        :error-messages="getFieldErrors(fieldErrors, 'settings.builtin_record_video')"
-        label="Record Video"
-        hide-details="auto"
-        :disabled="disabled" />
-    </v-col>
-    <v-col cols="12" sm="4">
-      <v-switch
-        v-model="settings.builtin_stop_shortcut"
-        :error-messages="getFieldErrors(fieldErrors, 'settings.builtin_stop_shortcut')"
-        label="Stop Shortcut"
-        hide-details="auto"
-        :disabled="disabled" />
-    </v-col>
-    <v-col cols="12" sm="4">
-      <v-switch
-        v-model="settings.builtin_highlight_ui"
-        :error-messages="getFieldErrors(fieldErrors, 'settings.builtin_highlight_ui')"
-        label="Highlight UI"
-        hide-details="auto"
-        :disabled="disabled" />
-    </v-col>
-  </v-row>
-  <h3 class="text-subtitle-1 mt-5 mb-3">Custom Arguments</h3>
-  <v-alert v-if="boolDuplicate" type="warning" variant="tonal" class="mb-3">
-    Duplicate keys exist. At runtime, the last value with the same key takes effect.
-  </v-alert>
-  <v-alert v-if="strAssetError" type="error" variant="tonal" class="mb-3">
-    {{ strAssetError }}
-    <v-btn
-      variant="text"
-      size="small"
-      :disabled="disabled || boolLoadingAssets"
-      @click="loadAssets">
-      Retry
-    </v-btn>
-  </v-alert>
-  <v-alert v-if="strArgumentsError" type="error" variant="tonal" class="mb-3">
-    {{ strArgumentsError }}
-  </v-alert>
-  <v-alert
-    v-if="fieldErrors?.['settings.custom_prj_args']"
-    type="error"
-    variant="tonal"
-    class="mb-3">
-    {{ fieldErrors?.["settings.custom_prj_args"]?.join(" ") }}
-  </v-alert>
-  <v-alert
-    v-if="fieldErrors?.['settings.custom_arg_assets']"
-    type="error"
-    variant="tonal"
-    class="mb-3">
-    {{ fieldErrors?.["settings.custom_arg_assets"]?.join(" ") }}
-  </v-alert>
-  <p v-if="settings.custom_prj_args.length === 0" class="text-medium-emphasis">
-    No custom arguments.
-  </p>
-  <v-row v-for="(argument, index) in settings.custom_prj_args" :key="index" align="start">
-    <v-col cols="12" md="3">
-      <v-text-field :model-value="argument[0]" label="Key" readonly variant="plain" />
-    </v-col>
-    <v-col cols="12" md="3">
-      <v-select
-        :model-value="settings.custom_arg_assets[index] ? 'asset' : 'value'"
-        :items="ARR_SOURCE"
-        label="Source"
-        :disabled="disabled"
-        @update:model-value="setSource(index, $event)" />
+        :field-errors="fieldErrors">
+        <template v-if="$slots.environment" #environment>
+          <slot name="environment" />
+        </template>
+      </BuiltInRunOptions>
     </v-col>
     <v-col cols="12" md="6">
-      <v-select
-        v-if="settings.custom_arg_assets[index]"
-        :model-value="settings.custom_arg_assets[index]?.name"
-        :items="arrAsset"
-        item-title="name"
-        item-value="name"
-        label="Asset (same department)"
-        :error-messages="getFieldErrors(fieldErrors, `settings.custom_arg_assets.${index}`)"
-        :disabled="disabled"
-        :loading="boolLoadingAssets"
-        :rules="[(value) => !!value || 'Select an asset.']"
-        @update:model-value="setAsset(index, $event)">
-        <template #item="{ props: itemProps, item }">
-          <v-list-item v-bind="itemProps" :subtitle="item.raw.asset_type" />
-        </template>
-      </v-select>
-      <v-textarea
-        v-else
-        v-model="arrValue[index]"
-        label="Value (JSON)"
-        rows="1"
-        auto-grow
-        :disabled="disabled"
-        :error-messages="[
-          ...(arrError[index] ? [arrError[index]!] : []),
-          ...getFieldErrors(fieldErrors, `settings.custom_prj_args.${index}`),
-        ]"
-        spellcheck="false"
-        @update:model-value="updateValue(index, $event)" />
+      <h3 class="text-subtitle-1 mb-3">Custom Project Arguments</h3>
+      <v-alert v-if="boolDuplicate" type="warning" variant="tonal" class="mb-3">
+        Duplicate keys exist. At runtime, the last value with the same key takes effect.
+      </v-alert>
+      <v-alert v-if="strAssetError" type="error" variant="tonal" class="mb-3">
+        {{ strAssetError }}
+        <v-btn
+          variant="tonal"
+          size="small"
+          :disabled="disabled || boolLoadingAssets"
+          @click="loadAssets">
+          Retry
+        </v-btn>
+      </v-alert>
+      <v-alert v-if="strArgumentsError" type="error" variant="tonal" class="mb-3">
+        {{ strArgumentsError }}
+      </v-alert>
+      <v-alert
+        v-if="fieldErrors?.['settings.custom_prj_args']"
+        type="error"
+        variant="tonal"
+        class="mb-3">
+        {{ fieldErrors?.["settings.custom_prj_args"]?.join(" ") }}
+      </v-alert>
+      <v-alert
+        v-if="fieldErrors?.['settings.custom_arg_assets']"
+        type="error"
+        variant="tonal"
+        class="mb-3">
+        {{ fieldErrors?.["settings.custom_arg_assets"]?.join(" ") }}
+      </v-alert>
+      <p v-if="settings.custom_prj_args.length === 0" class="text-medium-emphasis">
+        No custom arguments.
+      </p>
+      <v-row
+        v-for="(argument, index) in settings.custom_prj_args"
+        :key="index"
+        align="start">
+        <v-col cols="12" md="3">
+          <v-text-field
+            :model-value="argument[0]"
+            :aria-label="`Argument ${index + 1} name`"
+            readonly
+            variant="plain"
+            density="compact"
+            hide-details />
+        </v-col>
+        <v-col cols="12" md="3">
+          <v-switch
+            :model-value="!!settings.custom_arg_assets[index]"
+            :label="settings.custom_arg_assets[index] ? 'Asset' : 'Value'"
+            true-icon="mdi-database-outline"
+            false-icon="mdi-code-json"
+            density="compact"
+            hide-details
+            :disabled="disabled"
+            @update:model-value="setSource(index, $event === true)" />
+        </v-col>
+        <v-col cols="12" md="6">
+          <v-select
+            v-if="settings.custom_arg_assets[index]"
+            variant="underlined"
+            density="compact"
+            :model-value="settings.custom_arg_assets[index]?.name"
+            :items="arrAsset"
+            item-title="name"
+            item-value="name"
+            label="(same dept, non-secret)"
+            hide-details="auto"
+            :error-messages="
+              getFieldErrors(fieldErrors, `settings.custom_arg_assets.${index}`)
+            "
+            :disabled="disabled"
+            :loading="boolLoadingAssets"
+            :rules="[(value) => !!value || 'Select an asset.']"
+            @update:model-value="setAsset(index, $event)">
+            <template #item="{ props: itemProps, item }">
+              <v-list-item v-bind="itemProps" :subtitle="item.raw.asset_type" />
+            </template>
+          </v-select>
+          <v-textarea
+            v-else
+            v-model="arrValue[index]"
+            variant="underlined"
+            density="compact"
+            :aria-label="`Value for ${argument[0]} (JSON)`"
+            rows="1"
+            auto-grow
+            hide-details="auto"
+            :disabled="disabled"
+            :error-messages="[
+              ...(arrError[index] ? [arrError[index]!] : []),
+              ...getFieldErrors(fieldErrors, `settings.custom_prj_args.${index}`),
+            ]"
+            spellcheck="false"
+            @update:model-value="updateValue(index, $event)" />
+        </v-col>
+      </v-row>
     </v-col>
   </v-row>
 </template>
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+
+import BuiltInRunOptions from "./BuiltInRunOptions.vue";
 
 import { getAssetList } from "@/api/assets";
 import { getApiError, getFieldErrors } from "@/api/errors";
@@ -150,12 +125,7 @@ import type { AssetEntryResponse } from "@/api/generated/browserApi";
 
 import { validateJsonValue } from "@/app/validators";
 
-import {
-  type JsonValue,
-  type RunSettings,
-  ARR_LOG_LEVEL,
-  INT_MAX_TIMEOUT_MIN,
-} from "@/api/runOptions";
+import type { JsonValue, RunSettings } from "@/api/runOptions";
 
 const props = defineProps<{
   departmentId: string;
@@ -165,10 +135,6 @@ const props = defineProps<{
 const INT_CUSTOM_ARGUMENT_MAX_COUNT = 100;
 const settings = defineModel<RunSettings>({ required: true });
 const emit = defineEmits<{ valid: [value: boolean] }>();
-const ARR_SOURCE = [
-  { title: "Value", value: "value" },
-  { title: "Asset", value: "asset" },
-];
 const arrValue = ref(
   settings.value.custom_prj_args.map((entry) => JSON.stringify(entry[1])),
 );
@@ -201,23 +167,6 @@ const strArgumentsError = computed(() => {
   }
 });
 
-function validateMaxRetryCount(value: unknown): true | string {
-  return (
-    (typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 3) ||
-    "Enter an integer from 0 to 3."
-  );
-}
-
-function validateTimeout(value: unknown): true | string {
-  return (
-    (typeof value === "number" &&
-      Number.isInteger(value) &&
-      value >= 0 &&
-      value <= INT_MAX_TIMEOUT_MIN) ||
-    `Enter an integer from 0 to ${INT_MAX_TIMEOUT_MIN}.`
-  );
-}
-
 function publishValid(): void {
   emit("valid", !strArgumentsError.value && arrError.value.every((value) => !value));
 }
@@ -229,19 +178,19 @@ function updateValue(index: number, text: string): void {
     if (argument) argument[1] = value;
     arrError.value[index] = "";
   } catch {
-    arrError.value[index] =
-      'Enter valid JSON, for example "text", 12, true, null, [] or {}.';
+    arrError.value[index] = "Enter valid JSON.";
   }
   publishValid();
 }
 
-function setSource(index: number, source: string): void {
+function setSource(index: number, useAsset: boolean): void {
   settings.value.custom_arg_assets = settings.value.custom_prj_args.map(
     (_, intIndex) => settings.value.custom_arg_assets[intIndex] ?? null,
   );
-  settings.value.custom_arg_assets[index] =
-    source === "asset" ? { name: "", asset_type: "text" } : null;
-  if (source === "value") updateValue(index, arrValue.value[index] ?? "");
+  settings.value.custom_arg_assets[index] = useAsset
+    ? { name: "", asset_type: "text" }
+    : null;
+  if (!useAsset) updateValue(index, arrValue.value[index] ?? "");
   else {
     arrError.value[index] = "";
     publishValid();

@@ -1,6 +1,6 @@
 <!-- FileName: DeleteScheduleDialog.vue -->
 <template>
-  <v-card title="Delete Schedule?">
+  <v-card title="Delete Schedule">
     <template #text>
       <v-container
         v-if="scheduleStore.dictDetailEdit"
@@ -15,13 +15,12 @@
               density="compact"
               hide-details
               variant="plain"
-              readonly>
-            </v-text-field>
+              readonly></v-text-field>
           </v-col>
         </v-row>
 
         <v-container class="clean-space pl-3">
-          <v-label class="mt-2 mb-3"> Project: </v-label>
+          <v-label class="mt-2 mb-3">Project:</v-label>
         </v-container>
 
         <v-row class="w-100">
@@ -33,8 +32,7 @@
               class="clean-space"
               density="compact"
               hide-details
-              readonly>
-            </v-text-field>
+              readonly></v-text-field>
           </v-col>
 
           <v-col cols="4">
@@ -45,8 +43,7 @@
               class="clean-space"
               density="compact"
               hide-details
-              readonly>
-            </v-text-field>
+              readonly></v-text-field>
           </v-col>
         </v-row>
       </v-container>
@@ -56,7 +53,8 @@
 
     <v-card-actions class="bg-surface-light">
       <v-btn
-        prepend-icon="mdi-delete-off-outline"
+        variant="tonal"
+        prepend-icon="mdi-close"
         @click="scheduleStore.showDeleteDialog = false">
         Cancel
       </v-btn>
@@ -64,7 +62,8 @@
       <v-spacer></v-spacer>
 
       <v-btn
-        prepend-icon="mdi-delete-empty-outline"
+        variant="tonal"
+        prepend-icon="mdi-delete-outline"
         @click="scheduleStore.deleteSchedule()">
         Delete
       </v-btn>

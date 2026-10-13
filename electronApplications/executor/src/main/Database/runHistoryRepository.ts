@@ -58,7 +58,6 @@ const MAP_RUN_HISTORY_SORT_COLUMN: Record<
   schedule_name: "schedule_name",
   project_name: "project_name",
   project_version: "project_version",
-  python_environment_name: "python_environment_name",
   run_started_at_ms: "run_started_at_ms",
   run_ended_at_ms: "run_ended_at_ms",
   status: "status",
@@ -301,7 +300,7 @@ export function dbSelectRunHistoryPage(options: RunHistoryQueryOptions): RunHist
     const strOrder = dictSort.order === "asc" ? "ASC" : "DESC";
     return `${strColumn} ${strOrder}`;
   });
-  arrOrderByClause.push("run_started_at_ms DESC");
+  arrOrderByClause.push("run_started_at_ms DESC", "id DESC");
   const strOrderByClause = arrOrderByClause.join(", ");
 
   const rows = getDatabase()
@@ -314,7 +313,6 @@ export function dbSelectRunHistoryPage(options: RunHistoryQueryOptions): RunHist
           schedule_name,
           project_name,
           project_version,
-          python_environment_name,
           run_started_at_ms,
           run_ended_at_ms,
           status

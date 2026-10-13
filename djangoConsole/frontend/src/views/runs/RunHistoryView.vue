@@ -5,7 +5,7 @@
     <v-spacer />
     <v-btn variant="tonal" :loading="boolLoading" @click="load()">Refresh</v-btn>
   </div>
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form @submit.prevent="apply">
         <v-row>
@@ -61,7 +61,7 @@
         </v-row>
         <div class="d-flex ga-2 mt-4">
           <v-btn type="submit" color="primary" variant="tonal">Apply</v-btn>
-          <v-btn variant="outlined" @click="clearFilters">Clear Filters</v-btn>
+          <v-btn variant="tonal" @click="clearFilters">Reset Filters</v-btn>
         </div>
       </form>
     </v-card-text>
@@ -71,8 +71,12 @@
   </v-alert>
   <v-alert v-if="clearResult" type="info" variant="tonal" class="mb-4">
     <p>
-      Cleared: {{ clearResult.cleared }} · Skipped: {{ clearResult.skipped.length }} ·
-      Failed: {{ clearResult.failed.length }}
+      Cleared:
+      <span class="font-weight-bold">{{ clearResult.cleared }}</span>
+      · Skipped:
+      <span class="font-weight-bold">{{ clearResult.skipped.length }}</span>
+      · Failed:
+      <span class="font-weight-bold">{{ clearResult.failed.length }}</span>
     </p>
     <p v-for="entry in [...clearResult.skipped, ...clearResult.failed]" :key="entry.id">
       {{ entry.id }}: {{ entry.reason }}
@@ -90,7 +94,7 @@
     </v-btn>
     <v-btn
       size="small"
-      variant="text"
+      variant="tonal"
       :disabled="!arrSelectedId.length && !boolSelecting"
       @click="clearSelection">
       Clear Selection
@@ -127,29 +131,32 @@
       </template>
       <template #item.status="{ item }">{{ RUN_STATUS_LABELS[item.status] }}</template>
       <template #item.actions="{ item }">
-        <div class="d-flex">
+        <div class="d-flex align-center ga-1">
           <v-btn
+            v-tooltip:bottom="'View Run Details'"
             :to="{ name: 'run-details', params: { runId: item.id } }"
             size="small"
-            variant="text">
-            View
-          </v-btn>
+            variant="text"
+            aria-label="View Run Details"
+            icon="mdi-eye-outline" />
           <v-btn
+            v-tooltip:bottom="'Rerun'"
             size="small"
             variant="text"
             :disabled="boolActionBusy || !item.can_rerun"
-            @click="rerun(item.id)">
-            Rerun
-          </v-btn>
+            aria-label="Rerun"
+            icon="mdi-replay"
+            @click="rerun(item.id)" />
           <v-btn
             v-if="item.can_stop"
+            v-tooltip:bottom="'Stop Run'"
             size="small"
             color="warning"
             variant="text"
             :disabled="boolActionBusy"
-            @click="stop(item.id)">
-            Stop Run
-          </v-btn>
+            aria-label="Stop Run"
+            icon="mdi-stop-circle-outline"
+            @click="stop(item.id)" />
         </div>
       </template>
       <template #no-data>No runs match the current filters.</template>
@@ -171,9 +178,10 @@
       <v-card-title>Clear Logs</v-card-title>
       <v-card-text>
         <p>
-          Clear logs from Console for {{ arrConfirmedId.length }} selected runs? Run
-          summaries, inputs, outputs and files on Executors are retained. Protected runs are
-          skipped.
+          Clear logs from Console for
+          <span class="font-weight-bold">{{ arrConfirmedId.length }}</span>
+          selected runs? Run summaries, inputs, outputs and files on Executors are retained.
+          Protected runs are skipped.
         </p>
         <v-alert v-if="strClearError" type="error" variant="tonal" class="mt-4">
           {{ strClearError }}
@@ -181,8 +189,12 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolClearing" @click="boolClearDialog = false">Cancel</v-btn>
-        <v-btn color="warning" :loading="boolClearing" @click="clearLogs">Clear Logs</v-btn>
+        <v-btn variant="tonal" :disabled="boolClearing" @click="boolClearDialog = false">
+          Cancel
+        </v-btn>
+        <v-btn variant="tonal" color="warning" :loading="boolClearing" @click="clearLogs">
+          Clear Logs
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

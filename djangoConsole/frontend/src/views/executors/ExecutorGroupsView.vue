@@ -29,7 +29,7 @@
     <v-tab value="executors" to="/executors" exact>Executors</v-tab>
     <v-tab value="groups" to="/executors/groups">Executor Groups</v-tab>
   </v-tabs>
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form aria-label="Executor group filters" @submit.prevent="applyFilters">
         <v-row>
@@ -68,8 +68,8 @@
           <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
             Apply
           </v-btn>
-          <v-btn variant="outlined" :disabled="boolLoading" @click="resetFilters">
-            Reset
+          <v-btn variant="tonal" :disabled="boolLoading" @click="resetFilters">
+            Reset Filters
           </v-btn>
         </div>
       </form>
@@ -152,7 +152,7 @@
             params: { groupId: item.id },
             query: route.query,
           }"
-          class="d-inline-block table-text text-primary">
+          class="d-inline-block table-text text-primary text-decoration-none">
           {{ item.name }}
         </RouterLink>
       </template>

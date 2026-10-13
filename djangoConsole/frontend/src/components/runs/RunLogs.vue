@@ -96,7 +96,7 @@
           <v-table density="compact" class="mb-4">
             <tbody>
               <tr v-for="(value, key) in getFields(item)" :key="key">
-                <td>{{ key }}</td>
+                <th scope="row" class="text-caption text-medium-emphasis">{{ key }}</th>
                 <td>
                   <pre class="text-pre-wrap text-break">{{ value }}</pre>
                 </td>

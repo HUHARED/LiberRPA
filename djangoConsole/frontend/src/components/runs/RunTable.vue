@@ -22,11 +22,12 @@
         <td>{{ RUN_STATUS_LABELS[run.status] }}</td>
         <td>
           <v-btn
+            v-tooltip:bottom="'View Run Details'"
             :to="{ name: 'run-details', params: { runId: run.id } }"
             size="small"
-            variant="text">
-            View
-          </v-btn>
+            variant="text"
+            aria-label="View Run Details"
+            icon="mdi-eye-outline" />
         </td>
       </tr>
       <tr v-if="!runs.length">

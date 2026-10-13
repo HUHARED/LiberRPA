@@ -123,9 +123,9 @@ interface ExecutorInvokeContract {
     request: number;
     response: void;
   };
-  rerunLocalRun: {
+  getLocalRerunProject: {
     request: number;
-    response: void;
+    response: ProjectDetails;
   };
 
   // Settings.

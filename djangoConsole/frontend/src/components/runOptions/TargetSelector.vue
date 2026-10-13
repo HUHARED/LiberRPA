@@ -12,7 +12,7 @@
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-3">
     {{ strError }}
     <v-btn
-      variant="text"
+      variant="tonal"
       size="small"
       :disabled="disabled || boolLoading"
       @click="loadTargets">
@@ -22,10 +22,14 @@
   <v-select
     v-if="strTargetType === 'executor'"
     v-model="executorIds"
+    variant="underlined"
     :items="arrExecutor"
     item-title="name"
     item-value="id"
     label="Executors"
+    :no-data-text="
+      strError ? 'Could not load Executors.' : 'No Executors in this department.'
+    "
     :error-messages="getFieldErrors(fieldErrors, 'executor_ids')"
     multiple
     chips
@@ -42,10 +46,14 @@
   <v-select
     v-else
     v-model="groupId"
+    variant="underlined"
     :items="arrGroup"
     item-title="name"
     item-value="id"
     label="Executor Group"
+    :no-data-text="
+      strError ? 'Could not load groups.' : 'No Executor Groups in this department.'
+    "
     :error-messages="getFieldErrors(fieldErrors, 'group_id')"
     :loading="boolLoading"
     :disabled="disabled || boolLoading || !departmentId"

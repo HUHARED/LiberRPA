@@ -37,7 +37,7 @@
     <v-tab value="groups" to="/executors/groups">Executor Groups</v-tab>
   </v-tabs>
 
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form aria-label="Executor filters" @submit.prevent="applyFilters">
         <v-row>
@@ -95,8 +95,8 @@
             Apply
           </v-btn>
 
-          <v-btn variant="outlined" :disabled="boolLoading" @click="resetFilters">
-            Reset
+          <v-btn variant="tonal" :disabled="boolLoading" @click="resetFilters">
+            Reset Filters
           </v-btn>
         </div>
       </form>
@@ -155,7 +155,7 @@
       <template #item.name="{ item }">
         <RouterLink
           :to="{ name: 'executor-details', params: { executorId: item.id } }"
-          class="d-inline-block table-text-narrow text-primary">
+          class="d-inline-block table-text-narrow text-primary text-decoration-none">
           {{ item.name }}
         </RouterLink>
       </template>
@@ -316,7 +316,10 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" :disabled="boolSavingNewExecutor" @click="closeNewExecutor">
+          <v-btn
+            variant="tonal"
+            :disabled="boolSavingNewExecutor"
+            @click="closeNewExecutor">
             Cancel
           </v-btn>
           <v-btn

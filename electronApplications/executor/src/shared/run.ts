@@ -75,7 +75,6 @@ export interface RunHistoryItem {
   schedule_name: string | null;
   project_name: string;
   project_version: string;
-  python_environment_name: string;
   run_started_at_ms: number;
   run_ended_at_ms: number | null;
   status: RunStatus;
@@ -97,7 +96,6 @@ export interface RunHistoryQueryOptions {
       | "schedule_name"
       | "project_name"
       | "project_version"
-      | "python_environment_name"
       | "run_started_at_ms"
       | "run_ended_at_ms"
       | "status";

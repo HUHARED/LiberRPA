@@ -124,13 +124,13 @@
                   </td>
                   <td>
                     <v-btn
+                      v-tooltip:bottom="'Remove department role'"
                       variant="text"
+                      icon="mdi-delete-outline"
                       size="small"
                       :disabled="boolSaving"
                       :aria-label="`Remove department role ${intIndex + 1}`"
-                      @click="arrRole.splice(intIndex, 1)">
-                      Remove
-                    </v-btn>
+                      @click="arrRole.splice(intIndex, 1)" />
                   </td>
                 </tr>
                 <tr v-if="!arrRole.length">
@@ -163,7 +163,7 @@
       </v-card-text>
       <v-card-actions class="flex-wrap ga-2">
         <v-spacer />
-        <v-btn variant="text" :disabled="boolSaving" @click="closeForm">Cancel</v-btn>
+        <v-btn variant="tonal" :disabled="boolSaving" @click="closeForm">Cancel</v-btn>
         <v-btn
           v-if="requestError"
           variant="tonal"

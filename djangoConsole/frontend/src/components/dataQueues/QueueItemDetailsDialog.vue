@@ -38,27 +38,31 @@
         <template v-if="item">
           <dl class="detail-fields">
             <div class="full-width-field">
-              <dt>Item ID</dt>
+              <dt class="text-caption text-medium-emphasis">Item ID</dt>
               <dd>{{ item.id }}</dd>
             </div>
             <div>
-              <dt>Status</dt>
+              <dt class="text-caption text-medium-emphasis">Status</dt>
               <dd>{{ item.status === "claimed" ? "Claimed" : "Unclaimed" }}</dd>
             </div>
             <div>
-              <dt>Uploaded By</dt>
+              <dt class="text-caption text-medium-emphasis">Uploaded By</dt>
               <dd>{{ item.uploaded_by_name }}</dd>
             </div>
             <div>
-              <dt>Uploaded At ({{ strTimeZone }})</dt>
+              <dt class="text-caption text-medium-emphasis">
+                Uploaded At ({{ strTimeZone }})
+              </dt>
               <dd>{{ formatDateTime(item.uploaded_at, strTimeZone) }}</dd>
             </div>
             <div>
-              <dt>Last Claimed By</dt>
+              <dt class="text-caption text-medium-emphasis">Last Claimed By</dt>
               <dd>{{ item.last_claimed_by_name || "—" }}</dd>
             </div>
             <div>
-              <dt>Last Claimed At ({{ strTimeZone }})</dt>
+              <dt class="text-caption text-medium-emphasis">
+                Last Claimed At ({{ strTimeZone }})
+              </dt>
               <dd>{{ formatDateTime(item.last_claimed_at, strTimeZone) }}</dd>
             </div>
           </dl>
@@ -73,7 +77,7 @@
         </template>
       </v-card-text>
       <v-card-actions>
-        <v-btn v-if="error" variant="text" :disabled="boolLoading" @click="load">
+        <v-btn v-if="error" variant="tonal" :disabled="boolLoading" @click="load">
           Retry
         </v-btn>
         <v-btn
@@ -86,7 +90,7 @@
         <v-btn
           :to="{ name: 'data-queue-details', params: { queueId }, query: route.query }"
           replace
-          variant="text">
+          variant="tonal">
           Close
         </v-btn>
       </v-card-actions>

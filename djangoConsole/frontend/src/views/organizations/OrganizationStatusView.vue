@@ -30,7 +30,7 @@
         @click="refreshStatus">
         Refresh Status
       </v-btn>
-      <v-btn variant="outlined" :loading="sessionStore.busy" @click="submitSignOut">
+      <v-btn variant="tonal" :loading="sessionStore.busy" @click="submitSignOut">
         Sign Out
       </v-btn>
     </v-card-actions>

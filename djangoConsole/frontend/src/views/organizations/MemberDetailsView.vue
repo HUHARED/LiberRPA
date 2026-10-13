@@ -2,7 +2,7 @@
 <template>
   <v-btn
     :to="{ name: 'members' }"
-    variant="text"
+    variant="tonal"
     prepend-icon="mdi-arrow-left"
     class="mb-4">
     Back to Members
@@ -89,7 +89,7 @@
       <v-card-text>
         <dl class="detail-fields">
           <div>
-            <dt>Account</dt>
+            <dt class="text-caption text-medium-emphasis">Account</dt>
             <dd>
               {{ memberInfo.user.username || memberInfo.user.email }}
               <p v-if="memberInfo.user.username" class="text-medium-emphasis">
@@ -98,15 +98,15 @@
             </dd>
           </div>
           <div>
-            <dt>Organization Role</dt>
+            <dt class="text-caption text-medium-emphasis">Organization Role</dt>
             <dd>{{ memberInfo.is_org_admin ? "OrgAdmin" : "Member" }}</dd>
           </div>
           <div>
-            <dt>Joined At ({{ strTimeZone }})</dt>
+            <dt class="text-caption text-medium-emphasis">Joined At ({{ strTimeZone }})</dt>
             <dd>{{ formatDateTime(memberInfo.joined_at, strTimeZone) }}</dd>
           </div>
           <div class="full-width-field">
-            <dt>Notes</dt>
+            <dt class="text-caption text-medium-emphasis">Notes</dt>
             <dd class="text-pre-wrap">{{ memberInfo.notes || "—" }}</dd>
           </div>
         </dl>
@@ -137,7 +137,7 @@
                 name: 'department-details',
                 params: { departmentId: item.department.id },
               }"
-              class="text-anywhere text-primary">
+              class="text-anywhere text-primary text-decoration-none">
               {{ item.department.path }}
             </RouterLink>
           </template>

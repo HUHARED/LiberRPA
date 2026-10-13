@@ -137,18 +137,34 @@
       <v-label>Run Options</v-label>
 
       <v-row class="clean-space flex-column-grow-1">
-        <v-col cols="5" class="clean-space fill-height pt-3">
+        <v-col cols="5" class="ma-0 px-0 pb-0 pt-3">
           <BuiltInRunOptions
             v-model:max-retry-count="detail.max_retry_count"
             v-model:timeout-min="detail.timeout_min"
             v-model:log-level="detail.builtin_log_level"
             v-model:record-video="detail.builtin_record_video"
             v-model:stop-shortcut="detail.builtin_stop_shortcut"
-            v-model:highlight-ui="detail.builtin_highlight_ui" />
+            v-model:highlight-ui="detail.builtin_highlight_ui">
+            <template #environment>
+              <v-text-field
+                v-tooltip:top="
+                  'The Python environment configured for the selected Package.'
+                "
+                :model-value="detail.python_environment_name || '—'"
+                label="Python Environment"
+                variant="underlined"
+                class="clean-space"
+                density="compact"
+                hide-details
+                readonly />
+            </template>
+          </BuiltInRunOptions>
         </v-col>
 
         <v-col cols="7" class="clean-space flex-column">
-          <v-label class="clean-space" style="font-size: 0.75em">Custom Arguments</v-label>
+          <v-label class="clean-space" style="font-size: 0.75em">
+            Custom Project Arguments
+          </v-label>
 
           <CustomArgumentsEditor v-model:custom-args="detail.custom_prj_args" />
         </v-col>
@@ -247,6 +263,7 @@ async function applyProjectDetailToSchedule(
   }
 
   currentDetail.project_id = projectDetail.id;
+  currentDetail.python_environment_name = projectDetail.python_environment_name;
   currentDetail.max_retry_count = projectDetail.max_retry_count;
   currentDetail.timeout_min = projectDetail.timeout_min;
   currentDetail.builtin_log_level = projectDetail.builtin_log_level;
@@ -270,6 +287,7 @@ async function whenProjectNameChanged(): Promise<void> {
   const intRevision = ++intProjectSelectionRevision;
   currentDetail.project_id = undefined;
   currentDetail.project_version = undefined;
+  currentDetail.python_environment_name = "";
   scheduleStore.resetProjectVersions();
 
   loggerRenderer.info(`Modified Project name: ${name}`);
@@ -306,6 +324,7 @@ async function whenProjectVersionChanged(): Promise<void> {
 
   const intRevision = ++intProjectSelectionRevision;
   currentDetail.project_id = undefined;
+  currentDetail.python_environment_name = "";
   loggerRenderer.info(`Modified Project version: ${version}`);
   await applyProjectDetailToSchedule(currentDetail, name, version, intRevision);
 }

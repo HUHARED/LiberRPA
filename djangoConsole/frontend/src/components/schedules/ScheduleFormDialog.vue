@@ -60,12 +60,10 @@
               <v-switch
                 v-model="boolEnabled"
                 :error-messages="getFieldErrors(dictFieldError, 'enabled')"
-                label="Enabled" />
+                label="Enabled"
+                true-icon="mdi-flash" />
             </v-col>
           </v-row>
-          <p class="mb-4">
-            Python Environment: {{ selectedPackage?.python_environment_name || "—" }}
-          </p>
           <TargetSelector
             :key="strDepartmentId"
             v-model:executor-ids="arrExecutorId"
@@ -81,11 +79,13 @@
             class="mt-4" />
           <v-divider class="my-5" />
           <h2 class="text-h6 mb-4">Time</h2>
-          <v-text-field
+          <v-autocomplete
             v-model="strTimeZone"
+            :items="arrTimeZone"
             :error-messages="getFieldErrors(dictFieldError, 'time_zone')"
-            label="Schedule Time Zone (IANA)"
-            :rules="[(value) => !!value || 'Enter a time zone.']" />
+            label="Schedule Time Zone"
+            variant="outlined"
+            :rules="[(value) => !!value || 'Select a time zone.']" />
           <v-row>
             <v-col cols="12" md="6">
               <v-text-field
@@ -114,7 +114,11 @@
                 label="Cron Expression"
                 hint="Five fields, or six fields with seconds first."
                 persistent-hint
-                @update:model-value="changeCron" />
+                @update:model-value="changeCron">
+                <v-tooltip activator="parent" location="top">
+                  {{ strDescription }}
+                </v-tooltip>
+              </v-text-field>
             </v-col>
             <v-col cols="12" md="7">
               <cron-vuetify
@@ -128,7 +132,6 @@
               </p>
             </v-col>
           </v-row>
-          <p class="mt-3">{{ strDescription }}</p>
           <v-alert v-if="strPreviewError" type="error" variant="tonal" class="mt-3">
             {{ strPreviewError }}
           </v-alert>
@@ -150,7 +153,16 @@
               :field-errors="dictFieldError"
               :department-id="strDepartmentId"
               :disabled="boolBusy"
-              @valid="boolArgsValid = $event" />
+              @valid="boolArgsValid = $event">
+              <template #environment>
+                <v-text-field
+                  :model-value="selectedPackage?.python_environment_name ?? '—'"
+                  label="Python Environment"
+                  variant="underlined"
+                  density="compact"
+                  readonly />
+              </template>
+            </RunOptionsEditor>
             <v-divider class="my-5" />
             <h2 class="text-h6 mb-4">Dispatch &amp; Email</h2>
             <RunDispatchEmailEditor
@@ -162,8 +174,9 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolBusy" @click="emit('close')">Cancel</v-btn>
+        <v-btn variant="tonal" :disabled="boolBusy" @click="emit('close')">Cancel</v-btn>
         <v-btn
+          variant="tonal"
           color="primary"
           :loading="boolBusy"
           :disabled="
@@ -237,6 +250,10 @@ const strGroupId = ref<string | null>(null);
 const boolEnabled = ref(true);
 const strNotes = ref("");
 const strTimeZone = ref("UTC");
+const arrSupportedTimeZone = Intl.supportedValuesOf("timeZone");
+const arrTimeZone = computed(() =>
+  [...new Set(["UTC", strTimeZone.value, ...arrSupportedTimeZone])].sort(),
+);
 const strActiveFrom = ref(
   formatDateTimeInput(new Date().toISOString(), strTimeZone.value, true).slice(0, 10) +
     "T00:00:00",

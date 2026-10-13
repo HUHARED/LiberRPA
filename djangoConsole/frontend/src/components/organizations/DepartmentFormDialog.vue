@@ -82,7 +82,7 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" :disabled="boolSaving" @click="closeForm">Cancel</v-btn>
+        <v-btn variant="tonal" :disabled="boolSaving" @click="closeForm">Cancel</v-btn>
         <v-btn
           type="submit"
           form="department-form"

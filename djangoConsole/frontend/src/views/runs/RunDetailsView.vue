@@ -1,7 +1,9 @@
 <!-- FileName: RunDetailsView.vue -->
 <template>
   <div class="d-flex align-center flex-wrap ga-3 mb-4">
-    <v-btn to="/runs" variant="text" prepend-icon="mdi-arrow-left">Run History</v-btn>
+    <v-btn to="/runs" variant="tonal" prepend-icon="mdi-arrow-left">
+      Back to Run History
+    </v-btn>
     <v-spacer />
     <v-btn :loading="boolLoading" variant="tonal" @click="load">Refresh</v-btn>
     <v-btn v-if="run" :disabled="boolBusy || !run.can_rerun" variant="tonal" @click="rerun">
@@ -28,13 +30,22 @@
             <p>
               <v-chip>{{ RUN_STATUS_LABELS[run.status] }}</v-chip>
             </p>
-            <p class="mt-2">Executor: {{ run.executor_name }}</p>
-            <p>Account: {{ run.account_name }}</p>
+            <p class="mt-2">
+              <span class="text-caption text-medium-emphasis">Executor:</span>
+              {{ run.executor_name }}
+            </p>
+            <p>
+              <span class="text-caption text-medium-emphasis">Account:</span>
+              {{ run.account_name }}
+            </p>
           </v-col>
           <v-col cols="12" md="8">
-            <p>Started At: {{ formatDateTime(run.started_at, strTimeZone) }}</p>
             <p>
-              Ended At:
+              <span class="text-caption text-medium-emphasis">Started At:</span>
+              {{ formatDateTime(run.started_at, strTimeZone) }}
+            </p>
+            <p>
+              <span class="text-caption text-medium-emphasis">Ended At:</span>
               {{ formatRunEndTime(run, strTimeZone) }}
             </p>
             <p v-if="run.reason" class="text-pre-wrap">{{ run.reason }}</p>
@@ -124,34 +135,36 @@
           <v-table>
             <tbody>
               <tr>
-                <td>Department</td>
+                <th scope="row" class="text-caption text-medium-emphasis">Department</th>
                 <td>
                   {{ run.department_path }}
                   <span v-if="run.department_deleted_at !== null">(Deleted)</span>
                 </td>
               </tr>
               <tr>
-                <td>Source</td>
+                <th scope="row" class="text-caption text-medium-emphasis">Source</th>
                 <td>{{ JOB_SOURCE_LABELS[run.job.source] }}</td>
               </tr>
               <tr>
-                <td>Schedule</td>
+                <th scope="row" class="text-caption text-medium-emphasis">Schedule</th>
                 <td>{{ run.job.schedule_name || "—" }}</td>
               </tr>
               <tr>
-                <td>Scheduled At</td>
+                <th scope="row" class="text-caption text-medium-emphasis">Scheduled At</th>
                 <td>{{ formatDateTime(run.job.scheduled_at, strTimeZone) }}</td>
               </tr>
               <tr>
-                <td>Original Target</td>
+                <th scope="row" class="text-caption text-medium-emphasis">
+                  Original Target
+                </th>
                 <td>{{ run.job.target_name }}</td>
               </tr>
               <tr>
-                <td>Queued At</td>
+                <th scope="row" class="text-caption text-medium-emphasis">Queued At</th>
                 <td>{{ formatDateTime(run.job.queued_at, strTimeZone) }}</td>
               </tr>
               <tr>
-                <td>Job</td>
+                <th scope="row" class="text-caption text-medium-emphasis">Job</th>
                 <td>
                   <RouterLink :to="{ name: 'job-details', params: { jobId: run.job_id } }">
                     View Job
@@ -167,7 +180,10 @@
             }}</pre>
           </template>
           <h2 class="text-h6 mt-5 mb-2">Other Runs in This Job</h2>
-          <p class="mb-3">Current attempt: {{ run.attempt_number }}</p>
+          <p class="mb-3">
+            <span class="text-caption text-medium-emphasis">Current attempt:</span>
+            {{ run.attempt_number }}
+          </p>
           <RunTable
             :runs="run.other_runs"
             :time-zone="strTimeZone"
@@ -207,12 +223,14 @@
                   </td>
                   <td>
                     <v-btn
+                      v-tooltip:bottom="'Download Video'"
                       :disabled="!run.files.video.available"
                       :loading="boolDownloading"
                       variant="text"
-                      @click="download(RunFileKind.Video)">
-                      Download Video
-                    </v-btn>
+                      size="small"
+                      aria-label="Download Video"
+                      icon="mdi-download"
+                      @click="download(RunFileKind.Video)" />
                     <p v-if="run.files.video.reason" class="text-caption">
                       {{ run.files.video.reason }}
                     </p>
@@ -223,12 +241,14 @@
                   <td>{{ formatFileSize(run.recording.subtitleSizeBytes) }}</td>
                   <td>
                     <v-btn
+                      v-tooltip:bottom="'Download Subtitles'"
                       :disabled="!run.files.subtitles.available"
                       :loading="boolDownloading"
                       variant="text"
-                      @click="download(RunFileKind.Subtitles)">
-                      Download Subtitles
-                    </v-btn>
+                      size="small"
+                      aria-label="Download Subtitles"
+                      icon="mdi-download"
+                      @click="download(RunFileKind.Subtitles)" />
                     <p v-if="run.files.subtitles.reason" class="text-caption">
                       {{ run.files.subtitles.reason }}
                     </p>
@@ -240,8 +260,14 @@
           <v-expansion-panels class="mt-5">
             <v-expansion-panel title="Identifiers">
               <v-expansion-panel-text>
-                <p>Job ID: {{ run.job_id }}</p>
-                <p>Run ID: {{ run.id }}</p>
+                <p>
+                  <span class="text-caption text-medium-emphasis">Job ID:</span>
+                  {{ run.job_id }}
+                </p>
+                <p>
+                  <span class="text-caption text-medium-emphasis">Run ID:</span>
+                  {{ run.id }}
+                </p>
               </v-expansion-panel-text>
             </v-expansion-panel>
           </v-expansion-panels>

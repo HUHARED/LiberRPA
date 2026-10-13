@@ -34,11 +34,11 @@
     </v-col>
   </v-row>
 
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form @submit.prevent="applyFilters">
         <v-row>
-          <v-col cols="12" md="4">
+          <v-col cols="12" md="3">
             <v-autocomplete
               v-model="strDepartmentPath"
               :items="departments"
@@ -51,7 +51,7 @@
               clearable
               :disabled="boolLoading" />
           </v-col>
-          <v-col cols="12" md="4">
+          <v-col cols="12" md="3">
             <v-text-field
               v-model="strName"
               label="File Name"
@@ -62,7 +62,7 @@
               clearable
               :disabled="boolLoading" />
           </v-col>
-          <v-col cols="6" md="2">
+          <v-col cols="12" sm="6" md="3">
             <v-select
               v-model="strSortBy"
               :items="ARR_SORT_OPTION"
@@ -72,12 +72,15 @@
               hide-details
               :disabled="boolLoading" />
           </v-col>
-          <v-col cols="6" md="2">
-            <v-select
+          <v-col cols="12" sm="6" md="3">
+            <v-switch
               v-model="strOrder"
-              :items="ARR_ORDER_OPTION"
-              label="Order"
-              variant="outlined"
+              :label="strOrder === 'desc' ? 'Descending' : 'Ascending'"
+              :aria-label="strOrder === 'desc' ? 'Order: Descending' : 'Order: Ascending'"
+              true-value="desc"
+              false-value="asc"
+              true-icon="mdi-sort-descending"
+              false-icon="mdi-sort-ascending"
               density="compact"
               hide-details
               :disabled="boolLoading" />
@@ -87,8 +90,8 @@
           <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
             Apply
           </v-btn>
-          <v-btn variant="outlined" :disabled="boolLoading" @click="clearFilters">
-            Clear Filters
+          <v-btn variant="tonal" :disabled="boolLoading" @click="clearFilters">
+            Reset Filters
           </v-btn>
         </div>
       </form>
@@ -161,26 +164,32 @@
           {{ formatDateTime(item.uploaded_at, strTimeZone) }}
         </template>
         <template #item.actions="{ item }">
-          <div class="d-flex ga-1">
+          <div class="d-flex align-center ga-1">
             <v-btn
+              v-tooltip:bottom="'Download'"
               variant="text"
               size="small"
               :loading="setDownloadingFilePath.has(item.path)"
               :disabled="!boolReady || setDownloadingFilePath.has(item.path)"
-              @click="download(item.path)">
-              Download
-            </v-btn>
-            <v-btn variant="text" size="small" @click="copyPath(item.path)">
-              Copy Path
-            </v-btn>
+              aria-label="Download"
+              icon="mdi-download"
+              @click="download(item.path)" />
             <v-btn
+              v-tooltip:bottom="'Copy Path'"
+              variant="text"
+              size="small"
+              aria-label="Copy Path"
+              icon="mdi-content-copy"
+              @click="copyPath(item.path)" />
+            <v-btn
+              v-tooltip:bottom="'Delete'"
               variant="text"
               size="small"
               color="error"
               :disabled="!boolReady"
-              @click="deletePaths = [item.path]">
-              Delete
-            </v-btn>
+              aria-label="Delete"
+              icon="mdi-delete-outline"
+              @click="deletePaths = [item.path]" />
           </div>
         </template>
         <template #no-data>
@@ -242,16 +251,12 @@ const ARR_HEADER = [
   { title: "Size", key: "size_bytes" },
   { title: "Uploaded By", key: "uploaded_by_name", minWidth: 150 },
   { title: "Uploaded At", key: "uploaded_at", minWidth: 200 },
-  { title: "Actions", key: "actions", minWidth: 300 },
+  { title: "Actions", key: "actions", width: 152 },
 ];
 const ARR_SORT_OPTION = [
   { title: "File Name", value: "name" },
   { title: "Size", value: "size" },
   { title: "Uploaded At", value: "uploaded_at" },
-];
-const ARR_ORDER_OPTION = [
-  { title: "Ascending", value: "asc" },
-  { title: "Descending", value: "desc" },
 ];
 const sessionStore = useSessionStore();
 const route = useRoute();

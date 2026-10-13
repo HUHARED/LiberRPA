@@ -2,9 +2,16 @@
 <template>
   <AuthLayout>
     <h1 class="text-h5 mb-4">Confirm Email Change</h1>
-    <v-alert v-if="boolConfirmed" type="success" variant="tonal" class="mb-4" role="status">
-      Your email has been changed to {{ linkInfo?.new_email }}. Use this address for future
-      sign-ins. Your password, sessions and API keys remain active.
+    <v-alert
+      v-if="boolConfirmed"
+      type="success"
+      variant="tonal"
+      class="text-anywhere mb-4"
+      role="status">
+      Your email has been changed to
+      <span class="font-weight-bold">{{ linkInfo?.new_email }}.</span>
+      Use this address for future sign-ins. Your password, sessions and API keys remain
+      active.
     </v-alert>
     <template v-else>
       <v-progress-linear
@@ -27,11 +34,16 @@
           variant="outlined"
           readonly />
         <p class="text-medium-emphasis mb-4">
-          Expires at {{ formatDateTime(linkInfo.expires_at, "UTC") }}.
+          Expires at
+          <span class="font-weight-bold">
+            {{ formatDateTime(linkInfo.expires_at, "UTC") }}.
+          </span>
         </p>
         <p class="mb-4">
-          Select Confirm Email Change to update the account that requested this link.
-          Opening this page does not change the email or sign you in.
+          Select
+          <span class="font-weight-bold">Confirm Email Change</span>
+          to update the account that requested this link. Opening this page does not change
+          the email or sign you in.
         </p>
         <v-btn
           color="primary"
@@ -57,7 +69,7 @@
       </v-btn>
     </template>
     <v-btn
-      variant="text"
+      variant="tonal"
       block
       :disabled="boolConfirming"
       :to="sessionStore.authenticated ? '/overview' : '/sign-in'">

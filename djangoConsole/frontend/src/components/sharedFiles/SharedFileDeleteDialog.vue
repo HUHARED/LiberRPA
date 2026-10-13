@@ -18,16 +18,22 @@
           </p>
         </v-alert>
         <p class="mb-3">
-          Delete {{ paths.length }} {{ paths.length === 1 ? "file" : "files" }}? This cannot
-          be undone.
+          Delete
+          <span class="font-weight-bold">{{ paths.length }}</span>
+          {{ paths.length === 1 ? "file" : "files" }}? This cannot be undone.
         </p>
         <ul class="pl-5">
-          <li v-for="strPath in paths" :key="strPath" class="file-path">{{ strPath }}</li>
+          <li
+            v-for="strPath in paths"
+            :key="strPath"
+            class="file-path text-highlight font-weight-bold">
+            {{ strPath }}
+          </li>
         </ul>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolBusy" @click="emit('close')">Cancel</v-btn>
+        <v-btn variant="tonal" :disabled="boolBusy" @click="emit('close')">Cancel</v-btn>
         <v-btn
           color="error"
           variant="tonal"

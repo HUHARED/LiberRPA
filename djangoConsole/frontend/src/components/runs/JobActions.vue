@@ -2,31 +2,43 @@
 <template>
   <v-btn
     v-if="job.can_cancel"
+    v-tooltip:bottom="iconOnly ? strCancelLabel : undefined"
+    :icon="iconOnly"
+    :aria-label="strCancelLabel"
     size="small"
-    variant="text"
+    :variant="iconOnly ? 'text' : 'tonal'"
     :loading="boolBusy"
     @click="act('cancel')">
-    {{ job.state === "waiting_retry" ? "Cancel Retries" : "Cancel" }}
+    <v-icon v-if="iconOnly" icon="mdi-cancel" />
+    <template v-else>{{ strCancelLabel }}</template>
   </v-btn>
   <v-btn
     v-if="job.can_stop"
+    v-tooltip:bottom="iconOnly ? 'Stop' : undefined"
+    :icon="iconOnly"
+    aria-label="Stop"
     size="small"
-    variant="text"
+    :variant="iconOnly ? 'text' : 'tonal'"
     color="warning"
     :loading="boolBusy"
     @click="act('stop')">
-    Stop
+    <v-icon v-if="iconOnly" icon="mdi-stop-circle-outline" />
+    <template v-else>Stop</template>
   </v-btn>
   <v-btn
     v-if="job.can_close"
+    v-tooltip:bottom="iconOnly ? 'Close Job' : undefined"
+    :icon="iconOnly"
+    aria-label="Close Job"
     size="small"
-    variant="text"
+    :variant="iconOnly ? 'text' : 'tonal'"
     color="error"
     :disabled="boolBusy"
     @click="boolConfirm = true">
-    Close Job
+    <v-icon v-if="iconOnly" icon="mdi-close-circle-outline" />
+    <template v-else>Close Job</template>
   </v-btn>
-  <span v-if="job.state === 'stopping'" class="text-body-2">Stop requested</span>
+  <span v-if="job.state === JobState.Stopping" class="text-body-2">Stop requested</span>
   <v-dialog v-model="boolConfirm" persistent max-width="600">
     <v-card>
       <v-card-title>Close Job</v-card-title>
@@ -36,20 +48,27 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolBusy" @click="boolConfirm = false">Cancel</v-btn>
-        <v-btn color="error" :loading="boolBusy" @click="act('close')">Close Job</v-btn>
+        <v-btn variant="tonal" :disabled="boolBusy" @click="boolConfirm = false">
+          Cancel
+        </v-btn>
+        <v-btn variant="tonal" color="error" :loading="boolBusy" @click="act('close')">
+          Close Job
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
 </template>
 <script setup lang="ts">
-import { ref } from "vue";
-import { controlJob, type JobInfo } from "@/api/runs";
+import { computed, ref } from "vue";
+import { controlJob, JobState, type JobInfo } from "@/api/runs";
 import { getApiError } from "@/api/errors";
-const props = defineProps<{ job: JobInfo }>();
+const props = defineProps<{ job: JobInfo; iconOnly?: boolean }>();
 const emit = defineEmits<{ updated: []; error: [message: string] }>();
 const boolBusy = ref(false);
 const boolConfirm = ref(false);
+const strCancelLabel = computed(() =>
+  props.job.state === JobState.WaitingRetry ? "Cancel Retries" : "Cancel",
+);
 async function act(action: "cancel" | "stop" | "close"): Promise<void> {
   boolBusy.value = true;
   try {

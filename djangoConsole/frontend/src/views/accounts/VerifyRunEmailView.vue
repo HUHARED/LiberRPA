@@ -8,14 +8,15 @@
       </v-alert>
       <v-progress-linear v-if="boolLoading" indeterminate />
       <template v-if="info">
-        <p class="mb-4">
-          {{ info.organization_name }} would like to send automation run notifications to
-          {{ info.email }}.
+        <p class="text-anywhere mb-4">
+          <span class="text-highlight font-weight-bold">{{ info.organization_name }}</span>
+          would like to send automation run notifications to
+          <span class="text-highlight font-weight-bold">{{ info.email }}.</span>
         </p>
         <v-alert v-if="info.verified" type="success" variant="tonal">
           This address is verified.
         </v-alert>
-        <v-btn v-else color="primary" :loading="boolBusy" @click="confirm">
+        <v-btn v-else variant="tonal" color="primary" :loading="boolBusy" @click="confirm">
           Confirm Email Address
         </v-btn>
       </template>

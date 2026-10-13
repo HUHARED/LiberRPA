@@ -5,6 +5,7 @@
   </v-alert>
   <v-select
     v-model="config.recipient_ids"
+    variant="underlined"
     :items="arrRecipient"
     item-title="email"
     item-value="id"
@@ -30,6 +31,7 @@
           :disabled="disabled" />
         <v-text-field
           v-model="config[event.key].subject"
+          variant="underlined"
           :error-messages="
             getFieldErrors(fieldErrors, `settings.run_email.${event.key}.subject`)
           "
@@ -38,6 +40,7 @@
           @focus="setField(event.key, 'subject')" />
         <v-textarea
           v-model="config[event.key].body"
+          variant="underlined"
           :error-messages="
             getFieldErrors(fieldErrors, `settings.run_email.${event.key}.body`)
           "
@@ -58,15 +61,22 @@
               :key="field"
               :title="field"
               @click="insertField(event.key, field)" />
-            <v-list-subheader>Custom Arguments</v-list-subheader>
+            <v-list-subheader>Custom Project Arguments</v-list-subheader>
             <template v-for="name in arrKey" :key="name">
-              <v-list-item
-                :title="`Input: ${name}`"
-                @click="insertArgument(event.key, name, true)" />
+              <v-list-item @click="insertArgument(event.key, name, true)">
+                <template #title>
+                  <span class="text-info">Input :</span>
+                  {{ name }}
+                </template>
+              </v-list-item>
               <v-list-item
                 v-if="event.key !== 'on_start'"
-                :title="`Output: ${name}`"
-                @click="insertArgument(event.key, name, false)" />
+                @click="insertArgument(event.key, name, false)">
+                <template #title>
+                  <span class="text-secondary">Output:</span>
+                  {{ name }}
+                </template>
+              </v-list-item>
             </template>
           </v-list>
         </v-menu>

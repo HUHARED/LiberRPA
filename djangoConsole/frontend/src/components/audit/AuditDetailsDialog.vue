@@ -13,49 +13,77 @@
         <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
           {{ requestError.message }}
           <div v-if="![401, 403, 404].includes(requestError.statusCode)" class="mt-3">
-            <v-btn variant="outlined" :disabled="boolLoading" @click="loadDetails">
+            <v-btn variant="tonal" :disabled="boolLoading" @click="loadDetails">
               Retry
             </v-btn>
           </div>
         </v-alert>
         <template v-if="record">
           <dl class="detail-fields">
-            <dt>Time ({{ strTimeZone }})</dt>
-            <dd>{{ formatDateTime(record.created_at, strTimeZone) }}</dd>
-            <dt>Actor</dt>
-            <dd>{{ record.actor_name }}</dd>
-            <template v-if="record.actor_id">
-              <dt>Actor ID</dt>
+            <div>
+              <dt class="text-caption text-medium-emphasis">Time ({{ strTimeZone }})</dt>
+              <dd>{{ formatDateTime(record.created_at, strTimeZone) }}</dd>
+            </div>
+            <div>
+              <dt class="text-caption text-medium-emphasis">Actor</dt>
+              <dd>{{ record.actor_name }}</dd>
+            </div>
+            <div v-if="record.actor_id">
+              <dt class="text-caption text-medium-emphasis">Actor ID</dt>
               <dd>{{ record.actor_id }}</dd>
-            </template>
-            <dt>Channel</dt>
-            <dd>{{ AUDIT_CHANNEL_LABEL[record.channel] }}</dd>
-            <dt>Module</dt>
-            <dd>{{ formatAuditLabel(record.module) }}</dd>
-            <dt>Action</dt>
-            <dd>{{ record.action }}</dd>
-            <dt>Object Type</dt>
-            <dd>{{ formatAuditLabel(record.object_type) }}</dd>
-            <dt>Object</dt>
-            <dd>{{ record.object_name || "—" }}</dd>
-            <dt>Object ID</dt>
-            <dd>{{ record.object_id || "—" }}</dd>
-            <dt>Organization</dt>
-            <dd>{{ record.organization_name }}</dd>
-            <template v-if="record.department_id">
-              <dt>Department ID</dt>
+            </div>
+            <div>
+              <dt class="text-caption text-medium-emphasis">Channel</dt>
+              <dd>{{ AUDIT_CHANNEL_LABEL[record.channel] }}</dd>
+            </div>
+            <div>
+              <dt class="text-caption text-medium-emphasis">Module</dt>
+              <dd>{{ formatAuditLabel(record.module) }}</dd>
+            </div>
+            <div>
+              <dt class="text-caption text-medium-emphasis">Action</dt>
+              <dd>{{ record.action }}</dd>
+            </div>
+            <div>
+              <dt class="text-caption text-medium-emphasis">Object Type</dt>
+              <dd>{{ formatAuditLabel(record.object_type) }}</dd>
+            </div>
+            <div>
+              <dt class="text-caption text-medium-emphasis">Object</dt>
+              <dd>
+                {{ record.object_name || "—" }}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-caption text-medium-emphasis">Object ID</dt>
+              <dd>{{ record.object_id || "—" }}</dd>
+            </div>
+            <div>
+              <dt class="text-caption text-medium-emphasis">Organization</dt>
+              <dd>
+                {{ record.organization_name }}
+              </dd>
+            </div>
+            <div v-if="record.department_id">
+              <dt class="text-caption text-medium-emphasis">Department ID</dt>
               <dd>{{ record.department_id }}</dd>
-            </template>
-            <dt>Result</dt>
-            <dd>{{ formatAuditLabel(record.result) }}</dd>
-            <dt>Stage</dt>
-            <dd>{{ formatAuditLabel(record.stage) }}</dd>
-            <template v-if="record.request_id">
-              <dt>Request ID</dt>
+            </div>
+            <div>
+              <dt class="text-caption text-medium-emphasis">Result</dt>
+              <dd class="font-weight-bold">{{ formatAuditLabel(record.result) }}</dd>
+            </div>
+            <div>
+              <dt class="text-caption text-medium-emphasis">Stage</dt>
+              <dd>{{ formatAuditLabel(record.stage) }}</dd>
+            </div>
+            <div v-if="record.request_id">
+              <dt class="text-caption text-medium-emphasis">Request ID</dt>
               <dd>{{ record.request_id }}</dd>
-            </template>
-            <dt>Audit ID</dt>
-            <dd>{{ record.id }}</dd>
+            </div>
+            <div>
+              <dt class="text-caption text-medium-emphasis">Audit ID</dt>
+              <dd>{{ record.id }}</dd>
+            </div>
           </dl>
           <v-divider class="my-4" />
           <h3 class="text-subtitle-1 mb-2">Summary</h3>
@@ -65,16 +93,16 @@
           <dl
             v-if="record.reason_code || record.http_status !== null"
             class="detail-fields mt-4">
-            <template v-if="record.reason_code">
-              <dt>
+            <div v-if="record.reason_code">
+              <dt class="text-caption text-medium-emphasis">
                 {{ record.result === "failed" ? "Failure Reason Code" : "Reason Code" }}
               </dt>
               <dd>{{ record.reason_code }}</dd>
-            </template>
-            <template v-if="record.http_status !== null">
-              <dt>HTTP Status</dt>
+            </div>
+            <div v-if="record.http_status !== null">
+              <dt class="text-caption text-medium-emphasis">HTTP Status</dt>
               <dd>{{ record.http_status }}</dd>
-            </template>
+            </div>
           </dl>
           <template v-if="record.changes.length">
             <v-divider class="my-4" />
@@ -112,7 +140,7 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" @click="emit('close')">Close</v-btn>
+        <v-btn variant="tonal" @click="emit('close')">Close</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

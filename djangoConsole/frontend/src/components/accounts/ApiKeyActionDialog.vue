@@ -59,7 +59,7 @@
       </v-card-text>
       <v-card-actions class="flex-wrap ga-2">
         <v-spacer />
-        <v-btn variant="text" :disabled="boolSaving" @click="closeDialog">Cancel</v-btn>
+        <v-btn variant="tonal" :disabled="boolSaving" @click="closeDialog">Cancel</v-btn>
         <v-btn v-if="boolRefreshRequired" variant="tonal" @click="emit('refresh')">
           Refresh List
         </v-btn>

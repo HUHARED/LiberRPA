@@ -40,7 +40,7 @@ export async function runInstalledProject(settings: ProjectSettingsUpdate): Prom
   await startProjectRun(buildManualRunConfig({ ...dictProject, ...settings }));
 }
 
-export async function rerunLocalRun(runHistoryId: number): Promise<void> {
+export function getLocalRerunProject(runHistoryId: number): ProjectDetails {
   const strProjectName = dbSelectFinishedLocalRunProjectName(runHistoryId);
   if (strProjectName === undefined) {
     throw new Error("Only a local Run with a confirmed end can be rerun.");
@@ -50,5 +50,5 @@ export async function rerunLocalRun(runHistoryId: number): Promise<void> {
     throw new Error(`No installed Project version found: ${strProjectName}`);
   }
 
-  await startProjectRun(buildManualRunConfig(dictProject));
+  return dictProject;
 }

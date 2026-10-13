@@ -112,7 +112,7 @@
                 Apply
               </v-btn>
               <v-btn
-                variant="outlined"
+                variant="tonal"
                 :disabled="boolSaving || boolLoadingMembers"
                 @click="resetMemberFilter">
                 Reset
@@ -141,7 +141,7 @@
             <div class="d-flex flex-wrap align-center justify-space-between ga-2 mb-3">
               <span aria-live="polite">Selected: {{ arrExecutorId.length }}</span>
               <v-btn
-                variant="text"
+                variant="tonal"
                 size="small"
                 :disabled="boolSaving || !arrExecutorId.length"
                 @click="clearMembers">
@@ -229,7 +229,7 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" :disabled="boolSaving" @click="emit('close')">Cancel</v-btn>
+        <v-btn variant="tonal" :disabled="boolSaving" @click="emit('close')">Cancel</v-btn>
         <v-btn
           type="submit"
           form="executor-group-form"

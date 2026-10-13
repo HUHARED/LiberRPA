@@ -17,6 +17,10 @@
       hover
       multi-sort
       @update:options="handleTableOptionsUpdate($event)">
+      <template #item.project_name="{ value }">
+        <span :title="value" class="d-block text-truncate">{{ value }}</span>
+      </template>
+
       <template #item.schedule_name="{ value }">
         {{ value ?? "—" }}
       </template>
@@ -41,6 +45,10 @@
           class="clean-space"></v-chip>
       </template>
 
+      <template #item.duration="{ item }">
+        {{ formatDuration(item.run_started_at_ms, item.run_ended_at_ms) }}
+      </template>
+
       <template #item.status="{ value }">
         <v-chip
           :border="`${getStatusColor(value)} thin opacity-25`"
@@ -52,11 +60,16 @@
 
       <template #item.actions="{ item }">
         <div class="d-flex ga-2 justify-start">
-          <v-icon
-            icon="mdi-information-outline"
-            size="small"
-            title="Inputs and Outputs"
-            @click="showRunDetails(item.id)" />
+          <v-tooltip text="View Run Details" location="bottom" :open-on-focus="false">
+            <template #activator="{ props }">
+              <v-icon
+                v-bind="props"
+                icon="mdi-eye-outline"
+                size="small"
+                aria-label="View Run Details"
+                @click="showRunDetails(item.id)" />
+            </template>
+          </v-tooltip>
 
           <v-tooltip text="Open Log Folder" location="bottom" :open-on-focus="false">
             <template #activator="{ props }">
@@ -71,7 +84,7 @@
 
           <v-tooltip
             v-if="item.status === RunStatus.Running"
-            text="Stop Current Run"
+            text="Stop Run"
             location="bottom"
             :open-on-focus="false">
             <template #activator="{ props }">
@@ -100,7 +113,7 @@
                 icon="mdi-replay"
                 size="small"
                 :disabled="setPendingRerun.has(item.id)"
-                @click="rerunLocalRun(item.id)"></v-icon>
+                @click="openRerunDialog(item.id)"></v-icon>
             </template>
           </v-tooltip>
         </div>
@@ -158,58 +171,49 @@
       </template>
     </v-data-table-server>
 
-    <v-dialog v-model="boolShowDetails" max-width="850" persistent scrollable>
+    <RunProjectDialog
+      v-if="rerunProject"
+      :project="rerunProject"
+      @close="rerunProject = undefined" />
+
+    <v-dialog v-model="boolShowDetails" max-width="850" height="80vh" persistent scrollable>
       <v-card v-if="runDetails" title="Run Details">
-        <v-card-text>
-          <div>
+        <v-card-text class="flex-column overflow-hidden">
+          <div class="flex-shrink-0">
             {{ DICT_RUN_SOURCE_LABEL[runDetails.source] }} · Attempt
             {{ runDetails.attempt_number }}
           </div>
-          <div v-if="runDetails.source === RunSource.Console">
+          <div v-if="runDetails.source === RunSource.Console" class="flex-shrink-0">
             Job {{ runDetails.job_id }}
           </div>
-          <h3 class="mt-3">Inputs</h3>
-          <pre class="text-wrap">{{ JSON.stringify(runDetails.snapshot, null, 2) }}</pre>
-          <h3 class="mt-3">Outputs — {{ runDetails.outputs.status }}</h3>
-          <v-alert v-if="runDetails.outputs.reason" variant="tonal" class="my-2">
-            {{ runDetails.outputs.reason }}
-          </v-alert>
-          <p
-            v-if="
-              runDetails.outputs.status === RunOutputsStatus.Complete &&
-              !runDetails.outputs.values?.length
-            ">
-            No output items.
-          </p>
-          <v-table v-else-if="runDetails.outputs.values?.length">
-            <thead>
-              <tr>
-                <th>Key</th>
-                <th>Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="[key, value] in runDetails.outputs.values" :key="key">
-                <td>{{ key }}</td>
-                <td>
-                  <pre class="text-pre-wrap text-break py-2">{{
-                    JSON.stringify(value, null, 2)
-                  }}</pre>
-                </td>
-              </tr>
-            </tbody>
-          </v-table>
-          <div v-if="runDetails.outputs.unavailableKeys.length">
-            Unavailable: {{ runDetails.outputs.unavailableKeys.join(", ") }}
+          <div class="flex-column flex-column-grow-1 overflow-hidden">
+            <h3 class="mt-3 flex-shrink-0">Inputs</h3>
+            <pre class="flex-column-grow-1 text-pre-wrap text-break">{{
+              JSON.stringify(runDetails.snapshot, null, 2)
+            }}</pre>
           </div>
-          <v-alert v-if="runDetails.error_summary" type="error" variant="tonal">
-            {{ runDetails.error_summary.type }}:
-            {{ runDetails.error_summary.message }}
-          </v-alert>
+          <div class="flex-column flex-column-grow-1 overflow-hidden">
+            <h3 class="mt-3 flex-shrink-0">Outputs — {{ runDetails.outputs.status }}</h3>
+            <div class="flex-column-grow-1">
+              <v-alert v-if="runDetails.outputs.reason" variant="tonal" class="my-2">
+                {{ runDetails.outputs.reason }}
+              </v-alert>
+              <pre class="text-pre-wrap text-break">{{
+                JSON.stringify(runDetails.outputs.values, null, 2)
+              }}</pre>
+              <div v-if="runDetails.outputs.unavailableKeys.length" class="text-break">
+                Unavailable: {{ runDetails.outputs.unavailableKeys.join(", ") }}
+              </div>
+              <v-alert v-if="runDetails.error_summary" type="error" variant="tonal">
+                {{ runDetails.error_summary.type }}:
+                {{ runDetails.error_summary.message }}
+              </v-alert>
+            </div>
+          </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn @click="boolShowDetails = false">Close</v-btn>
+          <v-btn variant="tonal" @click="boolShowDetails = false">Close</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -221,10 +225,12 @@ import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { debounce } from "lodash";
 import type { DataTableHeader } from "vuetify";
 
+import RunProjectDialog from "../Projects/RunProjectDialog.vue";
+import type { ProjectDetails } from "../../../../shared/project";
+
 import { getErrorMessage } from "../../../../shared/error";
 import {
   RunSource,
-  RunOutputsStatus,
   type RunDetails,
   RunStatus,
   type RunHistoryItem,
@@ -268,6 +274,7 @@ const settingStore = useSettingStore();
 const boolShowDetails = ref(false);
 const runDetails = ref<RunDetails>();
 const setPendingRerun = ref(new Set<number>());
+const rerunProject = ref<ProjectDetails>();
 async function showRunDetails(id: number): Promise<void> {
   runDetails.value = await invokeMain("getRunDetails", id);
   boolShowDetails.value = true;
@@ -329,16 +336,17 @@ const arrHeader: DataTableHeader<RunHistoryItem>[] = [
     title: "Project",
     align: "center",
     children: [
-      { title: "Name", value: "project_name", align: "start", sortable: true },
+      {
+        title: "Name",
+        value: "project_name",
+        align: "start",
+        sortable: true,
+        width: "18%",
+        maxWidth: 220,
+      },
       {
         title: "Version",
         value: "project_version",
-        align: "start",
-        sortable: true,
-      },
-      {
-        title: "Environment",
-        value: "python_environment_name",
         align: "start",
         sortable: true,
       },
@@ -346,11 +354,23 @@ const arrHeader: DataTableHeader<RunHistoryItem>[] = [
   },
   { title: "Started", value: "run_started_at_ms", align: "center", sortable: true },
   { title: "Ended", value: "run_ended_at_ms", align: "center", sortable: true },
+  { title: "Duration", key: "duration", align: "center", sortable: false },
   { title: "Status", value: "status", align: "start", sortable: true },
   { title: "Source", value: "source", align: "start", sortable: false },
   { title: "Attempt", value: "attempt_number", align: "start", sortable: false },
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
+
+function formatDuration(startedAtMs: number, endedAtMs: number | null): string {
+  if (endedAtMs === null) return "—";
+  const intTotalSeconds = Math.floor((endedAtMs - startedAtMs) / 1000);
+  const intHours = Math.floor(intTotalSeconds / 3600);
+  const intMinutes = Math.floor((intTotalSeconds % 3600) / 60);
+  const intSeconds = intTotalSeconds % 60;
+  return [intHours, intMinutes, intSeconds]
+    .map((value) => String(value).padStart(2, "0"))
+    .join(":");
+}
 
 function getStatusLabel(status: RunStatus): string {
   return DICT_RUN_STATUS_DISPLAY[status].title;
@@ -373,12 +393,11 @@ async function cancelProcess(id: number): Promise<void> {
   await invokeMain("pythonCancel", id);
 }
 
-async function rerunLocalRun(runHistoryId: number): Promise<void> {
+async function openRerunDialog(runHistoryId: number): Promise<void> {
   if (setPendingRerun.value.has(runHistoryId)) return;
   setPendingRerun.value.add(runHistoryId);
   try {
-    await invokeMain("rerunLocalRun", runHistoryId);
-    await runHistoryStore.refreshRunHistory();
+    rerunProject.value = await invokeMain("getLocalRerunProject", runHistoryId);
   } catch (e: unknown) {
     loggerRenderer.error(`Failed to rerun Run ${runHistoryId}: ${getErrorMessage(e)}`);
   } finally {

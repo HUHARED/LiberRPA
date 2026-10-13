@@ -23,9 +23,12 @@
     </template>
 
     <template v-else-if="sessionStore.authenticated">
-      <p class="mb-4">
-        You are signed in as {{ sessionStore.session?.user.email }}. Sign out to create a
-        new organization with another email address.
+      <p class="text-anywhere mb-4">
+        You are signed in as
+        <span class="text-highlight font-weight-bold">
+          {{ sessionStore.session?.user.email }}.
+        </span>
+        Sign out to create a new organization with another email address.
       </p>
       <v-btn
         variant="tonal"
@@ -165,7 +168,7 @@
 
       <v-btn
         :to="{ name: 'sign-in' }"
-        variant="text"
+        variant="tonal"
         class="mt-4"
         :disabled="boolSending || boolSaving">
         Back to Sign In

@@ -35,19 +35,31 @@
       {{ item.verified_at ? "Verified" : "Pending" }}
     </template>
     <template #item.actions="{ item }">
-      <div class="d-flex">
-        <v-btn size="small" variant="text" @click="openForm(item)">Edit Notes</v-btn>
+      <div class="d-flex align-center ga-1">
+        <v-btn
+          v-tooltip:bottom="'Edit Notes'"
+          size="small"
+          variant="text"
+          aria-label="Edit Notes"
+          icon="mdi-note-edit-outline"
+          @click="openForm(item)" />
         <v-btn
           v-if="!item.verified_at"
+          v-tooltip:bottom="'Resend Verification Email'"
           size="small"
           variant="text"
           :disabled="boolBusy"
-          @click="resend(item.id)">
-          Resend Verification Email
-        </v-btn>
-        <v-btn size="small" variant="text" color="error" @click="recipientDelete = item">
-          Delete
-        </v-btn>
+          aria-label="Resend Verification Email"
+          icon="mdi-email-sync-outline"
+          @click="resend(item.id)" />
+        <v-btn
+          v-tooltip:bottom="'Delete'"
+          size="small"
+          variant="text"
+          color="error"
+          aria-label="Delete"
+          icon="mdi-delete-outline"
+          @click="recipientDelete = item" />
       </div>
     </template>
   </v-data-table>
@@ -70,8 +82,8 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolBusy" @click="boolForm = false">Cancel</v-btn>
-        <v-btn color="primary" :loading="boolBusy" @click="save">
+        <v-btn variant="tonal" :disabled="boolBusy" @click="boolForm = false">Cancel</v-btn>
+        <v-btn variant="tonal" color="primary" :loading="boolBusy" @click="save">
           {{ recipientEdit ? "Save" : "Add" }}
         </v-btn>
       </v-card-actions>
@@ -81,10 +93,11 @@
     <v-card>
       <v-card-title>Delete Email</v-card-title>
       <v-card-text>
-        <p>
-          Delete {{ recipientDelete?.email }}? References from packages, schedules, active
-          Jobs and pending messages must be removed first. Verification links become
-          invalid.
+        <p class="text-anywhere">
+          Delete
+          <span class="text-highlight font-weight-bold">{{ recipientDelete?.email }}?</span>
+          References from packages, schedules, active Jobs and pending messages must be
+          removed first. Verification links become invalid.
         </p>
         <v-alert v-if="strDeleteError" type="error" variant="tonal" class="mt-4">
           {{ strDeleteError }}
@@ -101,6 +114,7 @@
       <v-card-actions>
         <v-spacer />
         <v-btn
+          variant="tonal"
           :disabled="boolBusy"
           @click="
             recipientDelete = null;
@@ -109,7 +123,9 @@
           ">
           Cancel
         </v-btn>
-        <v-btn color="error" :loading="boolBusy" @click="remove">Delete</v-btn>
+        <v-btn variant="tonal" color="error" :loading="boolBusy" @click="remove">
+          Delete
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

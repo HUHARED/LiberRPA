@@ -17,9 +17,12 @@
       <v-btn :to="{ name: 'sign-in' }" color="primary" variant="tonal" block>Sign In</v-btn>
     </template>
     <template v-else-if="sessionStore.authenticated">
-      <p class="mb-4">
-        You are signed in as {{ sessionStore.session?.user.email }}. Sign out to create the
-        invited account.
+      <p class="text-anywhere mb-4">
+        You are signed in as
+        <span class="text-highlight font-weight-bold">
+          {{ sessionStore.session?.user.email }}.
+        </span>
+        Sign out to create the invited account.
       </p>
       <v-btn
         variant="tonal"
@@ -99,17 +102,19 @@
           Open the link in your invitation email. If it has expired or been revoked, ask an
           organization administrator for a new invitation.
         </p>
+      </template>
+      <div class="d-flex flex-wrap align-center ga-3 mt-4">
         <v-btn
-          v-if="strToken"
+          v-if="!registrationInfo && !boolLoading && strToken"
           variant="tonal"
           :disabled="intRetrySeconds > 0"
           @click="loadInvitation">
           Check Again
         </v-btn>
-      </template>
-      <v-btn :to="{ name: 'sign-in' }" variant="text" class="mt-4" :disabled="boolSaving">
-        Back to Sign In
-      </v-btn>
+        <v-btn :to="{ name: 'sign-in' }" variant="tonal" :disabled="boolSaving">
+          Back to Sign In
+        </v-btn>
+      </div>
     </template>
   </AuthLayout>
 </template>

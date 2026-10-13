@@ -50,7 +50,8 @@
 
     <v-card-actions class="bg-surface-light">
       <v-btn
-        prepend-icon="mdi-content-save-off-outline"
+        variant="tonal"
+        prepend-icon="mdi-close"
         @click="scheduleStore.showFormDialog = false">
         Cancel
       </v-btn>
@@ -58,6 +59,7 @@
       <v-spacer></v-spacer>
 
       <v-btn
+        variant="tonal"
         prepend-icon="mdi-content-save-outline"
         :disabled="!boolCanSave"
         @click="saveSchedule()">

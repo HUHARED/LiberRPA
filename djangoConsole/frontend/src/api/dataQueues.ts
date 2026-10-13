@@ -28,10 +28,6 @@ export const QUEUE_STATUSES = [
   { title: "Unclaimed", value: "unclaimed" },
   { title: "Claimed", value: "claimed" },
 ];
-export const QUEUE_ORDERS = [
-  { title: "Oldest First", value: "oldest_first" },
-  { title: "Newest First", value: "newest_first" },
-];
 
 function isQueue(value: unknown): value is QueueEntryResponse {
   return (

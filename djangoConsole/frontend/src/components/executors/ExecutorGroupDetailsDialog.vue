@@ -50,24 +50,26 @@
           <h2 class="text-subtitle-1 mb-3">Group Information</h2>
           <dl class="detail-fields mb-4">
             <div>
-              <dt>Name</dt>
+              <dt class="text-caption text-medium-emphasis">Name</dt>
               <dd>{{ groupInfo.name }}</dd>
             </div>
             <div>
-              <dt>Department</dt>
+              <dt class="text-caption text-medium-emphasis">Department</dt>
               <dd>{{ groupInfo.department.path }}</dd>
             </div>
             <template v-if="!boolConfirmDelete">
               <div>
-                <dt>Members</dt>
+                <dt class="text-caption text-medium-emphasis">Members</dt>
                 <dd>{{ groupInfo.member_count }}</dd>
               </div>
               <div>
-                <dt>Online</dt>
+                <dt class="text-caption text-medium-emphasis">Online</dt>
                 <dd>{{ groupInfo.online_count }}</dd>
               </div>
               <div>
-                <dt>Created At ({{ strTimeZone }})</dt>
+                <dt class="text-caption text-medium-emphasis">
+                  Created At ({{ strTimeZone }})
+                </dt>
                 <dd>{{ formatDateTime(groupInfo.created_at, strTimeZone) }}</dd>
               </div>
             </template>
@@ -98,7 +100,7 @@
                   :to="{ name: 'executor-details', params: { executorId: item.id } }"
                   target="_blank"
                   rel="noopener"
-                  class="d-inline-block table-text-narrow text-primary">
+                  class="d-inline-block table-text-narrow text-primary text-decoration-none">
                   {{ item.name }}
                 </RouterLink>
               </template>
@@ -138,7 +140,7 @@
                         name: 'schedule-details',
                         params: { scheduleId: schedule.id },
                       }"
-                      class="text-primary"
+                      class="text-primary text-decoration-none"
                       target="_blank"
                       rel="noopener">
                       {{ schedule.name }}
@@ -154,7 +156,7 @@
       <v-card-actions class="flex-wrap ga-2">
         <template v-if="boolConfirmDelete">
           <v-spacer />
-          <v-btn variant="text" :disabled="boolBusy" @click="closeDelete">Cancel</v-btn>
+          <v-btn variant="tonal" :disabled="boolBusy" @click="closeDelete">Cancel</v-btn>
           <v-btn
             color="error"
             variant="tonal"
@@ -167,7 +169,7 @@
         <template v-else>
           <v-btn
             v-if="!boolDeleted"
-            variant="text"
+            variant="tonal"
             :disabled="boolBusy"
             @click="loadGroupDetails">
             Refresh
@@ -191,7 +193,7 @@
           <v-btn
             :to="{ name: 'executor-groups', query: route.query }"
             replace
-            variant="text"
+            variant="tonal"
             :disabled="boolBusy">
             Close
           </v-btn>

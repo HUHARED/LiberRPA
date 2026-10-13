@@ -64,7 +64,7 @@ export function ensureInvokeCommand(value: unknown): ExecutorInvokeCommand {
     case "getRunDetails":
     case "openRunLogFolder":
     case "pythonCancel":
-    case "rerunLocalRun":
+    case "getLocalRerunProject":
     case "saveExecutorConfig":
     case "chooseProjectLogFolder":
     case "openProjectLogFolder":
@@ -284,7 +284,6 @@ export function ensureRunHistoryOptions(value: unknown): RunHistoryQueryOptions 
       case "schedule_name":
       case "project_name":
       case "project_version":
-      case "python_environment_name":
       case "run_started_at_ms":
       case "run_ended_at_ms":
       case "status":

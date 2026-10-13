@@ -3,11 +3,16 @@
   <AuthLayout>
     <h1 class="text-h5 mb-4">Reset Password</h1>
     <template v-if="boolCompleted">
-      <v-alert type="success" variant="tonal" class="mb-4" role="status">
-        The password for {{ linkInfo?.email }} has been reset.
+      <v-alert type="success" variant="tonal" class="text-anywhere mb-4" role="status">
+        The password for
+        <span class="font-weight-bold">{{ linkInfo?.email }}</span>
+        has been reset.
       </v-alert>
-      <p v-if="sessionStore.authenticated" class="mb-4">
-        You are still signed in as {{ sessionStore.session?.user.email }}.
+      <p v-if="sessionStore.authenticated" class="text-anywhere mb-4">
+        You are still signed in as
+        <span class="text-highlight font-weight-bold">
+          {{ sessionStore.session?.user.email }}.
+        </span>
       </p>
       <v-btn
         :to="sessionStore.authenticated ? '/overview' : '/sign-in'"
@@ -94,7 +99,7 @@
 
       <v-btn
         :to="sessionStore.authenticated ? '/overview' : '/sign-in'"
-        variant="text"
+        variant="tonal"
         block
         class="mt-4"
         :disabled="boolSaving">

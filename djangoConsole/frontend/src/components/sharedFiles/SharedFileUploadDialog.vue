@@ -75,7 +75,10 @@
       <v-card-actions>
         <v-spacer />
 
-        <v-btn :disabled="boolCancelRequested || boolCanceling" @click="cancel">
+        <v-btn
+          variant="tonal"
+          :disabled="boolCancelRequested || boolCanceling"
+          @click="cancel">
           {{ boolBusy ? "Cancel Upload" : "Cancel" }}
         </v-btn>
 

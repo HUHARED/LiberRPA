@@ -4,8 +4,11 @@ html {
   overflow: hidden !important;
 }
 
-body {
-  font-family: "Noto Sans Mono", sans-serif;
+body,
+body :not(.v-icon, .mdi-set) {
+  font-family:
+    "Noto Sans Mono", "Cascadia Mono", Consolas, "Liberation Mono", "Microsoft YaHei",
+    monospace;
 }
 
 .clean-space {

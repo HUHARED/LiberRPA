@@ -45,7 +45,7 @@
         <div class="table-text">
           <RouterLink
             :to="{ name: 'member-details', params: { userId: item.user.id } }"
-            class="text-primary">
+            class="text-primary text-decoration-none">
             {{ item.user.username || item.user.email }}
           </RouterLink>
           <p v-if="item.user.username" class="text-body-2 text-medium-emphasis">
@@ -68,7 +68,7 @@
                 name: 'department-details',
                 params: { departmentId: assignment.department.id },
               }"
-              class="text-primary">
+              class="text-primary text-decoration-none">
               {{ assignment.department.path }}
             </RouterLink>
             <span class="text-capitalize">— {{ assignment.role }}</span>
@@ -85,24 +85,26 @@
         {{ formatDateTime(item.joined_at, strTimeZone) }}
       </template>
       <template #item.actions="{ item }">
-        <v-btn
-          variant="text"
-          size="small"
-          :disabled="boolActionBlocked"
-          :aria-label="`Edit membership for ${item.user.email}`"
-          @click="openEdit(item.user)">
-          Edit
-        </v-btn>
-        <v-btn
-          v-if="item.user.id !== sessionStore.session?.user.id"
-          color="error"
-          variant="text"
-          size="small"
-          :disabled="boolActionBlocked"
-          :aria-label="`Delete account ${item.user.email}`"
-          @click="openDelete(item.user)">
-          Delete Account
-        </v-btn>
+        <div class="d-flex align-center ga-1">
+          <v-btn
+            v-tooltip:bottom="'Edit'"
+            variant="text"
+            size="small"
+            :disabled="boolActionBlocked"
+            :aria-label="`Edit membership for ${item.user.email}`"
+            icon="mdi-pencil-outline"
+            @click="openEdit(item.user)" />
+          <v-btn
+            v-if="item.user.id !== sessionStore.session?.user.id"
+            v-tooltip:bottom="'Delete Account'"
+            color="error"
+            variant="text"
+            size="small"
+            :disabled="boolActionBlocked"
+            :aria-label="`Delete account ${item.user.email}`"
+            icon="mdi-account-remove-outline"
+            @click="openDelete(item.user)" />
+        </div>
       </template>
       <template #no-data>
         {{ requestError ? "The member list could not be loaded." : "No members found." }}
@@ -162,7 +164,7 @@ const arrHeader = computed(() => [
   { title: "Roles / Departments", key: "roles", minWidth: 240 },
   { title: "Notes", key: "notes", minWidth: 200 },
   { title: `Joined At (${strTimeZone.value})`, key: "joined_at", minWidth: 240 },
-  { title: "Actions", key: "actions", width: 320 },
+  { title: "Actions", key: "actions", width: 112 },
 ]);
 const memberPage = shallowRef<MemberListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);

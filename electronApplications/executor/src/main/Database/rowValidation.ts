@@ -234,6 +234,7 @@ export function ensureScheduleDetailRow(
       "project_id",
       "project_name",
       "project_version",
+      "python_environment_name",
       "cron",
       "run_conflict_policy",
       "period_start_ms",
@@ -271,6 +272,10 @@ export function ensureScheduleDetailRow(
     project_version: ensureNonEmptyString(
       row.project_version,
       `${sourceName}.project_version`,
+    ),
+    python_environment_name: ensurePythonEnvironmentName(
+      row.python_environment_name,
+      `${sourceName}.python_environment_name`,
     ),
     cron: ensureNonEmptyString(row.cron, `${sourceName}.cron`),
     run_conflict_policy: ensureRunConflictPolicy(
@@ -403,7 +408,6 @@ function ensureRunHistoryListItemRow(value: unknown, sourceName: string): RunHis
       "schedule_name",
       "project_name",
       "project_version",
-      "python_environment_name",
       "run_started_at_ms",
       "run_ended_at_ms",
       "status",
@@ -435,10 +439,6 @@ function ensureRunHistoryListItemRow(value: unknown, sourceName: string): RunHis
     project_version: ensureNonEmptyString(
       row.project_version,
       `${sourceName}.project_version`,
-    ),
-    python_environment_name: ensurePythonEnvironmentName(
-      row.python_environment_name,
-      `${sourceName}.python_environment_name`,
     ),
     run_started_at_ms: ensureNonNegativeInteger(
       row.run_started_at_ms,

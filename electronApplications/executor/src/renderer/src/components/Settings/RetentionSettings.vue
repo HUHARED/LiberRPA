@@ -132,7 +132,7 @@
     <v-btn
       class="ml-4"
       size="small"
-      variant="text"
+      variant="tonal"
       :disabled="!boolHasChanges"
       @click="resetRetentionDraft()">
       Cancel
@@ -158,7 +158,7 @@
 
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn variant="text" @click="boolConfirmationDialogOpen = false">Cancel</v-btn>
+        <v-btn variant="tonal" @click="boolConfirmationDialogOpen = false">Cancel</v-btn>
         <v-btn color="warning" variant="tonal" @click="confirmRetentionSettings()">
           Apply
         </v-btn>

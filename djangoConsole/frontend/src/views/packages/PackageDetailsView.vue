@@ -1,7 +1,9 @@
 <!-- FileName: PackageDetailsView.vue -->
 <template>
   <div class="d-flex align-center flex-wrap ga-2 mb-4">
-    <v-btn to="/packages" variant="text" prepend-icon="mdi-arrow-left">Packages</v-btn>
+    <v-btn to="/packages" variant="tonal" prepend-icon="mdi-arrow-left">
+      Back to Packages
+    </v-btn>
     <v-spacer />
     <v-btn :loading="boolLoading" variant="tonal" @click="load">Refresh</v-btn>
   </div>
@@ -29,57 +31,18 @@
       <v-btn
         v-if="details.package.can_manage"
         color="error"
-        variant="text"
+        variant="tonal"
         @click="boolDelete = true">
         Delete
       </v-btn>
     </div>
     <v-tabs v-model="strTab" show-arrows>
-      <v-tab value="metadata">Package</v-tab>
       <v-tab value="settings">Settings</v-tab>
+      <v-tab value="metadata">Package</v-tab>
       <v-tab value="preparation">Preparation</v-tab>
       <v-tab value="references">References</v-tab>
     </v-tabs>
     <v-tabs-window v-model="strTab" class="mt-4">
-      <v-tabs-window-item value="metadata">
-        <v-card variant="outlined">
-          <v-card-text>
-            <p class="text-pre-wrap mb-4">
-              {{ details.package.description || "No description." }}
-            </p>
-            <v-table>
-              <tbody>
-                <tr>
-                  <td>Version Summary</td>
-                  <td class="text-pre-wrap">
-                    {{ details.package.version_summary || "—" }}
-                  </td>
-                </tr>
-                <tr>
-                  <td>Requires LiberRPA</td>
-                  <td>{{ details.package.requires_liberrpa }}</td>
-                </tr>
-                <tr>
-                  <td>Size</td>
-                  <td>{{ formatFileSize(details.package.size_bytes) }}</td>
-                </tr>
-                <tr>
-                  <td>Uploaded At</td>
-                  <td>{{ formatDateTime(details.package.uploaded_at, strTimeZone) }}</td>
-                </tr>
-                <tr>
-                  <td>Uploaded By</td>
-                  <td>{{ details.package.uploaded_by_name }}</td>
-                </tr>
-                <tr>
-                  <td>SHA-256</td>
-                  <td class="text-break">{{ details.package.sha256 }}</td>
-                </tr>
-              </tbody>
-            </v-table>
-          </v-card-text>
-        </v-card>
-      </v-tabs-window-item>
       <v-tabs-window-item value="settings">
         <v-card variant="outlined">
           <v-card-text>
@@ -89,7 +52,9 @@
             <v-table class="mt-4">
               <tbody>
                 <tr>
-                  <td>Conflict Policy</td>
+                  <th scope="row" class="text-caption text-medium-emphasis">
+                    Conflict Policy
+                  </th>
                   <td>
                     {{
                       CONFLICT_POLICY_LABELS[details.package.settings.run_conflict_policy]
@@ -97,11 +62,13 @@
                   </td>
                 </tr>
                 <tr>
-                  <td>Priority</td>
+                  <th scope="row" class="text-caption text-medium-emphasis">Priority</th>
                   <td>{{ PRIORITY_LABELS[details.package.settings.priority] }}</td>
                 </tr>
                 <tr>
-                  <td>API Input Keys</td>
+                  <th scope="row" class="text-caption text-medium-emphasis">
+                    API Input Keys
+                  </th>
                   <td>
                     {{ details.package.api_input_keys.join(", ") || "None" }}
                   </td>
@@ -125,6 +92,49 @@
                 )
               "
               disabled />
+          </v-card-text>
+        </v-card>
+      </v-tabs-window-item>
+      <v-tabs-window-item value="metadata">
+        <v-card variant="outlined">
+          <v-card-text>
+            <p class="text-pre-wrap mb-4">
+              {{ details.package.description || "No description." }}
+            </p>
+            <v-table>
+              <tbody>
+                <tr>
+                  <th scope="row" class="text-caption text-medium-emphasis">
+                    Version Summary
+                  </th>
+                  <td class="text-pre-wrap">
+                    {{ details.package.version_summary || "—" }}
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-caption text-medium-emphasis">
+                    Requires LiberRPA
+                  </th>
+                  <td>{{ details.package.requires_liberrpa }}</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-caption text-medium-emphasis">Size</th>
+                  <td>{{ formatFileSize(details.package.size_bytes) }}</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-caption text-medium-emphasis">Uploaded At</th>
+                  <td>{{ formatDateTime(details.package.uploaded_at, strTimeZone) }}</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-caption text-medium-emphasis">Uploaded By</th>
+                  <td>{{ details.package.uploaded_by_name }}</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-caption text-medium-emphasis">SHA-256</th>
+                  <td class="text-break">{{ details.package.sha256 }}</td>
+                </tr>
+              </tbody>
+            </v-table>
           </v-card-text>
         </v-card>
       </v-tabs-window-item>
@@ -157,7 +167,7 @@
                         name: 'executor-details',
                         params: { executorId: preparation.executor_id },
                       }"
-                      class="text-primary">
+                      class="text-primary text-decoration-none">
                       {{ preparation.executor_name }}
                     </RouterLink>
                   </td>
@@ -197,17 +207,22 @@
           <v-alert v-if="strEditError" type="error" variant="tonal" class="mb-4">
             {{ strEditError }}
           </v-alert>
-          <v-text-field
-            v-model="strEnvironment"
-            :error-messages="getFieldErrors(dictFieldError, 'python_environment_name')"
-            label="Python Environment"
-            :rules="[validateEnvironmentName]" />
           <RunOptionsEditor
             v-model="draft"
             :field-errors="dictFieldError"
             :department-id="details.package.department_id"
             :disabled="boolBusy"
-            @valid="boolArgsValid = $event" />
+            @valid="boolArgsValid = $event">
+            <template #environment>
+              <v-text-field
+                v-model="strEnvironment"
+                :error-messages="getFieldErrors(dictFieldError, 'python_environment_name')"
+                label="Python Environment"
+                variant="underlined"
+                density="compact"
+                :rules="[validateEnvironmentName]" />
+            </template>
+          </RunOptionsEditor>
           <v-select
             v-model="arrApiInputKey"
             :error-messages="getFieldErrors(dictFieldError, 'api_input_keys')"
@@ -231,8 +246,13 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolBusy" @click="boolEdit = false">Cancel</v-btn>
-        <v-btn color="primary" :loading="boolBusy" :disabled="!boolArgsValid" @click="save">
+        <v-btn variant="tonal" :disabled="boolBusy" @click="boolEdit = false">Cancel</v-btn>
+        <v-btn
+          variant="tonal"
+          color="primary"
+          :loading="boolBusy"
+          :disabled="!boolArgsValid"
+          @click="save">
           Save
         </v-btn>
       </v-card-actions>
@@ -260,8 +280,12 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolBusy" @click="boolDelete = false">Cancel</v-btn>
-        <v-btn color="error" :loading="boolBusy" @click="remove">Delete</v-btn>
+        <v-btn variant="tonal" :disabled="boolBusy" @click="boolDelete = false">
+          Cancel
+        </v-btn>
+        <v-btn variant="tonal" color="error" :loading="boolBusy" @click="remove">
+          Delete
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -277,8 +301,10 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn :disabled="boolBusy" @click="boolCancelPreparation = false">Back</v-btn>
-        <v-btn color="error" :loading="boolBusy" @click="cancelPreparation">
+        <v-btn variant="tonal" :disabled="boolBusy" @click="boolCancelPreparation = false">
+          Back
+        </v-btn>
+        <v-btn variant="tonal" color="error" :loading="boolBusy" @click="cancelPreparation">
           Cancel Requests
         </v-btn>
       </v-card-actions>
@@ -334,7 +360,7 @@ const details = shallowRef<PackageDetails | null>(null);
 const draft: Ref<RunSettings | null> = ref(null);
 const arrApiInputKey = ref<string[]>([]);
 const strEnvironment = ref("");
-const strTab = ref("metadata");
+const strTab = ref("settings");
 const boolCanRun = computed(
   () =>
     sessionStore.access?.is_org_admin ||

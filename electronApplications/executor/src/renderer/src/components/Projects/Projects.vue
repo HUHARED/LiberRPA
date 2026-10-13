@@ -1,7 +1,7 @@
 <!-- FileName: Projects.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
-    <v-label class="header-label tab-header">Projects</v-label>
+    <v-label class="header-label tab-header">Packages</v-label>
 
     <v-container fluid class="pa-1 ma-0 flex-row" style="height: 45px">
       <v-btn
@@ -64,7 +64,7 @@
         fluid
         class="clean-space fill-height flex-column"
         style="flex: 1; min-width: 0px">
-        <v-label class="header-label column-header">Details</v-label>
+        <v-label class="header-label column-header">Package Details</v-label>
 
         <!-- The data area. -->
         <v-container
@@ -83,7 +83,7 @@
               <!-- Right half: Custom Project Arguments -->
               <v-col cols="6" class="clean-space flex-column">
                 <v-label class="clean-space" style="font-size: 0.75em">
-                  Custom Arguments
+                  Custom Project Arguments
                 </v-label>
 
                 <CustomArgumentsEditor
@@ -112,7 +112,7 @@
             <v-col cols="3" class="clean-space">
               <v-btn
                 variant="tonal"
-                prepend-icon="mdi-content-save-off-outline"
+                prepend-icon="mdi-close"
                 :disabled="!boolDetailChanged"
                 @click="refreshDetail()">
                 Cancel
@@ -121,7 +121,7 @@
             <v-col cols="3" class="clean-space">
               <v-btn
                 variant="tonal"
-                prepend-icon="mdi-delete-empty-outline"
+                prepend-icon="mdi-delete-outline"
                 @click="openDeleteDialog()">
                 Delete
               </v-btn>
@@ -132,35 +132,16 @@
                 prepend-icon="mdi-play-outline"
                 :disabled="boolDetailChanged"
                 @click="runProject()">
-                Run Now
+                Run
               </v-btn>
             </v-col>
           </v-row>
         </v-container>
 
-        <v-dialog v-model="boolShowRunDialog" max-width="800" persistent scrollable>
-          <v-card v-if="runSettings" title="Run Now">
-            <v-card-text>
-              <v-select
-                v-model="runSettings.python_environment_name"
-                label="Python Environment"
-                :items="projectStore.arrPythonEnvironmentName" />
-              <BuiltInRunOptions
-                v-model:max-retry-count="runSettings.max_retry_count"
-                v-model:timeout-min="runSettings.timeout_min"
-                v-model:log-level="runSettings.builtin_log_level"
-                v-model:record-video="runSettings.builtin_record_video"
-                v-model:stop-shortcut="runSettings.builtin_stop_shortcut"
-                v-model:highlight-ui="runSettings.builtin_highlight_ui" />
-              <CustomArgumentsEditor v-model:custom-args="runSettings.custom_prj_args" />
-            </v-card-text>
-            <v-card-actions>
-              <v-spacer />
-              <v-btn @click="boolShowRunDialog = false">Cancel</v-btn>
-              <v-btn color="primary" @click="submitRun">Run</v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-dialog>
+        <RunProjectDialog
+          v-if="boolShowRunDialog && projectStore.dictDetailEdit"
+          :project="projectStore.dictDetailEdit"
+          @close="boolShowRunDialog = false" />
 
         <DeleteProjectDialog @deleted="resetProjectSelection" />
       </v-container>
@@ -173,10 +154,8 @@ import DeleteProjectDialog from "./DeleteProjectDialog.vue";
 import ProjectMetadata from "./ProjectMetadata.vue";
 import ProjectRunSettings from "./ProjectRunSettings.vue";
 import CustomArgumentsEditor from "../RunOptions/CustomArgumentsEditor.vue";
-import BuiltInRunOptions from "../RunOptions/BuiltInRunOptions.vue";
+import RunProjectDialog from "./RunProjectDialog.vue";
 import VerticalDivider from "../Common/VerticalDivider.vue";
-import { cloneJsonSerializable } from "../../Common/json";
-import type { ProjectSettingsUpdate } from "../../../../shared/project";
 
 import { onBeforeMount, onBeforeUnmount, ref, watch } from "vue";
 import { debounce } from "lodash";
@@ -184,30 +163,9 @@ import { debounce } from "lodash";
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
 import { useProjectStore } from "../../Store/projectStore";
-import { useRunHistoryStore } from "../../Store/runHistoryStore";
 
 const projectStore = useProjectStore();
-const runHistoryStore = useRunHistoryStore();
 const boolShowRunDialog = ref(false);
-const runSettings = ref<ProjectSettingsUpdate>();
-async function submitRun(): Promise<void> {
-  if (!runSettings.value) return;
-  const detail = runSettings.value;
-  await invokeMain("runProject", {
-    id: detail.id,
-    python_environment_name: detail.python_environment_name,
-    max_retry_count: detail.max_retry_count,
-    timeout_min: detail.timeout_min,
-    builtin_log_level: detail.builtin_log_level,
-    builtin_record_video: detail.builtin_record_video,
-    builtin_stop_shortcut: detail.builtin_stop_shortcut,
-    builtin_highlight_ui: detail.builtin_highlight_ui,
-    custom_prj_args: cloneJsonSerializable(detail.custom_prj_args),
-  });
-  boolShowRunDialog.value = false;
-  await runHistoryStore.refreshRunHistory();
-}
-
 const strName = ref("");
 const strVersion = ref("");
 const arrSelectedName = ref<string[]>([]);
@@ -323,10 +281,9 @@ async function openDeleteDialog(): Promise<void> {
   }
 }
 
-async function runProject(): Promise<void> {
+function runProject(): void {
   loggerRenderer.debug("--runProject--");
   if (projectStore.dictDetailEdit) {
-    runSettings.value = cloneJsonSerializable(projectStore.dictDetailEdit);
     boolShowRunDialog.value = true;
   }
 }
