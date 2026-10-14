@@ -2,9 +2,9 @@
 
 import type {
   RunConflictPolicy,
-  RunOptions,
+  RunSettings,
   PythonEnvironmentSelection,
-} from "./runOptions";
+} from "./runSettings";
 
 export enum RunSource {
   Local = "local",
@@ -38,7 +38,7 @@ export interface RunRecordingInfo {
   reason?: string;
 }
 
-export interface ProjectRunConfig extends RunOptions, PythonEnvironmentSelection {
+export interface ProjectRunConfig extends RunSettings, PythonEnvironmentSelection {
   run_conflict_policy?: RunConflictPolicy;
   schedule_name: string | null;
   local_project_id: number | null;

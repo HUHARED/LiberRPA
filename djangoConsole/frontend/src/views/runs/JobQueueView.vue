@@ -5,6 +5,7 @@
     <v-spacer />
     <v-btn variant="tonal" :loading="boolLoading" @click="load()">Refresh</v-btn>
   </div>
+
   <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form @submit.prevent="apply">
@@ -20,12 +21,15 @@
               chips
               hide-details />
           </v-col>
+
           <v-col cols="12" md="3">
             <v-text-field v-model="filters.scheduleName" label="Schedule" hide-details />
           </v-col>
+
           <v-col cols="12" md="3">
             <v-text-field v-model="filters.projectName" label="Project" hide-details />
           </v-col>
+
           <v-col cols="12" md="3">
             <v-select
               v-model="filters.states"
@@ -38,6 +42,7 @@
               hide-details />
           </v-col>
         </v-row>
+
         <div class="d-flex ga-2 mt-4">
           <v-btn type="submit" color="primary" variant="tonal">Apply</v-btn>
           <v-btn variant="tonal" @click="clearFilters">Reset Filters</v-btn>
@@ -45,13 +50,16 @@
       </form>
     </v-card-text>
   </v-card>
+
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
     {{ strError }}
     <p v-if="page">The displayed results may be out of date.</p>
   </v-alert>
+
   <p class="text-body-2 text-medium-emphasis mb-3">
     Active Jobs only · Time zone: {{ strTimeZone }}
   </p>
+
   <v-card variant="outlined">
     <v-data-table-server
       :headers="ARR_HEADER"
@@ -70,6 +78,7 @@
         </RouterLink>
         <span v-else>—</span>
       </template>
+
       <template #item.target_name="{ item }">
         <RouterLink
           :to="{
@@ -92,10 +101,13 @@
           </RouterLink>
         </template>
       </template>
+
       <template #item.priority="{ item }">{{ PRIORITY_LABELS[item.priority] }}</template>
+
       <template #item.queued_at="{ item }">
         {{ formatDateTime(item.queued_at, strTimeZone) }}
       </template>
+
       <template #item.state="{ item }">
         <v-chip
           size="small"
@@ -103,6 +115,7 @@
           {{ JOB_STATE_LABELS[item.state] }}
         </v-chip>
       </template>
+
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
           <v-btn
@@ -112,12 +125,16 @@
             variant="text"
             aria-label="View Job Details"
             icon="mdi-eye-outline" />
+
           <JobActions :job="item" icon-only @updated="load()" @error="strError = $event" />
         </div>
       </template>
+
       <template #no-data>No active Jobs match the current filters.</template>
     </v-data-table-server>
+
     <v-divider />
+
     <div class="d-flex justify-space-between align-center pa-3">
       <span>{{ page?.total_count ?? 0 }} Jobs</span>
       <v-pagination
@@ -130,10 +147,13 @@
     </div>
   </v-card>
 </template>
+
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterLink, useRoute } from "vue-router";
+
 import JobActions from "@/components/runs/JobActions.vue";
+
 import {
   JobState,
   ARR_JOB_STATE,
@@ -142,22 +162,27 @@ import {
   type JobFilters,
 } from "@/api/runs";
 import { getApiError } from "@/api/errors";
+
 import { PRIORITY_LABELS, JOB_STATE_LABELS } from "@/app/runLabels";
 import { formatDateTime } from "@/app/formatters";
+
 import { useSessionStore } from "@/stores/sessionStore";
+
 const ARR_HEADER = [
   { title: "Schedule", key: "schedule_name" },
-  { title: "Project", key: "project_name" },
-  { title: "Version", key: "project_version" },
+  { title: "Project Name", key: "project_name" },
+  { title: "Project Version", key: "project_version" },
   { title: "Target", key: "target_name" },
   { title: "Priority", key: "priority" },
   { title: "Queued At", key: "queued_at" },
   { title: "Status", key: "state" },
   { title: "Actions", key: "actions" },
 ];
+
 const sessionStore = useSessionStore();
 const route = useRoute();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+
 function emptyFilters(): JobFilters {
   return {
     departmentIds: [],
@@ -166,21 +191,25 @@ function emptyFilters(): JobFilters {
     states: [],
   };
 }
+
 const filters = ref(emptyFilters());
 const initialState = ARR_JOB_STATE.find((state) => state === route.query.state);
 if (initialState) filters.value.states = [initialState];
 if (typeof route.query.department_id === "string")
   filters.value.departmentIds = [route.query.department_id];
+
 let appliedFilters = {
   ...filters.value,
   departmentIds: [...filters.value.departmentIds],
   states: [...filters.value.states],
 };
+
 const page = shallowRef<JobPage | null>(null);
 const boolLoading = ref(false);
 const strError = ref("");
 let refreshTimer: ReturnType<typeof setInterval> | undefined;
 let intLoadRevision = 0;
+
 async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
   const intRevision = ++intLoadRevision;
   boolLoading.value = true;
@@ -194,6 +223,7 @@ async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
     if (intRevision === intLoadRevision) boolLoading.value = false;
   }
 }
+
 function apply(): void {
   appliedFilters = {
     ...filters.value,
@@ -202,16 +232,20 @@ function apply(): void {
   };
   void load(1);
 }
+
 function clearFilters(): void {
   filters.value = emptyFilters();
   apply();
 }
+
 onMounted(() => {
   void load();
   refreshTimer = setInterval(() => {
     if (!document.hidden && !boolLoading.value) void load();
   }, 10000);
 });
+
 onBeforeUnmount(() => clearInterval(refreshTimer));
 </script>
+
 <style scoped></style>

@@ -9,6 +9,7 @@
     <v-radio label="Executors" value="executor" />
     <v-radio label="Executor Group" value="group" />
   </v-radio-group>
+
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-3">
     {{ strError }}
     <v-btn
@@ -19,6 +20,7 @@
       Retry
     </v-btn>
   </v-alert>
+
   <v-select
     v-if="strTargetType === 'executor'"
     v-model="executorIds"
@@ -43,6 +45,7 @@
         :subtitle="`${item.raw.association_status} · ${item.raw.dispatch_enabled ? 'Dispatch enabled' : 'Paused'}`" />
     </template>
   </v-select>
+
   <v-select
     v-else
     v-model="groupId"
@@ -65,8 +68,10 @@
     </template>
   </v-select>
 </template>
+
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from "vue";
+
 import { getExecutorList } from "@/api/executors";
 import { getExecutorGroupList } from "@/api/executorGroups";
 import { getApiError, getFieldErrors } from "@/api/errors";
@@ -74,14 +79,18 @@ import type {
   ExecutorListEntryResponse,
   ExecutorGroupListEntryResponse,
 } from "@/api/generated/browserApi";
+
 const props = defineProps<{
   departmentId: string;
   disabled?: boolean;
   fieldErrors?: Record<string, string[]>;
 }>();
+
 const executorIds = defineModel<string[]>("executorIds", { required: true });
 const groupId = defineModel<string | null>("groupId", { required: true });
+
 type TargetType = "executor" | "group";
+
 const strTargetType = ref<TargetType>(groupId.value ? "group" : "executor");
 const arrExecutor = ref<ExecutorListEntryResponse[]>([]);
 const arrGroup = ref<ExecutorGroupListEntryResponse[]>([]);
@@ -157,14 +166,18 @@ async function loadTargets(): Promise<void> {
 watch(groupId, (value) => {
   if (value !== null) strTargetType.value = "group";
 });
+
 watch(executorIds, (value) => {
   if (value.length) strTargetType.value = "executor";
 });
+
 watch([() => props.departmentId, strTargetType], () => void loadTargets(), {
   immediate: true,
 });
+
 onBeforeUnmount(() => {
   intRevision++;
 });
 </script>
+
 <style scoped></style>

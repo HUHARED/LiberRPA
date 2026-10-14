@@ -52,7 +52,7 @@ export function previewScheduleCron(
       currentDate: new Date(startMs),
       endDate: new Date(endMs),
     });
-    for (let intIndex = 0; intIndex < 5 && intervalObj.hasNext(); intIndex++) {
+    for (let intIndex = 0; intIndex < 3 && intervalObj.hasNext(); intIndex++) {
       arrTimestamp.push(nextScheduleDate(intervalObj).toDate().getTime());
     }
   } catch {

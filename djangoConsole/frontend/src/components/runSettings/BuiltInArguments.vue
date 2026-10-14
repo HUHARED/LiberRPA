@@ -1,9 +1,10 @@
-<!-- FileName: BuiltInRunOptions.vue -->
+<!-- FileName: BuiltInArguments.vue -->
 <template>
   <v-row>
     <v-col v-if="$slots.environment" cols="12" sm="6">
       <slot name="environment" />
     </v-col>
+
     <v-col cols="12" :sm="$slots.environment ? 6 : 12">
       <v-number-input
         v-model="settings.max_retry_count"
@@ -18,10 +19,14 @@
         :rules="[validateMaxRetryCount]"
         :disabled="disabled"
         :readonly="readonly"
-        hint="Maximum extra attempts after an execution error."
-        persistent-hint />
+        hide-details="auto">
+        <v-tooltip activator="parent" location="top">
+          Maximum extra attempts after an execution error.
+        </v-tooltip>
+      </v-number-input>
     </v-col>
   </v-row>
+
   <v-row class="mt-1">
     <v-col cols="12" sm="7">
       <v-number-input
@@ -40,6 +45,7 @@
         hint="0 means no limit. Applies to each attempt."
         persistent-hint />
     </v-col>
+
     <v-col cols="12" sm="5">
       <v-select
         v-model="settings.builtin_log_level"
@@ -53,6 +59,7 @@
         :readonly="readonly" />
     </v-col>
   </v-row>
+
   <v-switch
     v-model="settings.builtin_record_video"
     :error-messages="getFieldErrors(fieldErrors, 'settings.builtin_record_video')"
@@ -61,6 +68,7 @@
     hide-details="auto"
     :disabled="disabled"
     :readonly="readonly" />
+
   <v-switch
     v-model="settings.builtin_stop_shortcut"
     :error-messages="getFieldErrors(fieldErrors, 'settings.builtin_stop_shortcut')"
@@ -69,6 +77,7 @@
     hide-details="auto"
     :disabled="disabled"
     :readonly="readonly" />
+
   <v-switch
     v-model="settings.builtin_highlight_ui"
     :error-messages="getFieldErrors(fieldErrors, 'settings.builtin_highlight_ui')"
@@ -78,15 +87,17 @@
     :disabled="disabled"
     :readonly="readonly" />
 </template>
+
 <script setup lang="ts">
 import { getFieldErrors } from "@/api/errors";
-import { type RunSettings, ARR_LOG_LEVEL, INT_MAX_TIMEOUT_MIN } from "@/api/runOptions";
+import { type RunSettings, ARR_LOG_LEVEL, INT_MAX_TIMEOUT_MIN } from "@/api/runSettings";
 
 defineProps<{
   disabled?: boolean;
   readonly?: boolean;
   fieldErrors?: Record<string, string[]>;
 }>();
+
 const settings = defineModel<RunSettings>({ required: true });
 
 function validateMaxRetryCount(value: unknown): true | string {
@@ -106,4 +117,5 @@ function validateTimeout(value: unknown): true | string {
   );
 }
 </script>
+
 <style scoped></style>

@@ -1,8 +1,8 @@
 // FileName: project.ts
 
-import type { RunOptions, PythonEnvironmentSelection } from "./runOptions";
+import type { RunSettings, PythonEnvironmentSelection } from "./runSettings";
 
-export interface ProjectDetails extends RunOptions, PythonEnvironmentSelection {
+export interface ProjectDetails extends RunSettings, PythonEnvironmentSelection {
   id: number;
   name: string;
   version: string;
@@ -18,7 +18,7 @@ export type ProjectCreateData = Omit<
   "id" | "created_at_ms" | "updated_at_ms"
 >;
 
-export interface ProjectSettingsUpdate extends RunOptions, PythonEnvironmentSelection {
+export interface ProjectSettingsUpdate extends RunSettings, PythonEnvironmentSelection {
   id: number;
 }
 

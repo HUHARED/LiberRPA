@@ -23,6 +23,7 @@
               Duplicate keys exist. At runtime, the last value with the same key takes
               effect.
             </template>
+
             <template v-else>{{ item[0] }}</template>
           </v-tooltip>
         </v-text-field>
@@ -47,7 +48,7 @@
     </v-row>
   </v-container>
 
-  <v-container v-else fluid class="clean-space"> No custom arguments. </v-container>
+  <v-container v-else fluid class="clean-space">No custom arguments.</v-container>
 </template>
 
 <script setup lang="ts">
@@ -56,8 +57,8 @@ import { ref, watch } from "vue";
 import {
   getArgumentValueNote,
   updateCustomProjectArgumentValue,
-} from "../../RunOptions/runOptions";
-import type { CustomProjectArgs } from "../../../../shared/runOptions";
+} from "../../RunSettings/runSettings";
+import type { CustomProjectArgs } from "../../../../shared/runSettings";
 
 const customArgs = defineModel<CustomProjectArgs>("customArgs", { required: true });
 

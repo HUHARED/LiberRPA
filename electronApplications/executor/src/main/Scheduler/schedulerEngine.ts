@@ -10,7 +10,7 @@ import {
   JobQueueState,
   type JobQueueItem,
 } from "../../shared/run";
-import { INT_RETRY_DELAY_MS, RunConflictPolicy } from "../../shared/runOptions";
+import { INT_RETRY_DELAY_MS, RunConflictPolicy } from "../../shared/runSettings";
 
 import { dictConfigExecutor } from "../Config/executorConfig";
 import {

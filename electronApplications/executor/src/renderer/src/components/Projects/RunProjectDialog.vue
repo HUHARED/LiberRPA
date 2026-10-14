@@ -6,11 +6,14 @@
         <p class="text-subtitle-1 mb-3 flex-shrink-0 text-break">
           {{ project.name }} · {{ project.version }}
         </p>
+
         <h2 class="text-h6 mb-3 flex-shrink-0">Run Settings</h2>
+
         <v-row class="flex-column-grow-1 overflow-hidden">
           <v-col cols="12" md="6">
             <h3 class="text-subtitle-1 mb-3">Built-in Arguments</h3>
-            <BuiltInRunOptions
+
+            <BuiltInArguments
               v-model:max-retry-count="runSettings.max_retry_count"
               v-model:timeout-min="runSettings.timeout_min"
               v-model:log-level="runSettings.builtin_log_level"
@@ -31,19 +34,22 @@
                   :loading="boolLoading"
                   :items="arrPythonEnvironmentName" />
               </template>
-            </BuiltInRunOptions>
+            </BuiltInArguments>
           </v-col>
+
           <v-col cols="12" md="6" class="flex-column">
             <h3 class="text-subtitle-1 mb-3 flex-shrink-0">Custom Project Arguments</h3>
             <CustomArgumentsEditor v-model:custom-args="runSettings.custom_prj_args" />
           </v-col>
         </v-row>
       </v-card-text>
+
       <v-card-actions>
         <v-spacer />
         <v-btn variant="tonal" :disabled="boolStarting" @click="emit('close')">
           Cancel
         </v-btn>
+
         <v-btn
           variant="tonal"
           color="primary"
@@ -56,11 +62,12 @@
     </v-card>
   </v-dialog>
 </template>
+
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 
-import BuiltInRunOptions from "../RunOptions/BuiltInRunOptions.vue";
-import CustomArgumentsEditor from "../RunOptions/CustomArgumentsEditor.vue";
+import BuiltInArguments from "../RunSettings/BuiltInArguments.vue";
+import CustomArgumentsEditor from "../RunSettings/CustomArgumentsEditor.vue";
 
 import { cloneJsonSerializable } from "../../Common/json";
 import { invokeMain } from "../../IPC/ipc";
@@ -114,4 +121,5 @@ onMounted(async () => {
   }
 });
 </script>
+
 <style scoped></style>

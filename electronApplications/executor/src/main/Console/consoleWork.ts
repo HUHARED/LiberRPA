@@ -1,7 +1,7 @@
 // FileName: consoleWork.ts
 
 import { RunSource, type ProjectRunConfig } from "../../shared/run";
-import { RunConflictPolicy } from "../../shared/runOptions";
+import { RunConflictPolicy } from "../../shared/runSettings";
 import { getErrorMessage } from "../../shared/error";
 
 import {

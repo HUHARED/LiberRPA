@@ -1,6 +1,6 @@
 // FileName: schedule.ts
 
-import type { RunConflictPolicy, RunOptions } from "./runOptions";
+import type { RunConflictPolicy, RunSettings } from "./runSettings";
 
 export interface ScheduleListItem {
   id: number;
@@ -14,7 +14,7 @@ export interface ScheduleListItem {
   run_conflict_policy: RunConflictPolicy;
 }
 
-export interface ScheduleDetails extends ScheduleListItem, RunOptions {
+export interface ScheduleDetails extends ScheduleListItem, RunSettings {
   project_id: number;
   python_environment_name: string;
   created_at_ms: number;

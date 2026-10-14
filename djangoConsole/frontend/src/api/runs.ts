@@ -31,7 +31,12 @@ import type {
   RunRerunResponse,
   RunLogClearResponse,
 } from "./generated/browserApi";
-import { type RunSettings, ARR_PRIORITY, ARR_LOG_LEVEL, isRunSnapshot } from "./runOptions";
+import {
+  type RunSettings,
+  ARR_PRIORITY,
+  ARR_LOG_LEVEL,
+  isRunSnapshot,
+} from "./runSettings";
 
 export type { JobSource, JobControlAction };
 export type JobInfo = JobResponse;

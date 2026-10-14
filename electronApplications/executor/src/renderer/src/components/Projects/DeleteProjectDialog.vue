@@ -11,7 +11,7 @@
             <v-col cols="9">
               <v-text-field
                 :model-value="projectStore.dictDetailEdit.name"
-                label="Name"
+                label="Project Name"
                 class="clean-space"
                 density="compact"
                 hide-details
@@ -22,7 +22,7 @@
             <v-col cols="3">
               <v-text-field
                 :model-value="projectStore.dictDetailEdit.version"
-                label="Version"
+                label="Project Version"
                 variant="plain"
                 class="clean-space"
                 density="compact"

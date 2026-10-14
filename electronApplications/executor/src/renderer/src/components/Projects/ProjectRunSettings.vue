@@ -14,7 +14,7 @@
       the environment before running.
     </v-alert>
 
-    <BuiltInRunOptions
+    <BuiltInArguments
       v-model:max-retry-count="projectStore.dictDetailEdit.max_retry_count"
       v-model:timeout-min="projectStore.dictDetailEdit.timeout_min"
       v-model:log-level="projectStore.dictDetailEdit.builtin_log_level"
@@ -36,12 +36,13 @@
           hide-details
           :items="projectStore.arrPythonEnvironmentName" />
       </template>
-    </BuiltInRunOptions>
+    </BuiltInArguments>
   </v-col>
 </template>
 
 <script setup lang="ts">
-import BuiltInRunOptions from "../RunOptions/BuiltInRunOptions.vue";
+import BuiltInArguments from "../RunSettings/BuiltInArguments.vue";
+
 import { useProjectStore } from "../../Store/projectStore";
 
 const projectStore = useProjectStore();

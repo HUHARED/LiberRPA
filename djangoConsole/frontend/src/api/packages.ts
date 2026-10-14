@@ -4,12 +4,16 @@ import { getSha256, saveBlob } from "@/app/files";
 
 import { requestApi } from "./client";
 import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./responses";
-import { isRunSettings, cloneRunSettings, type RunSettings } from "./runOptions";
+import { isRunSettings, cloneRunSettings, type RunSettings } from "./runSettings";
 import type {
   PackageListEntryResponse,
   PackageResponse,
   PackageDetailsResponse,
-  PackageListResponse,
+  PackageProjectGroupResponse,
+  PackageProjectGroupEntryResponse,
+  PackageProjectGroupListResponse,
+  ProjectPackageEntryResponse,
+  ProjectPackageListResponse,
   PackageUploadResponse,
   PackageReferenceResponse,
   PackagePreparationResponse,
@@ -21,7 +25,10 @@ import type {
 export type PackageListEntry = PackageListEntryResponse;
 export type PackageInfo = PackageResponse;
 export type PackageDetails = PackageDetailsResponse;
-export type PackagePage = PackageListResponse;
+export type PackageProjectGroup = PackageProjectGroupResponse;
+export type PackageProjectGroupEntry = PackageProjectGroupEntryResponse;
+export type PackageProjectGroupPage = PackageProjectGroupListResponse;
+export type ProjectPackagePage = ProjectPackageListResponse;
 export type PackageReference = PackageReferenceResponse;
 export type PackagePreparation = PackagePreparationResponse;
 export type PackageUpload = PackageUploadResponse;
@@ -123,22 +130,75 @@ function parseUpload(value: unknown): PackageUpload {
     return rejectInvalidResponse();
   return value as unknown as PackageUpload;
 }
-export async function getPackages(
+function isPackageProjectGroup(value: unknown): value is PackageProjectGroup {
+  return (
+    isRecord(value) &&
+    typeof value.department_id === "string" &&
+    typeof value.department_path === "string" &&
+    typeof value.project_name === "string" &&
+    typeof value.project_name_key === "string"
+  );
+}
+
+function isPackageProjectGroupEntry(value: unknown): value is PackageProjectGroupEntry {
+  return (
+    isPackageProjectGroup(value) &&
+    "latest_package_id" in value &&
+    typeof value.latest_package_id === "string"
+  );
+}
+
+export async function getPackageProjectGroups(
   departmentIds: string[],
-  projectName = "",
   page = 1,
-): Promise<PackagePage> {
-  const query = new URLSearchParams({ page: String(page), project_name: projectName });
+  locatePackageId?: string,
+): Promise<PackageProjectGroupPage> {
+  const query = new URLSearchParams({ page: String(page) });
   for (const strId of departmentIds) query.append("department_id", strId);
-  const response = await requestApi(`/packages/?${query}`);
+  if (locatePackageId) query.set("locate_package_id", locatePackageId);
+
+  const response = await requestApi(`/packages/project-groups/?${query}`);
   if (
     !isRecord(response) ||
-    !Array.isArray(response.packages) ||
-    !response.packages.every(isPackageListEntry)
+    !Array.isArray(response.project_groups) ||
+    !response.project_groups.every(isPackageProjectGroupEntry)
   )
     return rejectInvalidResponse();
-  return { packages: response.packages, ...parsePaginationResponse(response) };
+
+  return {
+    project_groups: response.project_groups,
+    ...parsePaginationResponse(response),
+  };
 }
+
+export async function getProjectPackages(
+  packageId: string,
+  page?: number,
+): Promise<ProjectPackagePage> {
+  const query = page === undefined ? "" : `?page=${page}`;
+  const response = await requestApi(
+    `/packages/${encodeURIComponent(packageId)}/project-packages/${query}`,
+  );
+  if (
+    !isRecord(response) ||
+    !isPackageProjectGroup(response.project_group) ||
+    !Array.isArray(response.packages) ||
+    !response.packages.every(
+      (packageEntry): packageEntry is ProjectPackageEntryResponse =>
+        isRecord(packageEntry) &&
+        typeof packageEntry.id === "string" &&
+        typeof packageEntry.project_version === "string",
+    )
+  )
+    return rejectInvalidResponse();
+
+  return {
+    project_group: response.project_group,
+    packages: response.packages,
+    ...parsePaginationResponse(response),
+  };
+}
+
 export async function getPackageOptions(departmentId: string): Promise<PackageListEntry[]> {
   const response = await requestApi(
     `/packages/options/?${new URLSearchParams({ department_id: departmentId })}`,
@@ -159,8 +219,8 @@ export async function savePackageSettings(
   environment: string,
   settings: RunSettings,
   apiInputKeys: string[],
-): Promise<void> {
-  await requestApi(`/packages/${encodeURIComponent(id)}/settings/`, {
+): Promise<PackageInfo> {
+  const response = await requestApi(`/packages/${encodeURIComponent(id)}/settings/`, {
     method: "POST",
     body: {
       python_environment_name: environment,
@@ -168,6 +228,9 @@ export async function savePackageSettings(
       api_input_keys: [...apiInputKeys],
     },
   });
+  if (!isRecord(response) || !isPackageInfo(response.package))
+    return rejectInvalidResponse();
+  return response.package;
 }
 export async function cancelPackagePreparation(id: string): Promise<number> {
   const response = await requestApi(

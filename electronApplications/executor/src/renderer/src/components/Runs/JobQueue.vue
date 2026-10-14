@@ -5,6 +5,7 @@
 
     <!-- Bug: The hover attribute only works when the window is on the primary screen. -->
     <v-label class="align-self-start text-subtitle-2 my-2">Current Jobs</v-label>
+
     <v-data-table
       :headers="arrCurrentHeader"
       :items="arrCurrentRun"
@@ -69,6 +70,7 @@
     </v-data-table>
 
     <v-label class="align-self-start text-subtitle-2 my-2">Upcoming Triggers</v-label>
+
     <v-data-table
       :headers="arrUpcomingHeader"
       :items="arrUpcomingTrigger"
@@ -106,6 +108,7 @@ const setPendingAction = ref(new Set<string>());
 const arrCurrentRun = computed(() =>
   jobQueueStore.arrListItem.filter((item) => item.state !== JobQueueState.Pending),
 );
+
 const arrUpcomingTrigger = computed(() =>
   jobQueueStore.arrListItem.filter((item) => item.state === JobQueueState.Pending),
 );
@@ -114,6 +117,7 @@ const dictSourceLabel: Record<RunSource, string> = {
   [RunSource.Local]: "Local",
   [RunSource.Console]: "Console",
 };
+
 const dictQueueState: Record<JobQueueState, { label: string; color: string }> = {
   [JobQueueState.Pending]: { label: "Pending", color: "inactive" },
   [JobQueueState.WaitingRetry]: { label: "Waiting for Retry", color: "info" },
@@ -127,6 +131,7 @@ const arrProjectHeader: DataTableHeader<JobQueueItem>[] = [
   { title: "Name", value: "project_name", align: "start", sortable: false },
   { title: "Version", value: "project_version", align: "start", sortable: false },
 ];
+
 const arrCurrentHeader: DataTableHeader<JobQueueItem>[] = [
   { title: "Source", value: "source", align: "start", sortable: false },
   { title: "Schedule", value: "schedule_name", align: "start", sortable: false },
@@ -141,6 +146,7 @@ const arrCurrentHeader: DataTableHeader<JobQueueItem>[] = [
   { title: "Status", value: "state", align: "start", sortable: false },
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
+
 const arrUpcomingHeader: DataTableHeader<JobQueueItem>[] = [
   { title: "Schedule", value: "schedule_name", align: "start", sortable: false },
   { title: "Project", align: "center", children: arrProjectHeader },

@@ -267,8 +267,29 @@ class PackageDetailsResponse(JsonResponsePayload):
     references: list[PackageReferenceResponse]
 
 
-class PackageListResponse(PaginationResponse):
-    packages: list[PackageListEntryResponse]
+class PackageProjectGroupResponse(JsonResponsePayload):
+    department_id: UUID
+    department_path: str
+    project_name: str
+    project_name_key: str
+
+
+class PackageProjectGroupEntryResponse(PackageProjectGroupResponse):
+    latest_package_id: UUID
+
+
+class PackageProjectGroupListResponse(PaginationResponse):
+    project_groups: list[PackageProjectGroupEntryResponse]
+
+
+class ProjectPackageEntryResponse(JsonResponsePayload):
+    id: UUID
+    project_version: str
+
+
+class ProjectPackageListResponse(PaginationResponse):
+    project_group: PackageProjectGroupResponse
+    packages: list[ProjectPackageEntryResponse]
 
 
 class PackageOptionsResponse(JsonResponsePayload):

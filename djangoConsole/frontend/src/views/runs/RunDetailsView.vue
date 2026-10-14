@@ -6,9 +6,11 @@
     </v-btn>
     <v-spacer />
     <v-btn :loading="boolLoading" variant="tonal" @click="load">Refresh</v-btn>
+
     <v-btn v-if="run" :disabled="boolBusy || !run.can_rerun" variant="tonal" @click="rerun">
       Rerun
     </v-btn>
+
     <v-btn
       v-if="run?.can_stop"
       :loading="boolBusy"
@@ -18,11 +20,14 @@
       Stop Run
     </v-btn>
   </div>
+
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
     {{ strError }}
   </v-alert>
+
   <template v-if="run">
     <h1 class="text-h5 mb-3">{{ run.project_name }} · {{ run.project_version }}</h1>
+
     <v-card variant="outlined" class="mb-4">
       <v-card-text>
         <v-row>
@@ -30,35 +35,42 @@
             <p>
               <v-chip>{{ RUN_STATUS_LABELS[run.status] }}</v-chip>
             </p>
+
             <p class="mt-2">
               <span class="text-caption text-medium-emphasis">Executor:</span>
               {{ run.executor_name }}
             </p>
+
             <p>
               <span class="text-caption text-medium-emphasis">Account:</span>
               {{ run.account_name }}
             </p>
           </v-col>
+
           <v-col cols="12" md="8">
             <p>
               <span class="text-caption text-medium-emphasis">Started At:</span>
               {{ formatDateTime(run.started_at, strTimeZone) }}
             </p>
+
             <p>
               <span class="text-caption text-medium-emphasis">Ended At:</span>
               {{ formatRunEndTime(run, strTimeZone) }}
             </p>
+
             <p v-if="run.reason" class="text-pre-wrap">{{ run.reason }}</p>
           </v-col>
         </v-row>
       </v-card-text>
     </v-card>
+
     <v-tabs v-model="strTab">
       <v-tab value="logs">Logs</v-tab>
       <v-tab value="inputs">Inputs</v-tab>
       <v-tab value="outputs">Outputs</v-tab>
       <v-tab value="details">Details</v-tab>
     </v-tabs>
+
     <v-card variant="outlined" class="mt-4">
       <v-card-text>
         <RunLogs
@@ -71,10 +83,12 @@
           :download-enabled="run.files.logs.available"
           :download-reason="run.files.logs.reason"
           @download="download(RunFileKind.Logs)" />
-        <RunSettingsDetails
+
+        <RunArgumentsDetails
           v-if="strTab === 'inputs'"
           :settings="run.run_snapshot"
           :python-environment-name="run.run_snapshot.python_environment_name" />
+
         <template v-if="strTab === 'outputs'">
           <v-alert
             v-if="run.outputs_status === OutputsStatus.Waiting"
@@ -82,12 +96,14 @@
             variant="tonal">
             Waiting for the final outputs.
           </v-alert>
+
           <v-alert
             v-else-if="run.outputs_status === OutputsStatus.Unavailable"
             type="warning"
             variant="tonal">
             Outputs unavailable. {{ run.outputs_reason }}
           </v-alert>
+
           <template v-else>
             <v-alert
               v-if="run.outputs_status === OutputsStatus.Partial"
@@ -96,6 +112,7 @@
               class="mb-4">
               Some outputs are unavailable. {{ run.outputs_reason }}
             </v-alert>
+
             <p
               v-if="
                 run.outputs_status === OutputsStatus.Complete &&
@@ -104,6 +121,7 @@
               ">
               No output items.
             </p>
+
             <v-table v-else>
               <thead>
                 <tr>
@@ -111,6 +129,7 @@
                   <th>Value</th>
                 </tr>
               </thead>
+
               <tbody>
                 <tr v-for="[key, value] in run.outputs ?? []" :key="`value:${key}`">
                   <td>{{ key }}</td>
@@ -120,6 +139,7 @@
                     }}</pre>
                   </td>
                 </tr>
+
                 <tr
                   v-for="name in run.outputs_unavailable_keys"
                   :key="`unavailable:${name}`">
@@ -130,8 +150,10 @@
             </v-table>
           </template>
         </template>
+
         <template v-if="strTab === 'details'">
           <h2 class="text-h6 mb-3">Job Information</h2>
+
           <v-table>
             <tbody>
               <tr>
@@ -141,28 +163,34 @@
                   <span v-if="run.department_deleted_at !== null">(Deleted)</span>
                 </td>
               </tr>
+
               <tr>
                 <th scope="row" class="text-caption text-medium-emphasis">Source</th>
                 <td>{{ JOB_SOURCE_LABELS[run.job.source] }}</td>
               </tr>
+
               <tr>
                 <th scope="row" class="text-caption text-medium-emphasis">Schedule</th>
                 <td>{{ run.job.schedule_name || "—" }}</td>
               </tr>
+
               <tr>
                 <th scope="row" class="text-caption text-medium-emphasis">Scheduled At</th>
                 <td>{{ formatDateTime(run.job.scheduled_at, strTimeZone) }}</td>
               </tr>
+
               <tr>
                 <th scope="row" class="text-caption text-medium-emphasis">
                   Original Target
                 </th>
                 <td>{{ run.job.target_name }}</td>
               </tr>
+
               <tr>
                 <th scope="row" class="text-caption text-medium-emphasis">Queued At</th>
                 <td>{{ formatDateTime(run.job.queued_at, strTimeZone) }}</td>
               </tr>
+
               <tr>
                 <th scope="row" class="text-caption text-medium-emphasis">Job</th>
                 <td>
@@ -173,25 +201,33 @@
               </tr>
             </tbody>
           </v-table>
+
           <template v-if="Object.keys(run.error_summary ?? {}).length">
             <h2 class="text-h6 my-4">Error Details</h2>
+
             <pre class="text-pre-wrap text-break mt-3">{{
               formatJsonValue(run.error_summary)
             }}</pre>
           </template>
+
           <h2 class="text-h6 mt-5 mb-2">Other Runs in This Job</h2>
+
           <p class="mb-3">
             <span class="text-caption text-medium-emphasis">Current attempt:</span>
             {{ run.attempt_number }}
           </p>
+
           <RunTable
             :runs="run.other_runs"
             :time-zone="strTimeZone"
             empty-text="No other runs." />
+
           <h2 class="text-h6 mt-5 mb-3">Video</h2>
+
           <p v-if="!run.run_snapshot.builtin_record_video">
             Recording was not enabled for this run.
           </p>
+
           <template v-else>
             <v-alert
               v-if="run.recording.status !== RecordingStatus.Ready"
@@ -203,6 +239,7 @@
                 `Recording status: ${run.recording.status || "unknown"}.`
               }}
             </v-alert>
+
             <v-table>
               <thead>
                 <tr>
@@ -211,6 +248,7 @@
                   <th>Actions</th>
                 </tr>
               </thead>
+
               <tbody>
                 <tr>
                   <td>Video</td>
@@ -231,11 +269,13 @@
                       aria-label="Download Video"
                       icon="mdi-download"
                       @click="download(RunFileKind.Video)" />
+
                     <p v-if="run.files.video.reason" class="text-caption">
                       {{ run.files.video.reason }}
                     </p>
                   </td>
                 </tr>
+
                 <tr v-if="typeof run.recording.subtitleSizeBytes === 'number'">
                   <td>Subtitles</td>
                   <td>{{ formatFileSize(run.recording.subtitleSizeBytes) }}</td>
@@ -249,6 +289,7 @@
                       aria-label="Download Subtitles"
                       icon="mdi-download"
                       @click="download(RunFileKind.Subtitles)" />
+
                     <p v-if="run.files.subtitles.reason" class="text-caption">
                       {{ run.files.subtitles.reason }}
                     </p>
@@ -257,6 +298,7 @@
               </tbody>
             </v-table>
           </template>
+
           <v-expansion-panels class="mt-5">
             <v-expansion-panel title="Identifiers">
               <v-expansion-panel-text>
@@ -264,6 +306,7 @@
                   <span class="text-caption text-medium-emphasis">Job ID:</span>
                   {{ run.job_id }}
                 </p>
+
                 <p>
                   <span class="text-caption text-medium-emphasis">Run ID:</span>
                   {{ run.id }}
@@ -275,6 +318,7 @@
       </v-card-text>
     </v-card>
   </template>
+
   <RunPackageDialog
     v-if="rerunInfo"
     :package-id="rerunInfo.package_id"
@@ -284,13 +328,16 @@
     @close="rerunInfo = null"
     @saved="created" />
 </template>
+
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import RunSettingsDetails from "@/components/runOptions/RunSettingsDetails.vue";
+
+import RunArgumentsDetails from "@/components/runSettings/RunArgumentsDetails.vue";
 import RunLogs from "@/components/runs/RunLogs.vue";
 import RunTable from "@/components/runs/RunTable.vue";
 import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
+
 import {
   RunStatus,
   OutputsStatus,
@@ -303,6 +350,7 @@ import {
   type RunDetails,
 } from "@/api/runs";
 import { getApiError } from "@/api/errors";
+
 import { JOB_SOURCE_LABELS, RUN_STATUS_LABELS } from "@/app/runLabels";
 import {
   formatDateTime,
@@ -310,7 +358,9 @@ import {
   formatFileSize,
   formatJsonValue,
 } from "@/app/formatters";
+
 import { useSessionStore } from "@/stores/sessionStore";
+
 const props = defineProps<{ runId: string }>();
 const sessionStore = useSessionStore();
 const router = useRouter();
@@ -325,6 +375,7 @@ let timer: ReturnType<typeof setInterval> | undefined;
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 
 let intLoadRevision = 0;
+
 async function load(): Promise<void> {
   const intRevision = ++intLoadRevision;
   boolLoading.value = true;
@@ -338,6 +389,7 @@ async function load(): Promise<void> {
     if (intRevision === intLoadRevision) boolLoading.value = false;
   }
 }
+
 async function stop(): Promise<void> {
   boolBusy.value = true;
   strError.value = "";
@@ -350,6 +402,7 @@ async function stop(): Promise<void> {
     boolBusy.value = false;
   }
 }
+
 async function rerun(): Promise<void> {
   if (boolBusy.value || !run.value?.can_rerun) return;
   const strRunId = props.runId;
@@ -364,6 +417,7 @@ async function rerun(): Promise<void> {
     boolBusy.value = false;
   }
 }
+
 async function download(kind: RunFileKind): Promise<void> {
   boolDownloading.value = true;
   strError.value = "";
@@ -375,10 +429,12 @@ async function download(kind: RunFileKind): Promise<void> {
     boolDownloading.value = false;
   }
 }
+
 function created(): void {
   rerunInfo.value = null;
   void router.push({ name: "job-queue" });
 }
+
 watch(
   () => props.runId,
   () => {
@@ -389,6 +445,7 @@ watch(
   },
   { immediate: true },
 );
+
 onMounted(() => {
   timer = setInterval(() => {
     if (
@@ -403,6 +460,8 @@ onMounted(() => {
       void load();
   }, 10000);
 });
+
 onBeforeUnmount(() => clearInterval(timer));
 </script>
+
 <style scoped></style>

@@ -1,4 +1,4 @@
-// FileName: runOptions.ts
+// FileName: runSettings.ts
 
 import type {
   RunConflictPolicy,

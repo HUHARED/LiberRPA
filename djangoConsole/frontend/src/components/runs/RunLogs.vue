@@ -9,20 +9,26 @@
       @update:model-value="resumeFollow" />
     <v-spacer />
     <v-btn variant="tonal" :loading="boolLoading" @click="refresh">Refresh</v-btn>
+
     <v-btn variant="tonal" :disabled="!downloadEnabled" @click="emit('download')">
       Download Logs
     </v-btn>
   </div>
+
   <p v-if="downloadReason" class="text-caption mb-3">{{ downloadReason }}</p>
+
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-3">
     {{ strError }}
   </v-alert>
+
   <v-alert v-if="boolCleared" type="info" variant="tonal" class="mb-3">
     Logs for this Run were cleared from Console.
   </v-alert>
+
   <v-alert v-else-if="strUnavailableReason" type="warning" variant="tonal" class="mb-3">
     Log upload ended before completion. {{ strUnavailableReason }}
   </v-alert>
+
   <v-row>
     <v-col cols="12" md="4">
       <v-select
@@ -35,6 +41,7 @@
         hide-details
         @update:model-value="intPage = 1" />
     </v-col>
+
     <v-col cols="12" md="4">
       <v-select
         v-model="arrLevel"
@@ -45,6 +52,7 @@
         hide-details
         @update:model-value="intPage = 1" />
     </v-col>
+
     <v-col cols="12" md="4">
       <v-text-field
         v-model="strMessage"
@@ -53,10 +61,12 @@
         @update:model-value="intPage = 1" />
     </v-col>
   </v-row>
+
   <p class="text-body-2 text-medium-emphasis my-3">
     Filters apply to loaded logs. {{ arrLog.length }} loaded entries ·
     {{ formatFileSize(intLoadedBytes) }} · Time zone: {{ timeZone }}
   </p>
+
   <v-data-table
     v-model:expanded="arrExpanded"
     v-model:page="intPage"
@@ -72,8 +82,10 @@
     <template #item.timestamp="{ item }">
       {{ formatDateTime(item.timestamp, timeZone) }}
     </template>
+
     <template #item.level="{ item }">{{ item.level }}</template>
     <template #item.process="{ item }">{{ item.process_name || "—" }}</template>
+
     <template #item.message_text="{ item }">
       <div class="text-truncate">
         {{
@@ -83,16 +95,21 @@
         }}
       </div>
     </template>
+
     <template #expanded-row="{ item, columns }">
       <tr>
         <td :colspan="columns.length">
           <h3 class="text-subtitle-1 my-2">Message</h3>
+
           <v-alert v-if="item.message_omitted" type="info" variant="tonal" class="mb-4">
             This message exceeds the preview size limit. Download the original logs to read
             it.
           </v-alert>
+
           <pre v-else class="text-pre-wrap text-break mb-4">{{ item.message_text }}</pre>
+
           <h3 class="text-subtitle-1 my-2">Fields</h3>
+
           <v-table density="compact" class="mb-4">
             <tbody>
               <tr v-for="(value, key) in getFields(item)" :key="key">
@@ -106,10 +123,12 @@
         </td>
       </tr>
     </template>
+
     <template #no-data>
       {{ boolLoading ? "Loading logs…" : "No loaded logs match the filters." }}
     </template>
   </v-data-table>
+
   <div class="d-flex align-center flex-wrap ga-3 mt-3">
     <v-btn
       :disabled="!boolHasMore || boolLimit || boolLoading"
@@ -129,11 +148,12 @@
     </span>
   </div>
 </template>
+
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 import { type LogEntry, getRunLogs } from "@/api/runs";
-import { type LogLevel, ARR_LOG_LEVEL } from "@/api/runOptions";
+import { type LogLevel, ARR_LOG_LEVEL } from "@/api/runSettings";
 import { getApiError } from "@/api/errors";
 
 import { formatDateTime, formatFileSize, formatJsonValue } from "@/app/formatters";
@@ -146,13 +166,16 @@ const props = defineProps<{
   downloadEnabled: boolean;
   downloadReason: string;
 }>();
+
 const emit = defineEmits<{ download: [] }>();
+
 const ARR_HEADER = [
   { title: "Timestamp", key: "timestamp", width: 235 },
   { title: "Level", key: "level", width: 95 },
   { title: "Process", key: "process", width: 180 },
   { title: "Message", key: "message_text", maxWidth: 600 },
 ];
+
 const INT_MAX_ENTRIES = 10000;
 const INT_MAX_BYTES = 10 * 1024 * 1024;
 const arrLog = shallowRef<LogEntry[]>([]);
@@ -174,9 +197,11 @@ const intLoadedBytes = ref(0);
 let intAfter = 0;
 let intBefore: number | null = null;
 let timer: ReturnType<typeof setInterval> | undefined;
+
 const arrProcess = computed(() =>
   [...new Set(arrLog.value.map((log) => log.process_name))].filter(Boolean).sort(),
 );
+
 const arrFiltered = computed(() =>
   arrLog.value
     .filter(
@@ -304,4 +329,5 @@ onMounted(() => {
 
 onBeforeUnmount(() => clearInterval(timer));
 </script>
+
 <style scoped></style>

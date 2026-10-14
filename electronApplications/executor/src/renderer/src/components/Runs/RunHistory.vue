@@ -130,6 +130,7 @@
               density="compact"
               hide-details
               variant="underlined"></v-text-field>
+
             <v-text-field
               v-else-if="column.key === 'project_name'"
               v-model="runHistoryStore.filterProjectName"
@@ -138,6 +139,7 @@
               density="compact"
               hide-details
               variant="underlined"></v-text-field>
+
             <v-text-field
               v-else-if="column.key === 'project_version'"
               v-model="runHistoryStore.filterProjectVersion"
@@ -146,6 +148,7 @@
               density="compact"
               hide-details
               variant="underlined"></v-text-field>
+
             <v-select
               v-else-if="column.key === 'status'"
               v-model="runHistoryStore.filterStatus"
@@ -156,6 +159,7 @@
               hide-details
               clearable
               :items="ARR_RUN_STATUS_OPTION"></v-select>
+
             <v-select
               v-else-if="column.key === 'source'"
               v-model="runHistoryStore.filterSource"
@@ -183,27 +187,35 @@
             {{ DICT_RUN_SOURCE_LABEL[runDetails.source] }} · Attempt
             {{ runDetails.attempt_number }}
           </div>
+
           <div v-if="runDetails.source === RunSource.Console" class="flex-shrink-0">
             Job {{ runDetails.job_id }}
           </div>
+
           <div class="flex-column flex-column-grow-1 overflow-hidden">
             <h3 class="mt-3 flex-shrink-0">Inputs</h3>
+
             <pre class="flex-column-grow-1 text-pre-wrap text-break">{{
               JSON.stringify(runDetails.snapshot, null, 2)
             }}</pre>
           </div>
+
           <div class="flex-column flex-column-grow-1 overflow-hidden">
             <h3 class="mt-3 flex-shrink-0">Outputs — {{ runDetails.outputs.status }}</h3>
+
             <div class="flex-column-grow-1">
               <v-alert v-if="runDetails.outputs.reason" variant="tonal" class="my-2">
                 {{ runDetails.outputs.reason }}
               </v-alert>
+
               <pre class="text-pre-wrap text-break">{{
                 JSON.stringify(runDetails.outputs.values, null, 2)
               }}</pre>
+
               <div v-if="runDetails.outputs.unavailableKeys.length" class="text-break">
                 Unavailable: {{ runDetails.outputs.unavailableKeys.join(", ") }}
               </div>
+
               <v-alert v-if="runDetails.error_summary" type="error" variant="tonal">
                 {{ runDetails.error_summary.type }}:
                 {{ runDetails.error_summary.message }}
@@ -211,6 +223,7 @@
             </div>
           </div>
         </v-card-text>
+
         <v-card-actions>
           <v-spacer />
           <v-btn variant="tonal" @click="boolShowDetails = false">Close</v-btn>
@@ -226,6 +239,7 @@ import { debounce } from "lodash";
 import type { DataTableHeader } from "vuetify";
 
 import RunProjectDialog from "../Projects/RunProjectDialog.vue";
+
 import type { ProjectDetails } from "../../../../shared/project";
 
 import { getErrorMessage } from "../../../../shared/error";
@@ -249,6 +263,7 @@ const DICT_RUN_SOURCE_LABEL: Record<RunSource, string> = {
   [RunSource.Local]: "Local",
   [RunSource.Console]: "Console",
 };
+
 const ARR_RUN_SOURCE_OPTION = Object.values(RunSource).map((source) => ({
   title: DICT_RUN_SOURCE_LABEL[source],
   value: source,
@@ -263,6 +278,7 @@ const DICT_RUN_STATUS_DISPLAY: Record<RunStatus, { title: string; color: string 
   [RunStatus.Interrupted]: { title: "Interrupted", color: "run-interrupted" },
   [RunStatus.Unknown]: { title: "Unknown", color: "inactive" },
 };
+
 const ARR_RUN_STATUS_OPTION = Object.values(RunStatus).map((status) => ({
   title: DICT_RUN_STATUS_DISPLAY[status].title,
   value: status,
@@ -275,6 +291,7 @@ const boolShowDetails = ref(false);
 const runDetails = ref<RunDetails>();
 const setPendingRerun = ref(new Set<number>());
 const rerunProject = ref<ProjectDetails>();
+
 async function showRunDetails(id: number): Promise<void> {
   runDetails.value = await invokeMain("getRunDetails", id);
   boolShowDetails.value = true;
@@ -299,6 +316,7 @@ const dictSearch = computed<RunHistoryFilters>(() => {
 });
 
 const search = ref(JSON.stringify(dictSearch.value));
+
 const debouncedUpdateSearch = debounce(() => {
   search.value = JSON.stringify(dictSearch.value);
 }, 300);

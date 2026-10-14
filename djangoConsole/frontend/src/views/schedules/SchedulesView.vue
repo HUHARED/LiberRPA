@@ -6,8 +6,10 @@
     <v-btn v-if="boolCanCreate" color="primary" variant="tonal" @click="boolNew = true">
       New Schedule
     </v-btn>
+
     <v-btn variant="tonal" :loading="boolLoading" @click="load()">Refresh</v-btn>
   </div>
+
   <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form @submit.prevent="apply">
@@ -23,12 +25,15 @@
               chips
               hide-details />
           </v-col>
+
           <v-col cols="12" md="4">
             <v-text-field v-model="filters.name" label="Name" hide-details />
           </v-col>
+
           <v-col cols="12" md="4">
             <v-text-field v-model="filters.projectName" label="Project" hide-details />
           </v-col>
+
           <v-col cols="12" md="6">
             <v-select
               v-model="filters.enabled"
@@ -36,6 +41,7 @@
               label="Enabled"
               hide-details />
           </v-col>
+
           <v-col cols="12" md="6">
             <v-autocomplete
               v-model="filters.targetId"
@@ -48,6 +54,7 @@
               :loading="boolTargetsLoading" />
           </v-col>
         </v-row>
+
         <div class="d-flex ga-2 mt-4">
           <v-btn type="submit" color="primary" variant="tonal">Apply</v-btn>
           <v-btn variant="tonal" @click="clearFilters">Reset Filters</v-btn>
@@ -55,9 +62,11 @@
       </form>
     </v-card-text>
   </v-card>
+
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
     {{ strError }}
   </v-alert>
+
   <v-card variant="outlined">
     <v-data-table-server
       :headers="ARR_HEADER"
@@ -74,11 +83,14 @@
           {{ item.name }}
         </RouterLink>
       </template>
+
       <template #item.department="{ item }">{{ item.department.path }}</template>
+
       <template #item.cron="{ item }">
         <p>{{ describeCron(item.cron) }}</p>
         <span class="text-caption">{{ item.time_zone }}</span>
       </template>
+
       <template #item.target="{ item }">
         {{
           item.executor_group?.name ||
@@ -86,6 +98,7 @@
           (item.group_id ? "Executor Group" : `${item.executor_ids.length} Executors`)
         }}
       </template>
+
       <template #item.enabled="{ item }">
         <v-switch
           :model-value="item.enabled"
@@ -96,11 +109,13 @@
           :loading="strChangingId === item.id"
           @update:model-value="toggle(item, !!$event)" />
       </template>
+
       <template #item.created_by="{ item }">
         {{
           item.created_by ? `${item.created_by.username} (${item.created_by.email})` : "—"
         }}
       </template>
+
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
           <v-btn
@@ -113,9 +128,12 @@
             @click="strEditId = item.id" />
         </div>
       </template>
+
       <template #no-data>No schedules match the current filters.</template>
     </v-data-table-server>
+
     <v-divider />
+
     <div class="d-flex align-center justify-space-between pa-3">
       <span>{{ page?.total_count ?? 0 }} schedules</span>
       <v-pagination
@@ -127,12 +145,14 @@
         @update:model-value="load" />
     </div>
   </v-card>
+
   <ScheduleFormDialog
     v-if="boolNew || strEditId"
     :schedule-id="strEditId ?? undefined"
     @close="closeForm"
     @saved="saved" />
 </template>
+
 <script setup lang="ts">
 import { shallowRef, computed, onMounted, ref } from "vue";
 import { RouterLink, useRoute } from "vue-router";
@@ -157,8 +177,8 @@ import { useSessionStore } from "@/stores/sessionStore";
 const ARR_HEADER = [
   { title: "Name", key: "name" },
   { title: "Department", key: "department" },
-  { title: "Project", key: "project_name" },
-  { title: "Version", key: "project_version" },
+  { title: "Project Name", key: "project_name" },
+  { title: "Project Version", key: "project_version" },
   { title: "Run Time", key: "cron" },
   { title: "Target", key: "target" },
   { title: "Enabled", key: "enabled" },
@@ -166,13 +186,16 @@ const ARR_HEADER = [
   { title: "Notes", key: "notes" },
   { title: "Actions", key: "actions" },
 ];
+
 const ARR_ENABLED = [
   { title: "All", value: "" },
   { title: "Enabled", value: "true" },
   { title: "Disabled", value: "false" },
 ];
+
 const sessionStore = useSessionStore();
 const route = useRoute();
+
 const boolCanCreate = computed(
   () =>
     sessionStore.access?.is_org_admin ||
@@ -182,6 +205,7 @@ const boolCanCreate = computed(
 function emptyFilters(): ScheduleFilters {
   return { name: "", departmentIds: [], projectName: "", enabled: "", targetId: "" };
 }
+
 const arrTarget = ref<{ id: string; title: string }[]>([]);
 const boolTargetsLoading = ref(false);
 const filters = ref(emptyFilters());
@@ -308,4 +332,5 @@ onMounted(() => {
   void loadTargets();
 });
 </script>
+
 <style scoped></style>

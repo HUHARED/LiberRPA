@@ -10,7 +10,7 @@ import type {
   ScheduleDefaultsResponse,
   SchedulePreviewResponse,
 } from "./generated/browserApi";
-import { isRunSettings, type RunSettings } from "./runOptions";
+import { isRunSettings, type RunSettings } from "./runSettings";
 
 export type ScheduleDraft = Omit<Required<ScheduleCreationRequest>, "settings"> & {
   settings: RunSettings;

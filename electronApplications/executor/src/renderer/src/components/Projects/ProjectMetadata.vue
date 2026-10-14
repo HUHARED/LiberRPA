@@ -16,8 +16,7 @@
             density="compact"
             hide-details
             readonly
-            variant="plain">
-          </v-text-field>
+            variant="plain"></v-text-field>
         </v-col>
 
         <v-col cols="6">
@@ -33,8 +32,7 @@
             density="compact"
             hide-details
             readonly
-            variant="plain">
-          </v-text-field>
+            variant="plain"></v-text-field>
         </v-col>
       </v-row>
     </v-container>
@@ -44,25 +42,23 @@
         <v-col cols="6">
           <v-text-field
             :model-value="projectStore.dictDetailEdit.name"
-            label="Name"
+            label="Project Name"
             class="clean-space"
             density="compact"
             hide-details
             readonly
-            variant="plain">
-          </v-text-field>
+            variant="plain"></v-text-field>
         </v-col>
 
         <v-col cols="6">
           <v-text-field
             :model-value="projectStore.dictDetailEdit.version"
-            label="Version"
+            label="Project Version"
             class="clean-space"
             density="compact"
             hide-details
             readonly
-            variant="plain">
-          </v-text-field>
+            variant="plain"></v-text-field>
         </v-col>
       </v-row>
     </v-container>
@@ -75,8 +71,7 @@
         density="compact"
         hide-details
         readonly
-        variant="plain">
-      </v-text-field>
+        variant="plain"></v-text-field>
 
       <v-text-field
         :model-value="projectStore.dictDetailEdit.version_summary"
@@ -85,8 +80,7 @@
         density="compact"
         hide-details
         readonly
-        variant="plain">
-      </v-text-field>
+        variant="plain"></v-text-field>
     </v-container>
   </v-container>
 </template>

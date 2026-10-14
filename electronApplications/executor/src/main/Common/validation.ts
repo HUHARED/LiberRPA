@@ -6,8 +6,8 @@ import {
   INT_MAX_RUN_TIMEOUT_MIN,
   LogLevel,
   RunConflictPolicy,
-} from "../../shared/runOptions";
-import type { CustomProjectArgs } from "../../shared/runOptions";
+} from "../../shared/runSettings";
+import type { CustomProjectArgs } from "../../shared/runSettings";
 
 const INT_MAX_DESCRIPTION_LENGTH = 2000;
 const INT_MAX_VERSION_SUMMARY_LENGTH = 500;

@@ -5,7 +5,7 @@ import {
   ARR_PRIORITY,
   type ConflictPolicy,
   type Priority,
-} from "@/api/runOptions";
+} from "@/api/runSettings";
 import type { PackagePreparationState, PackageUploadState } from "@/api/packages";
 import type { JobSource, JobState, RunStatus, RunEventKind } from "@/api/runs";
 

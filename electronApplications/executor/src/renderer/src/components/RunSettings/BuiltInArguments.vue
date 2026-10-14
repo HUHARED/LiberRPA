@@ -1,9 +1,10 @@
-<!-- FileName: BuiltInRunOptions.vue -->
+<!-- FileName: BuiltInArguments.vue -->
 <template>
   <v-row class="w-100">
     <v-col v-if="$slots.environment" cols="6">
       <slot name="environment" />
     </v-col>
+
     <v-col :cols="$slots.environment ? 6 : 12">
       <v-number-input
         v-model="intMaxRetryCount"
@@ -84,13 +85,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import { ARR_LOG_LEVEL } from "../../RunOptions/runOptions";
+import { ARR_LOG_LEVEL } from "../../RunSettings/runSettings";
 import { useInformationStore } from "../../Store/informationStore";
 import {
   INT_MAX_RETRY_COUNT,
   INT_MAX_RUN_TIMEOUT_MIN,
-} from "../../../../shared/runOptions";
-import type { LogLevel } from "../../../../shared/runOptions";
+} from "../../../../shared/runSettings";
+import type { LogLevel } from "../../../../shared/runSettings";
 
 const props = withDefaults(
   defineProps<{

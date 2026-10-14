@@ -3,6 +3,7 @@
   <div class="d-flex align-center flex-wrap ga-3 mb-4">
     <h1 class="text-h5">Packages</h1>
     <v-spacer />
+
     <v-btn
       v-if="boolCanCreate"
       color="primary"
@@ -11,185 +12,339 @@
       @click="boolUpload = true">
       Upload Package
     </v-btn>
-    <v-btn variant="tonal" :loading="boolLoading" @click="load()">Refresh</v-btn>
+
+    <v-btn variant="tonal" :loading="boolLoading" @click="load">Refresh</v-btn>
   </div>
-  <v-card variant="elevated" class="mb-4">
-    <v-card-text>
-      <form @submit.prevent="apply">
-        <v-row>
-          <v-col cols="12" md="6">
-            <v-select
-              v-model="arrDepartmentId"
-              :items="sessionStore.access?.departments ?? []"
-              item-title="path"
-              item-value="id"
-              label="Department"
-              multiple
-              chips
-              clearable
-              hide-details />
-          </v-col>
-          <v-col cols="12" md="6">
-            <v-text-field
-              v-model="strProjectName"
-              label="Project Name"
-              clearable
-              hide-details />
-          </v-col>
-        </v-row>
-        <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal">Apply</v-btn>
-          <v-btn variant="tonal" @click="clearFilters">Reset Filters</v-btn>
-        </div>
-      </form>
-    </v-card-text>
-  </v-card>
+
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
     {{ strError }}
-    <p v-if="page">Previously loaded results are shown.</p>
   </v-alert>
-  <v-card variant="outlined">
-    <v-data-table-server
-      :headers="ARR_HEADER"
-      :items="page?.packages ?? []"
-      :items-length="page?.total_count ?? 0"
-      :items-per-page="50"
-      :loading="boolLoading"
-      disable-sort
-      hide-default-footer>
-      <template #item.project_name="{ item }">
-        <RouterLink
-          :to="{ name: 'package-details', params: { packageId: item.id } }"
-          class="text-primary text-decoration-none">
-          {{ item.project_name }}
-        </RouterLink>
-      </template>
-      <template #item.uploaded_at="{ item }">
-        {{ formatDateTime(item.uploaded_at, strTimeZone) }}
-      </template>
-      <template #item.actions="{ item }">
-        <div class="d-flex align-center ga-1">
-          <v-btn
-            v-if="canRun(item.department_id)"
-            v-tooltip:bottom="'Run'"
-            size="small"
-            variant="text"
-            aria-label="Run"
-            icon="mdi-play-outline"
-            @click="strRunPackageId = item.id" />
-        </div>
-      </template>
-      <template #no-data>No packages match the current filters.</template>
-    </v-data-table-server>
-    <v-divider />
-    <div class="d-flex align-center justify-space-between pa-3">
-      <span>{{ page?.total_count ?? 0 }} packages</span>
+
+  <div class="package-browser">
+    <v-card variant="flat" class="browser-column">
+      <v-card-title class="text-subtitle-1">Project Name</v-card-title>
+
+      <v-card-text class="flex-grow-0 pb-2">
+        <v-select
+          :model-value="arrDepartmentId"
+          :items="sessionStore.access?.departments ?? []"
+          item-title="path"
+          item-value="id"
+          label="Department"
+          variant="underlined"
+          density="compact"
+          multiple
+          chips
+          clearable
+          hide-details
+          @update:model-value="changeDepartments" />
+      </v-card-text>
+
+      <v-divider />
+
+      <v-list class="flex-grow-1 overflow-y-auto" density="compact">
+        <v-list-item
+          v-for="projectGroup in projectGroupPage?.project_groups ?? []"
+          :key="`${projectGroup.department_id}:${projectGroup.project_name_key}`"
+          :to="getPackageLocation(projectGroup.latest_package_id)"
+          :active="projectGroup === selectedProjectGroup"
+          color="primary"
+          class="text-decoration-none">
+          <template #title>
+            <span v-tooltip:bottom="projectGroup.project_name" class="text-primary">
+              {{ projectGroup.project_name }}
+            </span>
+          </template>
+
+          <template #append>
+            <v-chip
+              v-tooltip:bottom="projectGroup.department_path"
+              size="x-small"
+              class="department-label ml-2">
+              <span class="text-truncate">{{ projectGroup.department_path }}</span>
+            </v-chip>
+          </template>
+        </v-list-item>
+
+        <v-list-item v-if="!boolLoading && !projectGroupPage?.project_groups.length">
+          No packages match the selected departments.
+        </v-list-item>
+      </v-list>
+
       <v-pagination
-        v-if="page && page.total_pages > 1"
-        :model-value="page.page"
-        :length="page.total_pages"
-        :total-visible="5"
+        v-if="projectGroupPage && projectGroupPage.total_pages > 1"
+        :model-value="projectGroupPage.page"
+        :length="projectGroupPage.total_pages"
+        :total-visible="1"
+        density="compact"
         :disabled="boolLoading"
-        @update:model-value="load" />
-    </div>
-  </v-card>
+        @update:model-value="changeProjectGroupPage" />
+    </v-card>
+
+    <v-card variant="flat" class="browser-column">
+      <v-card-title class="text-subtitle-1">Project Version</v-card-title>
+
+      <v-divider />
+
+      <v-list class="flex-grow-1 overflow-y-auto" density="compact">
+        <v-list-item
+          v-for="packageEntry in projectPackagePage?.packages ?? []"
+          :key="packageEntry.id"
+          :to="getPackageLocation(packageEntry.id)"
+          :active="packageEntry.id === details?.package.id"
+          color="primary"
+          class="text-primary text-decoration-none">
+          <template #title>
+            <span v-tooltip:bottom="packageEntry.project_version">
+              {{ packageEntry.project_version }}
+            </span>
+          </template>
+        </v-list-item>
+      </v-list>
+
+      <v-pagination
+        v-if="projectPackagePage && projectPackagePage.total_pages > 1"
+        :model-value="projectPackagePage.page"
+        :length="projectPackagePage.total_pages"
+        :total-visible="1"
+        density="compact"
+        :disabled="boolLoading"
+        @update:model-value="changeProjectPackagePage" />
+    </v-card>
+
+    <v-card variant="flat" class="browser-column">
+      <v-card-title class="text-subtitle-1">Package Details</v-card-title>
+
+      <v-divider />
+      <v-progress-linear v-if="boolLoading" indeterminate color="primary" />
+
+      <v-card-text class="overflow-y-auto">
+        <PackageDetailsPanel
+          v-if="details"
+          :key="details.package.id"
+          :details="details"
+          @updated="details = $event"
+          @deleted="handleDeleted" />
+
+        <p v-else-if="!boolLoading" class="text-medium-emphasis">
+          Select a package to view its details.
+        </p>
+      </v-card-text>
+    </v-card>
+  </div>
+
   <PackageUploadDialog
     v-if="boolUpload"
     @close="boolUpload = false"
     @saved="handleUploaded" />
-  <RunPackageDialog
-    v-if="strRunPackageId"
-    :package-id="strRunPackageId"
-    @close="strRunPackageId = null"
-    @saved="handleRun" />
 </template>
+
 <script setup lang="ts">
-import { shallowRef, computed, onMounted, ref } from "vue";
-import { RouterLink, useRoute, useRouter } from "vue-router";
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { useRoute, useRouter, type RouteLocationRaw } from "vue-router";
+
+import PackageDetailsPanel from "@/components/packages/PackageDetailsPanel.vue";
 import PackageUploadDialog from "@/components/packages/PackageUploadDialog.vue";
-import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
-import { getPackages, type PackageInfo, type PackagePage } from "@/api/packages";
+
+import {
+  getPackageProjectGroups,
+  getProjectPackages,
+  getPackageDetails,
+  type PackageDetails,
+  type PackageInfo,
+  type PackageProjectGroupPage,
+  type ProjectPackagePage,
+} from "@/api/packages";
 import { getApiError } from "@/api/errors";
+
 import { useSessionStore } from "@/stores/sessionStore";
-import { formatDateTime } from "@/app/formatters";
-const ARR_HEADER = [
-  { title: "Project Name", key: "project_name" },
-  { title: "Version", key: "project_version" },
-  { title: "Department", key: "department_path" },
-  { title: "Python Environment", key: "python_environment_name" },
-  { title: "Uploaded At", key: "uploaded_at" },
-  { title: "Uploaded By", key: "uploaded_by_name" },
-  { title: "Actions", key: "actions" },
-];
+
+defineProps<{ packageId?: string }>();
+
 const sessionStore = useSessionStore();
 const router = useRouter();
 const route = useRoute();
-const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+
 const boolCanCreate = computed(
   () =>
     sessionStore.access?.is_org_admin ||
     sessionStore.access?.departments.some((department) => department.role === "developer"),
 );
-const arrDepartmentId = ref<string[]>(
-  typeof route.query.department_id === "string" ? [route.query.department_id] : [],
-);
-const strProjectName = ref<string | null>("");
-let appliedFilters = {
-  departmentIds: [...arrDepartmentId.value],
-  projectName: strProjectName.value ?? "",
-};
-const page = shallowRef<PackagePage | null>(null);
-const boolUpload = ref(false);
-const boolLoading = ref(false);
-const strError = ref("");
-const strRunPackageId = ref<string | null>(null);
-function canRun(id: string): boolean {
-  return (
-    !!sessionStore.access?.is_org_admin ||
-    !!sessionStore.access?.departments.some(
-      (department) =>
-        department.id === id && ["operator", "developer"].includes(department.role ?? ""),
-    )
+
+const arrDepartmentId = computed(() => {
+  const value = route.query.department_id;
+  return (Array.isArray(value) ? value : [value]).filter(
+    (id): id is string => typeof id === "string" && id !== "",
   );
-}
+});
+
+const projectGroupPage = shallowRef<PackageProjectGroupPage | null>(null);
+const projectPackagePage = shallowRef<ProjectPackagePage | null>(null);
+const details = shallowRef<PackageDetails | null>(null);
+
+const selectedProjectGroup = computed(() =>
+  projectGroupPage.value?.project_groups.find(
+    (projectGroup) =>
+      projectGroup.department_id ===
+        projectPackagePage.value?.project_group.department_id &&
+      projectGroup.project_name_key ===
+        projectPackagePage.value?.project_group.project_name_key,
+  ),
+);
+
+const boolLoading = ref(false);
+const boolUpload = ref(false);
+const strError = ref("");
 let intLoadRevision = 0;
-async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
+
+function getPackageLocation(packageId: string): RouteLocationRaw {
+  return {
+    name: "package-details",
+    params: { packageId },
+    query: { department_id: arrDepartmentId.value },
+  };
+}
+
+async function load(): Promise<void> {
   const intRevision = ++intLoadRevision;
+  const strPackageId =
+    typeof route.params.packageId === "string" ? route.params.packageId : "";
+  boolLoading.value = true;
+  strError.value = "";
+  details.value = null;
+  projectPackagePage.value = null;
+
+  try {
+    if (strPackageId) {
+      const [projectGroups, projectPackages, packageDetails] = await Promise.all([
+        getPackageProjectGroups(arrDepartmentId.value, 1, strPackageId),
+        getProjectPackages(strPackageId),
+        getPackageDetails(strPackageId),
+      ]);
+      if (intRevision !== intLoadRevision) return;
+
+      projectGroupPage.value = projectGroups;
+      projectPackagePage.value = projectPackages;
+      details.value = packageDetails;
+    } else {
+      const projectGroups = await getPackageProjectGroups(
+        arrDepartmentId.value,
+        Number(route.query.page) || 1,
+      );
+      if (intRevision !== intLoadRevision) return;
+
+      projectGroupPage.value = projectGroups;
+      const firstProjectGroup = projectGroups.project_groups[0];
+      if (firstProjectGroup)
+        await router.replace(getPackageLocation(firstProjectGroup.latest_package_id));
+    }
+  } catch (e) {
+    if (intRevision !== intLoadRevision) return;
+
+    projectGroupPage.value = null;
+    strError.value = getApiError(e).message;
+  } finally {
+    if (intRevision === intLoadRevision) boolLoading.value = false;
+  }
+}
+
+function changeDepartments(ids: string[] | null): void {
+  void router.push({ name: "packages", query: { department_id: ids ?? [] } });
+}
+
+function changeProjectGroupPage(page: number): void {
+  void router.push({
+    name: "packages",
+    query: { department_id: arrDepartmentId.value, page },
+  });
+}
+
+async function changeProjectPackagePage(page: number): Promise<void> {
+  if (!details.value || boolLoading.value) return;
+
+  const intRevision = ++intLoadRevision;
+  const strPackageId = details.value.package.id;
+  details.value = null;
   boolLoading.value = true;
   strError.value = "";
   try {
-    const response = await getPackages(
-      appliedFilters.departmentIds,
-      appliedFilters.projectName,
-      pageNumber,
-    );
-    if (intRevision === intLoadRevision) page.value = response;
+    const projectPackages = await getProjectPackages(strPackageId, page);
+    if (intRevision !== intLoadRevision) return;
+
+    const firstPackage = projectPackages.packages[0];
+    if (firstPackage) await router.push(getPackageLocation(firstPackage.id));
   } catch (e) {
     if (intRevision === intLoadRevision) strError.value = getApiError(e).message;
   } finally {
     if (intRevision === intLoadRevision) boolLoading.value = false;
   }
 }
-function apply(): void {
-  appliedFilters = {
-    departmentIds: [...arrDepartmentId.value],
-    projectName: strProjectName.value ?? "",
-  };
-  void load(1);
-}
-function clearFilters(): void {
-  arrDepartmentId.value = [];
-  strProjectName.value = "";
-  apply();
-}
+
 function handleUploaded(packageInfo: PackageInfo): void {
   boolUpload.value = false;
-  void router.push({ name: "package-details", params: { packageId: packageInfo.id } });
+  const departmentIds = arrDepartmentId.value;
+  void router.push({
+    name: "package-details",
+    params: { packageId: packageInfo.id },
+    query: {
+      department_id:
+        departmentIds.length && !departmentIds.includes(packageInfo.department_id)
+          ? [packageInfo.department_id]
+          : departmentIds,
+    },
+  });
 }
-function handleRun(): void {
-  strRunPackageId.value = null;
-  void router.push({ name: "job-queue" });
+
+function handleDeleted(): void {
+  void router.replace({
+    name: "packages",
+    query: { department_id: arrDepartmentId.value },
+  });
 }
-onMounted(() => void load());
+
+watch(
+  () => route.fullPath,
+  () => void load(),
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  intLoadRevision += 1;
+});
 </script>
-<style scoped></style>
+
+<style scoped>
+.package-browser {
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) minmax(192px, 1fr) minmax(0, 7fr);
+  gap: 12px;
+  height: calc(100dvh - 176px);
+  min-height: 520px;
+}
+
+.browser-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.department-label {
+  max-width: 100px;
+}
+
+@media (max-width: 959px) {
+  .package-browser {
+    grid-template-columns: minmax(0, 1fr) minmax(192px, 1fr);
+    height: auto;
+  }
+
+  .browser-column:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .browser-column:not(:last-child) {
+    max-height: 360px;
+  }
+}
+</style>

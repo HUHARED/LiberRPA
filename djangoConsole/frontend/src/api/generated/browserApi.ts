@@ -135,15 +135,16 @@ export interface BrowserApiContracts {
   OrganizationSettingsResponse: OrganizationSettingsResponse;
   PackageDetailsResponse: PackageDetailsResponse;
   PackageDownloadResponse: PackageDownloadResponse;
-  PackageListResponse: PackageListResponse;
   PackageOptionsResponse: PackageOptionsResponse;
   PackagePreparationCancellationResponse: PackagePreparationCancellationResponse;
+  PackageProjectGroupListResponse: PackageProjectGroupListResponse;
   PackageSettingsRequest: PackageSettingsRequest;
   PackageUploadRequest: PackageUploadRequest;
   PackageUploadResponse: PackageUploadResponse;
   PasswordChangeRequest: PasswordChangeRequest;
   ProfileUpdateRequest: ProfileUpdateRequest;
   ProfileWriteResponse: ProfileWriteResponse;
+  ProjectPackageListResponse: ProjectPackageListResponse;
   QueueCreationRequest: QueueCreationRequest;
   QueueDeleteItemsRequest: QueueDeleteItemsRequest;
   QueueDetailsRequest: QueueDetailsRequest;
@@ -1045,12 +1046,8 @@ export interface PackageDownloadResponse {
   file_name: string;
   transfer_id: string;
 }
-export interface PackageListResponse {
+export interface PackageOptionsResponse {
   packages: PackageListEntryResponse[];
-  page: number;
-  page_size: number;
-  total_count: number;
-  total_pages: number;
 }
 export interface PackageListEntryResponse {
   can_manage: boolean;
@@ -1064,11 +1061,22 @@ export interface PackageListEntryResponse {
   uploaded_at: string;
   uploaded_by_name: string;
 }
-export interface PackageOptionsResponse {
-  packages: PackageListEntryResponse[];
-}
 export interface PackagePreparationCancellationResponse {
   canceled_count: number;
+}
+export interface PackageProjectGroupListResponse {
+  page: number;
+  page_size: number;
+  project_groups: PackageProjectGroupEntryResponse[];
+  total_count: number;
+  total_pages: number;
+}
+export interface PackageProjectGroupEntryResponse {
+  department_id: string;
+  department_path: string;
+  latest_package_id: string;
+  project_name: string;
+  project_name_key: string;
 }
 export interface PackageSettingsRequest {
   /**
@@ -1149,6 +1157,24 @@ export interface SessionUserResponse {
   id: string;
   time_zone: string;
   username: string;
+}
+export interface ProjectPackageListResponse {
+  packages: ProjectPackageEntryResponse[];
+  page: number;
+  page_size: number;
+  project_group: PackageProjectGroupResponse;
+  total_count: number;
+  total_pages: number;
+}
+export interface ProjectPackageEntryResponse {
+  id: string;
+  project_version: string;
+}
+export interface PackageProjectGroupResponse {
+  department_id: string;
+  department_path: string;
+  project_name: string;
+  project_name_key: string;
 }
 export interface QueueCreationRequest {
   department_id: QueueRequestUuid;

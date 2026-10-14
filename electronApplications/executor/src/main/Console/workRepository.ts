@@ -4,10 +4,10 @@ import { createHash } from "crypto";
 
 import type { RunRecordingInfo } from "../../shared/run";
 import type {
-  RunOptions,
+  RunSettings,
   PythonEnvironmentSelection,
   RunConflictPolicy,
-} from "../../shared/runOptions";
+} from "../../shared/runSettings";
 import { getDatabase } from "../Database/connection";
 import type { RunStartedFact, RunEndedFact, RunTerminationReason } from "../Run/types";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
@@ -27,7 +27,7 @@ export enum ConsoleWorkState {
 }
 
 // Only fields used by Executor are typed here; the saved object also keeps fields used only by Console.
-export interface ConsoleRunSnapshot extends RunOptions, PythonEnvironmentSelection {
+export interface ConsoleRunSnapshot extends RunSettings, PythonEnvironmentSelection {
   project_name: string;
   project_version: string;
   sha256: string;

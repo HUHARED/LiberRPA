@@ -1,22 +1,27 @@
-<!-- FileName: RunOptionsEditor.vue -->
+<!-- FileName: RunArgumentsEditor.vue -->
 <template>
   <v-row>
     <v-col cols="12" md="6">
       <h3 class="text-subtitle-1 mb-3">Built-in Arguments</h3>
-      <BuiltInRunOptions
+
+      <BuiltInArguments
         v-model="settings"
         :disabled="disabled"
+        :readonly="readonly"
         :field-errors="fieldErrors">
         <template v-if="$slots.environment" #environment>
           <slot name="environment" />
         </template>
-      </BuiltInRunOptions>
+      </BuiltInArguments>
     </v-col>
+
     <v-col cols="12" md="6">
       <h3 class="text-subtitle-1 mb-3">Custom Project Arguments</h3>
+
       <v-alert v-if="boolDuplicate" type="warning" variant="tonal" class="mb-3">
         Duplicate keys exist. At runtime, the last value with the same key takes effect.
       </v-alert>
+
       <v-alert v-if="strAssetError" type="error" variant="tonal" class="mb-3">
         {{ strAssetError }}
         <v-btn
@@ -27,9 +32,11 @@
           Retry
         </v-btn>
       </v-alert>
+
       <v-alert v-if="strArgumentsError" type="error" variant="tonal" class="mb-3">
         {{ strArgumentsError }}
       </v-alert>
+
       <v-alert
         v-if="fieldErrors?.['settings.custom_prj_args']"
         type="error"
@@ -37,6 +44,7 @@
         class="mb-3">
         {{ fieldErrors?.["settings.custom_prj_args"]?.join(" ") }}
       </v-alert>
+
       <v-alert
         v-if="fieldErrors?.['settings.custom_arg_assets']"
         type="error"
@@ -44,23 +52,30 @@
         class="mb-3">
         {{ fieldErrors?.["settings.custom_arg_assets"]?.join(" ") }}
       </v-alert>
+
       <p v-if="settings.custom_prj_args.length === 0" class="text-medium-emphasis">
         No custom arguments.
       </p>
+
       <v-row
         v-for="(argument, index) in settings.custom_prj_args"
         :key="index"
-        align="start">
-        <v-col cols="12" md="3">
+        no-gutters
+        align="center"
+        class="mb-4">
+        <v-col class="pr-3">
           <v-text-field
             :model-value="argument[0]"
             :aria-label="`Argument ${index + 1} name`"
             readonly
             variant="plain"
             density="compact"
-            hide-details />
+            hide-details>
+            <v-tooltip activator="parent" location="top">{{ argument[0] }}</v-tooltip>
+          </v-text-field>
         </v-col>
-        <v-col cols="12" md="3">
+
+        <v-col cols="auto">
           <v-switch
             :model-value="!!settings.custom_arg_assets[index]"
             :label="settings.custom_arg_assets[index] ? 'Asset' : 'Value'"
@@ -69,9 +84,11 @@
             density="compact"
             hide-details
             :disabled="disabled"
+            :readonly="readonly"
             @update:model-value="setSource(index, $event === true)" />
         </v-col>
-        <v-col cols="12" md="6">
+
+        <v-col cols="12">
           <v-select
             v-if="settings.custom_arg_assets[index]"
             variant="underlined"
@@ -86,6 +103,7 @@
               getFieldErrors(fieldErrors, `settings.custom_arg_assets.${index}`)
             "
             :disabled="disabled"
+            :readonly="readonly"
             :loading="boolLoadingAssets"
             :rules="[(value) => !!value || 'Select an asset.']"
             @update:model-value="setAsset(index, $event)">
@@ -93,6 +111,7 @@
               <v-list-item v-bind="itemProps" :subtitle="item.raw.asset_type" />
             </template>
           </v-select>
+
           <v-textarea
             v-else
             v-model="arrValue[index]"
@@ -103,6 +122,7 @@
             auto-grow
             hide-details="auto"
             :disabled="disabled"
+            :readonly="readonly"
             :error-messages="[
               ...(arrError[index] ? [arrError[index]!] : []),
               ...getFieldErrors(fieldErrors, `settings.custom_prj_args.${index}`),
@@ -114,30 +134,35 @@
     </v-col>
   </v-row>
 </template>
+
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 
-import BuiltInRunOptions from "./BuiltInRunOptions.vue";
+import BuiltInArguments from "./BuiltInArguments.vue";
 
 import { getAssetList } from "@/api/assets";
 import { getApiError, getFieldErrors } from "@/api/errors";
 import type { AssetEntryResponse } from "@/api/generated/browserApi";
 
-import { validateJsonValue } from "@/app/validators";
+import type { JsonValue, RunSettings } from "@/api/runSettings";
 
-import type { JsonValue, RunSettings } from "@/api/runOptions";
+import { validateJsonValue } from "@/app/validators";
 
 const props = defineProps<{
   departmentId: string;
   disabled?: boolean;
+  readonly?: boolean;
   fieldErrors?: Record<string, string[]>;
 }>();
+
 const INT_CUSTOM_ARGUMENT_MAX_COUNT = 100;
 const settings = defineModel<RunSettings>({ required: true });
 const emit = defineEmits<{ valid: [value: boolean] }>();
+
 const arrValue = ref(
   settings.value.custom_prj_args.map((entry) => JSON.stringify(entry[1])),
 );
+
 const arrError = ref<string[]>([]);
 const arrAsset = ref<AssetEntryResponse[]>([]);
 const strAssetError = ref("");
@@ -145,11 +170,13 @@ const boolLoadingAssets = ref(false);
 let intAssetRevision = 0;
 let strAssetDepartmentId = "";
 let boolAssetsLoaded = false;
+
 const boolDuplicate = computed(
   () =>
     new Set(settings.value.custom_prj_args.map((entry) => entry[0])).size !==
     settings.value.custom_prj_args.length,
 );
+
 const strArgumentsError = computed(() => {
   // Validate the whole ordered-pair array, including values with asset bindings.
   const arrArguments = settings.value.custom_prj_args;
@@ -217,6 +244,7 @@ async function loadAssets(): Promise<void> {
     boolAssetsLoaded = false;
   }
   if (
+    props.readonly ||
     !strDepartmentId ||
     !settings.value.custom_arg_assets.some((binding) => binding !== null) ||
     boolAssetsLoaded ||
@@ -278,4 +306,5 @@ onBeforeUnmount(() => {
   intAssetRevision += 1;
 });
 </script>
+
 <style scoped></style>

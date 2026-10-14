@@ -6,7 +6,7 @@ import type { ProjectDetails } from "../../shared/project";
 import { type ProjectRunConfig, RunStatus, type RunHistoryItem } from "../../shared/run";
 
 import type { ScheduleDetails, ScheduleListItem } from "../../shared/schedule";
-import type { CustomProjectArgs } from "../../shared/runOptions";
+import type { CustomProjectArgs } from "../../shared/runSettings";
 import {
   ensureExactRecord,
   ensureString,

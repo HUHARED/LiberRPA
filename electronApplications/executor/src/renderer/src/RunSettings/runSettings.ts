@@ -1,8 +1,8 @@
-// FileName: runOptions.ts
+// FileName: runSettings.ts
 
 import { useInformationStore } from "../Store/informationStore";
-import { LogLevel } from "../../../shared/runOptions";
-import type { CustomProjectArgs } from "../../../shared/runOptions";
+import { LogLevel } from "../../../shared/runSettings";
+import type { CustomProjectArgs } from "../../../shared/runSettings";
 
 export const ARR_LOG_LEVEL: LogLevel[] = Object.values(LogLevel);
 

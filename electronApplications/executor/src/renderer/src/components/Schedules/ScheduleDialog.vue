@@ -8,7 +8,7 @@
           fluid
           class="pa-2 ma-0 pt-0">
           <v-row class="w-100">
-            <v-col cols="6" class="pb-0">
+            <v-col cols="5" class="pb-0">
               <v-text-field
                 :model-value="
                   formatTimestamp(
@@ -24,7 +24,7 @@
                 variant="plain"></v-text-field>
             </v-col>
 
-            <v-col cols="6" class="pb-0">
+            <v-col cols="7" class="pb-0">
               <v-text-field
                 :model-value="
                   formatTimestamp(

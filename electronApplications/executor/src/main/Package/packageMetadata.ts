@@ -25,7 +25,7 @@ import {
 } from "../Config/environment";
 import { getTargetFolderName } from "./packageArchive";
 import type { ProjectCreateData } from "../../shared/project";
-import type { CustomProjectArgs, LogLevel } from "../../shared/runOptions";
+import type { CustomProjectArgs, LogLevel } from "../../shared/runSettings";
 
 interface FlowManifest {
   schemaVersion: 1;

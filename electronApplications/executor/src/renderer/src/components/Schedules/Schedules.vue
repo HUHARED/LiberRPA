@@ -98,7 +98,7 @@ import { loggerRenderer } from "../../Logging/logger";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
 import { getErrorMessage } from "../../../../shared/error";
-import { LogLevel, RunConflictPolicy } from "../../../../shared/runOptions";
+import { LogLevel, RunConflictPolicy } from "../../../../shared/runSettings";
 import type { ScheduleListItem } from "../../../../shared/schedule";
 
 const scheduleStore = useScheduleStore();

@@ -5,10 +5,10 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from typing import cast
 
 from django.core.paginator import Paginator
-from django.db.models import QuerySet
+from django.db.models import F, Q, QuerySet, Window
+from django.db.models.functions import RowNumber
 from django.utils import timezone
 
 from console_project.constants import INT_UPLOAD_CHUNK_BYTES
@@ -24,7 +24,7 @@ from .contracts import PackageUploadState
 from .models import Package, PackageUpload
 from .runtime import build_run_settings
 
-_INT_PACKAGES_PER_PAGE = 50
+_INT_PACKAGE_BROWSE_PAGE_SIZE = 50
 
 
 def require_package_department(
@@ -130,27 +130,110 @@ def _get_package_list_payloads(
     ]
 
 
-def get_packages(
+def _build_package_project_group_payload(
+    package: Package, departmentTree: dict[uuid.UUID, Department]
+) -> dict:
+    return {
+        "department_id": str(package.department_id),
+        "department_path": "/"
+        + get_department_path(departmentTree[package.department_id], departmentTree),
+        "project_name": package.project_name,
+        "project_name_key": package.project_name_key,
+    }
+
+
+def get_package_project_groups(
     access: OrganizationAccessContext,
     *,
     pageNumber: int,
     departmentIds: tuple[uuid.UUID, ...],
-    projectName: str,
+    locatePackageId: uuid.UUID | None = None,
 ) -> dict:
-    query = get_package_query(access)
+    query = get_package_query(access).select_related(None)
     if departmentIds:
         query = query.filter(department_id__in=departmentIds)
-    if projectName:
-        query = query.filter(project_name__icontains=projectName)
+
+    # Group by department and project name, using the most recently uploaded Package for each entry.
+    latestPackagePerProject = query.annotate(
+        package_rank=Window(
+            expression=RowNumber(),
+            partition_by=[F("department_id"), F("project_name_key")],
+            order_by=[F("uploaded_at").desc(), F("pk").asc()],
+        )
+    ).filter(package_rank=1)
+    if locatePackageId is not None:
+        package = query.only("department_id", "project_name_key").get(pk=locatePackageId)
+        intBefore = latestPackagePerProject.filter(
+            Q(project_name_key__lt=package.project_name_key)
+            | Q(
+                project_name_key=package.project_name_key,
+                department_id__lt=package.department_id,
+            )
+        ).count()
+        pageNumber = intBefore // _INT_PACKAGE_BROWSE_PAGE_SIZE + 1
+
     page = Paginator(
-        query.order_by("project_name_key", "-uploaded_at", "pk"), _INT_PACKAGES_PER_PAGE
+        latestPackagePerProject.only(
+            "id", "department_id", "project_name", "project_name_key"
+        ).order_by("project_name_key", "department_id"),
+        _INT_PACKAGE_BROWSE_PAGE_SIZE,
+    ).page(pageNumber)
+    dictDepartment = get_department_tree(access.organization.pk)
+    return {
+        "project_groups": [
+            {
+                **_build_package_project_group_payload(package, dictDepartment),
+                "latest_package_id": str(package.pk),
+            }
+            for package in page
+        ],
+        "page": page.number,
+        "page_size": _INT_PACKAGE_BROWSE_PAGE_SIZE,
+        "total_count": page.paginator.count,
+        "total_pages": page.paginator.num_pages,
+    }
+
+
+def get_project_packages(
+    access: OrganizationAccessContext,
+    packageId: uuid.UUID,
+    *,
+    pageNumber: int | None,
+) -> dict:
+    selectedPackage = (
+        get_package_query(access)
+        .select_related(None)
+        .only("id", "department_id", "project_name", "project_name_key", "uploaded_at")
+        .get(pk=packageId)
+    )
+    query = get_package_query(access).filter(
+        department_id=selectedPackage.department_id,
+        project_name_key=selectedPackage.project_name_key,
+    )
+    if pageNumber is None:
+        intBefore = query.filter(
+            Q(uploaded_at__gt=selectedPackage.uploaded_at)
+            | Q(uploaded_at=selectedPackage.uploaded_at, pk__lt=selectedPackage.pk)
+        ).count()
+        pageNumber = intBefore // _INT_PACKAGE_BROWSE_PAGE_SIZE + 1
+
+    page = Paginator(
+        query
+        .select_related(None)
+        .only("id", "project_version")
+        .order_by("-uploaded_at", "pk"),
+        _INT_PACKAGE_BROWSE_PAGE_SIZE,
     ).page(pageNumber)
     return {
-        "packages": _get_package_list_payloads(
-            access, cast(QuerySet[Package], page.object_list)
+        "project_group": _build_package_project_group_payload(
+            selectedPackage, get_department_tree(access.organization.pk)
         ),
+        "packages": [
+            {"id": str(package.pk), "project_version": package.project_version}
+            for package in page
+        ],
         "page": page.number,
-        "page_size": _INT_PACKAGES_PER_PAGE,
+        "page_size": _INT_PACKAGE_BROWSE_PAGE_SIZE,
         "total_count": page.paginator.count,
         "total_pages": page.paginator.num_pages,
     }

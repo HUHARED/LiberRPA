@@ -97,7 +97,7 @@
         </v-col>
       </v-row>
 
-      <v-alert v-if="cronValidation.valid" density="compact" variant="tonal" class="my-2">
+      <v-alert v-if="cronValidation.valid" density="compact" variant="plain" class="my-2">
         Next:
         {{ arrPreview.join(" · ") || "No upcoming trigger within the active period." }}
       </v-alert>
@@ -110,7 +110,7 @@
         <v-col cols="8">
           <v-select
             v-model="detail.project_name"
-            label="Name"
+            label="Project Name"
             variant="underlined"
             class="clean-space"
             density="compact"
@@ -122,7 +122,7 @@
         <v-col cols="4">
           <v-select
             v-model="detail.project_version"
-            label="Version"
+            label="Project Version"
             variant="underlined"
             class="clean-space"
             density="compact"
@@ -134,11 +134,11 @@
     </v-container>
 
     <v-container fluid class="pa-2 ma-0 pt-0 flex-column-grow-1">
-      <v-label>Run Options</v-label>
+      <v-label>Run Settings</v-label>
 
       <v-row class="clean-space flex-column-grow-1">
         <v-col cols="5" class="ma-0 px-0 pb-0 pt-3">
-          <BuiltInRunOptions
+          <BuiltInArguments
             v-model:max-retry-count="detail.max_retry_count"
             v-model:timeout-min="detail.timeout_min"
             v-model:log-level="detail.builtin_log_level"
@@ -158,7 +158,7 @@
                 hide-details
                 readonly />
             </template>
-          </BuiltInRunOptions>
+          </BuiltInArguments>
         </v-col>
 
         <v-col cols="7" class="clean-space flex-column">
@@ -176,8 +176,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import BuiltInRunOptions from "../RunOptions/BuiltInRunOptions.vue";
-import CustomArgumentsEditor from "../RunOptions/CustomArgumentsEditor.vue";
+import BuiltInArguments from "../RunSettings/BuiltInArguments.vue";
+import CustomArgumentsEditor from "../RunSettings/CustomArgumentsEditor.vue";
 
 import { cloneJsonSerializable } from "../../Common/json";
 import {
@@ -190,7 +190,7 @@ import { validateCronExpression } from "../../Schedule/cron";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
 import type { ScheduleFormDraft } from "../../Schedule/types";
-import { RunConflictPolicy } from "../../../../shared/runOptions";
+import { RunConflictPolicy } from "../../../../shared/runSettings";
 import { previewScheduleCron } from "../../../../shared/cron";
 
 const scheduleStore = useScheduleStore();

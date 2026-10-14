@@ -57,7 +57,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       {
         path: "/packages/:packageId",
         name: "package-details",
-        component: () => import("@/views/packages/PackageDetailsView.vue"),
+        component: () => import("@/views/packages/PackagesView.vue"),
         props: true,
         meta: { title: "Package Details", requiresBusiness: true },
       },

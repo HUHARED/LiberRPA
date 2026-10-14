@@ -5,6 +5,7 @@
     <v-spacer />
     <v-btn variant="tonal" :loading="boolLoading" @click="load()">Refresh</v-btn>
   </div>
+
   <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form @submit.prevent="apply">
@@ -23,12 +24,15 @@
               chips
               hide-details />
           </v-col>
+
           <v-col cols="12" md="4">
             <v-text-field v-model="filters.scheduleName" label="Schedule" hide-details />
           </v-col>
+
           <v-col cols="12" md="4">
             <v-text-field v-model="filters.projectName" label="Project" hide-details />
           </v-col>
+
           <v-col cols="12" md="4">
             <v-select
               v-model="filters.statuses"
@@ -40,6 +44,7 @@
               chips
               hide-details />
           </v-col>
+
           <v-col cols="12" md="4">
             <v-text-field
               v-model="filters.startedFrom"
@@ -49,6 +54,7 @@
               :hint="strTimeZone"
               persistent-hint />
           </v-col>
+
           <v-col cols="12" md="4">
             <v-text-field
               v-model="filters.startedUntil"
@@ -59,6 +65,7 @@
               persistent-hint />
           </v-col>
         </v-row>
+
         <div class="d-flex ga-2 mt-4">
           <v-btn type="submit" color="primary" variant="tonal">Apply</v-btn>
           <v-btn variant="tonal" @click="clearFilters">Reset Filters</v-btn>
@@ -66,9 +73,11 @@
       </form>
     </v-card-text>
   </v-card>
+
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
     {{ strError }}
   </v-alert>
+
   <v-alert v-if="clearResult" type="info" variant="tonal" class="mb-4">
     <p>
       Cleared:
@@ -78,10 +87,12 @@
       · Failed:
       <span class="font-weight-bold">{{ clearResult.failed.length }}</span>
     </p>
+
     <p v-for="entry in [...clearResult.skipped, ...clearResult.failed]" :key="entry.id">
       {{ entry.id }}: {{ entry.reason }}
     </p>
   </v-alert>
+
   <div class="d-flex align-center flex-wrap ga-3 mb-3">
     <span>{{ arrSelectedId.length }} selected</span>
     <v-btn
@@ -92,6 +103,7 @@
       @click="selectAll">
       Select All Matching Runs
     </v-btn>
+
     <v-btn
       size="small"
       variant="tonal"
@@ -108,6 +120,7 @@
       Clear Logs
     </v-btn>
   </div>
+
   <v-card variant="outlined">
     <v-data-table-server
       :model-value="arrSelectedId"
@@ -123,13 +136,17 @@
       hide-default-footer
       @update:model-value="updateSelection">
       <template #item.schedule_name="{ item }">{{ item.schedule_name || "—" }}</template>
+
       <template #item.started_at="{ item }">
         {{ formatDateTime(item.started_at, strTimeZone) }}
       </template>
+
       <template #item.ended_at="{ item }">
         {{ formatRunEndTime(item, strTimeZone) }}
       </template>
+
       <template #item.status="{ item }">{{ RUN_STATUS_LABELS[item.status] }}</template>
+
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
           <v-btn
@@ -139,6 +156,7 @@
             variant="text"
             aria-label="View Run Details"
             icon="mdi-eye-outline" />
+
           <v-btn
             v-tooltip:bottom="'Rerun'"
             size="small"
@@ -147,6 +165,7 @@
             aria-label="Rerun"
             icon="mdi-replay"
             @click="rerun(item.id)" />
+
           <v-btn
             v-if="item.can_stop"
             v-tooltip:bottom="'Stop Run'"
@@ -159,9 +178,12 @@
             @click="stop(item.id)" />
         </div>
       </template>
+
       <template #no-data>No runs match the current filters.</template>
     </v-data-table-server>
+
     <v-divider />
+
     <div class="d-flex align-center justify-space-between pa-3">
       <span>{{ page?.total_count ?? 0 }} runs</span>
       <v-pagination
@@ -173,9 +195,11 @@
         @update:model-value="load" />
     </div>
   </v-card>
+
   <v-dialog v-model="boolClearDialog" persistent max-width="640">
     <v-card>
       <v-card-title>Clear Logs</v-card-title>
+
       <v-card-text>
         <p>
           Clear logs from Console for
@@ -183,21 +207,25 @@
           selected runs? Run summaries, inputs, outputs and files on Executors are retained.
           Protected runs are skipped.
         </p>
+
         <v-alert v-if="strClearError" type="error" variant="tonal" class="mt-4">
           {{ strClearError }}
         </v-alert>
       </v-card-text>
+
       <v-card-actions>
         <v-spacer />
         <v-btn variant="tonal" :disabled="boolClearing" @click="boolClearDialog = false">
           Cancel
         </v-btn>
+
         <v-btn variant="tonal" color="warning" :loading="boolClearing" @click="clearLogs">
           Clear Logs
         </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
+
   <RunPackageDialog
     v-if="rerunInfo"
     :package-id="rerunInfo.package_id"
@@ -207,10 +235,13 @@
     @close="rerunInfo = null"
     @saved="runCreated" />
 </template>
+
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+
 import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
+
 import {
   ARR_RUN_STATUS,
   getRuns,
@@ -224,23 +255,28 @@ import {
   type RunFilters,
 } from "@/api/runs";
 import { getApiError } from "@/api/errors";
+
 import { RUN_STATUS_LABELS } from "@/app/runLabels";
 import { formatDateTime, formatRunEndTime } from "@/app/formatters";
+
 import { useSessionStore } from "@/stores/sessionStore";
+
 const ARR_HEADER = [
   { title: "Schedule", key: "schedule_name" },
-  { title: "Project", key: "project_name" },
-  { title: "Version", key: "project_version" },
+  { title: "Project Name", key: "project_name" },
+  { title: "Project Version", key: "project_version" },
   { title: "Executor", key: "executor_name" },
   { title: "Started At", key: "started_at" },
   { title: "Ended At", key: "ended_at" },
   { title: "Status", key: "status" },
   { title: "Actions", key: "actions" },
 ];
+
 const sessionStore = useSessionStore();
 const route = useRoute();
 const router = useRouter();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+
 function emptyFilters(): RunFilters {
   return {
     departmentIds: [],
@@ -252,17 +288,20 @@ function emptyFilters(): RunFilters {
     startedUntil: "",
   };
 }
+
 const arrDepartment = ref<RunDepartmentInfo[]>([]);
 const filters = ref(emptyFilters());
 const initialStatus = ARR_RUN_STATUS.find((status) => status === route.query.status);
 if (initialStatus) filters.value.statuses = [initialStatus];
 if (typeof route.query.department_id === "string")
   filters.value.departmentIds = [route.query.department_id];
+
 let appliedFilters = {
   ...filters.value,
   departmentIds: [...filters.value.departmentIds],
   statuses: [...filters.value.statuses],
 };
+
 const page = shallowRef<RunPage | null>(null);
 const boolLoading = ref(false);
 const strError = ref("");
@@ -277,14 +316,17 @@ const boolActionBusy = ref(false);
 const rerunInfo = ref<Awaited<ReturnType<typeof getRerun>> | null>(null);
 let intLoadRevision = 0;
 let intSelectionRevision = 0;
+
 function updateSelection(ids: string[]): void {
   intSelectionRevision += 1;
   boolSelecting.value = false;
   arrSelectedId.value = ids;
 }
+
 function clearSelection(): void {
   updateSelection([]);
 }
+
 async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
   const intRevision = ++intLoadRevision;
   boolLoading.value = true;
@@ -298,6 +340,7 @@ async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
     if (intRevision === intLoadRevision) boolLoading.value = false;
   }
 }
+
 function apply(): void {
   appliedFilters = {
     ...filters.value,
@@ -308,10 +351,12 @@ function apply(): void {
   page.value = null;
   void load(1);
 }
+
 function clearFilters(): void {
   filters.value = emptyFilters();
   apply();
 }
+
 async function selectAll(): Promise<void> {
   if (boolSelecting.value || boolLoading.value || boolClearDialog.value) return;
   const intRevision = ++intSelectionRevision;
@@ -328,6 +373,7 @@ async function selectAll(): Promise<void> {
     if (intRevision === intSelectionRevision) boolSelecting.value = false;
   }
 }
+
 function confirmClear(): void {
   if (
     !arrSelectedId.value.length ||
@@ -340,6 +386,7 @@ function confirmClear(): void {
   strClearError.value = "";
   boolClearDialog.value = true;
 }
+
 async function clearLogs(): Promise<void> {
   if (boolClearing.value || !boolClearDialog.value || !arrConfirmedId.value.length) return;
   const arrRunId = [...arrConfirmedId.value];
@@ -355,6 +402,7 @@ async function clearLogs(): Promise<void> {
     boolClearing.value = false;
   }
 }
+
 async function rerun(id: string): Promise<void> {
   if (boolActionBusy.value) return;
   boolActionBusy.value = true;
@@ -367,6 +415,7 @@ async function rerun(id: string): Promise<void> {
     boolActionBusy.value = false;
   }
 }
+
 async function stop(id: string): Promise<void> {
   boolActionBusy.value = true;
   strError.value = "";
@@ -379,14 +428,17 @@ async function stop(id: string): Promise<void> {
     boolActionBusy.value = false;
   }
 }
+
 function runCreated(): void {
   rerunInfo.value = null;
   void router.push({ name: "job-queue" });
 }
+
 onBeforeUnmount(() => {
   intLoadRevision += 1;
   clearSelection();
 });
+
 onMounted(async () => {
   void load();
   try {
@@ -396,4 +448,5 @@ onMounted(async () => {
   }
 });
 </script>
+
 <style scoped></style>

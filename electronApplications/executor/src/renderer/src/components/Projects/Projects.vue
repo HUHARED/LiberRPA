@@ -18,7 +18,7 @@
         fluid
         class="clean-space fill-height flex-column"
         style="flex: 0 0 30%; min-width: 0px">
-        <v-label class="header-label column-header">Name</v-label>
+        <v-label class="header-label column-header">Project Name</v-label>
 
         <!-- mandatory: After the first click, an item will always remain activated and cannot be deactivated -->
         <v-list
@@ -40,8 +40,8 @@
       <v-container
         fluid
         class="clean-space fill-height flex-column"
-        style="width: 120px; flex-shrink: 0">
-        <v-label class="header-label column-header">Version</v-label>
+        style="width: 192px; flex-shrink: 0">
+        <v-label class="header-label column-header">Project Version</v-label>
 
         <!-- Add a v-if to remove the previous status of the list. -->
         <v-list
@@ -109,6 +109,7 @@
                 Save
               </v-btn>
             </v-col>
+
             <v-col cols="3" class="clean-space">
               <v-btn
                 variant="tonal"
@@ -118,6 +119,7 @@
                 Cancel
               </v-btn>
             </v-col>
+
             <v-col cols="3" class="clean-space">
               <v-btn
                 variant="tonal"
@@ -126,6 +128,7 @@
                 Delete
               </v-btn>
             </v-col>
+
             <v-col cols="3" class="clean-space">
               <v-btn
                 variant="tonal"
@@ -153,7 +156,7 @@
 import DeleteProjectDialog from "./DeleteProjectDialog.vue";
 import ProjectMetadata from "./ProjectMetadata.vue";
 import ProjectRunSettings from "./ProjectRunSettings.vue";
-import CustomArgumentsEditor from "../RunOptions/CustomArgumentsEditor.vue";
+import CustomArgumentsEditor from "../RunSettings/CustomArgumentsEditor.vue";
 import RunProjectDialog from "./RunProjectDialog.vue";
 import VerticalDivider from "../Common/VerticalDivider.vue";
 

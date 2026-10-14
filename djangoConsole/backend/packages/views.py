@@ -11,7 +11,7 @@ from django.http import HttpRequest, JsonResponse, StreamingHttpResponse
 from django.utils.http import content_disposition_header
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
-from console_project.http import parse_json_request
+from console_project.http import parse_json_request, parse_page_number
 from console_project.contracts import JsonRequest
 from file_storage.http import (
     FileAuthentication,
@@ -35,7 +35,8 @@ from .contracts import (
 from .queries import (
     get_package_query,
     build_package_payload,
-    get_packages,
+    get_package_project_groups,
+    get_project_packages,
     get_package_options,
     get_upload,
     build_upload_payload,
@@ -78,21 +79,42 @@ def list_departments(
 
 
 @require_GET
-def list_packages(
+def list_package_project_groups(
     request: HttpRequest, authentication: FileAuthentication
 ) -> JsonResponse:
-    if "name" in request.GET:
-        raise ValueError("Use project_name to filter Packages.")
-    queryParameters = request.GET.copy()
-    if "project_name" in queryParameters:
-        queryParameters.setlist("name", queryParameters.pop("project_name"))
-    filters = parse_department_resource_filters(queryParameters)
+    if set(request.GET) - {"department_id", "page", "locate_package_id"}:
+        raise ValueError("Unknown project group filters.")
+    if len(request.GET.getlist("locate_package_id")) > 1:
+        raise ValueError("Select one package to locate.")
+    filters = parse_department_resource_filters(
+        request.GET, extraFields=frozenset({"locate_package_id"})
+    )
+    locatePackageId = (
+        uuid.UUID(request.GET["locate_package_id"])
+        if "locate_package_id" in request.GET
+        else None
+    )
     return JsonResponse(
-        get_packages(
+        get_package_project_groups(
             get_file_access(authentication),
             pageNumber=filters["pageNumber"],
             departmentIds=filters["departmentIds"],
-            projectName=filters["name"],
+            locatePackageId=locatePackageId,
+        )
+    )
+
+
+@require_GET
+def list_project_packages(
+    request: HttpRequest, authentication: FileAuthentication, packageId: uuid.UUID
+) -> JsonResponse:
+    if set(request.GET) - {"page"}:
+        raise ValueError("Unknown project package filters.")
+    return JsonResponse(
+        get_project_packages(
+            get_file_access(authentication),
+            packageId,
+            pageNumber=parse_page_number(request.GET) if "page" in request.GET else None,
         )
     )
 

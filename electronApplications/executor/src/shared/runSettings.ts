@@ -1,4 +1,4 @@
-// FileName: runOptions.ts
+// FileName: runSettings.ts
 
 export const INT_MAX_RETRY_COUNT = 3;
 export const INT_RETRY_DELAY_MS = 60_000;
@@ -22,7 +22,7 @@ export enum RunConflictPolicy {
 
 export type CustomProjectArgs = [string, unknown][];
 
-export interface RunOptions {
+export interface RunSettings {
   max_retry_count: number;
   timeout_min: number;
 
