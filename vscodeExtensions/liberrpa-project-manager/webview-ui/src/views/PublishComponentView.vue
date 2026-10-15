@@ -5,6 +5,8 @@
       <span class="text-h5">Publish Component</span>
       <v-spacer></v-spacer>
       <v-btn
+        v-tooltip:bottom="'Refresh'"
+        aria-label="Refresh"
         icon="mdi-refresh"
         variant="text"
         :disabled="projectManagerStore.busy"
@@ -22,34 +24,39 @@
         <v-col cols="12" sm="6" lg="3">
           <v-card variant="tonal" class="pa-3 h-100">
             <div class="text-caption mb-1">Package</div>
-            <div class="font-weight-medium">{{ manifest.packageName }}</div>
+            <div class="font-weight-bold">{{ manifest.packageName }}</div>
           </v-card>
         </v-col>
+
         <v-col cols="12" sm="6" lg="3">
           <v-card variant="tonal" class="pa-3 h-100">
             <div class="text-caption mb-1">Version</div>
-            <div class="font-weight-medium">{{ manifest.version }}</div>
+            <div class="font-weight-bold">{{ manifest.version }}</div>
           </v-card>
         </v-col>
+
         <v-col cols="12" sm="6" lg="3">
           <v-card variant="tonal" class="pa-3 h-100">
             <div class="text-caption mb-1">requiresLiberrpa</div>
-            <div class="font-weight-medium">{{ manifest.requiresLiberrpa }}</div>
+            <div class="font-weight-bold">{{ manifest.requiresLiberrpa }}</div>
           </v-card>
         </v-col>
+
         <v-col cols="12" sm="6" lg="3">
           <v-card variant="tonal" class="pa-3 h-100">
             <div class="text-caption mb-1">Direct dependencies</div>
-            <div class="font-weight-medium">{{ directDependencyCount }}</div>
+            <div class="font-weight-bold">{{ directDependencyCount }}</div>
           </v-card>
         </v-col>
       </v-row>
 
       <v-card variant="outlined" class="mb-5">
         <v-card-title class="text-subtitle-1">Component identity</v-card-title>
+
         <v-card-text>
           <div class="text-caption text-medium-emphasis">Component ID</div>
           <div class="text-body-2 text-break">{{ manifest.id }}</div>
+
           <div v-if="manifest.description" class="mt-3">
             <div class="text-caption text-medium-emphasis">Description</div>
             <div class="text-body-2">{{ manifest.description }}</div>
@@ -59,14 +66,17 @@
 
       <v-card variant="outlined" class="mb-5">
         <v-card-title class="text-subtitle-1">Snippet files</v-card-title>
+
         <v-card-text>
           <v-row align="center" class="mb-2">
             <v-col cols="12" md="7">
-              <div class="font-weight-medium">AST Snippet scan result</div>
+              <div class="font-weight-bold">AST Snippet scan result</div>
+
               <div class="text-caption text-medium-emphasis text-break">
                 {{ publishComponentStore.astSnippetsFile }}
               </div>
             </v-col>
+
             <v-col cols="12" md="5" class="d-flex align-center justify-end ga-2">
               <v-chip
                 size="small"
@@ -75,6 +85,7 @@
                 ">
                 {{ publishComponentStore.astSnippetsFileExists ? "Available" : "Missing" }}
               </v-chip>
+
               <v-btn
                 size="small"
                 variant="tonal"
@@ -92,11 +103,13 @@
 
           <v-row align="center">
             <v-col cols="12" md="7">
-              <div class="font-weight-medium">Snippet configuration</div>
+              <div class="font-weight-bold">Snippet configuration</div>
+
               <div class="text-caption text-medium-emphasis text-break">
                 {{ publishComponentStore.snippetsJsoncFile }}
               </div>
             </v-col>
+
             <v-col cols="12" md="5" class="d-flex align-center justify-end ga-2">
               <v-chip
                 size="small"
@@ -107,6 +120,7 @@
                   publishComponentStore.snippetsJsoncFileExists ? "Available" : "Missing"
                 }}
               </v-chip>
+
               <v-btn
                 size="small"
                 variant="tonal"
@@ -127,6 +141,7 @@
           The Snippet configuration exists. Running Publish Component will scan the current
           source, rebuild the Snippet Catalog and publish the Wheel.
         </template>
+
         <template v-else>
           Running Publish Component will first create the AST scan result and Snippet
           configuration template.
@@ -140,6 +155,7 @@
           Publish preparation was created. Review the generated AST result and edit
           snippets.jsonc in the VS Code editor before publishing.
         </v-alert>
+
         <v-row class="mb-2">
           <v-col cols="12" sm="4">
             <v-card variant="tonal" class="pa-3 h-100">
@@ -147,12 +163,14 @@
               <div class="text-h6">{{ publishResult.generatedCount }}</div>
             </v-card>
           </v-col>
+
           <v-col cols="12" sm="4">
             <v-card variant="tonal" class="pa-3 h-100">
               <div class="text-caption mb-1">Skipped</div>
               <div class="text-h6">{{ publishResult.skippedCount }}</div>
             </v-card>
           </v-col>
+
           <v-col cols="12" sm="4">
             <v-card variant="tonal" class="pa-3 h-100">
               <div class="text-caption mb-1">Warnings</div>
@@ -170,6 +188,7 @@
           <template v-if="publishResult.status === 'published'">
             The Component Wheel was published successfully.
           </template>
+
           <template v-else>
             An identical Component version is already present in the ComponentRepository.
           </template>
@@ -177,43 +196,52 @@
 
         <v-card variant="outlined" class="mb-5">
           <v-card-title class="text-subtitle-1">Publish result</v-card-title>
+
           <v-card-text>
             <v-row>
               <v-col cols="12" md="6">
                 <div class="text-caption text-medium-emphasis">Wheel file</div>
+
                 <div class="text-body-2 text-break">
                   {{ publishResult.wheelFileName }}
                 </div>
               </v-col>
+
               <v-col cols="12" md="6">
                 <div class="text-caption text-medium-emphasis">SHA-256</div>
                 <div class="text-body-2 text-break">{{ publishResult.sha256 }}</div>
               </v-col>
             </v-row>
+
             <v-row class="mt-1">
               <v-col cols="6" sm="4" lg="2">
                 <div class="text-caption">Generated</div>
-                <div class="font-weight-medium">{{ publishResult.generatedCount }}</div>
+                <div class="font-weight-bold">{{ publishResult.generatedCount }}</div>
               </v-col>
+
               <v-col cols="6" sm="4" lg="2">
                 <div class="text-caption">Excluded</div>
-                <div class="font-weight-medium">{{ publishResult.excludedCount }}</div>
+                <div class="font-weight-bold">{{ publishResult.excludedCount }}</div>
               </v-col>
+
               <v-col cols="6" sm="4" lg="2">
                 <div class="text-caption">Hand-written</div>
-                <div class="font-weight-medium">{{ publishResult.handWrittenCount }}</div>
+                <div class="font-weight-bold">{{ publishResult.handWrittenCount }}</div>
               </v-col>
+
               <v-col cols="6" sm="4" lg="2">
                 <div class="text-caption">Final</div>
-                <div class="font-weight-medium">{{ publishResult.finalCount }}</div>
+                <div class="font-weight-bold">{{ publishResult.finalCount }}</div>
               </v-col>
+
               <v-col cols="6" sm="4" lg="2">
                 <div class="text-caption">Skipped</div>
-                <div class="font-weight-medium">{{ publishResult.skippedCount }}</div>
+                <div class="font-weight-bold">{{ publishResult.skippedCount }}</div>
               </v-col>
+
               <v-col cols="6" sm="4" lg="2">
                 <div class="text-caption">Warnings</div>
-                <div class="font-weight-medium">{{ publishResult.warningCount }}</div>
+                <div class="font-weight-bold">{{ publishResult.warningCount }}</div>
               </v-col>
             </v-row>
           </v-card-text>
@@ -232,11 +260,18 @@
 
     <v-divider></v-divider>
 
-    <v-card-actions class="pa-5 justify-end">
-      <v-btn variant="text" :disabled="projectManagerStore.busy" @click="close">
+    <v-card-actions class="pa-5">
+      <v-btn
+        prepend-icon="mdi-close"
+        variant="tonal"
+        :disabled="projectManagerStore.busy"
+        @click="close">
         Close
       </v-btn>
+
+      <v-spacer></v-spacer>
       <v-btn
+        variant="tonal"
         color="primary"
         prepend-icon="mdi-package-up"
         :loading="projectManagerStore.busy"
@@ -267,9 +302,11 @@ const manifest = computed(() => {
 });
 
 const publishResult = computed(() => publishComponentStore.publishResult);
+
 const directDependencyCount = computed(
   () => Object.keys(manifest.value.componentDependencies).length,
 );
+
 const publishButtonLabel = computed(() =>
   publishComponentStore.snippetsJsoncFileExists ? "Publish Component" : "Prepare Publish",
 );

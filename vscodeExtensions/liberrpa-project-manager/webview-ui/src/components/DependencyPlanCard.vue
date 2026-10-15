@@ -23,11 +23,13 @@
       </v-alert>
 
       <div class="text-subtitle-2 mb-2">Direct dependency changes</div>
+
       <div
         v-if="plan.directDependencyChanges.length === 0"
         class="text-medium-emphasis mb-4">
         No direct Manifest dependency changes.
       </div>
+
       <v-list v-else density="compact" class="mb-4">
         <v-list-item
           v-for="change in plan.directDependencyChanges"
@@ -38,6 +40,7 @@
       </v-list>
 
       <div class="text-subtitle-2 mb-2">Resolved Component changes</div>
+
       <div v-if="plan.resolvedComponentChanges.length === 0" class="text-medium-emphasis">
         {{
           isResolveOperation
@@ -45,6 +48,7 @@
             : "No resolved Component version changes were found."
         }}
       </div>
+
       <v-list v-else density="compact">
         <v-list-item
           v-for="change in plan.resolvedComponentChanges"
@@ -57,11 +61,20 @@
 
     <v-divider></v-divider>
 
-    <v-card-actions class="pa-4 justify-end">
-      <v-btn variant="text" :disabled="busy" @click="emit('back')">Back</v-btn>
+    <v-card-actions class="pa-4">
       <v-btn
+        prepend-icon="mdi-arrow-left"
+        variant="tonal"
+        :disabled="busy"
+        @click="emit('back')">
+        Back
+      </v-btn>
+
+      <v-spacer></v-spacer>
+      <v-btn
+        prepend-icon="mdi-check"
         color="primary"
-        variant="flat"
+        variant="tonal"
         :loading="busy"
         :disabled="!canApply"
         @click="emit('apply')">

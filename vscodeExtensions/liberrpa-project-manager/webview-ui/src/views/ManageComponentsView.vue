@@ -1,22 +1,24 @@
 <!-- FileName: ManageComponentsView.vue -->
 <template>
   <v-card class="mx-auto" max-width="1180">
-    <v-card-title class="d-flex align-center pa-5 pb-2">
+    <v-card-title class="d-flex align-center ga-2 pa-5 pb-2">
       <span class="text-h5">Manage Components</span>
       <v-spacer></v-spacer>
       <v-btn
-        class="mr-2"
-        prepend-icon="mdi-package-down"
-        variant="text"
-        :disabled="projectManagerStore.busy || repositoryCatalog === null"
-        @click="importWheels">
-        Import Wheels
-      </v-btn>
-      <v-btn
+        v-tooltip:bottom="'Refresh'"
+        aria-label="Refresh"
         icon="mdi-refresh"
         variant="text"
         :disabled="projectManagerStore.busy"
         @click="refresh"></v-btn>
+
+      <v-btn
+        prepend-icon="mdi-package-down"
+        variant="tonal"
+        :disabled="projectManagerStore.busy || repositoryCatalog === null"
+        @click="importWheels">
+        Import Wheels
+      </v-btn>
     </v-card-title>
 
     <v-card-subtitle class="px-5 pb-4">
@@ -30,30 +32,37 @@
         <v-col cols="12" sm="6" lg="3">
           <v-card variant="tonal" class="pa-3 h-100">
             <div class="text-caption mb-1">Lock</div>
+
             <v-chip size="small" :color="getStateColor(projectState.lockState)">
               {{ projectState.lockState }}
             </v-chip>
           </v-card>
         </v-col>
+
         <v-col cols="12" sm="6" lg="3">
           <v-card variant="tonal" class="pa-3 h-100">
             <div class="text-caption mb-1">_Components</div>
+
             <v-chip size="small" :color="getStateColor(projectState.componentsState)">
               {{ projectState.componentsState }}
             </v-chip>
           </v-card>
         </v-col>
+
         <v-col cols="12" sm="6" lg="3">
           <v-card variant="tonal" class="pa-3 h-100">
             <div class="text-caption mb-1">Environment</div>
+
             <v-chip size="small" :color="getStateColor(projectState.environmentState)">
               {{ projectState.environmentState }}
             </v-chip>
           </v-card>
         </v-col>
+
         <v-col cols="12" sm="6" lg="3">
           <v-card variant="tonal" class="pa-3 h-100">
             <div class="text-caption mb-1">Repair</div>
+
             <v-chip size="small" :color="getStateColor(projectState.repairState)">
               {{ projectState.repairState }}
             </v-chip>
@@ -75,26 +84,37 @@
         type="error"
         variant="tonal"
         class="mb-4">
-        <div class="font-weight-medium mb-1">
-          Component Repository catalog is unavailable
-        </div>
+        <div class="font-weight-bold mb-1">Component Repository catalog is unavailable</div>
+
         <div>{{ repositoryCatalogError.message }}</div>
+
         <div
           v-if="repositoryCatalogError.code === 'repository_rebuild_required'"
           class="mt-2">
           Run "LiberRPA: Rebuild Component Repository Index", then refresh this page.
         </div>
+
         <div v-else class="mt-2">
           Check componentRepositoryPath and the Repository folder, then refresh this page.
         </div>
-        <v-btn class="mt-3" size="small" variant="text" @click="showLogs">Show Logs</v-btn>
+
+        <v-btn
+          prepend-icon="mdi-text-box-outline"
+          class="mt-3"
+          size="small"
+          variant="tonal"
+          @click="showLogs">
+          Show Logs
+        </v-btn>
       </v-alert>
 
       <v-card variant="outlined" class="mb-5">
         <v-card-title class="text-subtitle-1">Current direct dependencies</v-card-title>
+
         <v-card-text v-if="directDependencyRows.length === 0" class="text-medium-emphasis">
           This Project has no direct Component dependencies.
         </v-card-text>
+
         <v-table v-else density="compact">
           <thead>
             <tr>
@@ -103,10 +123,12 @@
               <th>Resolved version</th>
             </tr>
           </thead>
+
           <tbody>
             <tr v-for="row in directDependencyRows" :key="row.componentId">
               <td>
-                <div class="font-weight-medium">{{ row.packageName }}</div>
+                <div class="font-weight-bold">{{ row.packageName }}</div>
+
                 <div class="text-caption text-medium-emphasis">
                   {{ row.componentId }}
                 </div>
@@ -125,6 +147,7 @@
           :repository-catalog="repositoryCatalog"
           :busy="projectManagerStore.busy"
           @preview="previewPlan" />
+
         <RepairComponentsCard
           :has-dependencies="hasDependencies"
           :lock-state="projectState.lockState"
@@ -148,8 +171,12 @@
 
     <v-divider></v-divider>
 
-    <v-card-actions class="pa-5 justify-end">
-      <v-btn variant="text" :disabled="projectManagerStore.busy" @click="cancel">
+    <v-card-actions class="pa-5 justify-start">
+      <v-btn
+        prepend-icon="mdi-close"
+        variant="tonal"
+        :disabled="projectManagerStore.busy"
+        @click="cancel">
         Close
       </v-btn>
     </v-card-actions>
@@ -162,9 +189,11 @@ import { computed, toRaw } from "vue";
 import { postMessage } from "../Adapter/Extension/vscodeApi";
 import { useComponentManagementStore } from "../Application/ComponentManagement/componentManagementStore";
 import { useProjectManagerStore } from "../Application/projectManagerStore";
+
 import DependencyOperationCard from "../components/DependencyOperationCard.vue";
 import DependencyPlanCard from "../components/DependencyPlanCard.vue";
 import RepairComponentsCard from "../components/RepairComponentsCard.vue";
+
 import type { DictProtocolDependencyOperation } from "../Domain/ComponentManagement/componentManagementTypes";
 
 interface DictDirectDependencyRow {

@@ -2,6 +2,7 @@
 <template>
   <v-card variant="outlined" class="mb-5">
     <v-card-title class="text-subtitle-1">Dependency operation</v-card-title>
+
     <v-tabs v-model="selectedAction" grow :disabled="busy">
       <v-tab value="add">Add</v-tab>
       <v-tab value="update">Update</v-tab>
@@ -20,6 +21,7 @@
           class="mb-4">
           No additional Components are available in the local Repository.
         </v-alert>
+
         <v-autocomplete
           v-model="selectedComponentId"
           :items="addComponentItems"
@@ -30,6 +32,7 @@
           persistent-hint
           clearable
           :disabled="busy"></v-autocomplete>
+
         <v-alert
           v-if="selectedComponentOnlyHasPrereleaseVersions"
           type="info"
@@ -40,6 +43,7 @@
           <code>==1.2.0rc1</code>
           .
         </v-alert>
+
         <v-text-field
           v-model="requirement"
           class="mt-3"
@@ -58,6 +62,7 @@
           class="mb-4">
           This Project has no resolved Components to update.
         </v-alert>
+
         <v-select
           v-model="selectedUpdateComponentIds"
           :items="installedComponentItems"
@@ -80,6 +85,7 @@
           class="mb-4">
           This Project has no direct dependency requirement to change.
         </v-alert>
+
         <v-select
           v-model="selectedComponentId"
           :items="directDependencyItems"
@@ -87,6 +93,7 @@
           item-value="value"
           label="Direct dependency"
           :disabled="busy"></v-select>
+
         <v-text-field
           v-model="requirement"
           class="mt-3"
@@ -105,6 +112,7 @@
           class="mb-4">
           This Project has no direct dependency to remove.
         </v-alert>
+
         <v-select
           v-model="selectedComponentId"
           :items="directDependencyItems"
@@ -119,8 +127,9 @@
 
     <v-card-actions class="px-4 pb-4 justify-end">
       <v-btn
+        prepend-icon="mdi-eye-outline"
         color="primary"
-        variant="flat"
+        variant="tonal"
         :loading="busy"
         :disabled="!canPreviewPlan"
         @click="previewPlan">
@@ -250,6 +259,7 @@ function resetInput(): void {
 }
 
 watch(selectedAction, resetInput);
+
 watch(() => props.projectState, resetInput);
 
 watch(selectedComponentId, (componentId) => {

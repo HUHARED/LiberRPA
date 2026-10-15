@@ -10,33 +10,42 @@
             projectManagerStore.loadState === 'ready' &&
             projectManagerStore.operation === 'createProject'
           " />
+
         <PackageProjectView
           v-else-if="
             projectManagerStore.loadState === 'ready' &&
             projectManagerStore.operation === 'packageProject'
           " />
+
         <PublishComponentView
           v-else-if="
             projectManagerStore.loadState === 'ready' &&
             projectManagerStore.operation === 'publishComponent'
           " />
+
         <ManageComponentsView
           v-else-if="
             projectManagerStore.loadState === 'ready' &&
             projectManagerStore.operation === 'manageComponents'
           " />
+
         <ConsoleView
           v-else-if="
             projectManagerStore.loadState === 'ready' &&
             projectManagerStore.operation === 'console'
           " />
+
         <div
           v-else-if="projectManagerStore.loadState === 'failed'"
           class="fill-height d-flex flex-column align-center justify-center ga-4 text-center">
           <v-icon icon="mdi-alert-circle-outline" size="48"></v-icon>
           <div>Project Manager could not be loaded.</div>
-          <v-btn variant="outlined" @click="showLogs">Show Logs</v-btn>
+
+          <v-btn prepend-icon="mdi-text-box-outline" variant="tonal" @click="showLogs">
+            Show Logs
+          </v-btn>
         </div>
+
         <div v-else class="fill-height d-flex align-center justify-center">
           <v-progress-circular indeterminate></v-progress-circular>
         </div>
@@ -51,6 +60,7 @@ import { onBeforeMount, onUnmounted } from "vue";
 import { handleExtensionMessage } from "./Adapter/Extension/projectManagerMessageHandler";
 import { postMessage } from "./Adapter/Extension/vscodeApi";
 import { useProjectManagerStore } from "./Application/projectManagerStore";
+
 import Alert from "./components/Alert.vue";
 import CreateProjectView from "./views/CreateProjectView.vue";
 import ManageComponentsView from "./views/ManageComponentsView.vue";

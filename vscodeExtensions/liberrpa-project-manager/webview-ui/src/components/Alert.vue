@@ -11,7 +11,8 @@
       <span class="flex-grow-1">{{ projectManagerStore.alertMessage }}</span>
       <v-btn
         v-if="projectManagerStore.alertType === 'error'"
-        variant="text"
+        prepend-icon="mdi-text-box-outline"
+        variant="tonal"
         size="small"
         @click.stop="showLogs">
         Show Logs

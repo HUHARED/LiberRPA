@@ -12,7 +12,8 @@
     <v-card-text class="pa-5">
       <v-row>
         <v-col cols="12">
-          <div class="text-subtitle-1 font-weight-medium mb-2">Project type</div>
+          <div class="text-subtitle-1 font-weight-bold mb-2">Project type</div>
+
           <v-radio-group
             :model-value="createProjectStore.projectType"
             inline
@@ -56,7 +57,8 @@
             :disabled="projectManagerStore.busy">
             <template #append-inner>
               <v-btn
-                variant="text"
+                prepend-icon="mdi-folder-search-outline"
+                variant="tonal"
                 size="small"
                 :disabled="projectManagerStore.busy"
                 @click="selectTargetFolder">
@@ -113,13 +115,20 @@
 
     <v-divider></v-divider>
 
-    <v-card-actions class="pa-5 justify-end">
-      <v-btn variant="text" :disabled="projectManagerStore.busy" @click="cancel">
+    <v-card-actions class="pa-5">
+      <v-btn
+        prepend-icon="mdi-close"
+        variant="tonal"
+        :disabled="projectManagerStore.busy"
+        @click="cancel">
         Cancel
       </v-btn>
+
+      <v-spacer></v-spacer>
       <v-btn
+        prepend-icon="mdi-check"
         color="primary"
-        variant="flat"
+        variant="tonal"
         :loading="projectManagerStore.busy"
         :disabled="!canConfirm"
         @click="confirm">

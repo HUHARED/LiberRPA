@@ -2,21 +2,26 @@
 <template>
   <v-card variant="outlined">
     <v-card-title class="text-subtitle-1">Repair / Resolve</v-card-title>
+
     <v-card-text>{{ description }}</v-card-text>
+
     <v-card-actions class="px-4 pb-4 justify-end">
       <v-btn
         v-if="canResolve"
+        prepend-icon="mdi-sync"
         color="primary"
-        variant="outlined"
+        variant="tonal"
         :loading="busy"
         :disabled="busy || repositoryUnavailable"
         @click="emit('resolve')">
         Resolve dependencies
       </v-btn>
+
       <v-btn
         v-else
+        prepend-icon="mdi-wrench-outline"
         color="primary"
-        variant="outlined"
+        variant="tonal"
         :loading="busy"
         :disabled="busy || repairState !== 'available'"
         @click="emit('repair')">

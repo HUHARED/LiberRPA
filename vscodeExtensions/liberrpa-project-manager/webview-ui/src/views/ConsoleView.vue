@@ -50,7 +50,7 @@
           variant="underlined"
           readonly></v-text-field>
 
-        <div class="text-subtitle-1 font-weight-medium mb-2">Account Departments</div>
+        <div class="text-subtitle-1 font-weight-bold mb-2">Account Departments</div>
 
         <div v-if="consoleAccountStore.accountState.account?.is_org_admin" class="mb-3">
           Organization Administrator — all departments
@@ -73,8 +73,7 @@
                 : department.role === ConsoleDepartmentRole.Developer
                   ? 'Developer'
                   : 'Operator'
-            ">
-          </v-list-item>
+            "></v-list-item>
         </v-list>
 
         <div v-else class="mb-5 text-medium-emphasis">
@@ -89,32 +88,46 @@
           :model-value="strLastContact"
           label="Last Successful Contact"
           variant="underlined"
-          readonly>
-        </v-text-field>
+          readonly></v-text-field>
       </template>
     </v-card-text>
 
     <v-divider></v-divider>
 
     <v-card-actions class="pa-5 flex-wrap ga-2">
-      <v-btn variant="tonal" :disabled="boolBusy" @click="openAddress">
-        Change Address
+      <v-btn
+        v-if="consoleAccountStore.accountState.signedIn"
+        variant="tonal"
+        prepend-icon="mdi-refresh"
+        :disabled="boolBusy"
+        @click="checkConnection">
+        Check Connection
       </v-btn>
 
       <v-spacer></v-spacer>
 
-      <template v-if="consoleAccountStore.accountState.signedIn">
-        <v-btn variant="flat" :disabled="boolBusy" @click="checkConnection">
-          Check Connection
-        </v-btn>
+      <v-btn
+        variant="tonal"
+        prepend-icon="mdi-link-edit"
+        :disabled="boolBusy"
+        @click="openAddress">
+        Change Address
+      </v-btn>
 
-        <v-btn variant="tonal" :disabled="boolBusy" @click="signOut">Sign Out</v-btn>
-      </template>
+      <v-btn
+        v-if="consoleAccountStore.accountState.signedIn"
+        variant="tonal"
+        prepend-icon="mdi-logout"
+        :disabled="boolBusy"
+        @click="signOut">
+        Sign Out
+      </v-btn>
 
       <v-btn
         v-else
         color="primary"
-        variant="flat"
+        variant="tonal"
+        append-icon="mdi-arrow-right"
         :disabled="boolBusy || !consoleAccountStore.accountState.url"
         @click="openSignIn">
         Sign In
@@ -128,6 +141,7 @@
     <v-card title="Change Console Address">
       <v-card-text>
         <p class="mb-5">Changing the Console URL requires signing in again.</p>
+
         <v-text-field
           v-model="strUrlDraft"
           label="Console URL"
@@ -138,14 +152,20 @@
       </v-card-text>
 
       <v-card-actions class="pa-4">
-        <v-spacer></v-spacer>
-        <v-btn :disabled="boolBusy" @click="consoleAccountStore.showAddress = false">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolBusy"
+          @click="consoleAccountStore.showAddress = false">
           Cancel
         </v-btn>
 
+        <v-spacer></v-spacer>
+
         <v-btn
+          prepend-icon="mdi-content-save-outline"
           color="primary"
-          variant="flat"
+          variant="tonal"
           :disabled="boolBusy || !strUrlDraft.trim()"
           :loading="boolBusy"
           @click="changeAddress">
@@ -159,6 +179,7 @@
     <v-card title="Sign In to Console">
       <v-card-text>
         <div class="mb-5 text-break">{{ consoleAccountStore.accountState.url }}</div>
+
         <v-alert
           v-if="consoleAccountStore.signInError"
           type="error"
@@ -172,8 +193,7 @@
           label="Email"
           type="email"
           autocomplete="username"
-          :disabled="boolBusy">
-        </v-text-field>
+          :disabled="boolBusy"></v-text-field>
 
         <v-text-field
           v-model="strPassword"
@@ -195,13 +215,20 @@
       </v-card-text>
 
       <v-card-actions class="pa-4">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolBusy"
+          @click="cancelSignIn">
+          Cancel
+        </v-btn>
+
         <v-spacer></v-spacer>
 
-        <v-btn :disabled="boolBusy" @click="cancelSignIn">Cancel</v-btn>
-
         <v-btn
+          append-icon="mdi-arrow-right"
           color="primary"
-          variant="flat"
+          variant="tonal"
           :disabled="boolBusy || !strEmail.trim() || !strPassword"
           :loading="boolBusy"
           @click="signIn">
@@ -211,6 +238,7 @@
     </v-card>
   </v-dialog>
 </template>
+
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from "vue";
 
@@ -226,6 +254,7 @@ const strEmail = ref("");
 const strPassword = ref("");
 const boolShowPassword = ref(false);
 const boolBusy = computed(() => projectManagerStore.busy);
+
 const strConnection = computed(() => {
   switch (consoleAccountStore.accountState.connection) {
     case ConsoleConnection.SignedOut:
@@ -240,12 +269,14 @@ const strConnection = computed(() => {
       return "Access Unavailable";
   }
 });
+
 const strAccount = computed(() => {
   const account = consoleAccountStore.accountState.account;
   return account === null
     ? "Unavailable"
     : `${account.user.username} (${account.user.email})`;
 });
+
 const strLastContact = computed(() => {
   const strTimestamp = consoleAccountStore.accountState.lastContactAt;
   if (strTimestamp === null) {
@@ -334,4 +365,5 @@ onUnmounted(() => {
   consoleAccountStore.showAddress = false;
 });
 </script>
+
 <style scoped></style>

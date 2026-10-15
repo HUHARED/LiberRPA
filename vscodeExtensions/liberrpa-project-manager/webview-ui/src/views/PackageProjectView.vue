@@ -6,6 +6,8 @@
       Package Flow Project
       <v-spacer></v-spacer>
       <v-btn
+        v-tooltip:bottom="'Refresh'"
+        aria-label="Refresh"
         icon="mdi-refresh"
         variant="text"
         :disabled="projectManagerStore.busy"
@@ -30,32 +32,39 @@
             Open flow.json
           </v-btn>
         </v-card-title>
+
         <v-card-text>
           <v-row>
             <v-col cols="12" md="6">
               <div class="text-caption text-medium-emphasis">Name</div>
               <div class="text-body-1">{{ manifest.name }}</div>
             </v-col>
+
             <v-col cols="12" md="3">
               <div class="text-caption text-medium-emphasis">Version</div>
               <div class="text-body-1">{{ manifest.version }}</div>
             </v-col>
+
             <v-col cols="12" md="3">
               <div class="text-caption text-medium-emphasis">Direct dependencies</div>
               <div class="text-body-1">{{ directDependencyCount }}</div>
             </v-col>
           </v-row>
+
           <v-row>
             <v-col cols="12">
               <div class="text-caption text-medium-emphasis">Description</div>
+
               <div class="text-body-2 text-pre-wrap">
                 {{ manifest.description || "No description" }}
               </div>
             </v-col>
           </v-row>
+
           <v-row>
             <v-col cols="12">
               <div class="text-caption text-medium-emphasis">Project path</div>
+
               <div class="text-body-2 text-break">
                 {{ packageProjectStore.projectPath }}
               </div>
@@ -77,22 +86,26 @@
             Manage Components
           </v-btn>
         </v-card-title>
+
         <v-card-text>
           <div class="d-flex flex-wrap ga-2 mb-3">
             <v-chip size="small" :color="getStateColor(projectDependencyState.lockState)">
               Lock: {{ projectDependencyState.lockState }}
             </v-chip>
+
             <v-chip
               size="small"
               :color="getStateColor(projectDependencyState.componentsState)">
               _Components: {{ projectDependencyState.componentsState }}
             </v-chip>
+
             <v-chip
               size="small"
               :color="getStateColor(projectDependencyState.environmentState)">
               Environment: {{ projectDependencyState.environmentState }}
             </v-chip>
           </div>
+
           <div class="text-body-2">Resolved Components: {{ resolvedComponentCount }}</div>
         </v-card-text>
       </v-card>
@@ -108,6 +121,7 @@
 
       <v-card variant="outlined" class="mb-4">
         <v-card-title class="text-subtitle-1">Package output</v-card-title>
+
         <v-card-text>
           <v-text-field
             v-model="packageProjectStore.outputFolderPath"
@@ -118,7 +132,8 @@
             hide-details>
             <template #append-inner>
               <v-btn
-                variant="text"
+                prepend-icon="mdi-folder-search-outline"
+                variant="tonal"
                 size="small"
                 :disabled="projectManagerStore.busy"
                 @click="selectOutputFolder">
@@ -130,6 +145,7 @@
           <v-row>
             <v-col cols="12">
               <div class="text-caption text-medium-emphasis">Package filename</div>
+
               <div class="d-flex align-center flex-wrap ga-2">
                 <span class="text-body-2 text-break">
                   {{ packageProjectStore.packageFileName ?? "Unavailable" }}
@@ -160,6 +176,7 @@
           <v-divider class="my-3"></v-divider>
 
           <div class="text-subtitle-2 mb-1">Optional package contents</div>
+
           <div class="text-body-2 text-medium-emphasis mb-2">
             Executor does not require these development and source-control entries, so they
             are excluded by default. Include them only when the packaged Project will also
@@ -171,11 +188,13 @@
             label="Include VS Code settings (.vscode)"
             density="comfortable"
             hide-details></v-checkbox>
+
           <v-checkbox
             v-model="packageProjectStore.includeProjectTests"
             label="Include test and verification files (_Test)"
             density="comfortable"
             hide-details></v-checkbox>
+
           <v-checkbox
             v-model="packageProjectStore.includeGitRepository"
             label="Include Git repository and history (.git)"
@@ -195,6 +214,7 @@
 
       <v-card variant="outlined" class="mb-4">
         <v-card-title class="text-subtitle-1">Console publishing</v-card-title>
+
         <v-card-text>
           <v-switch
             v-model="packageProjectStore.publishToConsole"
@@ -203,6 +223,7 @@
             :disabled="projectManagerStore.busy || packageCreated"
             hide-details
             @update:model-value="refreshConsolePublishing"></v-switch>
+
           <template v-if="packageProjectStore.publishToConsole">
             <v-alert
               v-if="packageProjectStore.consolePublishingMessage"
@@ -212,6 +233,7 @@
               {{ packageProjectStore.consolePublishingMessage }}
               Use the Console command to manage your account, then refresh this page.
             </v-alert>
+
             <v-select
               v-model="packageProjectStore.consoleDepartmentId"
               :items="packageProjectStore.consoleDepartments"
@@ -223,6 +245,7 @@
               :disabled="projectManagerStore.busy || packageCreated"
               hide-details></v-select>
           </template>
+
           <v-alert
             v-if="
               packageProjectStore.consolePublishResult.status !==
@@ -245,6 +268,7 @@
                 packageProjectStore.consolePublishResult.status ===
                 ConsolePublishStatus.Failed
               "
+              prepend-icon="mdi-refresh"
               class="mt-2"
               variant="tonal"
               size="small"
@@ -281,33 +305,43 @@
             Reveal
           </v-btn>
         </v-card-title>
+
         <v-card-text>
           <div class="text-caption text-medium-emphasis">Package file</div>
+
           <div class="text-body-2 text-break mb-3">
             {{ packageProjectStore.packageResult.packageFilePath }}
           </div>
+
           <v-row>
             <v-col cols="6" sm="3">
               <div class="text-caption">Files</div>
-              <div class="font-weight-medium">
+
+              <div class="font-weight-bold">
                 {{ packageProjectStore.packageResult.fileCount }}
               </div>
             </v-col>
+
             <v-col cols="6" sm="3">
               <div class="text-caption">Folders</div>
-              <div class="font-weight-medium">
+
+              <div class="font-weight-bold">
                 {{ packageProjectStore.packageResult.folderCount }}
               </div>
             </v-col>
+
             <v-col cols="6" sm="3">
               <div class="text-caption">Uncompressed size</div>
-              <div class="font-weight-medium">
+
+              <div class="font-weight-bold">
                 {{ formatBytes(packageProjectStore.packageResult.uncompressedSizeBytes) }}
               </div>
             </v-col>
+
             <v-col cols="6" sm="3">
               <div class="text-caption">Archive size</div>
-              <div class="font-weight-medium">
+
+              <div class="font-weight-bold">
                 {{ formatBytes(packageProjectStore.packageResult.packageSizeBytes) }}
               </div>
             </v-col>
@@ -327,11 +361,18 @@
 
     <v-divider></v-divider>
 
-    <v-card-actions class="pa-5 justify-end">
-      <v-btn variant="text" :disabled="projectManagerStore.busy" @click="close">
+    <v-card-actions class="pa-5">
+      <v-btn
+        prepend-icon="mdi-close"
+        variant="tonal"
+        :disabled="projectManagerStore.busy"
+        @click="close">
         Close
       </v-btn>
+
+      <v-spacer></v-spacer>
       <v-btn
+        variant="tonal"
         color="primary"
         prepend-icon="mdi-package-variant-closed-plus"
         :loading="projectManagerStore.busy"
@@ -372,13 +413,17 @@ const projectDependencyState = computed(() => {
 const directDependencyCount = computed(
   () => Object.keys(manifest.value.componentDependencies).length,
 );
+
 const resolvedComponentCount = computed(
   () => Object.keys(projectDependencyState.value.componentsLock?.components ?? {}).length,
 );
+
 const packageCreated = computed(() => packageProjectStore.packageResult !== null);
+
 const versionSummaryError = computed(() =>
   getVersionSummaryError(packageProjectStore.versionSummary),
 );
+
 const canPackage = computed(
   () =>
     !projectManagerStore.busy &&
