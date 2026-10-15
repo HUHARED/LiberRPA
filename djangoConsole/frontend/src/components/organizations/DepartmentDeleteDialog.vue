@@ -71,7 +71,6 @@
                     variant="text"
                     size="small"
                     icon="mdi-open-in-new"
-                    :active="false"
                     :disabled="boolBusy || !boolCanManage"
                     :aria-label="`Open ${dictBlockerDisplay[blocker.code].label} in a new tab`" />
                 </td>

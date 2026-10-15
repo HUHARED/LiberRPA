@@ -173,7 +173,6 @@
             :to="{ name: 'assets', query: route.query }"
             replace
             variant="tonal"
-            :active="false"
             prepend-icon="mdi-close"
             :disabled="boolBusy">
             Close

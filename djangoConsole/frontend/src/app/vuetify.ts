@@ -10,6 +10,10 @@ import { VChip, VCol, VIcon, VList, VListItem, VMenu, VRow } from "vuetify/compo
 export const vuetify = createVuetify({
   // NOTE: The compiled cron editor resolves these components at runtime.
   components: { VChip, VCol, VIcon, VList, VListItem, VMenu, VRow },
+  defaults: {
+    // NOTE: Navigation buttons should not inherit the current route's active style.
+    VBtn: { active: false },
+  },
   theme: {
     defaultTheme: "light",
     themes: {

@@ -95,7 +95,6 @@
           :to="{ name: 'data-queue-details', params: { queueId }, query: route.query }"
           replace
           variant="tonal"
-          :active="false"
           prepend-icon="mdi-close">
           Close
         </v-btn>
