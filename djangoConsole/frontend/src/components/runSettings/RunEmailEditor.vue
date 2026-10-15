@@ -66,6 +66,7 @@
           @update:model-value="setTemplate(event.key, 'subject', $event)" />
 
         <v-textarea
+          :id="`${strEditorId}-${event.key}-body`"
           :model-value="draft[event.key].body"
           variant="underlined"
           :error-messages="
@@ -127,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, useId, watch } from "vue";
 
 import { getApiError, getFieldErrors } from "@/api/errors";
 import {
@@ -154,6 +155,8 @@ const props = defineProps<{
 }>();
 
 const config = defineModel<RunEmailConfig>({ required: true });
+
+const strEditorId = useId();
 
 const ARR_EVENT: { key: RunEmailEventKey; title: string }[] = [
   { key: "on_start", title: "On Start" },
@@ -232,25 +235,35 @@ function setTemplate(
 }
 
 async function insertField(event: RunEmailEventKey, field: string): Promise<void> {
+  if (props.readonly || props.disabled || !defaultTemplates.value) return;
+
   const selection = selectionByEvent[event];
   const target = selection?.field ?? "body";
-  const strText = draft.value[event][target];
-  const intStart = selection?.start ?? strText.length;
-  const intEnd = selection?.end ?? strText.length;
-  const strPlaceholder = `{{${field}}}`;
-  setTemplate(
-    event,
-    target,
-    strText.slice(0, intStart) + strPlaceholder + strText.slice(intEnd),
-  );
+  const element =
+    selection?.element ?? document.getElementById(`${strEditorId}-${event}-body`);
+  if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement))
+    return;
 
-  if (selection) {
-    await nextTick();
-    const intCaret = intStart + strPlaceholder.length;
-    selection.element.focus();
-    selection.element.setSelectionRange(intCaret, intCaret);
-    selectionByEvent[event] = { ...selection, start: intCaret, end: intCaret };
+  const intStart = selection?.start ?? element.value.length;
+  const intEnd = selection?.end ?? element.value.length;
+  const strPlaceholder = `{{${field}}}`;
+  const intScrollTop = element.scrollTop;
+
+  element.focus({ preventScroll: true });
+  element.setSelectionRange(intStart, intEnd);
+
+  // NOTE: Deprecated insertText preserves native undo history; setRangeText does not.
+  if (!document.execCommand("insertText", false, strPlaceholder)) {
+    element.setRangeText(strPlaceholder, intStart, intEnd, "end");
   }
+  setTemplate(event, target, element.value);
+
+  await nextTick();
+  const intCaret = intStart + strPlaceholder.length;
+  element.focus({ preventScroll: true });
+  element.setSelectionRange(intCaret, intCaret);
+  element.scrollTop = intScrollTop;
+  selectionByEvent[event] = { field: target, element, start: intCaret, end: intCaret };
 }
 
 function insertArgument(event: RunEmailEventKey, name: string, input: boolean): void {
