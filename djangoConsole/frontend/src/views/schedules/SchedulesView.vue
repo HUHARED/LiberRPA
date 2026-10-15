@@ -3,11 +3,22 @@
   <div class="d-flex align-center flex-wrap ga-3 mb-4">
     <h1 class="text-h5">Schedules</h1>
     <v-spacer />
-    <v-btn v-if="boolCanCreate" color="primary" variant="tonal" @click="boolNew = true">
-      New Schedule
+    <v-btn
+      variant="tonal"
+      prepend-icon="mdi-refresh"
+      :loading="boolLoading"
+      @click="load()">
+      Refresh
     </v-btn>
 
-    <v-btn variant="tonal" :loading="boolLoading" @click="load()">Refresh</v-btn>
+    <v-btn
+      v-if="boolCanCreate"
+      color="primary"
+      variant="tonal"
+      prepend-icon="mdi-calendar-plus-outline"
+      @click="boolNew = true">
+      New Schedule
+    </v-btn>
   </div>
 
   <v-card variant="elevated" class="mb-4">
@@ -21,17 +32,26 @@
               item-title="path"
               item-value="id"
               label="Department"
+              variant="underlined"
               multiple
               chips
               hide-details />
           </v-col>
 
           <v-col cols="12" md="4">
-            <v-text-field v-model="filters.name" label="Name" hide-details />
+            <v-text-field
+              v-model="filters.name"
+              label="Name"
+              variant="underlined"
+              hide-details />
           </v-col>
 
           <v-col cols="12" md="4">
-            <v-text-field v-model="filters.projectName" label="Project" hide-details />
+            <v-text-field
+              v-model="filters.projectName"
+              label="Project"
+              variant="underlined"
+              hide-details />
           </v-col>
 
           <v-col cols="12" md="6">
@@ -39,6 +59,7 @@
               v-model="filters.enabled"
               :items="ARR_ENABLED"
               label="Enabled"
+              variant="underlined"
               hide-details />
           </v-col>
 
@@ -49,6 +70,7 @@
               item-title="title"
               item-value="id"
               label="Target"
+              variant="underlined"
               clearable
               hide-details
               :loading="boolTargetsLoading" />
@@ -56,8 +78,16 @@
         </v-row>
 
         <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal">Apply</v-btn>
-          <v-btn variant="tonal" @click="clearFilters">Reset Filters</v-btn>
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-filter-remove-outline"
+            @click="clearFilters">
+            Reset Filters
+          </v-btn>
+          <v-spacer />
+          <v-btn type="submit" color="primary" variant="tonal" prepend-icon="mdi-check">
+            Apply
+          </v-btn>
         </div>
       </form>
     </v-card-text>
@@ -76,19 +106,15 @@
       :loading="boolLoading"
       disable-sort
       hide-default-footer>
-      <template #item.name="{ item }">
-        <RouterLink
-          :to="{ name: 'schedule-details', params: { scheduleId: item.id } }"
-          class="text-primary text-decoration-none">
-          {{ item.name }}
-        </RouterLink>
-      </template>
-
       <template #item.department="{ item }">{{ item.department.path }}</template>
 
       <template #item.cron="{ item }">
         <p>{{ describeCron(item.cron) }}</p>
         <span class="text-caption">{{ item.time_zone }}</span>
+      </template>
+
+      <template #item.run_conflict_policy="{ item }">
+        {{ CONFLICT_POLICY_LABELS[item.run_conflict_policy] }}
       </template>
 
       <template #item.target="{ item }">
@@ -102,22 +128,38 @@
       <template #item.enabled="{ item }">
         <v-switch
           :model-value="item.enabled"
+          :aria-label="`Enable Schedule ${item.name}`"
           true-icon="mdi-flash"
           hide-details
           density="compact"
-          :disabled="!item.can_manage || boolLoading || strChangingId === item.id"
-          :loading="strChangingId === item.id"
+          :disabled="!item.can_manage || boolLoading || setChangingId.has(item.id)"
+          :loading="setChangingId.has(item.id)"
           @update:model-value="toggle(item, !!$event)" />
       </template>
 
       <template #item.created_by="{ item }">
-        {{
-          item.created_by ? `${item.created_by.username} (${item.created_by.email})` : "—"
-        }}
+        <template v-if="item.created_by">
+          <p>{{ item.created_by.username }}</p>
+          <span class="text-caption text-medium-emphasis">{{ item.created_by.email }}</span>
+        </template>
+        <span v-else>—</span>
       </template>
 
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
+          <v-btn
+            v-if="!item.can_manage"
+            v-tooltip:bottom="'View'"
+            size="small"
+            variant="text"
+            aria-label="View"
+            icon="mdi-eye-outline"
+            :to="{
+              name: 'schedule',
+              params: { scheduleId: item.id },
+              query: route.query,
+            }" />
+
           <v-btn
             v-if="item.can_manage"
             v-tooltip:bottom="'Edit'"
@@ -126,6 +168,16 @@
             aria-label="Edit"
             icon="mdi-pencil-outline"
             @click="strEditId = item.id" />
+
+          <v-btn
+            v-if="item.can_manage"
+            v-tooltip:bottom="'Delete'"
+            size="small"
+            color="error"
+            variant="text"
+            aria-label="Delete"
+            icon="mdi-delete-outline"
+            @click="openDelete(item)" />
         </div>
       </template>
 
@@ -147,15 +199,56 @@
   </v-card>
 
   <ScheduleFormDialog
-    v-if="boolNew || strEditId"
-    :schedule-id="strEditId ?? undefined"
+    v-if="boolNew || strEditId || scheduleId"
+    :key="strEditId ? `edit:${strEditId}` : (scheduleId ?? 'new')"
+    :schedule-id="strEditId ?? scheduleId"
+    :readonly="!!scheduleId && !strEditId"
+    @edit="strEditId = scheduleId ?? null"
     @close="closeForm"
     @saved="saved" />
+
+  <v-dialog :model-value="!!scheduleDelete" persistent max-width="560">
+    <v-card>
+      <v-card-title>Delete Schedule</v-card-title>
+
+      <v-card-text>
+        <p>
+          Delete
+          <span class="font-weight-bold">{{ scheduleDelete?.name }}</span>
+          ? Future triggers will stop. Already accepted Jobs continue independently,
+          including waiting and retries.
+        </p>
+
+        <v-alert v-if="strDeleteError" type="error" variant="tonal" class="mt-4">
+          {{ strDeleteError }}
+        </v-alert>
+      </v-card-text>
+
+      <v-card-actions>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolDeleting"
+          @click="scheduleDelete = null">
+          Cancel
+        </v-btn>
+        <v-spacer />
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-delete-outline"
+          color="error"
+          :loading="boolDeleting"
+          @click="remove">
+          Delete
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
-import { shallowRef, computed, onMounted, ref } from "vue";
-import { RouterLink, useRoute } from "vue-router";
+import { shallowRef, computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import cronstrue from "cronstrue";
 
 import { getExecutorList } from "@/api/executors";
@@ -169,8 +262,11 @@ import {
   type ScheduleFilters,
   getSchedules,
   setScheduleEnabled,
+  deleteSchedule,
 } from "@/api/schedules";
 import { getApiError } from "@/api/errors";
+
+import { CONFLICT_POLICY_LABELS } from "@/app/runLabels";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -180,6 +276,7 @@ const ARR_HEADER = [
   { title: "Project Name", key: "project_name" },
   { title: "Project Version", key: "project_version" },
   { title: "Run Time", key: "cron" },
+  { title: "Conflict Policy", key: "run_conflict_policy" },
   { title: "Target", key: "target" },
   { title: "Enabled", key: "enabled" },
   { title: "Created By", key: "created_by" },
@@ -193,8 +290,10 @@ const ARR_ENABLED = [
   { title: "Disabled", value: "false" },
 ];
 
+const props = defineProps<{ scheduleId?: string }>();
 const sessionStore = useSessionStore();
 const route = useRoute();
+const router = useRouter();
 
 const boolCanCreate = computed(
   () =>
@@ -215,7 +314,10 @@ let appliedFilters = { ...filters.value, departmentIds: [...filters.value.depart
 const page = shallowRef<SchedulePage | null>(null);
 const boolNew = ref(false);
 const strEditId = ref<string | null>(null);
-const strChangingId = ref("");
+const scheduleDelete = shallowRef<ScheduleListEntry | null>(null);
+const boolDeleting = ref(false);
+const strDeleteError = ref("");
+const setChangingId = ref(new Set<string>());
 const boolLoading = ref(false);
 const strError = ref("");
 
@@ -305,27 +407,61 @@ function clearFilters(): void {
 }
 
 async function toggle(schedule: ScheduleListEntry, enabled: boolean): Promise<void> {
-  strChangingId.value = schedule.id;
+  if (setChangingId.value.has(schedule.id)) return;
+
+  const boolOriginalEnabled = schedule.enabled;
+  schedule.enabled = enabled;
+  setChangingId.value.add(schedule.id);
   strError.value = "";
   try {
     await setScheduleEnabled(schedule.id, enabled);
-    schedule.enabled = enabled;
   } catch (e) {
+    schedule.enabled = boolOriginalEnabled;
     strError.value = getApiError(e).message;
   } finally {
-    strChangingId.value = "";
+    setChangingId.value.delete(schedule.id);
   }
 }
 
 function closeForm(): void {
   boolNew.value = false;
-  strEditId.value = null;
+  if (props.scheduleId) void router.replace({ name: "schedules", query: route.query });
+  else strEditId.value = null;
 }
 
 function saved(): void {
   closeForm();
   void load();
 }
+
+function openDelete(schedule: ScheduleListEntry): void {
+  scheduleDelete.value = schedule;
+  strDeleteError.value = "";
+}
+
+async function remove(): Promise<void> {
+  if (!scheduleDelete.value || boolDeleting.value) return;
+
+  boolDeleting.value = true;
+  strDeleteError.value = "";
+  try {
+    await deleteSchedule(scheduleDelete.value.id);
+    scheduleDelete.value = null;
+    await load(1);
+  } catch (e) {
+    strDeleteError.value = getApiError(e).message;
+  } finally {
+    boolDeleting.value = false;
+  }
+}
+
+watch(
+  () => props.scheduleId,
+  () => {
+    boolNew.value = false;
+    strEditId.value = null;
+  },
+);
 
 onMounted(() => {
   void load();

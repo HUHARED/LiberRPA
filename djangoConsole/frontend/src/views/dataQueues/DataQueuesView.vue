@@ -4,7 +4,17 @@
     <v-col>
       <h1 class="text-h5">Data Queues</h1>
     </v-col>
+
     <v-col cols="auto" class="d-flex ga-2">
+      <v-btn
+        variant="tonal"
+        prepend-icon="mdi-refresh"
+        :loading="boolLoading"
+        :disabled="boolLoading"
+        @click="load">
+        Refresh
+      </v-btn>
+
       <v-btn
         v-if="boolCanCreate"
         color="primary"
@@ -14,16 +24,9 @@
         @click="form = 'new'">
         New Queue
       </v-btn>
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="boolLoading"
-        :disabled="boolLoading"
-        @click="load">
-        Refresh
-      </v-btn>
     </v-col>
   </v-row>
+
   <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form @submit.prevent="applyFilters">
@@ -33,12 +36,13 @@
               v-model="strName"
               label="Name"
               maxlength="128"
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               clearable
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" md="6">
             <v-autocomplete
               v-model="departmentIds"
@@ -50,31 +54,50 @@
               chips
               closable-chips
               clearable
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               :disabled="boolLoading" />
           </v-col>
         </v-row>
+
         <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
-            Apply
-          </v-btn>
-          <v-btn variant="tonal" :disabled="boolLoading" @click="clearFilters">
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-filter-remove-outline"
+            :disabled="boolLoading"
+            @click="clearFilters">
             Reset Filters
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            type="submit"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-check"
+            :disabled="boolLoading">
+            Apply
           </v-btn>
         </div>
       </form>
     </v-card-text>
   </v-card>
+
   <v-alert v-if="strMessage" type="success" variant="tonal" class="mb-4" role="status">
     {{ strMessage }}
-    <RouterLink v-if="savedQueue" :to="getDetailsLocation(savedQueue.id)">View</RouterLink>
+    <RouterLink
+      v-if="savedQueue"
+      :to="getDetailsLocation(savedQueue.id)"
+      class="text-primary text-decoration-none">
+      View
+    </RouterLink>
   </v-alert>
+
   <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
     {{ error.message }}
     <p v-if="page">Previously loaded results are shown. Refresh to try again.</p>
   </v-alert>
+
   <v-alert
     v-if="strActionError"
     type="error"
@@ -85,6 +108,7 @@
     @click:close="strActionError = ''">
     {{ strActionError }}
   </v-alert>
+
   <v-card variant="outlined">
     <v-data-table-server
       :headers="ARR_HEADER"
@@ -104,12 +128,15 @@
           {{ item.name }}
         </RouterLink>
       </template>
+
       <template #item.department="{ item }">
         <div class="table-text-narrow">{{ item.department.path }}</div>
       </template>
+
       <template #item.notes="{ item }">
         <div class="table-text notes-summary">{{ item.notes || "—" }}</div>
       </template>
+
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
           <v-btn
@@ -119,6 +146,7 @@
             aria-label="Copy Path"
             icon="mdi-content-copy"
             @click="copyPath(item.path)" />
+
           <v-btn
             v-if="item.can_manage"
             v-tooltip:bottom="'Edit'"
@@ -130,6 +158,7 @@
             @click="form = item" />
         </div>
       </template>
+
       <template #no-data>
         {{
           error
@@ -138,8 +167,10 @@
         }}
       </template>
     </v-data-table-server>
+
     <div v-if="page" class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
       <p>{{ page.total_count }} queues · Page {{ page.page }} of {{ page.total_pages }}</p>
+
       <v-pagination
         v-if="page.total_pages > 1"
         :model-value="page.page"
@@ -149,6 +180,7 @@
         @update:model-value="changePage" />
     </div>
   </v-card>
+
   <QueueFormDialog
     v-if="form"
     :queue="form === 'new' ? undefined : form"
@@ -181,9 +213,11 @@ const ARR_HEADER = [
   { title: "Notes", key: "notes", minWidth: 220 },
   { title: "Actions", key: "actions", width: 112 },
 ];
+
 const sessionStore = useSessionStore();
 const route = useRoute();
 const router = useRouter();
+
 const boolCanCreate = computed(
   () =>
     sessionStore.access?.business_available &&
@@ -191,6 +225,7 @@ const boolCanCreate = computed(
       (department) => sessionStore.access?.is_org_admin || department.role === "developer",
     ),
 );
+
 const strName = ref("");
 const departmentIds = ref<string[]>([]);
 const page = shallowRef<QueueListResponse | null>(null);
@@ -201,11 +236,13 @@ const strMessage = ref("");
 const strActionError = ref("");
 const boolLoading = ref(false);
 let intRevision = 0;
+
 const getDetailsLocation = (queueId: string): RouteLocationRaw => ({
   name: "data-queue-details",
   params: { queueId },
   query: route.query,
 });
+
 function getSelectedDepartmentIds(): string[] {
   const value = route.query.department_id;
   return Array.isArray(value)
@@ -214,6 +251,7 @@ function getSelectedDepartmentIds(): string[] {
       ? [value]
       : [];
 }
+
 async function changePage(value: number): Promise<void> {
   await router.replace({ query: { ...route.query, page: String(value) } });
 }
@@ -246,6 +284,7 @@ async function load(): Promise<void> {
     if (intCurrentRevision === intRevision) boolLoading.value = false;
   }
 }
+
 async function applyFilters(): Promise<void> {
   const query = {
     name: strName.value?.trim() || undefined,
@@ -256,17 +295,20 @@ async function applyFilters(): Promise<void> {
   if (target.fullPath === route.fullPath) await load();
   else await router.replace({ name: "data-queues", query });
 }
+
 function clearFilters(): void {
   strName.value = "";
   departmentIds.value = [];
   void applyFilters();
 }
+
 function handleSaved(response: QueueDetailsResponse): void {
   form.value = null;
   savedQueue.value = response.queue;
   strMessage.value = `Queue saved: ${response.queue.path}`;
   void load();
 }
+
 async function copyPath(value: string): Promise<void> {
   const intCurrentRevision = intRevision;
   strActionError.value = "";
@@ -291,6 +333,7 @@ watch(
   },
   { immediate: true },
 );
+
 onBeforeUnmount(() => {
   intRevision += 1;
 });

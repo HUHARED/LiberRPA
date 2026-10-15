@@ -1,6 +1,16 @@
 <!-- FileName: CreateOrganizationView.vue -->
 <template>
   <AuthLayout>
+    <v-btn
+      v-if="!boolCreated && !sessionStore.authenticated"
+      :to="{ name: 'sign-in' }"
+      variant="tonal"
+      prepend-icon="mdi-arrow-left"
+      class="mb-4"
+      :disabled="boolSending || boolSaving">
+      Back to Sign In
+    </v-btn>
+
     <h1 class="text-h5 mb-2">Create Organization</h1>
 
     <p class="text-medium-emphasis mb-6">
@@ -12,6 +22,7 @@
       <p v-for="strMessage in requestError.fields.__all__" :key="strMessage" class="mt-2">
         {{ strMessage }}
       </p>
+
       <p v-if="intRetrySeconds" class="mt-2">Try again in {{ intRetrySeconds }} seconds.</p>
     </v-alert>
 
@@ -19,7 +30,15 @@
       <v-alert type="success" variant="tonal" class="mb-4" role="status">
         Organization created. Sign in with your verified email address and password.
       </v-alert>
-      <v-btn :to="{ name: 'sign-in' }" color="primary" variant="tonal" block>Sign In</v-btn>
+
+      <v-btn
+        :to="{ name: 'sign-in' }"
+        color="primary"
+        variant="tonal"
+        append-icon="mdi-arrow-right"
+        block>
+        Sign In
+      </v-btn>
     </template>
 
     <template v-else-if="sessionStore.authenticated">
@@ -30,13 +49,17 @@
         </span>
         Sign out to create a new organization with another email address.
       </p>
-      <v-btn
-        variant="tonal"
-        :loading="sessionStore.busy"
-        :disabled="sessionStore.busy"
-        @click="signOutCurrentAccount">
-        Sign Out
-      </v-btn>
+
+      <div class="d-flex justify-end">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-logout"
+          :loading="sessionStore.busy"
+          :disabled="sessionStore.busy"
+          @click="signOutCurrentAccount">
+          Sign Out
+        </v-btn>
+      </div>
     </template>
 
     <template v-else>
@@ -74,6 +97,7 @@
             type="submit"
             color="primary"
             variant="tonal"
+            prepend-icon="mdi-email-outline"
             block
             :loading="boolSending"
             :disabled="boolSending || intRetrySeconds > 0">
@@ -138,6 +162,7 @@
             type="submit"
             color="primary"
             variant="tonal"
+            prepend-icon="mdi-plus"
             block
             :loading="boolSaving"
             :disabled="boolSaving || boolChecking || intRetrySeconds > 0">
@@ -150,9 +175,11 @@
             Open the link in your verification email. If it has expired, request a new
             verification email.
           </p>
+
           <v-btn
             v-if="strToken && requestError?.code !== 'invalid_registration_token'"
             variant="tonal"
+            prepend-icon="mdi-refresh"
             block
             class="mb-3"
             :disabled="intRetrySeconds > 0"
@@ -160,19 +187,15 @@
             Check Again
           </v-btn>
 
-          <v-btn :to="{ name: 'create-organization', hash: '' }" variant="tonal" block>
+          <v-btn
+            :to="{ name: 'create-organization', hash: '' }"
+            variant="tonal"
+            prepend-icon="mdi-email-sync-outline"
+            block>
             Request a New Verification Email
           </v-btn>
         </template>
       </template>
-
-      <v-btn
-        :to="{ name: 'sign-in' }"
-        variant="tonal"
-        class="mt-4"
-        :disabled="boolSending || boolSaving">
-        Back to Sign In
-      </v-btn>
     </template>
   </AuthLayout>
 </template>
@@ -186,6 +209,7 @@ import AuthLayout from "@/layouts/AuthLayout.vue";
 import PasswordField from "@/components/common/PasswordField.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
+
 import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { ApiError, getApiError } from "@/api/errors";

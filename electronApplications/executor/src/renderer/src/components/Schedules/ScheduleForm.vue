@@ -16,7 +16,7 @@
         <v-col cols="5">
           <v-select
             v-model="detail.run_conflict_policy"
-            label="When Another Run Is Active"
+            label="Conflict Policy"
             variant="underlined"
             class="clean-space"
             density="compact"
@@ -97,7 +97,11 @@
         </v-col>
       </v-row>
 
-      <v-alert v-if="cronValidation.valid" density="compact" variant="plain" class="my-2">
+      <v-alert
+        v-if="cronValidation.valid"
+        density="compact"
+        variant="plain"
+        class="my-2 text-body-2">
         Next:
         {{ arrPreview.join(" · ") || "No upcoming trigger within the active period." }}
       </v-alert>
@@ -110,7 +114,7 @@
         <v-col cols="8">
           <v-select
             v-model="detail.project_name"
-            label="Project Name"
+            label="Name"
             variant="underlined"
             class="clean-space"
             density="compact"
@@ -122,7 +126,7 @@
         <v-col cols="4">
           <v-select
             v-model="detail.project_version"
-            label="Project Version"
+            label="Version"
             variant="underlined"
             class="clean-space"
             density="compact"

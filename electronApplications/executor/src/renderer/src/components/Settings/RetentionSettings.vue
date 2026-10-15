@@ -133,6 +133,7 @@
       class="ml-4"
       size="small"
       variant="tonal"
+      prepend-icon="mdi-close"
       :disabled="!boolHasChanges"
       @click="resetRetentionDraft()">
       Cancel
@@ -143,6 +144,7 @@
       size="small"
       color="primary"
       variant="tonal"
+      prepend-icon="mdi-check"
       :disabled="!boolHasChanges"
       @click="applyRetentionSettings()">
       Apply

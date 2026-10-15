@@ -77,7 +77,7 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     # Assets.
     (assetContracts.AssetDetailsRequest, "validation"),
     (assetContracts.AssetCreationRequest, "validation"),
-    (assetContracts.AssetValueRequest, "validation"),
+    (assetContracts.AssetUpdateRequest, "validation"),
     (assetContracts.AssetDeletionRequest, "validation"),
     (assetContracts.AssetListResponse, "serialization"),
     (assetContracts.AssetDetailsResponse, "serialization"),
@@ -122,6 +122,7 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     # Package settings, imports and preparation.
     (packageContracts.PackageUploadRequest, "validation"),
     (packageContracts.PackageSettingsRequest, "validation"),
+    (packageContracts.PackageListEntryResponse, "serialization"),
     (packageContracts.PackageDetailsResponse, "serialization"),
     (packageContracts.PackageProjectGroupListResponse, "serialization"),
     (packageContracts.ProjectPackageListResponse, "serialization"),
@@ -131,8 +132,7 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (packageContracts.PackageDownloadResponse, "serialization"),
     # Schedule configuration and previews.
     (scheduleContracts.ScheduleTimeRequest, "validation"),
-    (scheduleContracts.ScheduleUpdateRequest, "validation"),
-    (scheduleContracts.ScheduleCreationRequest, "validation"),
+    (scheduleContracts.ScheduleSaveRequest, "validation"),
     (scheduleContracts.ScheduleEnabledRequest, "validation"),
     (scheduleContracts.ScheduleListResponse, "serialization"),
     (scheduleContracts.ScheduleDetailsResponse, "serialization"),

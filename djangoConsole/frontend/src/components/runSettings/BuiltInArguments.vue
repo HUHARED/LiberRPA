@@ -1,11 +1,11 @@
 <!-- FileName: BuiltInArguments.vue -->
 <template>
   <v-row>
-    <v-col v-if="$slots.environment" cols="12" sm="6">
+    <v-col cols="12" sm="7">
       <slot name="environment" />
     </v-col>
 
-    <v-col cols="12" :sm="$slots.environment ? 6 : 12">
+    <v-col cols="12" sm="5">
       <v-number-input
         v-model="settings.max_retry_count"
         :control-variant="readonly ? 'hidden' : 'default'"
@@ -42,8 +42,12 @@
         :rules="[validateTimeout]"
         :disabled="disabled"
         :readonly="readonly"
-        hint="0 means no limit. Applies to each attempt."
-        persistent-hint />
+        hide-details="auto">
+        <v-tooltip activator="parent" location="top">
+          Stop the run when it exceeds this timeout. 0 means no limit. Maximum: 35,791
+          minutes. Applies to each attempt.
+        </v-tooltip>
+      </v-number-input>
     </v-col>
 
     <v-col cols="12" sm="5">

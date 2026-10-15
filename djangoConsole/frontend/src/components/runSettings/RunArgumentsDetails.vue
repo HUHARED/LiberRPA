@@ -11,7 +11,15 @@
             label="Python Environment"
             variant="underlined"
             density="compact"
-            readonly />
+            readonly>
+            <v-tooltip activator="parent" location="top">
+              {{
+                snapshot
+                  ? "Python environment captured for this execution. Change Package Settings for future runs."
+                  : "Python environment from Package Settings. Change it there for future runs."
+              }}
+            </v-tooltip>
+          </v-text-field>
         </template>
       </BuiltInArguments>
     </v-col>
@@ -73,7 +81,11 @@ import { formatJsonValue } from "@/app/formatters";
 
 import type { RunSettings } from "@/api/runSettings";
 
-const props = defineProps<{ settings: RunSettings; pythonEnvironmentName: string }>();
+const props = defineProps<{
+  settings: RunSettings;
+  pythonEnvironmentName: string;
+  snapshot?: boolean;
+}>();
 
 const boolDuplicate = computed(
   () =>

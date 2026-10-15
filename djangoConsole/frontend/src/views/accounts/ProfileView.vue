@@ -54,9 +54,10 @@
             readonly />
         </v-col>
 
-        <v-col cols="12" md="6">
+        <v-col cols="12" md="6" class="d-flex justify-end">
           <v-btn
             variant="tonal"
+            prepend-icon="mdi-email-edit-outline"
             :disabled="boolSaving || sessionStore.busy"
             @click="openAction('email')">
             Change Email
@@ -72,6 +73,7 @@
         form="profile-form"
         color="primary"
         variant="tonal"
+        prepend-icon="mdi-content-save-outline"
         :loading="boolSaving"
         :disabled="
           boolSaving || sessionStore.busy || strActiveAction !== null || !boolChanged
@@ -110,9 +112,10 @@
   <DepartmentAccess />
 
   <v-card variant="outlined" title="Account Actions" class="mt-6">
-    <v-card-text class="d-flex flex-wrap ga-3">
+    <v-card-text class="d-flex flex-wrap justify-end ga-3">
       <v-btn
         variant="tonal"
+        prepend-icon="mdi-lock-reset"
         :disabled="boolSaving || sessionStore.busy"
         @click="openAction('password')">
         Change Password
@@ -120,6 +123,7 @@
 
       <v-btn
         variant="tonal"
+        prepend-icon="mdi-logout"
         :disabled="boolSaving || sessionStore.busy"
         @click="openAction('sessions')">
         Sign Out Other Sessions
@@ -127,10 +131,11 @@
     </v-card-text>
   </v-card>
 
-  <div class="mt-6">
+  <div class="d-flex justify-end mt-6">
     <v-btn
       color="error"
       variant="tonal"
+      prepend-icon="mdi-delete-outline"
       :disabled="boolSaving || sessionStore.busy"
       @click="openAction('delete')">
       Delete Account
@@ -167,6 +172,7 @@ const sessionStore = useSessionStore();
 // Initialize this draft once so session refreshes and account actions preserve unsaved edits.
 const strUsername = ref(sessionStore.session?.user.username ?? "");
 const strTimeZone = ref(sessionStore.session?.user.time_zone ?? "UTC");
+
 const arrTimeZone = [
   ...new Set(["UTC", strTimeZone.value, ...Intl.supportedValuesOf("timeZone")]),
 ].sort();

@@ -3,7 +3,13 @@
   <div class="d-flex align-center flex-wrap ga-3 mb-4">
     <h1 class="text-h5">Job Queue</h1>
     <v-spacer />
-    <v-btn variant="tonal" :loading="boolLoading" @click="load()">Refresh</v-btn>
+    <v-btn
+      variant="tonal"
+      prepend-icon="mdi-refresh"
+      :loading="boolLoading"
+      @click="load()">
+      Refresh
+    </v-btn>
   </div>
 
   <v-card variant="elevated" class="mb-4">
@@ -17,17 +23,26 @@
               item-title="path"
               item-value="id"
               label="Department"
+              variant="underlined"
               multiple
               chips
               hide-details />
           </v-col>
 
           <v-col cols="12" md="3">
-            <v-text-field v-model="filters.scheduleName" label="Schedule" hide-details />
+            <v-text-field
+              v-model="filters.scheduleName"
+              label="Schedule"
+              variant="underlined"
+              hide-details />
           </v-col>
 
           <v-col cols="12" md="3">
-            <v-text-field v-model="filters.projectName" label="Project" hide-details />
+            <v-text-field
+              v-model="filters.projectName"
+              label="Project"
+              variant="underlined"
+              hide-details />
           </v-col>
 
           <v-col cols="12" md="3">
@@ -37,6 +52,7 @@
                 ARR_JOB_STATE.map((value) => ({ value, title: JOB_STATE_LABELS[value] }))
               "
               label="Status"
+              variant="underlined"
               multiple
               chips
               hide-details />
@@ -44,8 +60,16 @@
         </v-row>
 
         <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal">Apply</v-btn>
-          <v-btn variant="tonal" @click="clearFilters">Reset Filters</v-btn>
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-filter-remove-outline"
+            @click="clearFilters">
+            Reset Filters
+          </v-btn>
+          <v-spacer />
+          <v-btn type="submit" color="primary" variant="tonal" prepend-icon="mdi-check">
+            Apply
+          </v-btn>
         </div>
       </form>
     </v-card-text>
@@ -72,7 +96,7 @@
       <template #item.schedule_name="{ item }">
         <RouterLink
           v-if="item.schedule_id"
-          :to="{ name: 'schedule-details', params: { scheduleId: item.schedule_id } }"
+          :to="{ name: 'schedule', params: { scheduleId: item.schedule_id } }"
           class="text-primary text-decoration-none">
           {{ item.schedule_name }}
         </RouterLink>

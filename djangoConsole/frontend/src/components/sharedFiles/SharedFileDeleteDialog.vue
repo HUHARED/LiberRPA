@@ -10,6 +10,7 @@
       <v-card-title id="file-delete-title">
         {{ paths.length === 1 ? "Delete File" : "Delete Selected Files" }}
       </v-card-title>
+
       <v-card-text>
         <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
           {{ error.message }}
@@ -17,11 +18,13 @@
             The result is not confirmed. Retry to check the same deletion.
           </p>
         </v-alert>
+
         <p class="mb-3">
           Delete
           <span class="font-weight-bold">{{ paths.length }}</span>
           {{ paths.length === 1 ? "file" : "files" }}? This cannot be undone.
         </p>
+
         <ul class="pl-5">
           <li
             v-for="strPath in paths"
@@ -31,12 +34,20 @@
           </li>
         </ul>
       </v-card-text>
+
       <v-card-actions>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolBusy"
+          @click="emit('close')">
+          Cancel
+        </v-btn>
         <v-spacer />
-        <v-btn variant="tonal" :disabled="boolBusy" @click="emit('close')">Cancel</v-btn>
         <v-btn
           color="error"
           variant="tonal"
+          prepend-icon="mdi-delete-outline"
           :loading="boolBusy"
           :disabled="boolBusy"
           @click="submit">
@@ -62,6 +73,7 @@ const sessionStore = useSessionStore();
 const boolBusy = ref(false);
 const error = shallowRef<ApiError | null>(null);
 let boolAlive = true;
+
 async function submit(): Promise<void> {
   if (boolBusy.value || !sessionStore.session) return;
   boolBusy.value = true;
@@ -75,6 +87,7 @@ async function submit(): Promise<void> {
     if (boolAlive) boolBusy.value = false;
   }
 }
+
 onBeforeUnmount(() => {
   boolAlive = false;
 });

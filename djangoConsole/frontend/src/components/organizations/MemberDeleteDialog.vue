@@ -20,15 +20,18 @@
         <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
           {{ requestError.message }}
         </v-alert>
+
         <v-alert v-if="deleteError" type="error" variant="tonal" class="mb-4" role="alert">
           Deletion was not confirmed. {{ deleteError.message }}
           <p v-if="!deletionInfo" class="mt-2">
             Check the current account before trying again.
           </p>
+
           <p v-if="intRetrySeconds" class="mt-2">
             Try again in {{ intRetrySeconds }} seconds.
           </p>
         </v-alert>
+
         <v-alert v-if="boolOwnDeletionBlocked" type="warning" variant="tonal" role="alert">
           The organization must retain at least one active administrator. Assign another
           administrator before deleting your account.
@@ -44,6 +47,7 @@
             label="Account to delete"
             variant="outlined"
             readonly />
+
           <v-alert
             v-if="deletionInfo && !deletionInfo.can_delete"
             type="warning"
@@ -76,8 +80,11 @@
       </v-card-text>
 
       <v-card-actions class="flex-wrap ga-2">
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolDeleting" @click="closeDialog">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolDeleting"
+          @click="closeDialog">
           {{ boolOwnDeletionBlocked ? "Close" : "Cancel" }}
         </v-btn>
 
@@ -89,17 +96,19 @@
               (deletionInfo && !deletionInfo.can_delete))
           "
           variant="tonal"
+          prepend-icon="mdi-refresh"
           :disabled="boolLoading || boolDeleting || !boolCanDelete"
           @click="loadPreview">
           {{ requestError ? "Retry" : "Check Again" }}
         </v-btn>
-
+        <v-spacer />
         <v-btn
           v-if="!boolOwnDeletionBlocked"
           type="submit"
           form="member-delete-form"
           color="error"
           variant="tonal"
+          prepend-icon="mdi-delete-outline"
           :loading="boolDeleting"
           :disabled="
             boolLoading ||
@@ -122,6 +131,7 @@ import type { SubmitEventPromise } from "vuetify";
 import PasswordField from "@/components/common/PasswordField.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
+
 import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { type ApiError, getApiError } from "@/api/errors";
@@ -135,11 +145,13 @@ const props = defineProps<{ user: UserResponse }>();
 const emit = defineEmits<{ close: []; deleted: [user: UserResponse] }>();
 const sessionStore = useSessionStore();
 const boolOwnAccount = props.user.id === sessionStore.session?.user.id;
+
 const boolCanDelete = computed(
   () =>
     sessionStore.access?.business_available &&
     (boolOwnAccount || sessionStore.access.is_org_admin),
 );
+
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 const deletionInfo = shallowRef<AccountDeletionPreviewResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
@@ -147,9 +159,11 @@ const deleteError = shallowRef<ApiError | null>(null);
 const strPassword = ref("");
 const boolLoading = ref(false);
 const boolDeleting = ref(false);
+
 const boolOwnDeletionBlocked = computed(
   () => boolOwnAccount && deletionInfo.value?.can_delete === false,
 );
+
 let boolUnmounted = false;
 
 async function loadPreview(): Promise<void> {
@@ -178,6 +192,7 @@ async function loadPreview(): Promise<void> {
 function validatePassword(value: string): true | string {
   return value ? true : "Enter your current password.";
 }
+
 function closeDialog(): void {
   if (!boolDeleting.value) emit("close");
 }
@@ -235,6 +250,7 @@ async function submitDelete(event: SubmitEventPromise): Promise<void> {
 }
 
 onMounted(() => void loadPreview());
+
 onBeforeUnmount(() => {
   boolUnmounted = true;
   strPassword.value = "";

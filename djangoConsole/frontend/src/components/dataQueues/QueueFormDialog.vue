@@ -10,6 +10,7 @@
       <v-card-title id="queue-form-title">
         {{ queue ? "Edit Queue" : "New Queue" }}
       </v-card-title>
+
       <v-card-text>
         <v-form id="queue-form" validate-on="submit" @submit.prevent="submit">
           <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
@@ -18,18 +19,21 @@
               {{ strMessage }}
             </p>
           </v-alert>
+
           <v-text-field
             v-model="strName"
             label="Name"
             variant="outlined"
             :rules="[validatePathName]"
             :disabled="boolSaving" />
+
           <v-text-field
             v-if="queue"
             :model-value="queue.department.path"
             label="Department"
             variant="outlined"
             readonly />
+
           <v-select
             v-else
             v-model="strDepartmentId"
@@ -40,7 +44,9 @@
             variant="outlined"
             :rules="[(value) => !!value || 'Select a department.']"
             :disabled="boolSaving" />
+
           <v-text-field :model-value="strPath" label="Path" variant="outlined" readonly />
+
           <v-alert
             v-if="queue && strName !== queue.name"
             type="warning"
@@ -49,6 +55,7 @@
             Renaming changes the resource path. Update saved paths in your code and
             configuration.
           </v-alert>
+
           <v-textarea
             v-model="strNotes"
             label="Notes"
@@ -59,14 +66,22 @@
             :disabled="boolSaving" />
         </v-form>
       </v-card-text>
+
       <v-card-actions>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolSaving"
+          @click="emit('close')">
+          Cancel
+        </v-btn>
         <v-spacer />
-        <v-btn variant="tonal" :disabled="boolSaving" @click="emit('close')">Cancel</v-btn>
         <v-btn
           type="submit"
           form="queue-form"
           color="primary"
           variant="tonal"
+          :prepend-icon="queue ? 'mdi-content-save-outline' : 'mdi-plus'"
           :loading="boolSaving"
           :disabled="boolSaving || !boolAllowed">
           {{ queue ? "Save" : "Create" }}
@@ -91,13 +106,16 @@ import type { QueueEntryResponse, QueueDetailsResponse } from "@/api/generated/b
 const props = defineProps<{ queue?: QueueEntryResponse; initialDepartmentId?: string }>();
 const emit = defineEmits<{ close: []; saved: [response: QueueDetailsResponse] }>();
 const sessionStore = useSessionStore();
+
 const departments = computed(() =>
   (sessionStore.access?.departments ?? []).filter(
     (department) => sessionStore.access?.is_org_admin || department.role === "developer",
   ),
 );
+
 const strName = ref(props.queue?.name ?? "");
 const strNotes = ref(props.queue?.notes ?? "");
+
 const strDepartmentId = ref(
   props.queue?.department.id ??
     (departments.value.some((department) => department.id === props.initialDepartmentId)
@@ -106,20 +124,24 @@ const strDepartmentId = ref(
         ? departments.value[0]!.id
         : null),
 );
+
 const strPath = computed(() => {
   const strDepartmentPath =
     props.queue?.department.path ??
     departments.value.find((entry) => entry.id === strDepartmentId.value)?.path;
   return strDepartmentPath ? `/${strDepartmentPath}/${strName.value}` : "";
 });
+
 const boolAllowed = computed(
   () =>
     sessionStore.access?.business_available &&
     departments.value.some((department) => department.id === strDepartmentId.value),
 );
+
 const error = shallowRef<ApiError | null>(null);
 const boolSaving = ref(false);
 let boolUnmounted = false;
+
 async function submit(event: SubmitEventPromise): Promise<void> {
   if (boolSaving.value || !boolAllowed.value || !(await event).valid) return;
   boolSaving.value = true;
@@ -145,6 +167,7 @@ async function submit(event: SubmitEventPromise): Promise<void> {
     boolSaving.value = false;
   }
 }
+
 onBeforeUnmount(() => {
   boolUnmounted = true;
 });

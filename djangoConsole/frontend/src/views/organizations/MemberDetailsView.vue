@@ -7,6 +7,7 @@
     class="mb-4">
     Back to Members
   </v-btn>
+
   <v-row align="center" class="mb-4">
     <v-col>
       <h2 class="text-h5 mb-2 text-anywhere">
@@ -14,8 +15,10 @@
           memberInfo ? memberInfo.user.username || memberInfo.user.email : "Member Details"
         }}
       </h2>
+
       <p class="text-medium-emphasis">Member Details</p>
     </v-col>
+
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
         v-if="memberInfo && memberInfo.user.id === sessionStore.session?.user.id"
@@ -24,6 +27,7 @@
         prepend-icon="mdi-account-circle-outline">
         My Profile
       </v-btn>
+
       <v-btn
         v-if="memberInfo && boolCanManage"
         variant="tonal"
@@ -32,6 +36,7 @@
         @click="openEdit">
         Edit Membership
       </v-btn>
+
       <v-btn
         v-if="
           memberInfo &&
@@ -47,6 +52,7 @@
       </v-btn>
     </v-col>
   </v-row>
+
   <v-alert
     v-if="strSuccessMessage"
     type="success"
@@ -55,6 +61,7 @@
     role="status">
     {{ strSuccessMessage }}
   </v-alert>
+
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{
       requestError.statusCode === 404
@@ -64,9 +71,11 @@
     <p v-if="memberInfo" class="mt-2">
       Previously loaded details are shown and may be out of date.
     </p>
+
     <template #append>
       <v-btn
         variant="tonal"
+        prepend-icon="mdi-refresh"
         size="small"
         :disabled="boolActionBlocked"
         @click="loadMemberDetails">
@@ -74,22 +83,27 @@
       </v-btn>
     </template>
   </v-alert>
+
   <v-progress-linear
     v-if="boolLoading"
     indeterminate
     color="primary"
     class="mb-4"
     aria-label="Loading member details" />
+
   <template v-if="memberInfo">
     <p v-if="strUpdatedAt" class="text-body-2 text-medium-emphasis mb-3">
       Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
     </p>
+
     <v-card variant="outlined" class="mb-4" :aria-busy="boolLoading">
       <v-card-title>Member Information</v-card-title>
+
       <v-card-text>
         <dl class="detail-fields">
           <div>
             <dt class="text-caption text-medium-emphasis">Account</dt>
+
             <dd>
               {{ memberInfo.user.username || memberInfo.user.email }}
               <p v-if="memberInfo.user.username" class="text-medium-emphasis">
@@ -97,14 +111,17 @@
               </p>
             </dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Organization Role</dt>
             <dd>{{ memberInfo.is_org_admin ? "OrgAdmin" : "Member" }}</dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Joined At ({{ strTimeZone }})</dt>
             <dd>{{ formatDateTime(memberInfo.joined_at, strTimeZone) }}</dd>
           </div>
+
           <div class="full-width-field">
             <dt class="text-caption text-medium-emphasis">Notes</dt>
             <dd class="text-pre-wrap">{{ memberInfo.notes || "—" }}</dd>
@@ -112,8 +129,10 @@
         </dl>
       </v-card-text>
     </v-card>
+
     <v-card variant="outlined" :aria-busy="boolLoading">
       <v-card-title>Department Roles</v-card-title>
+
       <v-card-text>
         <p class="mb-3">
           {{
@@ -122,6 +141,7 @@
               : "Only explicitly assigned department roles are listed. Access is not inherited by subdepartments."
           }}
         </p>
+
         <v-data-table
           :headers="ARR_ROLE_HEADER"
           :items="memberInfo.department_roles"
@@ -141,9 +161,11 @@
               {{ item.department.path }}
             </RouterLink>
           </template>
+
           <template #item.role="{ item }">
             <span class="text-capitalize">{{ item.role }}</span>
           </template>
+
           <template #no-data>
             {{
               memberInfo.is_org_admin
@@ -154,18 +176,23 @@
         </v-data-table>
       </v-card-text>
     </v-card>
+
     <h3 class="text-h5 mt-6 mb-2">API Keys</h3>
+
     <p class="text-medium-emphasis mb-4">
       View key metadata and revoke active keys for this member. Only the owner can create
       keys or edit their Notes.
     </p>
+
     <ApiKeyTable :key="memberInfo.user.id" :member="memberInfo.user" />
   </template>
+
   <MembershipFormDialog
     v-if="editTarget"
     :member="editTarget"
     @close="editTarget = null"
     @saved="handleMembershipSaved" />
+
   <MemberDeleteDialog
     v-if="deleteTarget"
     :user="deleteTarget"
@@ -186,9 +213,11 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { type ApiError, getApiError } from "@/api/errors";
 import { getMemberDetails } from "@/api/members";
 import type { UserResponse, MemberResponse } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ userId: string }>();
+
 const ARR_ROLE_HEADER = [
   { title: "Department", key: "department", minWidth: 240 },
   { title: "Role", key: "role", minWidth: 120 },
@@ -201,10 +230,13 @@ const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const editTarget = shallowRef<UserResponse | null>(null);
 const deleteTarget = shallowRef<UserResponse | null>(null);
+
 const boolCanManage = computed(
   () => sessionStore.access?.is_org_admin && sessionStore.access.business_available,
 );
+
 const boolDeleted = ref(false);
+
 const boolActionBlocked = computed(
   () =>
     boolLoading.value ||
@@ -212,6 +244,7 @@ const boolActionBlocked = computed(
     deleteTarget.value !== null ||
     !boolCanManage.value,
 );
+
 const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 let intRequestRevision = 0;
@@ -291,6 +324,7 @@ watch(
   },
   { immediate: true },
 );
+
 onBeforeUnmount(() => {
   intRequestRevision += 1;
 });

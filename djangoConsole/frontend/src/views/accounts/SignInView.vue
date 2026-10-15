@@ -2,6 +2,7 @@
 <template>
   <AuthLayout>
     <h1 class="text-h5 mb-2">Sign in to Console</h1>
+
     <p class="text-medium-emphasis mb-6">
       Enter your account details to open your workspace.
     </p>
@@ -14,6 +15,7 @@
       role="status">
       Your session has ended. Sign in again to continue.
     </v-alert>
+
     <v-alert
       v-else-if="sessionStore.notice === 'signed_out'"
       type="success"
@@ -22,6 +24,7 @@
       role="status">
       You have signed out.
     </v-alert>
+
     <v-alert
       v-else-if="sessionStore.notice === 'account_created'"
       type="success"
@@ -30,6 +33,7 @@
       role="status">
       Account created. Sign in with your invited email address and password.
     </v-alert>
+
     <v-alert
       v-else-if="sessionStore.notice === 'organization_created'"
       type="success"
@@ -38,6 +42,7 @@
       role="status">
       Organization created. Sign in with your verified email address and password.
     </v-alert>
+
     <v-alert
       v-else-if="sessionStore.notice === 'password_changed'"
       type="success"
@@ -47,6 +52,7 @@
       Password changed. All previous sessions and active API keys were revoked. Sign in with
       your new password.
     </v-alert>
+
     <v-alert
       v-else-if="sessionStore.notice === 'account_deleted'"
       type="success"
@@ -120,11 +126,11 @@
         type="submit"
         color="primary"
         variant="tonal"
+        append-icon="mdi-arrow-right"
         block
         class="mt-4"
         :loading="sessionStore.busy"
-        :disabled="intRetrySeconds > 0"
-        append-icon="mdi-arrow-right">
+        :disabled="intRetrySeconds > 0">
         Sign In
       </v-btn>
     </v-form>
@@ -132,6 +138,7 @@
     <v-btn
       :to="{ name: 'forgot-password' }"
       variant="tonal"
+      prepend-icon="mdi-lock-question"
       block
       class="mt-3"
       :disabled="sessionStore.busy">
@@ -143,9 +150,11 @@
     <p class="text-medium-emphasis">
       Use the email address associated with your organization.
     </p>
+
     <v-btn
       :to="{ name: 'create-organization' }"
       variant="tonal"
+      prepend-icon="mdi-plus"
       block
       class="mt-3"
       :disabled="sessionStore.busy">
@@ -162,9 +171,11 @@ import type { SubmitEventPromise } from "vuetify";
 import AuthLayout from "@/layouts/AuthLayout.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
+
 import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { getSafeReturnPath } from "@/app/navigation";
+
 import { ApiError, getApiError } from "@/api/errors";
 
 const sessionStore = useSessionStore();

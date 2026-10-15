@@ -2,6 +2,7 @@
 <template>
   <h2 class="text-h5 mb-2">Members</h2>
   <p class="text-medium-emphasis mb-6">Accounts in this organization.</p>
+
   <v-alert
     v-if="strSuccessMessage"
     type="success"
@@ -10,14 +11,17 @@
     role="status">
     {{ strSuccessMessage }}
   </v-alert>
+
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="memberPage" class="mt-2">
       Previously loaded members are shown and may be out of date.
     </p>
+
     <template #append>
       <v-btn
         variant="tonal"
+        prepend-icon="mdi-refresh"
         size="small"
         :disabled="boolActionBlocked"
         @click="loadMembers()">
@@ -25,9 +29,11 @@
       </v-btn>
     </template>
   </v-alert>
+
   <p v-if="strUpdatedAt" class="text-body-2 text-medium-emphasis mb-3">
     Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
   </p>
+
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
       :headers="arrHeader"
@@ -53,11 +59,13 @@
           </p>
         </div>
       </template>
+
       <template #item.roles="{ item }">
         <template v-if="item.is_org_admin">
           <v-chip color="primary" size="small" variant="tonal">OrgAdmin</v-chip>
           <p class="text-body-2 mt-1">All departments</p>
         </template>
+
         <ul v-else-if="item.department_roles.length" class="list-unstyled">
           <li
             v-for="assignment in item.department_roles"
@@ -76,14 +84,17 @@
         </ul>
         <span v-else class="text-medium-emphasis">No department access</span>
       </template>
+
       <template #item.notes="{ item }">
         <div class="table-text notes-summary" :title="item.notes">
           {{ item.notes || "—" }}
         </div>
       </template>
+
       <template #item.joined_at="{ item }">
         {{ formatDateTime(item.joined_at, strTimeZone) }}
       </template>
+
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
           <v-btn
@@ -94,6 +105,7 @@
             :aria-label="`Edit membership for ${item.user.email}`"
             icon="mdi-pencil-outline"
             @click="openEdit(item.user)" />
+
           <v-btn
             v-if="item.user.id !== sessionStore.session?.user.id"
             v-tooltip:bottom="'Delete Account'"
@@ -106,17 +118,21 @@
             @click="openDelete(item.user)" />
         </div>
       </template>
+
       <template #no-data>
         {{ requestError ? "The member list could not be loaded." : "No members found." }}
       </template>
     </v-data-table-server>
+
     <template v-if="memberPage">
       <v-divider />
+
       <div class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
         <p class="text-body-2 text-medium-emphasis" aria-live="polite">
           {{ memberPage.pagination.total_count }} members · Page
           {{ memberPage.pagination.page }} of {{ memberPage.pagination.total_pages }}
         </p>
+
         <v-pagination
           v-if="memberPage.pagination.total_pages > 1"
           :model-value="memberPage.pagination.page"
@@ -129,12 +145,15 @@
       </div>
     </template>
   </v-card>
+
   <MemberInvitations />
+
   <MembershipFormDialog
     v-if="editTarget"
     :member="editTarget"
     @close="editTarget = null"
     @saved="handleMembershipSaved" />
+
   <MemberDeleteDialog
     v-if="deleteTarget"
     :user="deleteTarget"
@@ -155,10 +174,12 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { type ApiError, getApiError } from "@/api/errors";
 import { getMemberList } from "@/api/members";
 import type { UserResponse, MemberListResponse } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+
 const arrHeader = computed(() => [
   { title: "Account", key: "account", minWidth: 240 },
   { title: "Roles / Departments", key: "roles", minWidth: 240 },
@@ -166,14 +187,17 @@ const arrHeader = computed(() => [
   { title: `Joined At (${strTimeZone.value})`, key: "joined_at", minWidth: 240 },
   { title: "Actions", key: "actions", width: 112 },
 ]);
+
 const memberPage = shallowRef<MemberListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const editTarget = shallowRef<UserResponse | null>(null);
 const deleteTarget = shallowRef<UserResponse | null>(null);
+
 const boolCanManage = computed(
   () => sessionStore.access?.is_org_admin && sessionStore.access.business_available,
 );
+
 const boolActionBlocked = computed(
   () =>
     boolLoading.value ||
@@ -181,6 +205,7 @@ const boolActionBlocked = computed(
     deleteTarget.value !== null ||
     !boolCanManage.value,
 );
+
 const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 let intRequestRevision = 0;
@@ -254,6 +279,7 @@ async function handleMemberDeleted(user: UserResponse): Promise<void> {
 }
 
 onMounted(() => void loadMembers());
+
 onBeforeUnmount(() => {
   intRequestRevision += 1;
 });

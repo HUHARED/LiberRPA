@@ -62,7 +62,11 @@
                 label="Python Environment"
                 variant="underlined"
                 density="compact"
-                readonly />
+                readonly>
+                <v-tooltip activator="parent" location="top">
+                  Python environment from Package Settings. Change it there for future runs.
+                </v-tooltip>
+              </v-text-field>
             </template>
           </RunArgumentsEditor>
 
@@ -84,14 +88,18 @@
       </v-card-text>
 
       <v-card-actions>
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolBusy" @click="emit('close')">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolBusy"
+          @click="emit('close')">
           {{ intCreatedJobCount === null ? "Cancel" : "Close" }}
         </v-btn>
-
+        <v-spacer />
         <v-btn
           v-if="intCreatedJobCount !== null"
           variant="tonal"
+          prepend-icon="mdi-queue-first-in-last-out"
           color="primary"
           @click="emit('saved')">
           View Job Queue
@@ -100,6 +108,7 @@
         <v-btn
           v-else
           variant="tonal"
+          prepend-icon="mdi-play-outline"
           color="primary"
           :loading="boolBusy"
           :disabled="!settings || boolLoading || boolBusy || !boolArgsValid"

@@ -4,6 +4,7 @@
     <v-label class="header-label tab-header">Packages</v-label>
 
     <v-container fluid class="pa-1 ma-0 flex-row" style="height: 45px">
+      <v-spacer />
       <v-btn
         variant="tonal"
         prepend-icon="mdi-package-variant-plus"
@@ -97,48 +98,38 @@
         <v-container
           v-if="projectStore.dictDetailEdit"
           fluid
-          class="pa-1 ma-0"
+          class="pa-1 ma-0 d-flex ga-2 flex-shrink-0"
           style="height: 45px">
-          <v-row class="clean-space w-100">
-            <v-col cols="3" class="clean-space">
-              <v-btn
-                variant="tonal"
-                prepend-icon="mdi-content-save-outline"
-                :disabled="!boolDetailChanged"
-                @click="saveProjectSettings()">
-                Save
-              </v-btn>
-            </v-col>
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-close"
+            :disabled="!boolDetailChanged"
+            @click="refreshDetail()">
+            Cancel
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-delete-outline"
+            @click="openDeleteDialog()">
+            Delete
+          </v-btn>
 
-            <v-col cols="3" class="clean-space">
-              <v-btn
-                variant="tonal"
-                prepend-icon="mdi-close"
-                :disabled="!boolDetailChanged"
-                @click="refreshDetail()">
-                Cancel
-              </v-btn>
-            </v-col>
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-content-save-outline"
+            :disabled="!boolDetailChanged"
+            @click="saveProjectSettings()">
+            Save
+          </v-btn>
 
-            <v-col cols="3" class="clean-space">
-              <v-btn
-                variant="tonal"
-                prepend-icon="mdi-delete-outline"
-                @click="openDeleteDialog()">
-                Delete
-              </v-btn>
-            </v-col>
-
-            <v-col cols="3" class="clean-space">
-              <v-btn
-                variant="tonal"
-                prepend-icon="mdi-play-outline"
-                :disabled="boolDetailChanged"
-                @click="runProject()">
-                Run
-              </v-btn>
-            </v-col>
-          </v-row>
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-play-outline"
+            :disabled="boolDetailChanged"
+            @click="runProject()">
+            Run
+          </v-btn>
         </v-container>
 
         <RunProjectDialog

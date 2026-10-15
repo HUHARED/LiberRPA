@@ -3,13 +3,16 @@
   <v-btn to="/executors" variant="tonal" prepend-icon="mdi-arrow-left" class="mb-4">
     Back to Executors
   </v-btn>
+
   <v-row align="center" class="mb-4">
     <v-col>
       <h1 class="text-h5 mb-2 text-anywhere">
         {{ executorInfo?.name ?? "Executor Details" }}
       </h1>
+
       <p class="text-medium-emphasis">Executor Details</p>
     </v-col>
+
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
         v-if="!boolDeleted"
@@ -20,6 +23,7 @@
         @click="loadExecutorDetails">
         Refresh
       </v-btn>
+
       <v-btn
         v-if="executorInfo?.can_manage"
         color="primary"
@@ -29,6 +33,7 @@
         @click="openEdit">
         Edit
       </v-btn>
+
       <v-btn
         v-if="executorInfo?.can_manage"
         variant="tonal"
@@ -38,6 +43,7 @@
         @click="submitDispatch">
         {{ executorInfo.dispatch_enabled ? "Pause" : "Resume" }}
       </v-btn>
+
       <v-btn
         v-if="executorInfo?.can_manage"
         variant="tonal"
@@ -46,6 +52,7 @@
         @click="openUnassociate">
         Unassociate
       </v-btn>
+
       <v-btn
         v-if="executorInfo?.can_manage"
         color="error"
@@ -57,6 +64,7 @@
       </v-btn>
     </v-col>
   </v-row>
+
   <v-alert
     v-if="strSuccessMessage"
     type="success"
@@ -65,9 +73,11 @@
     role="status">
     {{ strSuccessMessage }}
   </v-alert>
+
   <v-alert v-if="dispatchError" type="error" variant="tonal" class="mb-4" role="alert">
     The dispatch change was not confirmed. {{ dispatchError.message }}
   </v-alert>
+
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{
       requestError.statusCode === 404
@@ -78,12 +88,14 @@
       Previously loaded details are shown. Refresh to try again.
     </p>
   </v-alert>
+
   <v-progress-linear
     v-if="boolLoading"
     indeterminate
     color="primary"
     class="mb-4"
     aria-label="Loading executor details" />
+
   <template v-if="executorInfo">
     <div
       class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
@@ -92,20 +104,25 @@
         Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
       </span>
     </div>
+
     <v-card variant="outlined" class="mb-4" :aria-busy="boolLoading">
       <v-card-title>Executor Information</v-card-title>
+
       <v-card-text>
         <dl class="detail-fields">
           <div>
             <dt class="text-caption text-medium-emphasis">Name</dt>
             <dd>{{ executorInfo.name }}</dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Department</dt>
             <dd>{{ executorInfo.department.path }}</dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Association</dt>
+
             <dd>
               <v-chip
                 size="small"
@@ -122,8 +139,10 @@
               </v-chip>
             </dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Console Dispatch</dt>
+
             <dd>
               <v-chip
                 size="small"
@@ -131,13 +150,16 @@
                 :color="executorInfo.dispatch_enabled ? 'primary' : 'warning'">
                 {{ executorInfo.dispatch_enabled ? "Enabled" : "Paused" }}
               </v-chip>
+
               <p class="mt-2">
                 Pausing does not stop running processes or remove the client association.
               </p>
             </dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Account</dt>
+
             <dd>
               {{
                 executorInfo.account
@@ -148,18 +170,22 @@
               }}
             </dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Computer</dt>
             <dd>{{ executorInfo.computer_name ?? "—" }}</dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Version</dt>
             <dd>{{ executorInfo.client_version ?? "—" }}</dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Last Seen</dt>
             <dd>{{ formatDateTime(executorInfo.last_seen_at, strTimeZone) }}</dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Created At</dt>
             <dd>{{ formatDateTime(executorInfo.created_at, strTimeZone) }}</dd>
@@ -167,19 +193,24 @@
         </dl>
       </v-card-text>
     </v-card>
+
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Notes</v-card-title>
+
       <v-card-text class="text-pre-wrap text-anywhere">
         {{ executorInfo.notes || "—" }}
       </v-card-text>
     </v-card>
+
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Last Reported Work</v-card-title>
+
       <v-card-text>
         <p class="mb-3">
           Updated at {{ formatDateTime(executorInfo.last_work_reported_at, strTimeZone) }}.
           Counts describe the last report from the current associated client.
         </p>
+
         <v-table>
           <tbody>
             <tr>
@@ -188,10 +219,12 @@
               </th>
               <td>{{ executorInfo.other_active_run_count ?? "Unknown" }}</td>
             </tr>
+
             <tr>
               <th scope="row" class="text-caption text-medium-emphasis">Console Running</th>
               <td>{{ executorInfo.central_running_count ?? "Unknown" }}</td>
             </tr>
+
             <tr>
               <th scope="row" class="text-caption text-medium-emphasis">Local Waiting</th>
               <td>{{ executorInfo.local_waiting_count ?? "Unknown" }}</td>
@@ -200,10 +233,13 @@
         </v-table>
       </v-card-text>
     </v-card>
+
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Referencing Schedules</v-card-title>
+
       <v-card-text>
         <p v-if="!executorInfo.referencing_schedules.length">No referencing schedules.</p>
+
         <v-table v-else>
           <thead>
             <tr>
@@ -211,11 +247,12 @@
               <th>Enabled</th>
             </tr>
           </thead>
+
           <tbody>
             <tr v-for="schedule in executorInfo.referencing_schedules" :key="schedule.id">
               <td>
                 <RouterLink
-                  :to="{ name: 'schedule-details', params: { scheduleId: schedule.id } }"
+                  :to="{ name: 'schedule', params: { scheduleId: schedule.id } }"
                   class="text-primary text-decoration-none"
                   target="_blank"
                   rel="noopener">
@@ -228,8 +265,10 @@
         </v-table>
       </v-card-text>
     </v-card>
+
     <v-card variant="outlined">
       <v-card-title>Executor Groups</v-card-title>
+
       <v-card-text>
         <ul v-if="executorInfo.executor_groups.length" class="pl-4">
           <li
@@ -245,10 +284,12 @@
             </RouterLink>
           </li>
         </ul>
+
         <p v-else>This executor is not in any groups.</p>
       </v-card-text>
     </v-card>
   </template>
+
   <v-dialog
     v-model="boolEditing"
     persistent
@@ -256,6 +297,7 @@
     aria-labelledby="executor-edit-title">
     <v-card>
       <v-card-title id="executor-edit-title">Edit Executor</v-card-title>
+
       <v-form validate-on="submit" @submit.prevent="submitEdit">
         <v-card-text>
           <v-alert v-if="editError" type="error" variant="tonal" class="mb-4" role="alert">
@@ -267,6 +309,7 @@
               {{ strMessage }}
             </p>
           </v-alert>
+
           <v-text-field
             v-model="strName"
             label="Name"
@@ -278,6 +321,7 @@
             :disabled="boolSaving"
             required
             @update:model-value="editError = null" />
+
           <v-text-field
             :model-value="executorInfo?.department.path"
             label="Department"
@@ -287,6 +331,7 @@
             persistent-hint
             readonly
             class="mb-4" />
+
           <v-textarea
             v-model="strNotes"
             label="Notes"
@@ -298,13 +343,21 @@
             :disabled="boolSaving"
             @update:model-value="editError = null" />
         </v-card-text>
+
         <v-card-actions>
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-close"
+            :disabled="boolSaving"
+            @click="closeEdit">
+            Cancel
+          </v-btn>
           <v-spacer />
-          <v-btn variant="tonal" :disabled="boolSaving" @click="closeEdit">Cancel</v-btn>
           <v-btn
             type="submit"
             color="primary"
             variant="tonal"
+            prepend-icon="mdi-content-save-outline"
             :loading="boolSaving"
             :disabled="boolLoading || !executorInfo?.can_manage">
             Save
@@ -313,6 +366,7 @@
       </v-form>
     </v-card>
   </v-dialog>
+
   <v-dialog
     :model-value="unassociateTarget !== null"
     persistent
@@ -320,6 +374,7 @@
     aria-labelledby="executor-unassociate-title">
     <v-card v-if="unassociateTarget">
       <v-card-title id="executor-unassociate-title">Unassociate Executor</v-card-title>
+
       <v-card-text>
         <v-alert
           v-if="unassociateError"
@@ -329,17 +384,21 @@
           role="alert">
           Unassociation was not confirmed. {{ unassociateError.message }}
         </v-alert>
+
         <dl class="detail-fields mb-4">
           <div>
             <dt class="text-caption text-medium-emphasis">Executor</dt>
             <dd>{{ unassociateTarget.name }}</dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Computer</dt>
             <dd>{{ unassociateTarget.computer_name ?? "—" }}</dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Account</dt>
+
             <dd>
               {{
                 unassociateTarget.account
@@ -351,26 +410,39 @@
             </dd>
           </div>
         </dl>
+
         <p class="mb-2">The selected client will lose its Console association.</p>
+
         <p class="mb-2">
           The Executor record, group and schedule references, and Console Dispatch setting
           are retained.
         </p>
+
         <p>This action does not stop running processes.</p>
       </v-card-text>
+
       <v-card-actions class="flex-wrap ga-2">
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolBusy" @click="closeUnassociate">Cancel</v-btn>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolBusy"
+          @click="closeUnassociate">
+          Cancel
+        </v-btn>
+
         <v-btn
           v-if="unassociateError?.code === 'executor_association_changed'"
           variant="tonal"
+          prepend-icon="mdi-refresh"
           :disabled="boolBusy"
           @click="refreshUnassociateDetails">
           Refresh Details
         </v-btn>
+        <v-spacer />
         <v-btn
           color="warning"
           variant="tonal"
+          prepend-icon="mdi-link-off"
           :loading="strPendingAction === 'unassociate'"
           :disabled="
             boolBusy ||
@@ -383,6 +455,7 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+
   <v-dialog
     :model-value="deleteTarget !== null"
     persistent
@@ -390,20 +463,24 @@
     aria-labelledby="executor-delete-title">
     <v-card v-if="deleteTarget">
       <v-card-title id="executor-delete-title">Delete Executor</v-card-title>
+
       <v-card-text>
         <v-alert v-if="deleteError" type="error" variant="tonal" class="mb-4" role="alert">
           Deletion was not confirmed. {{ deleteError.message }}
         </v-alert>
+
         <dl class="detail-fields mb-4">
           <div>
             <dt class="text-caption text-medium-emphasis">Executor</dt>
             <dd>{{ deleteTarget.name }}</dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Department</dt>
             <dd>{{ deleteTarget.department.path }}</dd>
           </div>
         </dl>
+
         <v-alert
           v-if="deleteTarget.executor_groups.length"
           type="warning"
@@ -425,27 +502,39 @@
             </li>
           </ul>
         </v-alert>
+
         <p class="mb-2">
           This removes the Executor from Console and revokes any client association.
         </p>
+
         <p>Remote files are retained, and running processes are not stopped.</p>
       </v-card-text>
+
       <v-card-actions class="flex-wrap ga-2">
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolBusy" @click="closeDelete">Cancel</v-btn>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolBusy"
+          @click="closeDelete">
+          Cancel
+        </v-btn>
+
         <v-btn
           v-if="
             deleteTarget.executor_groups.length ||
             deleteError?.code === 'executor_group_reference'
           "
           variant="tonal"
+          prepend-icon="mdi-refresh"
           :disabled="boolBusy"
           @click="refreshDeleteDetails">
           Refresh Details
         </v-btn>
+        <v-spacer />
         <v-btn
           color="error"
           variant="tonal"
+          prepend-icon="mdi-delete-outline"
           :loading="strPendingAction === 'delete'"
           :disabled="boolDeleteBlocked"
           @click="submitDelete">
@@ -472,6 +561,7 @@ import {
   unassociateExecutor,
 } from "@/api/executors";
 import type { ExecutorDetailsEntryResponse } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ executorId: string }>();
@@ -491,6 +581,7 @@ const boolDeleted = ref(false);
 const strPendingAction = ref<"edit" | "dispatch" | "unassociate" | "delete" | null>(null);
 const boolSaving = computed(() => strPendingAction.value === "edit");
 const boolBusy = computed(() => boolLoading.value || strPendingAction.value !== null);
+
 const boolActionBlocked = computed(
   () =>
     boolBusy.value ||
@@ -498,6 +589,7 @@ const boolActionBlocked = computed(
     unassociateTarget.value !== null ||
     deleteTarget.value !== null,
 );
+
 const boolDeleteBlocked = computed(
   () =>
     boolBusy.value ||
@@ -506,6 +598,7 @@ const boolDeleteBlocked = computed(
     deleteTarget.value.executor_groups.length > 0 ||
     deleteError.value?.code === "executor_group_reference",
 );
+
 const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 const strName = ref<string | null>("");
@@ -742,6 +835,7 @@ watch(
   },
   { immediate: true },
 );
+
 onBeforeUnmount(() => {
   intViewRevision += 1;
 });

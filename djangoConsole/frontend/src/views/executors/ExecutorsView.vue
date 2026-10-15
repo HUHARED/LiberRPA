@@ -8,6 +8,15 @@
 
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
+        variant="tonal"
+        prepend-icon="mdi-refresh"
+        :loading="boolLoading"
+        :disabled="boolNewExecutorOpen"
+        @click="loadExecutors()">
+        Refresh
+      </v-btn>
+
+      <v-btn
         v-if="boolCanCreate"
         color="primary"
         variant="tonal"
@@ -15,15 +24,6 @@
         :disabled="boolLoading || boolNewExecutorOpen"
         @click="openNewExecutor">
         New Executor
-      </v-btn>
-
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="boolLoading"
-        :disabled="boolNewExecutorOpen"
-        @click="loadExecutors()">
-        Refresh
       </v-btn>
     </v-col>
   </v-row>
@@ -47,7 +47,7 @@
               label="Name"
               placeholder="Search by name"
               maxlength="128"
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               clearable
@@ -67,7 +67,7 @@
               chips
               closable-chips
               clearable
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               :disabled="boolLoading" />
@@ -84,19 +84,29 @@
               chips
               closable-chips
               clearable
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               :disabled="boolLoading" />
           </v-col>
         </v-row>
-        <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
-            Apply
-          </v-btn>
 
-          <v-btn variant="tonal" :disabled="boolLoading" @click="resetFilters">
+        <div class="d-flex ga-2 mt-4">
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-filter-remove-outline"
+            :disabled="boolLoading"
+            @click="resetFilters">
             Reset Filters
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            type="submit"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-check"
+            :disabled="boolLoading">
+            Apply
           </v-btn>
         </div>
       </form>
@@ -221,6 +231,7 @@
 
     <template v-if="executorPage">
       <v-divider />
+
       <div class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
         <p class="text-body-2 text-medium-emphasis" aria-live="polite">
           {{ executorPage.total_count }} executors · Page {{ executorPage.page }} of
@@ -247,6 +258,7 @@
     aria-labelledby="executor-create-title">
     <v-card v-if="boolNewExecutorOpen">
       <v-card-title id="executor-create-title">New Executor</v-card-title>
+
       <v-form validate-on="submit" @submit.prevent="submitNewExecutor">
         <v-card-text>
           <v-alert
@@ -263,6 +275,7 @@
               {{ strMessage }}
             </p>
           </v-alert>
+
           <v-alert
             v-if="!arrCreationDepartment.length"
             type="info"
@@ -271,6 +284,7 @@
             No departments are available for creation. Ask an organization administrator to
             check departments and your access.
           </v-alert>
+
           <v-text-field
             v-model="strNewName"
             label="Name"
@@ -282,6 +296,7 @@
             :disabled="boolSavingNewExecutor"
             required
             @update:model-value="newExecutorError = null" />
+
           <v-select
             v-model="strNewDepartmentId"
             :items="arrCreationDepartment"
@@ -302,6 +317,7 @@
             required
             class="mb-4"
             @update:model-value="newExecutorError = null" />
+
           <v-textarea
             v-model="strNewNotes"
             label="Notes"
@@ -312,20 +328,24 @@
             :error-messages="newExecutorError?.fields.notes ?? []"
             :disabled="boolSavingNewExecutor"
             @update:model-value="newExecutorError = null" />
+
           <p>The new Executor starts Unassociated with Console Dispatch enabled.</p>
         </v-card-text>
+
         <v-card-actions>
-          <v-spacer />
           <v-btn
             variant="tonal"
+            prepend-icon="mdi-close"
             :disabled="boolSavingNewExecutor"
             @click="closeNewExecutor">
             Cancel
           </v-btn>
+          <v-spacer />
           <v-btn
             type="submit"
             color="primary"
             variant="tonal"
+            prepend-icon="mdi-plus"
             :loading="boolSavingNewExecutor"
             :disabled="boolSavingNewExecutor || !arrCreationDepartment.length">
             Create
@@ -349,6 +369,7 @@ import type {
   ExecutorListResponse,
   ExecutorRecordResponse,
 } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 const ARR_HEADER = [
@@ -362,10 +383,12 @@ const ARR_HEADER = [
   { title: "Last Seen", key: "last_seen_at", minWidth: 220 },
   { title: "Notes", key: "notes", minWidth: 200 },
 ];
+
 const ARR_DISPATCH_OPTION = [
   { title: "Enabled", value: true },
   { title: "Paused", value: false },
 ];
+
 const DICT_ASSOCIATION_STATE = {
   unassociated: { title: "Unassociated", color: "secondary" },
   online: { title: "Online", color: "success" },
@@ -376,22 +399,27 @@ const sessionStore = useSessionStore();
 const route = useRoute();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const strName = ref<string | null>("");
+
 const arrDepartmentId = ref<string[]>(
   typeof route.query.department_id === "string" ? [route.query.department_id] : [],
 );
+
 const arrDispatchState = ref<boolean[]>([]);
 const executorPage = shallowRef<ExecutorListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const strUpdatedAt = ref<string | null>(null);
+
 const arrCreationDepartment = computed(() =>
   (sessionStore.access?.departments ?? []).filter(
     (department) => sessionStore.access?.is_org_admin || department.role === "developer",
   ),
 );
+
 const boolCanCreate = computed(
   () => sessionStore.access?.is_org_admin || arrCreationDepartment.value.length > 0,
 );
+
 const boolNewExecutorOpen = ref(false);
 const boolSavingNewExecutor = ref(false);
 const newExecutorError = shallowRef<ApiError | null>(null);
@@ -400,11 +428,13 @@ const strNewName = ref<string | null>("");
 const strNewDepartmentId = ref<string | null>(null);
 const strNewNotes = ref<string | null>("");
 let boolUnmounted = false;
+
 let appliedFilters: ExecutorListFilters = {
   name: "",
   departmentIds: [...arrDepartmentId.value],
   dispatchStates: [],
 };
+
 let intRequestedPage = 1;
 
 async function loadExecutors(pageNumber: number = intRequestedPage): Promise<void> {
@@ -516,6 +546,7 @@ async function submitNewExecutor(event: SubmitEventPromise): Promise<void> {
 }
 
 onMounted(() => void loadExecutors());
+
 onBeforeUnmount(() => {
   boolUnmounted = true;
 });

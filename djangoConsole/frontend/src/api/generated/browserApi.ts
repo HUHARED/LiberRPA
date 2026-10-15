@@ -72,7 +72,7 @@ export interface BrowserApiContracts {
   AssetDetailsRequest: AssetDetailsRequest;
   AssetDetailsResponse: AssetDetailsResponse;
   AssetListResponse: AssetListResponse;
-  AssetValueRequest: AssetValueRequest;
+  AssetUpdateRequest: AssetUpdateRequest;
   AuditDetailsResponse: AuditDetailsResponse;
   AuditFilterOptionsResponse: AuditFilterOptionsResponse;
   AuditListResponse: AuditListResponse;
@@ -135,6 +135,7 @@ export interface BrowserApiContracts {
   OrganizationSettingsResponse: OrganizationSettingsResponse;
   PackageDetailsResponse: PackageDetailsResponse;
   PackageDownloadResponse: PackageDownloadResponse;
+  PackageListEntryResponse: PackageListEntryResponse;
   PackageOptionsResponse: PackageOptionsResponse;
   PackagePreparationCancellationResponse: PackagePreparationCancellationResponse;
   PackageProjectGroupListResponse: PackageProjectGroupListResponse;
@@ -169,14 +170,13 @@ export interface BrowserApiContracts {
   RunLogListResponse: RunLogListResponse;
   RunRerunResponse: RunRerunResponse;
   RunSelectionResponse: RunSelectionResponse;
-  ScheduleCreationRequest: ScheduleCreationRequest;
   ScheduleDefaultsResponse: ScheduleDefaultsResponse;
   ScheduleDetailsResponse: ScheduleDetailsResponse;
   ScheduleEnabledRequest: ScheduleEnabledRequest;
   ScheduleListResponse: ScheduleListResponse;
   SchedulePreviewResponse: SchedulePreviewResponse;
+  ScheduleSaveRequest: ScheduleSaveRequest;
   ScheduleTimeRequest: ScheduleTimeRequest;
-  ScheduleUpdateRequest: ScheduleUpdateRequest;
   SessionResponse: SessionResponse;
   SessionRevocationRequest: SessionRevocationRequest;
 }
@@ -320,8 +320,17 @@ export interface AssetEntryResponse {
   updated_at: string;
   value_summary: string;
 }
-export interface AssetValueRequest {
-  value: JsonValue;
+export interface AssetUpdateRequest {
+  details?: AssetDetailsRequest | null;
+  value?:
+    | {
+        [k: string]: JsonValue;
+      }
+    | JsonValue[]
+    | string
+    | number
+    | boolean
+    | null;
 }
 export interface AuditDetailsResponse {
   record: AuditDetailsRecordResponse;
@@ -1046,15 +1055,28 @@ export interface PackageDownloadResponse {
   file_name: string;
   transfer_id: string;
 }
-export interface PackageOptionsResponse {
-  packages: PackageListEntryResponse[];
-}
 export interface PackageListEntryResponse {
   can_manage: boolean;
   department_id: string;
   department_path: string;
   id: string;
   project_name: string;
+  project_version: string;
+  python_environment_name: string;
+  size_bytes: number;
+  uploaded_at: string;
+  uploaded_by_name: string;
+}
+export interface PackageOptionsResponse {
+  packages: PackageOptionEntryResponse[];
+}
+export interface PackageOptionEntryResponse {
+  can_manage: boolean;
+  department_id: string;
+  department_path: string;
+  id: string;
+  project_name: string;
+  project_name_key: string;
   project_version: string;
   python_environment_name: string;
   size_bytes: number;
@@ -1425,20 +1447,6 @@ export interface RunRerunResponse {
 export interface RunSelectionResponse {
   run_ids: string[];
 }
-export interface ScheduleCreationRequest {
-  active_from: string;
-  active_until: string;
-  cron: string;
-  department_id: string;
-  enabled?: boolean;
-  executor_ids?: string[];
-  group_id?: string | null;
-  name: string;
-  notes?: string;
-  package_id: string;
-  settings: RunSettings;
-  time_zone: string;
-}
 export interface ScheduleDefaultsResponse {
   time_zone: string;
 }
@@ -1466,6 +1474,7 @@ export interface ScheduleResponse {
   project_name: string;
   project_version: string;
   python_environment_name: string;
+  run_conflict_policy: RunConflictPolicy;
   settings: RunSettingsResponse;
   time_zone: string;
   upcoming_triggers: string[];
@@ -1514,22 +1523,18 @@ export interface ScheduleListEntryResponse {
   package_id: string;
   project_name: string;
   project_version: string;
+  run_conflict_policy: RunConflictPolicy;
   time_zone: string;
 }
 export interface SchedulePreviewResponse {
   normalized_cron: string;
   upcoming_triggers: string[];
 }
-export interface ScheduleTimeRequest {
+export interface ScheduleSaveRequest {
   active_from: string;
   active_until: string;
   cron: string;
-  time_zone: string;
-}
-export interface ScheduleUpdateRequest {
-  active_from: string;
-  active_until: string;
-  cron: string;
+  department_id: string;
   enabled?: boolean;
   executor_ids?: string[];
   group_id?: string | null;
@@ -1537,6 +1542,12 @@ export interface ScheduleUpdateRequest {
   notes?: string;
   package_id: string;
   settings: RunSettings;
+  time_zone: string;
+}
+export interface ScheduleTimeRequest {
+  active_from: string;
+  active_until: string;
+  cron: string;
   time_zone: string;
 }
 export interface SessionResponse {

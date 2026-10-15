@@ -3,7 +3,13 @@
   <div class="d-flex align-center flex-wrap ga-3 mb-4">
     <h1 class="text-h5">Run History</h1>
     <v-spacer />
-    <v-btn variant="tonal" :loading="boolLoading" @click="load()">Refresh</v-btn>
+    <v-btn
+      variant="tonal"
+      prepend-icon="mdi-refresh"
+      :loading="boolLoading"
+      @click="load()">
+      Refresh
+    </v-btn>
   </div>
 
   <v-card variant="elevated" class="mb-4">
@@ -20,17 +26,26 @@
               "
               item-value="id"
               label="Department"
+              variant="underlined"
               multiple
               chips
               hide-details />
           </v-col>
 
           <v-col cols="12" md="4">
-            <v-text-field v-model="filters.scheduleName" label="Schedule" hide-details />
+            <v-text-field
+              v-model="filters.scheduleName"
+              label="Schedule"
+              variant="underlined"
+              hide-details />
           </v-col>
 
           <v-col cols="12" md="4">
-            <v-text-field v-model="filters.projectName" label="Project" hide-details />
+            <v-text-field
+              v-model="filters.projectName"
+              label="Project"
+              variant="underlined"
+              hide-details />
           </v-col>
 
           <v-col cols="12" md="4">
@@ -40,6 +55,7 @@
                 ARR_RUN_STATUS.map((value) => ({ value, title: RUN_STATUS_LABELS[value] }))
               "
               label="Status"
+              variant="underlined"
               multiple
               chips
               hide-details />
@@ -49,6 +65,7 @@
             <v-text-field
               v-model="filters.startedFrom"
               label="Started From"
+              variant="underlined"
               type="datetime-local"
               step="1"
               :hint="strTimeZone"
@@ -59,6 +76,7 @@
             <v-text-field
               v-model="filters.startedUntil"
               label="Started Before"
+              variant="underlined"
               type="datetime-local"
               step="1"
               :hint="strTimeZone"
@@ -67,8 +85,16 @@
         </v-row>
 
         <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal">Apply</v-btn>
-          <v-btn variant="tonal" @click="clearFilters">Reset Filters</v-btn>
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-filter-remove-outline"
+            @click="clearFilters">
+            Reset Filters
+          </v-btn>
+          <v-spacer />
+          <v-btn type="submit" color="primary" variant="tonal" prepend-icon="mdi-check">
+            Apply
+          </v-btn>
         </div>
       </form>
     </v-card-text>
@@ -98,6 +124,7 @@
     <v-btn
       size="small"
       variant="tonal"
+      prepend-icon="mdi-select-all"
       :disabled="!page?.total_count || boolSelecting || boolLoading"
       :loading="boolSelecting"
       @click="selectAll">
@@ -107,6 +134,7 @@
     <v-btn
       size="small"
       variant="tonal"
+      prepend-icon="mdi-selection-remove"
       :disabled="!arrSelectedId.length && !boolSelecting"
       @click="clearSelection">
       Clear Selection
@@ -115,6 +143,7 @@
     <v-btn
       color="warning"
       variant="tonal"
+      prepend-icon="mdi-delete-outline"
       :disabled="!arrSelectedId.length || boolSelecting || boolLoading || boolClearing"
       @click="confirmClear">
       Clear Logs
@@ -214,12 +243,20 @@
       </v-card-text>
 
       <v-card-actions>
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolClearing" @click="boolClearDialog = false">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolClearing"
+          @click="boolClearDialog = false">
           Cancel
         </v-btn>
-
-        <v-btn variant="tonal" color="warning" :loading="boolClearing" @click="clearLogs">
+        <v-spacer />
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-delete-outline"
+          color="warning"
+          :loading="boolClearing"
+          @click="clearLogs">
           Clear Logs
         </v-btn>
       </v-card-actions>

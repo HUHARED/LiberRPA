@@ -93,7 +93,7 @@ def build_package_payload(
     return dictPayload
 
 
-def _get_package_list_payloads(
+def _get_package_option_payloads(
     access: OrganizationAccessContext, query: QuerySet[Package]
 ) -> list[dict]:
     query = (
@@ -119,13 +119,16 @@ def _get_package_list_payloads(
         ).values_list("pk", flat=True)
     )
     return [
-        build_package_payload(
-            package,
-            access,
-            details=False,
-            departmentTree=dictDepartment,
-            manageableDepartmentIds=setManageableDepartmentId,
-        )
+        {
+            **build_package_payload(
+                package,
+                access,
+                details=False,
+                departmentTree=dictDepartment,
+                manageableDepartmentIds=setManageableDepartmentId,
+            ),
+            "project_name_key": package.project_name_key,
+        }
         for package in query
     ]
 
@@ -246,7 +249,7 @@ def get_package_options(
     query = Package.objects.filter(department=department).order_by(
         "project_name_key", "-uploaded_at", "pk"
     )
-    return {"packages": _get_package_list_payloads(access, query)}
+    return {"packages": _get_package_option_payloads(access, query)}
 
 
 def get_upload(access: OrganizationAccessContext, uploadId: uuid.UUID) -> PackageUpload:

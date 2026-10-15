@@ -13,6 +13,11 @@ import type {
   MembershipWriteResponse,
 } from "./generated/browserApi";
 
+export enum DepartmentRole {
+  Developer = "developer",
+  Operator = "operator",
+}
+
 function isMember(value: unknown): value is MemberResponse {
   return (
     isRecord(value) &&
@@ -29,7 +34,8 @@ function isMember(value: unknown): value is MemberResponse {
         typeof assignment.department.id === "string" &&
         typeof assignment.department.name === "string" &&
         typeof assignment.department.path === "string" &&
-        (assignment.role === "developer" || assignment.role === "operator"),
+        (assignment.role === DepartmentRole.Developer ||
+          assignment.role === DepartmentRole.Operator),
     ) &&
     typeof value.notes === "string" &&
     typeof value.joined_at === "string" &&
@@ -62,7 +68,8 @@ export function parseMembershipWriteResponse(payload: unknown): MembershipWriteR
       (assignment: unknown): assignment is DepartmentRoleRequest =>
         isRecord(assignment) &&
         typeof assignment.department_id === "string" &&
-        (assignment.role === "developer" || assignment.role === "operator"),
+        (assignment.role === DepartmentRole.Developer ||
+          assignment.role === DepartmentRole.Operator),
     )
   )
     return rejectInvalidResponse();

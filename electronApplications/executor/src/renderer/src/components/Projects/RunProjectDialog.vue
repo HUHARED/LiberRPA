@@ -19,9 +19,7 @@
               v-model:log-level="runSettings.builtin_log_level"
               v-model:record-video="runSettings.builtin_record_video"
               v-model:stop-shortcut="runSettings.builtin_stop_shortcut"
-              v-model:highlight-ui="runSettings.builtin_highlight_ui"
-              :timeout-cols="7"
-              :log-level-cols="5">
+              v-model:highlight-ui="runSettings.builtin_highlight_ui">
               <template #environment>
                 <v-select
                   v-model="runSettings.python_environment_name"
@@ -45,13 +43,17 @@
       </v-card-text>
 
       <v-card-actions>
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolStarting" @click="emit('close')">
-          Cancel
-        </v-btn>
-
         <v-btn
           variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolStarting"
+          @click="emit('close')">
+          Cancel
+        </v-btn>
+        <v-spacer />
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-play-outline"
           color="primary"
           :loading="boolStarting"
           :disabled="boolLoading"

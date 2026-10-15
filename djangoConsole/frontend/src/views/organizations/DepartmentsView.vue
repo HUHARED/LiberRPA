@@ -3,11 +3,13 @@
   <v-row align="center" class="mb-4">
     <v-col>
       <h2 class="text-h6 mb-2">Departments</h2>
+
       <p class="text-medium-emphasis">
         Organize resources and assign access by department. Department access is not
         inherited from a parent department.
       </p>
     </v-col>
+
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
         v-if="boolCanManage"
@@ -20,6 +22,7 @@
       </v-btn>
     </v-col>
   </v-row>
+
   <v-alert
     v-if="strSuccessMessage"
     type="success"
@@ -28,14 +31,17 @@
     role="status">
     {{ strSuccessMessage }}
   </v-alert>
+
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="arrDepartmentInfo" class="mt-2">
       Previously loaded departments are shown and may be out of date.
     </p>
+
     <template #append>
       <v-btn
         variant="tonal"
+        prepend-icon="mdi-refresh"
         size="small"
         :disabled="boolActionBlocked"
         @click="loadDepartments">
@@ -43,6 +49,7 @@
       </v-btn>
     </template>
   </v-alert>
+
   <div
     class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
     <span v-if="arrDepartmentInfo" aria-live="polite">
@@ -52,6 +59,7 @@
       Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
     </span>
   </div>
+
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table
       :headers="ARR_HEADER"
@@ -79,11 +87,13 @@
           </RouterLink>
         </div>
       </template>
+
       <template #item.notes="{ item }">
         <div class="table-text notes-summary" :title="item.notes">
           {{ item.notes || "—" }}
         </div>
       </template>
+
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
           <v-btn
@@ -95,6 +105,7 @@
             :aria-label="`New subdepartment of ${item.path}`"
             icon="mdi-folder-plus-outline"
             @click="openNewDepartment(item.id)" />
+
           <v-btn
             v-if="boolCanManage"
             v-tooltip:bottom="'Edit'"
@@ -104,6 +115,7 @@
             :aria-label="`Edit department ${item.path}`"
             icon="mdi-pencil-outline"
             @click="openEditDepartment(item)" />
+
           <v-btn
             v-if="boolCanManage"
             v-tooltip:bottom="'Delete'"
@@ -116,6 +128,7 @@
             @click="openDeleteDepartment(item)" />
         </div>
       </template>
+
       <template #no-data>
         {{
           requestError
@@ -125,6 +138,7 @@
       </template>
     </v-data-table>
   </v-card>
+
   <DepartmentFormDialog
     v-if="boolFormOpen && arrDepartmentInfo"
     :departments="arrDepartmentInfo"
@@ -132,6 +146,7 @@
     :parent-id="strNewParentId"
     @close="closeDepartmentForm"
     @saved="handleDepartmentSaved" />
+
   <DepartmentDeleteDialog
     v-if="deleteTarget"
     :department="deleteTarget"
@@ -155,6 +170,7 @@ import type {
   DepartmentListEntryResponse,
   DepartmentRecordResponse,
 } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 interface DepartmentRow extends DepartmentListEntryResponse {
@@ -168,9 +184,11 @@ const ARR_HEADER = [
 ];
 
 const sessionStore = useSessionStore();
+
 const boolCanManage = computed(
   () => sessionStore.access?.is_org_admin && sessionStore.access.business_available,
 );
+
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const arrDepartmentInfo = shallowRef<DepartmentListEntryResponse[] | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
@@ -180,9 +198,11 @@ const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 const boolLoading = ref(false);
 const boolFormOpen = ref(false);
+
 const boolActionBlocked = computed(
   () => boolLoading.value || boolFormOpen.value || deleteTarget.value !== null,
 );
+
 const strNewParentId = ref<string | null>(null);
 let boolUnmounted = false;
 
@@ -276,6 +296,7 @@ async function handleDepartmentDeleted(
 }
 
 onMounted(() => void loadDepartments());
+
 onBeforeUnmount(() => {
   boolUnmounted = true;
 });

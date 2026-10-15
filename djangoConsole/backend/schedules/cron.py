@@ -109,7 +109,7 @@ def preview_triggers(
     activeFrom: datetime,
     activeUntil: datetime,
     after: datetime,
-    count: int = 5,
+    count: int = 3,
 ) -> list[datetime]:
     listTrigger = []
     for _ in range(count):

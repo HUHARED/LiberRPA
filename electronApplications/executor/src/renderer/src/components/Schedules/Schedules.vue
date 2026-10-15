@@ -4,6 +4,7 @@
     <v-label class="header-label tab-header">Schedules</v-label>
 
     <v-container fluid class="pa-1 ma-0 flex-row" style="height: 45px">
+      <v-spacer />
       <v-btn
         variant="tonal"
         prepend-icon="mdi-calendar-plus-outline"
@@ -13,6 +14,10 @@
     </v-container>
 
     <HorizontalDivider />
+
+    <v-alert v-if="strError" type="error" variant="tonal" class="my-2">
+      {{ strError }}
+    </v-alert>
 
     <v-data-table
       :headers="arrHeader"
@@ -36,14 +41,16 @@
           size="small"></v-chip>
       </template>
 
-      <template #item.enabled="{ item, value }">
-        <v-chip
-          :border="`${getEnabledColor(value)} thin opacity-25`"
-          :color="getEnabledColor(value)"
-          :text="value ? 'Enabled' : 'Disabled'"
-          variant="text"
-          size="x-small"
-          @click="toggleSchedule(item)"></v-chip>
+      <template #item.enabled="{ item }">
+        <v-switch
+          :model-value="item.enabled"
+          :aria-label="`Enable Schedule ${item.name}`"
+          true-icon="mdi-flash"
+          density="compact"
+          hide-details
+          :loading="setChangingId.has(item.id)"
+          :disabled="setChangingId.has(item.id)"
+          @update:model-value="toggleSchedule(item, $event === true)" />
       </template>
 
       <template #item.actions="{ item }">
@@ -84,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeMount } from "vue";
+import { onBeforeMount, ref } from "vue";
 import type { DataTableHeader } from "vuetify";
 import cronstrue from "cronstrue";
 
@@ -103,6 +110,8 @@ import type { ScheduleListItem } from "../../../../shared/schedule";
 
 const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();
+const setChangingId = ref(new Set<number>());
+const strError = ref("");
 
 onBeforeMount(() => {
   void Promise.all([
@@ -163,13 +172,22 @@ const arrHeader: DataTableHeader<ScheduleListItem>[] = [
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 
-async function toggleSchedule(item: ScheduleListItem): Promise<void> {
-  await invokeMain("setScheduleEnabled", { id: item.id, enabled: !item.enabled });
-  await scheduleStore.refreshScheduleList();
-}
+async function toggleSchedule(item: ScheduleListItem, enabled: boolean): Promise<void> {
+  if (setChangingId.value.has(item.id)) return;
 
-function getEnabledColor(enabled: boolean): string {
-  return enabled ? "success" : "inactive";
+  const boolOriginalEnabled = item.enabled;
+  item.enabled = enabled;
+  setChangingId.value.add(item.id);
+  strError.value = "";
+  try {
+    await invokeMain("setScheduleEnabled", { id: item.id, enabled });
+  } catch (e: unknown) {
+    item.enabled = boolOriginalEnabled;
+    strError.value = getErrorMessage(e);
+    loggerRenderer.error(`Failed to update Schedule ${item.id}: ${strError.value}`);
+  } finally {
+    setChangingId.value.delete(item.id);
+  }
 }
 
 async function editSchedule(scheduleName: string): Promise<void> {

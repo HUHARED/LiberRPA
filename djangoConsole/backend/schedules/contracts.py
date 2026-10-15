@@ -12,7 +12,7 @@ from pydantic import Field
 
 from console_project.contracts import JsonRequest, JsonResponsePayload
 from organizations.contracts import PaginationResponse
-from packages.contracts import RunSettings, RunSettingsResponse
+from packages.contracts import RunConflictPolicy, RunSettings, RunSettingsResponse
 
 UuidValue = Annotated[UUID, Field(strict=False)]
 
@@ -24,7 +24,8 @@ class ScheduleTimeRequest(JsonRequest):
     active_until: str = Field(min_length=1, max_length=50)
 
 
-class ScheduleUpdateRequest(ScheduleTimeRequest):
+class ScheduleSaveRequest(ScheduleTimeRequest):
+    department_id: UuidValue
     name: str = Field(min_length=1, max_length=128)
     notes: str = Field(default="", max_length=2000)
     package_id: UuidValue
@@ -33,10 +34,6 @@ class ScheduleUpdateRequest(ScheduleTimeRequest):
     group_id: UuidValue | None = None
     enabled: bool = True
     settings: RunSettings
-
-
-class ScheduleCreationRequest(ScheduleUpdateRequest):
-    department_id: UuidValue
 
 
 class ScheduleEnabledRequest(JsonRequest):
@@ -77,6 +74,7 @@ class ScheduleListEntryResponse(JsonResponsePayload):
     enabled: bool
     notes: str
     cron: str
+    run_conflict_policy: RunConflictPolicy
     time_zone: str
     active_from: datetime
     active_until: datetime

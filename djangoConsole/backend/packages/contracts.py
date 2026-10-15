@@ -292,8 +292,12 @@ class ProjectPackageListResponse(PaginationResponse):
     packages: list[ProjectPackageEntryResponse]
 
 
+class PackageOptionEntryResponse(PackageListEntryResponse):
+    project_name_key: str
+
+
 class PackageOptionsResponse(JsonResponsePayload):
-    packages: list[PackageListEntryResponse]
+    packages: list[PackageOptionEntryResponse]
 
 
 class PackageUploadResponse(JsonResponsePayload):

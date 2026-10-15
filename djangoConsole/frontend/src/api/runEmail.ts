@@ -7,9 +7,34 @@ import type {
   RunEmailRecipientResponse,
   RunEmailRecipientListResponse,
   RunEmailVerificationResponse,
+  RunEmailSettingsResponse,
 } from "./generated/browserApi";
 
 export type RunEmailRecipient = RunEmailRecipientResponse;
+export type RunEmailEventKey = Exclude<keyof RunEmailSettingsResponse, "recipient_ids">;
+export type RunEmailTemplates = Record<
+  RunEmailEventKey,
+  Pick<RunEmailSettingsResponse["on_start"], "subject" | "body">
+>;
+
+export async function getRunEmailTemplates(): Promise<RunEmailTemplates> {
+  const response = await requestApi("/run-email-recipients/templates/");
+  if (!isRecord(response) || !isRecord(response.defaults)) return rejectInvalidResponse();
+  const defaults = response.defaults;
+  if (
+    !["on_start", "on_completed", "on_error"].every((key) => {
+      const template = defaults[key];
+      return (
+        isRecord(template) &&
+        typeof template.subject === "string" &&
+        typeof template.body === "string"
+      );
+    })
+  )
+    return rejectInvalidResponse();
+  return defaults as RunEmailTemplates;
+}
+
 export async function getRunEmailRecipients(
   status: "all" | "pending" | "verified" = "verified",
 ): Promise<RunEmailRecipientListResponse> {

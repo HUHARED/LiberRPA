@@ -5,9 +5,16 @@
       Back to Run History
     </v-btn>
     <v-spacer />
-    <v-btn :loading="boolLoading" variant="tonal" @click="load">Refresh</v-btn>
+    <v-btn :loading="boolLoading" variant="tonal" prepend-icon="mdi-refresh" @click="load">
+      Refresh
+    </v-btn>
 
-    <v-btn v-if="run" :disabled="boolBusy || !run.can_rerun" variant="tonal" @click="rerun">
+    <v-btn
+      v-if="run"
+      :disabled="boolBusy || !run.can_rerun"
+      variant="tonal"
+      prepend-icon="mdi-replay"
+      @click="rerun">
       Rerun
     </v-btn>
 
@@ -16,6 +23,7 @@
       :loading="boolBusy"
       color="warning"
       variant="tonal"
+      prepend-icon="mdi-stop-circle-outline"
       @click="stop">
       Stop Run
     </v-btn>
@@ -86,6 +94,7 @@
 
         <RunArgumentsDetails
           v-if="strTab === 'inputs'"
+          snapshot
           :settings="run.run_snapshot"
           :python-environment-name="run.run_snapshot.python_environment_name" />
 
@@ -194,7 +203,9 @@
               <tr>
                 <th scope="row" class="text-caption text-medium-emphasis">Job</th>
                 <td>
-                  <RouterLink :to="{ name: 'job-details', params: { jobId: run.job_id } }">
+                  <RouterLink
+                    :to="{ name: 'job-details', params: { jobId: run.job_id } }"
+                    class="text-primary text-decoration-none">
                     View Job
                   </RouterLink>
                 </td>

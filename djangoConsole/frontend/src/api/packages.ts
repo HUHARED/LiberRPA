@@ -7,6 +7,7 @@ import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./resp
 import { isRunSettings, cloneRunSettings, type RunSettings } from "./runSettings";
 import type {
   PackageListEntryResponse,
+  PackageOptionEntryResponse,
   PackageResponse,
   PackageDetailsResponse,
   PackageProjectGroupResponse,
@@ -23,6 +24,7 @@ import type {
 } from "./generated/browserApi";
 
 export type PackageListEntry = PackageListEntryResponse;
+export type PackageOptionEntry = PackageOptionEntryResponse;
 export type PackageInfo = PackageResponse;
 export type PackageDetails = PackageDetailsResponse;
 export type PackageProjectGroup = PackageProjectGroupResponse;
@@ -199,14 +201,21 @@ export async function getProjectPackages(
   };
 }
 
-export async function getPackageOptions(departmentId: string): Promise<PackageListEntry[]> {
+export async function getPackageOptions(
+  departmentId: string,
+): Promise<PackageOptionEntry[]> {
   const response = await requestApi(
     `/packages/options/?${new URLSearchParams({ department_id: departmentId })}`,
   );
   if (
     !isRecord(response) ||
     !Array.isArray(response.packages) ||
-    !response.packages.every(isPackageListEntry)
+    !response.packages.every(
+      (packageEntry): packageEntry is PackageOptionEntry =>
+        isPackageListEntry(packageEntry) &&
+        "project_name_key" in packageEntry &&
+        typeof packageEntry.project_name_key === "string",
+    )
   )
     return rejectInvalidResponse();
   return response.packages;

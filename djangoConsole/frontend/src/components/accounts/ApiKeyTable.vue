@@ -6,7 +6,7 @@
         :model-value="arrStatus"
         :items="ARR_STATUS_OPTION"
         label="Status"
-        variant="outlined"
+        variant="underlined"
         multiple
         chips
         clearable
@@ -49,6 +49,7 @@
     <template #append>
       <v-btn
         variant="tonal"
+        prepend-icon="mdi-refresh"
         size="small"
         :disabled="boolActionBlocked"
         @click="loadApiKeys">
@@ -172,6 +173,7 @@ import ApiKeyCreateDialog from "./ApiKeyCreateDialog.vue";
 import ApiKeyActionDialog from "./ApiKeyActionDialog.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
+
 import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { type ApiError, getApiError } from "@/api/errors";
@@ -181,9 +183,11 @@ import type {
   ApiKeyResponse,
   ApiKeyListResponse,
 } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ member?: UserResponse }>();
+
 const ARR_STATUS_OPTION = [
   { title: "Active", value: "active" },
   { title: "Expired", value: "expired" },
@@ -193,14 +197,17 @@ const ARR_STATUS_OPTION = [
 const sessionStore = useSessionStore();
 const account = computed(() => props.member ?? sessionStore.session?.user);
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+
 const boolCanManage = computed(
   () =>
     sessionStore.authenticated &&
     sessionStore.access?.business_available &&
     (!props.member || sessionStore.access.is_org_admin),
 );
+
 const { intCurrentTimeMs } = useRetryDelay();
 const arrStatus = ref<ApiKeyStatus[]>(["active", "expired", "revoked"]);
+
 const arrHeader = computed(() => [
   { title: "Name", key: "name", minWidth: 180 },
   { title: "Status", key: "status", minWidth: 100 },
@@ -209,7 +216,9 @@ const arrHeader = computed(() => [
   { title: "Notes", key: "notes", minWidth: 200 },
   { title: "Actions", key: "actions", width: props.member ? 72 : 112 },
 ]);
+
 const keyList = shallowRef<ApiKeyListResponse | null>(null);
+
 const arrVisibleKey = computed(() =>
   (keyList.value?.api_keys ?? []).filter(
     (apiKey) =>
@@ -217,17 +226,22 @@ const arrVisibleKey = computed(() =>
       arrStatus.value.includes(getApiKeyStatus(apiKey, intCurrentTimeMs.value)),
   ),
 );
+
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const boolCreating = ref(false);
+
 const selectedKey = shallowRef<{
   apiKey: ApiKeyResponse;
   action: "edit" | "revoke";
 } | null>(null);
+
 const boolDialogOpen = computed(() => boolCreating.value || selectedKey.value !== null);
+
 const boolActionBlocked = computed(
   () => boolLoading.value || boolDialogOpen.value || !boolCanManage.value,
 );
+
 const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 let intRequestRevision = 0;
@@ -332,6 +346,7 @@ function closeAndRefresh(): void {
 }
 
 onMounted(() => void loadApiKeys());
+
 onBeforeUnmount(() => {
   intRequestRevision += 1;
 });

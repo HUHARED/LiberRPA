@@ -41,9 +41,8 @@ from organizations.permissions import (
 )
 
 from .contracts import (
-    AssetDetailsRequest,
     AssetCreationRequest,
-    AssetValueRequest,
+    AssetUpdateRequest,
     AssetDeletionRequest,
 )
 from .models import AssetType, Asset
@@ -51,8 +50,7 @@ from .queries import get_asset_query, get_asset_list, build_asset_details
 from .services import (
     SecretStorageUnavailableError,
     create_asset,
-    update_asset_details,
-    update_asset_value,
+    update_asset,
     delete_asset,
 )
 
@@ -233,30 +231,14 @@ def get_or_update_asset(
         asset = get_asset_query(access).get(pk=assetId)
         return _build_asset_response(build_asset_details(asset, access))
 
-    payload = parse_json_request(request, AssetDetailsRequest, maxBodyBytes=16384)
-    if isinstance(payload, JsonResponse):
-        return payload
-    with transaction.atomic():
-        access = _lock_asset_write_access(request, membership)
-        asset = update_asset_details(
-            access, assetId, name=payload.name, notes=payload.notes
-        )
-        return _build_asset_response(build_asset_details(asset, access))
-
-
-@require_POST
-@_session_asset_view
-def set_asset_value(
-    request: HttpRequest, membership: Membership, assetId: uuid.UUID
-) -> HttpResponse:
     payload = parse_json_request(
-        request, AssetValueRequest, maxBodyBytes=_INT_MAX_BODY_BYTES
+        request, AssetUpdateRequest, maxBodyBytes=_INT_MAX_BODY_BYTES
     )
     if isinstance(payload, JsonResponse):
         return payload
     with transaction.atomic():
         access = _lock_asset_write_access(request, membership)
-        asset = update_asset_value(access, assetId, value=payload.value)
+        asset = update_asset(access, assetId, payload)
         return _build_asset_response(build_asset_details(asset, access))
 
 

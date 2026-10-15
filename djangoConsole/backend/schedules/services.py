@@ -28,7 +28,7 @@ from packages.runtime import (
     validate_run_settings,
 )
 
-from .contracts import ScheduleTimeRequest, ScheduleUpdateRequest
+from .contracts import ScheduleTimeRequest, ScheduleSaveRequest
 from .cron import normalize_cron, get_schedule_zone, get_next_trigger
 from .models import Schedule
 
@@ -74,9 +74,8 @@ def parse_schedule_time(
 
 def save_schedule(
     access: OrganizationAccessContext,
-    form: ScheduleUpdateRequest,
+    form: ScheduleSaveRequest,
     *,
-    departmentId: uuid.UUID,
     schedule: Schedule | None = None,
 ) -> Schedule:
     def validate_targets(
@@ -98,9 +97,15 @@ def save_schedule(
                 "executor_ids": "Select current Executors in this department."
             })
 
-    require_schedule_management(access, departmentId)
+    departmentId = form.department_id
+    if schedule is not None:
+        require_schedule_management(access, schedule.department_id)
+    if schedule is None or schedule.department_id != departmentId:
+        require_schedule_management(access, departmentId)
     strCron, activeFrom, activeUntil = parse_schedule_time(form)
-    package = Package.objects.get(pk=form.package_id, department_id=departmentId)
+    package = Package.objects.select_related("department").get(
+        pk=form.package_id, department_id=departmentId
+    )
     validate_targets(departmentId, form.executor_ids, form.group_id)
     runSettings = validate_run_settings(package, form.settings)
     boolCreated = schedule is None
@@ -133,6 +138,7 @@ def save_schedule(
     if not schedule.name or "\x00" in schedule.name or "\x00" in form.notes:
         raise ValidationError("Use a nonempty name and text without null characters.")
     schedule.notes = form.notes
+    schedule.department = package.department
     schedule.package = package
     schedule.executor_ids = [str(executorId) for executorId in form.executor_ids]
     schedule.group_id = form.group_id

@@ -10,6 +10,7 @@
       <v-card-title id="executor-group-form-title">
         {{ group ? "Edit Group" : "New Group" }}
       </v-card-title>
+
       <v-card-text>
         <v-form id="executor-group-form" validate-on="submit" @submit.prevent="submitGroup">
           <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
@@ -21,6 +22,7 @@
               {{ strMessage }}
             </p>
           </v-alert>
+
           <v-alert
             v-if="!departments.length || (group && !boolDepartmentAllowed)"
             type="info"
@@ -33,6 +35,7 @@
             }}
             Ask an organization administrator to check departments and your access.
           </v-alert>
+
           <v-row>
             <v-col cols="12" md="6">
               <v-text-field
@@ -47,6 +50,7 @@
                 required
                 @update:model-value="saveError = null" />
             </v-col>
+
             <v-col cols="12" md="6">
               <v-text-field
                 v-if="group"
@@ -55,6 +59,7 @@
                 variant="outlined"
                 density="compact"
                 readonly />
+
               <v-select
                 v-else
                 v-model="strDepartmentId"
@@ -74,6 +79,7 @@
                 required />
             </v-col>
           </v-row>
+
           <v-textarea
             v-model="strNotes"
             label="Notes"
@@ -84,13 +90,17 @@
             :error-messages="saveError?.fields.notes ?? []"
             :disabled="boolSaving"
             @update:model-value="saveError = null" />
+
           <h2 class="text-subtitle-1 mb-2">Executors</h2>
+
           <p class="mb-4">
             Groups may be empty. Unassociated, offline, and paused Executors can be members.
           </p>
+
           <v-alert v-if="!strDepartmentId" type="info" variant="tonal">
             Select a department to load its Executors.
           </v-alert>
+
           <template v-else>
             <div class="d-flex flex-wrap align-center ga-2 mb-3">
               <v-text-field
@@ -99,25 +109,30 @@
                 aria-label="Filter candidate Executors by name"
                 placeholder="Search members by name"
                 maxlength="128"
-                variant="outlined"
+                variant="underlined"
                 density="compact"
                 hide-details
                 clearable
                 :disabled="boolSaving || boolLoadingMembers"
                 @keydown.enter.prevent="applyMemberFilter" />
+
               <v-btn
                 variant="tonal"
+                prepend-icon="mdi-filter-remove-outline"
+                :disabled="boolSaving || boolLoadingMembers"
+                @click="resetMemberFilter">
+                Reset Filters
+              </v-btn>
+
+              <v-btn
+                variant="tonal"
+                prepend-icon="mdi-check"
                 :disabled="boolSaving || boolLoadingMembers"
                 @click="applyMemberFilter">
                 Apply
               </v-btn>
-              <v-btn
-                variant="tonal"
-                :disabled="boolSaving || boolLoadingMembers"
-                @click="resetMemberFilter">
-                Reset
-              </v-btn>
             </div>
+
             <v-alert
               v-if="memberError"
               type="error"
@@ -128,9 +143,11 @@
               <p v-if="memberPage" class="mt-2">
                 Previously loaded choices are shown and may be out of date.
               </p>
+
               <template #append>
                 <v-btn
                   variant="tonal"
+                  prepend-icon="mdi-refresh"
                   size="small"
                   :disabled="boolSaving || boolLoadingMembers"
                   @click="loadMembers()">
@@ -138,16 +155,19 @@
                 </v-btn>
               </template>
             </v-alert>
+
             <div class="d-flex flex-wrap align-center justify-space-between ga-2 mb-3">
               <span aria-live="polite">Selected: {{ arrExecutorId.length }}</span>
               <v-btn
                 variant="tonal"
+                prepend-icon="mdi-selection-remove"
                 size="small"
                 :disabled="boolSaving || !arrExecutorId.length"
                 @click="clearMembers">
                 Clear Selection
               </v-btn>
             </div>
+
             <v-alert
               v-if="saveError?.fields.executor_ids"
               type="error"
@@ -158,6 +178,7 @@
                 {{ strMessage }}
               </p>
             </v-alert>
+
             <v-data-table-server
               v-model="arrExecutorId"
               :headers="ARR_MEMBER_HEADER"
@@ -178,6 +199,7 @@
               <template #item.name="{ item }">
                 <div class="table-text-narrow">{{ item.name }}</div>
               </template>
+
               <template #item.account="{ item }">
                 <div class="table-text-narrow">
                   {{
@@ -189,12 +211,15 @@
                   }}
                 </div>
               </template>
+
               <template #item.association_status="{ item }">
                 <span class="text-capitalize">{{ item.association_status }}</span>
               </template>
+
               <template #item.dispatch_enabled="{ item }">
                 {{ item.dispatch_enabled ? "Enabled" : "Paused" }}
               </template>
+
               <template #no-data>
                 {{
                   memberError
@@ -203,6 +228,7 @@
                 }}
               </template>
             </v-data-table-server>
+
             <div
               v-if="memberPage"
               class="d-flex flex-wrap align-center justify-space-between ga-2 mt-3">
@@ -220,6 +246,7 @@
                 aria-label="Candidate Executor pages"
                 @update:model-value="loadMembers" />
             </div>
+
             <p class="mt-3">
               Select all applies to this page. Selections are kept when filtering or
               changing pages.
@@ -227,14 +254,22 @@
           </template>
         </v-form>
       </v-card-text>
+
       <v-card-actions>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolSaving"
+          @click="emit('close')">
+          Cancel
+        </v-btn>
         <v-spacer />
-        <v-btn variant="tonal" :disabled="boolSaving" @click="emit('close')">Cancel</v-btn>
         <v-btn
           type="submit"
           form="executor-group-form"
           color="primary"
           variant="tonal"
+          :prepend-icon="group ? 'mdi-content-save-outline' : 'mdi-plus'"
           :loading="boolSaving"
           :disabled="boolSaving || boolLoadingMembers || !boolDepartmentAllowed">
           {{ group ? "Save" : "Create" }}
@@ -264,6 +299,7 @@ const props = defineProps<{
   departments: DepartmentAccessResponse[];
   group?: ExecutorGroupDetailsEntryResponse;
 }>();
+
 const emit = defineEmits<{
   close: [];
   saved: [response: ExecutorGroupWriteResponse];
@@ -281,6 +317,7 @@ const ARR_MEMBER_HEADER = [
 const sessionStore = useSessionStore();
 const strName = ref<string | null>(props.group?.name ?? "");
 const strNotes = ref<string | null>(props.group?.notes ?? "");
+
 const strDepartmentId = ref<string | null>(
   props.group?.department_id ??
     (props.departments.length === 1 ? props.departments[0]!.id : null),
@@ -293,11 +330,13 @@ const memberError = shallowRef<ApiError | null>(null);
 const saveError = shallowRef<ApiError | null>(null);
 const boolLoadingMembers = ref(false);
 const boolSaving = ref(false);
+
 const boolDepartmentAllowed = computed(
   () =>
     (!props.group || props.group.can_manage) &&
     validateDepartment(strDepartmentId.value) === true,
 );
+
 let strAppliedMemberName = "";
 let intRequestedPage = 1;
 let intMemberRevision = 0;
@@ -417,6 +456,7 @@ watch(
   },
   { immediate: true },
 );
+
 onBeforeUnmount(() => {
   boolUnmounted = true;
   intMemberRevision += 1;

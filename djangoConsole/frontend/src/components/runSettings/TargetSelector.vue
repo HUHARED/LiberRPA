@@ -1,76 +1,92 @@
 <!-- FileName: TargetSelector.vue -->
 <template>
-  <v-radio-group
-    v-model="strTargetType"
-    inline
-    label="Target Type"
-    :disabled="disabled || boolLoading || !departmentId"
-    @update:model-value="changeType">
-    <v-radio label="Executors" value="executor" />
-    <v-radio label="Executor Group" value="group" />
-  </v-radio-group>
+  <v-row align="center">
+    <v-col cols="12" md="6" class="d-flex align-center flex-wrap ga-2">
+      <v-label :id="strLabelId" class="text-caption">Target Type</v-label>
 
-  <v-alert v-if="strError" type="error" variant="tonal" class="mb-3">
-    {{ strError }}
-    <v-btn
-      variant="tonal"
-      size="small"
-      :disabled="disabled || boolLoading"
-      @click="loadTargets">
-      Retry
-    </v-btn>
-  </v-alert>
+      <v-radio-group
+        v-model="strTargetType"
+        inline
+        :aria-labelledby="strLabelId"
+        class="flex-grow-0"
+        density="compact"
+        hide-details="auto"
+        :disabled="disabled || boolLoading || !departmentId"
+        @update:model-value="changeType">
+        <v-radio label="Executors" value="executor" />
+        <v-radio label="Executor Group" value="group" />
+      </v-radio-group>
+    </v-col>
 
-  <v-select
-    v-if="strTargetType === 'executor'"
-    v-model="executorIds"
-    variant="underlined"
-    :items="arrExecutor"
-    item-title="name"
-    item-value="id"
-    label="Executors"
-    :no-data-text="
-      strError ? 'Could not load Executors.' : 'No Executors in this department.'
-    "
-    :error-messages="getFieldErrors(fieldErrors, 'executor_ids')"
-    multiple
-    chips
-    closable-chips
-    :loading="boolLoading"
-    :disabled="disabled || boolLoading || !departmentId"
-    :rules="[(value) => value.length > 0 || 'Select at least one Executor.']">
-    <template #item="{ props: itemProps, item }">
-      <v-list-item
-        v-bind="itemProps"
-        :subtitle="`${item.raw.association_status} · ${item.raw.dispatch_enabled ? 'Dispatch enabled' : 'Paused'}`" />
-    </template>
-  </v-select>
+    <v-col cols="12" md="6">
+      <v-alert v-if="strError" type="error" variant="tonal" class="mb-3">
+        {{ strError }}
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-refresh"
+          size="small"
+          :disabled="disabled || boolLoading"
+          @click="loadTargets">
+          Retry
+        </v-btn>
+      </v-alert>
 
-  <v-select
-    v-else
-    v-model="groupId"
-    variant="underlined"
-    :items="arrGroup"
-    item-title="name"
-    item-value="id"
-    label="Executor Group"
-    :no-data-text="
-      strError ? 'Could not load groups.' : 'No Executor Groups in this department.'
-    "
-    :error-messages="getFieldErrors(fieldErrors, 'group_id')"
-    :loading="boolLoading"
-    :disabled="disabled || boolLoading || !departmentId"
-    :rules="[(value) => !!value || 'Select a group.']">
-    <template #item="{ props: itemProps, item }">
-      <v-list-item
-        v-bind="itemProps"
-        :subtitle="`${item.raw.member_count} members · ${item.raw.online_count} online`" />
-    </template>
-  </v-select>
+      <v-select
+        v-if="strTargetType === 'executor'"
+        v-model="executorIds"
+        variant="underlined"
+        density="compact"
+        hide-details="auto"
+        :items="arrExecutor"
+        item-title="name"
+        item-value="id"
+        label="Executors"
+        :no-data-text="
+          strError ? 'Could not load Executors.' : 'No Executors in this department.'
+        "
+        :error-messages="getFieldErrors(fieldErrors, 'executor_ids')"
+        multiple
+        chips
+        closable-chips
+        :loading="boolLoading"
+        :disabled="disabled || boolLoading || !departmentId"
+        :rules="[(value) => value.length > 0 || 'Select at least one Executor.']">
+        <template #item="{ props: itemProps, item }">
+          <v-list-item
+            v-bind="itemProps"
+            :subtitle="`${item.raw.association_status} · ${item.raw.dispatch_enabled ? 'Dispatch enabled' : 'Paused'}`" />
+        </template>
+      </v-select>
+
+      <v-select
+        v-else
+        v-model="groupId"
+        variant="underlined"
+        density="compact"
+        hide-details="auto"
+        :items="arrGroup"
+        item-title="name"
+        item-value="id"
+        label="Executor Group"
+        :no-data-text="
+          strError ? 'Could not load groups.' : 'No Executor Groups in this department.'
+        "
+        :error-messages="getFieldErrors(fieldErrors, 'group_id')"
+        :loading="boolLoading"
+        :disabled="disabled || boolLoading || !departmentId"
+        :rules="[(value) => !!value || 'Select a group.']">
+        <template #item="{ props: itemProps, item }">
+          <v-list-item
+            v-bind="itemProps"
+            :subtitle="`${item.raw.member_count} members · ${item.raw.online_count} online`" />
+        </template>
+      </v-select>
+    </v-col>
+  </v-row>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from "vue";
+import { onBeforeUnmount, ref, useId, watch } from "vue";
 
 import { getExecutorList } from "@/api/executors";
 import { getExecutorGroupList } from "@/api/executorGroups";
@@ -88,6 +104,8 @@ const props = defineProps<{
 
 const executorIds = defineModel<string[]>("executorIds", { required: true });
 const groupId = defineModel<string | null>("groupId", { required: true });
+
+const strLabelId = useId();
 
 type TargetType = "executor" | "group";
 

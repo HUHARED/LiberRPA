@@ -11,12 +11,11 @@ import {
 import type {
   AssetType,
   AssetCreationRequest,
-  AssetDetailsRequest,
   AssetEntryResponse,
   AssetListResponse,
   AssetDetailsEntryResponse,
   AssetDetailsResponse,
-  AssetValueRequest,
+  AssetUpdateRequest,
   AssetReferenceResponse,
 } from "./generated/browserApi";
 
@@ -127,24 +126,12 @@ export async function createAsset(
   return parseAssetDetails(await requestApi("/assets/", { method: "POST", body: payload }));
 }
 
-export async function updateAssetDetails(
+export async function updateAsset(
   assetId: string,
-  payload: AssetDetailsRequest,
+  payload: AssetUpdateRequest,
 ): Promise<AssetDetailsResponse> {
   return parseAssetDetails(
     await requestApi(`/assets/${encodeURIComponent(assetId)}/`, {
-      method: "POST",
-      body: payload,
-    }),
-  );
-}
-
-export async function updateAssetValue(
-  assetId: string,
-  payload: AssetValueRequest,
-): Promise<AssetDetailsResponse> {
-  return parseAssetDetails(
-    await requestApi(`/assets/${encodeURIComponent(assetId)}/value/`, {
       method: "POST",
       body: payload,
     }),

@@ -3,19 +3,28 @@
   <div class="d-flex align-center ga-3 mb-4">
     <h2 class="text-h6">Run Email Recipients</h2>
     <v-spacer />
-    <v-btn color="primary" variant="tonal" @click="openForm(null)">Add Email</v-btn>
-    <v-btn variant="tonal" :loading="boolLoading" @click="load">Refresh</v-btn>
+    <v-btn variant="tonal" prepend-icon="mdi-refresh" :loading="boolLoading" @click="load">
+      Refresh
+    </v-btn>
+
+    <v-btn color="primary" variant="tonal" prepend-icon="mdi-plus" @click="openForm(null)">
+      Add Email
+    </v-btn>
   </div>
+
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
     {{ strError }}
   </v-alert>
+
   <v-alert v-if="strSuccess" type="success" variant="tonal" class="mb-4">
     {{ strSuccess }}
   </v-alert>
+
   <v-row class="mb-4">
     <v-col cols="12" md="8">
       <v-text-field v-model="strSearch" label="Email" hide-details />
     </v-col>
+
     <v-col cols="12" md="4">
       <v-select
         v-model="strStatus"
@@ -25,6 +34,7 @@
         @update:model-value="load" />
     </v-col>
   </v-row>
+
   <v-data-table
     :headers="ARR_HEADER"
     :items="arrFiltered"
@@ -34,6 +44,7 @@
     <template #item.status="{ item }">
       {{ item.verified_at ? "Verified" : "Pending" }}
     </template>
+
     <template #item.actions="{ item }">
       <div class="d-flex align-center ga-1">
         <v-btn
@@ -43,6 +54,7 @@
           aria-label="Edit Notes"
           icon="mdi-note-edit-outline"
           @click="openForm(item)" />
+
         <v-btn
           v-if="!item.verified_at"
           v-tooltip:bottom="'Resend Verification Email'"
@@ -52,6 +64,7 @@
           aria-label="Resend Verification Email"
           icon="mdi-email-sync-outline"
           @click="resend(item.id)" />
+
         <v-btn
           v-tooltip:bottom="'Delete'"
           size="small"
@@ -63,35 +76,53 @@
       </div>
     </template>
   </v-data-table>
+
   <v-dialog v-model="boolForm" persistent max-width="640">
     <v-card>
       <v-card-title>{{ recipientEdit ? "Edit Notes" : "Add Email" }}</v-card-title>
+
       <v-card-text>
         <v-form ref="form">
           <v-alert v-if="strFormError" type="error" variant="tonal" class="mb-4">
             {{ strFormError }}
           </v-alert>
+
           <v-text-field
             v-model="strEmail"
             label="Email"
             type="email"
             :readonly="!!recipientEdit"
             :rules="[(value) => !!value.trim() || 'Enter an email address.']" />
+
           <v-textarea v-model="strNotes" label="Notes (optional)" rows="3" />
         </v-form>
       </v-card-text>
+
       <v-card-actions>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolBusy"
+          @click="boolForm = false">
+          Cancel
+        </v-btn>
         <v-spacer />
-        <v-btn variant="tonal" :disabled="boolBusy" @click="boolForm = false">Cancel</v-btn>
-        <v-btn variant="tonal" color="primary" :loading="boolBusy" @click="save">
+        <v-btn
+          variant="tonal"
+          :prepend-icon="recipientEdit ? 'mdi-content-save-outline' : 'mdi-plus'"
+          color="primary"
+          :loading="boolBusy"
+          @click="save">
           {{ recipientEdit ? "Save" : "Add" }}
         </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
+
   <v-dialog :model-value="!!recipientDelete" persistent max-width="680">
     <v-card>
       <v-card-title>Delete Email</v-card-title>
+
       <v-card-text>
         <p class="text-anywhere">
           Delete
@@ -99,22 +130,31 @@
           References from packages, schedules, active Jobs and pending messages must be
           removed first. Verification links become invalid.
         </p>
+
         <v-alert v-if="strDeleteError" type="error" variant="tonal" class="mt-4">
           {{ strDeleteError }}
         </v-alert>
+
         <v-list v-if="arrReference.length">
           <v-list-item
             v-for="reference in arrReference"
             :key="`${reference.kind}:${reference.id}`"
-            :title="reference.name"
             :subtitle="reference.department"
-            :to="getReferenceLocation(reference)" />
+            :to="getReferenceLocation(reference)"
+            class="text-decoration-none">
+            <template #title>
+              <span :class="{ 'text-primary': !!getReferenceLocation(reference) }">
+                {{ reference.name }}
+              </span>
+            </template>
+          </v-list-item>
         </v-list>
       </v-card-text>
+
       <v-card-actions>
-        <v-spacer />
         <v-btn
           variant="tonal"
+          prepend-icon="mdi-close"
           :disabled="boolBusy"
           @click="
             recipientDelete = null;
@@ -123,17 +163,25 @@
           ">
           Cancel
         </v-btn>
-        <v-btn variant="tonal" color="error" :loading="boolBusy" @click="remove">
+        <v-spacer />
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-delete-outline"
+          color="error"
+          :loading="boolBusy"
+          @click="remove">
           Delete
         </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
 </template>
+
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import type { RouteLocationRaw } from "vue-router";
 import type { VForm } from "vuetify/components";
+
 import {
   getRunEmailRecipients,
   saveRunEmailRecipient,
@@ -142,23 +190,27 @@ import {
 } from "@/api/runEmail";
 import { getApiError } from "@/api/errors";
 import { isRecord } from "@/api/responses";
+
 interface RecipientReference {
   kind: string;
   id: string;
   name: string;
   department: string;
 }
+
 const ARR_STATUS = [
   { title: "All", value: "all" },
   { title: "Pending", value: "pending" },
   { title: "Verified", value: "verified" },
 ];
+
 const ARR_HEADER = [
   { title: "Email", key: "email" },
   { title: "Status", key: "status" },
   { title: "Notes", key: "notes" },
   { title: "Actions", key: "actions", sortable: false },
 ];
+
 const form = ref<InstanceType<typeof VForm> | null>(null);
 const arrRecipient = ref<RunEmailRecipient[]>([]);
 const strSearch = ref("");
@@ -175,18 +227,21 @@ const strFormError = ref("");
 const strDeleteError = ref("");
 const strSuccess = ref("");
 const arrReference = ref<RecipientReference[]>([]);
+
 const arrFiltered = computed(() =>
   arrRecipient.value.filter((recipient) =>
     recipient.email.toLocaleLowerCase().includes(strSearch.value.toLocaleLowerCase()),
   ),
 );
+
 function getReferenceLocation(reference: RecipientReference): RouteLocationRaw | undefined {
   if (reference.kind === "package")
     return { name: "package-details", params: { packageId: reference.id } };
   if (reference.kind === "schedule")
-    return { name: "schedule-details", params: { scheduleId: reference.id } };
+    return { name: "schedule", params: { scheduleId: reference.id } };
   return undefined;
 }
+
 async function load(): Promise<void> {
   boolLoading.value = true;
   strError.value = "";
@@ -198,6 +253,7 @@ async function load(): Promise<void> {
     boolLoading.value = false;
   }
 }
+
 function openForm(recipient: RunEmailRecipient | null): void {
   recipientEdit.value = recipient;
   strEmail.value = recipient?.email ?? "";
@@ -205,6 +261,7 @@ function openForm(recipient: RunEmailRecipient | null): void {
   strFormError.value = "";
   boolForm.value = true;
 }
+
 async function save(): Promise<void> {
   if (!(await form.value?.validate())?.valid) return;
   boolBusy.value = true;
@@ -226,6 +283,7 @@ async function save(): Promise<void> {
     boolBusy.value = false;
   }
 }
+
 async function resend(id: string): Promise<void> {
   boolBusy.value = true;
   strError.value = "";
@@ -238,6 +296,7 @@ async function resend(id: string): Promise<void> {
     boolBusy.value = false;
   }
 }
+
 async function remove(): Promise<void> {
   if (!recipientDelete.value) return;
   boolBusy.value = true;
@@ -260,6 +319,8 @@ async function remove(): Promise<void> {
     boolBusy.value = false;
   }
 }
+
 onMounted(() => void load());
 </script>
+
 <style scoped></style>

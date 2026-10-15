@@ -40,8 +40,7 @@ from packages.runtime import build_run_settings
 
 from .contracts import (
     ScheduleTimeRequest,
-    ScheduleUpdateRequest,
-    ScheduleCreationRequest,
+    ScheduleSaveRequest,
     ScheduleEnabledRequest,
     ScheduleDeletionRequest,
 )
@@ -151,6 +150,7 @@ def _build_payloads(
             "enabled": schedule.enabled,
             "notes": schedule.notes,
             "cron": schedule.cron,
+            "run_conflict_policy": schedule.run_conflict_policy,
             "time_zone": schedule.time_zone,
             "active_from": schedule.active_from,
             "active_until": schedule.active_until,
@@ -185,12 +185,12 @@ def list_or_create_schedules(request: HttpRequest) -> JsonResponse:
     if isinstance(membership, JsonResponse):
         return membership
     if request.method == "POST":
-        form = parse_json_request(request, ScheduleCreationRequest, maxBodyBytes=262144)
+        form = parse_json_request(request, ScheduleSaveRequest, maxBodyBytes=262144)
         if isinstance(form, JsonResponse):
             return form
         with transaction.atomic():
             access = lock_request_write_access(request, membership)
-            schedule = save_schedule(access, form, departmentId=form.department_id)
+            schedule = save_schedule(access, form)
             return JsonResponse(
                 {"schedule": _build_payloads([schedule], access, details=True)[0]},
                 status=201,
@@ -245,15 +245,13 @@ def get_or_update_schedule(request: HttpRequest, scheduleId: uuid.UUID) -> JsonR
     if isinstance(membership, JsonResponse):
         return membership
     if request.method == "POST":
-        form = parse_json_request(request, ScheduleUpdateRequest, maxBodyBytes=262144)
+        form = parse_json_request(request, ScheduleSaveRequest, maxBodyBytes=262144)
         if isinstance(form, JsonResponse):
             return form
         with transaction.atomic():
             access = lock_request_write_access(request, membership)
             schedule = get_schedule_for_access(access, scheduleId, forUpdate=True)
-            schedule = save_schedule(
-                access, form, departmentId=schedule.department_id, schedule=schedule
-            )
+            schedule = save_schedule(access, form, schedule=schedule)
             return JsonResponse({
                 "schedule": _build_payloads([schedule], access, details=True)[0]
             })
@@ -348,5 +346,5 @@ def schedule_defaults(request: HttpRequest) -> JsonResponse:
         channel=AccessChannel.SESSION,
     )
     return JsonResponse({
-        "time_zone": access.organization.default_time_zone,
+        "time_zone": access.actor.time_zone,
     })

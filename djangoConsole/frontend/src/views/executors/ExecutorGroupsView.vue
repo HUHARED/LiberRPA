@@ -5,7 +5,17 @@
       <h1 class="text-h5 mb-2">Executor Groups</h1>
       <p class="text-medium-emphasis">Executor groups in your authorized departments.</p>
     </v-col>
+
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
+      <v-btn
+        variant="tonal"
+        prepend-icon="mdi-refresh"
+        :loading="boolLoading"
+        :disabled="boolLoading || boolNewGroupOpen"
+        @click="loadGroups()">
+        Refresh
+      </v-btn>
+
       <v-btn
         v-if="boolCanCreate"
         color="primary"
@@ -15,20 +25,14 @@
         @click="openNewGroup">
         New Group
       </v-btn>
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="boolLoading"
-        :disabled="boolLoading || boolNewGroupOpen"
-        @click="loadGroups()">
-        Refresh
-      </v-btn>
     </v-col>
   </v-row>
+
   <v-tabs model-value="groups" color="primary" class="mb-4" aria-label="Executor sections">
     <v-tab value="executors" to="/executors" exact>Executors</v-tab>
     <v-tab value="groups" to="/executors/groups">Executor Groups</v-tab>
   </v-tabs>
+
   <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form aria-label="Executor group filters" @submit.prevent="applyFilters">
@@ -39,12 +43,13 @@
               label="Name"
               placeholder="Search by name"
               maxlength="128"
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               clearable
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" md="6">
             <v-select
               v-model="arrDepartmentId"
@@ -58,23 +63,35 @@
               chips
               closable-chips
               clearable
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               :disabled="boolLoading" />
           </v-col>
         </v-row>
+
         <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
-            Apply
-          </v-btn>
-          <v-btn variant="tonal" :disabled="boolLoading" @click="resetFilters">
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-filter-remove-outline"
+            :disabled="boolLoading"
+            @click="resetFilters">
             Reset Filters
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            type="submit"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-check"
+            :disabled="boolLoading">
+            Apply
           </v-btn>
         </div>
       </form>
     </v-card-text>
   </v-card>
+
   <template v-if="creationResult">
     <v-alert type="success" variant="tonal" class="mb-4" role="status">
       Group
@@ -90,6 +107,7 @@
       created with
       {{ creationResult.executor_group.member_count }} members.
     </v-alert>
+
     <v-alert
       v-for="warning in creationResult.warnings"
       :key="warning.code"
@@ -100,6 +118,7 @@
       {{ warning.message }}
     </v-alert>
   </template>
+
   <v-alert
     v-if="strSuccessMessage"
     type="success"
@@ -108,12 +127,14 @@
     role="status">
     {{ strSuccessMessage }}
   </v-alert>
+
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="groupPage" class="mt-2">
       Previously loaded results are shown. Refresh to try again.
     </p>
   </v-alert>
+
   <v-alert
     v-if="
       sessionStore.access &&
@@ -125,6 +146,7 @@
     class="mb-4">
     No department access. Ask an organization administrator to assign a role.
   </v-alert>
+
   <div
     class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
     <span>Time zone: {{ strTimeZone }}</span>
@@ -132,6 +154,7 @@
       Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
     </span>
   </div>
+
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
       :headers="ARR_HEADER"
@@ -156,14 +179,17 @@
           {{ item.name }}
         </RouterLink>
       </template>
+
       <template #item.department="{ item }">
         <div class="table-text">{{ item.department.path }}</div>
       </template>
+
       <template #item.notes="{ item }">
         <div class="table-text notes-summary" :title="item.notes">
           {{ item.notes || "—" }}
         </div>
       </template>
+
       <template #no-data>
         {{
           requestError
@@ -172,13 +198,16 @@
         }}
       </template>
     </v-data-table-server>
+
     <template v-if="groupPage">
       <v-divider />
+
       <div class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
         <p class="text-body-2 text-medium-emphasis" aria-live="polite">
           {{ groupPage.total_count }} groups · Page {{ groupPage.page }} of
           {{ groupPage.total_pages }}
         </p>
+
         <v-pagination
           v-if="groupPage.total_pages > 1"
           :model-value="groupPage.page"
@@ -191,11 +220,13 @@
       </div>
     </template>
   </v-card>
+
   <ExecutorGroupFormDialog
     v-if="boolNewGroupOpen"
     :departments="arrCreationDepartment"
     @close="boolNewGroupOpen = false"
     @saved="handleGroupCreated" />
+
   <RouterView v-slot="{ Component }">
     <component
       :is="Component"
@@ -220,6 +251,7 @@ import type {
   ExecutorGroupListResponse,
   ExecutorGroupWriteResponse,
 } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 const ARR_HEADER = [
@@ -234,29 +266,36 @@ const sessionStore = useSessionStore();
 const route = useRoute();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const strName = ref<string | null>("");
+
 const arrDepartmentId = ref<string[]>(
   typeof route.query.department_id === "string" ? [route.query.department_id] : [],
 );
+
 const groupPage = shallowRef<ExecutorGroupListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const strUpdatedAt = ref<string | null>(null);
+
 const arrCreationDepartment = computed(() =>
   (sessionStore.access?.departments ?? []).filter(
     (department) => sessionStore.access?.is_org_admin || department.role === "developer",
   ),
 );
+
 const boolCanCreate = computed(
   () => sessionStore.access?.is_org_admin || arrCreationDepartment.value.length > 0,
 );
+
 const boolNewGroupOpen = ref(false);
 const creationResult = shallowRef<ExecutorGroupWriteResponse | null>(null);
 const strSuccessMessage = ref("");
 let intListRevision = 0;
+
 let appliedFilters: ExecutorGroupListFilters = {
   name: "",
   departmentIds: [...arrDepartmentId.value],
 };
+
 let intRequestedPage = 1;
 
 async function loadGroups(pageNumber: number = intRequestedPage): Promise<void> {
@@ -340,7 +379,9 @@ watch(
     if (groupId) boolNewGroupOpen.value = false;
   },
 );
+
 onMounted(() => void loadGroups());
+
 onBeforeUnmount(() => {
   intListRevision += 1;
 });

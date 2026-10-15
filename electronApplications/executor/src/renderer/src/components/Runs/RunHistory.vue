@@ -225,8 +225,10 @@
         </v-card-text>
 
         <v-card-actions>
+          <v-btn variant="tonal" prepend-icon="mdi-close" @click="boolShowDetails = false">
+            Close
+          </v-btn>
           <v-spacer />
-          <v-btn variant="tonal" @click="boolShowDetails = false">Close</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

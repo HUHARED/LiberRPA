@@ -6,10 +6,10 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from console_project.contracts import JsonValue, JsonRequest, JsonResponsePayload
 
@@ -32,8 +32,16 @@ class AssetCreationRequest(AssetDetailsRequest):
     value: JsonValue
 
 
-class AssetValueRequest(JsonRequest):
-    value: JsonValue
+class AssetUpdateRequest(JsonRequest):
+    details: AssetDetailsRequest | None = None
+    value: JsonValue = None
+
+    @model_validator(mode="after")
+    def validate_changes(self) -> Self:
+        # Omission keeps the current value; an explicit JSON null replaces it.
+        if self.details is None and "value" not in self.model_fields_set:
+            raise ValueError("Provide asset details or a replacement value.")
+        return self
 
 
 class AssetDeletionRequest(JsonRequest):

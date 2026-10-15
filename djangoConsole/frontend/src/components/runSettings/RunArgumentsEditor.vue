@@ -9,134 +9,142 @@
         :disabled="disabled"
         :readonly="readonly"
         :field-errors="fieldErrors">
-        <template v-if="$slots.environment" #environment>
+        <template #environment>
           <slot name="environment" />
         </template>
       </BuiltInArguments>
     </v-col>
 
-    <v-col cols="12" md="6">
-      <h3 class="text-subtitle-1 mb-3">Custom Project Arguments</h3>
+    <v-col cols="12" md="6" class="d-flex flex-column">
+      <h3 class="text-subtitle-1 mb-3 flex-shrink-0">Custom Project Arguments</h3>
 
-      <v-alert v-if="boolDuplicate" type="warning" variant="tonal" class="mb-3">
-        Duplicate keys exist. At runtime, the last value with the same key takes effect.
-      </v-alert>
+      <v-sheet :height="mdAndUp ? 0 : undefined" class="flex-grow-1 overflow-y-auto">
+        <v-alert v-if="boolDuplicate" type="warning" variant="tonal" class="mb-3">
+          Duplicate keys exist. At runtime, the last value with the same key takes effect.
+        </v-alert>
 
-      <v-alert v-if="strAssetError" type="error" variant="tonal" class="mb-3">
-        {{ strAssetError }}
-        <v-btn
+        <v-alert v-if="strAssetError" type="error" variant="tonal" class="mb-3">
+          {{ strAssetError }}
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-refresh"
+            size="small"
+            :disabled="disabled || boolLoadingAssets"
+            @click="loadAssets">
+            Retry
+          </v-btn>
+        </v-alert>
+
+        <v-alert v-if="strArgumentsError" type="error" variant="tonal" class="mb-3">
+          {{ strArgumentsError }}
+        </v-alert>
+
+        <v-alert
+          v-if="fieldErrors?.['settings.custom_prj_args']"
+          type="error"
           variant="tonal"
-          size="small"
-          :disabled="disabled || boolLoadingAssets"
-          @click="loadAssets">
-          Retry
-        </v-btn>
-      </v-alert>
+          class="mb-3">
+          {{ fieldErrors?.["settings.custom_prj_args"]?.join(" ") }}
+        </v-alert>
 
-      <v-alert v-if="strArgumentsError" type="error" variant="tonal" class="mb-3">
-        {{ strArgumentsError }}
-      </v-alert>
+        <v-alert
+          v-if="fieldErrors?.['settings.custom_arg_assets']"
+          type="error"
+          variant="tonal"
+          class="mb-3">
+          {{ fieldErrors?.["settings.custom_arg_assets"]?.join(" ") }}
+        </v-alert>
 
-      <v-alert
-        v-if="fieldErrors?.['settings.custom_prj_args']"
-        type="error"
-        variant="tonal"
-        class="mb-3">
-        {{ fieldErrors?.["settings.custom_prj_args"]?.join(" ") }}
-      </v-alert>
+        <p v-if="settings.custom_prj_args.length === 0" class="text-medium-emphasis">
+          No custom arguments.
+        </p>
 
-      <v-alert
-        v-if="fieldErrors?.['settings.custom_arg_assets']"
-        type="error"
-        variant="tonal"
-        class="mb-3">
-        {{ fieldErrors?.["settings.custom_arg_assets"]?.join(" ") }}
-      </v-alert>
+        <v-row
+          v-for="(argument, index) in settings.custom_prj_args"
+          :key="index"
+          no-gutters
+          align="center"
+          class="mb-2 flex-nowrap">
+          <v-col cols="4" class="pr-2">
+            <v-text-field
+              :model-value="argument[0]"
+              :aria-label="`Argument ${index + 1} name`"
+              readonly
+              variant="plain"
+              density="compact"
+              hide-details>
+              <v-tooltip activator="parent" location="top">{{ argument[0] }}</v-tooltip>
+            </v-text-field>
+          </v-col>
 
-      <p v-if="settings.custom_prj_args.length === 0" class="text-medium-emphasis">
-        No custom arguments.
-      </p>
+          <v-col cols="auto" class="px-1" aria-hidden="true">=</v-col>
 
-      <v-row
-        v-for="(argument, index) in settings.custom_prj_args"
-        :key="index"
-        no-gutters
-        align="center"
-        class="mb-4">
-        <v-col class="pr-3">
-          <v-text-field
-            :model-value="argument[0]"
-            :aria-label="`Argument ${index + 1} name`"
-            readonly
-            variant="plain"
-            density="compact"
-            hide-details>
-            <v-tooltip activator="parent" location="top">{{ argument[0] }}</v-tooltip>
-          </v-text-field>
-        </v-col>
+          <v-col cols="auto" class="px-3">
+            <v-switch
+              :model-value="!!settings.custom_arg_assets[index]"
+              :aria-label="`Source for ${argument[0]}: ${settings.custom_arg_assets[index] ? 'Asset' : 'Value'}`"
+              true-icon="mdi-database-outline"
+              false-icon="mdi-code-json"
+              density="compact"
+              hide-details
+              :disabled="disabled"
+              :readonly="readonly"
+              @update:model-value="setSource(index, $event === true)">
+              <v-tooltip activator="parent" location="top">
+                {{ settings.custom_arg_assets[index] ? "Asset" : "Value" }}
+              </v-tooltip>
+            </v-switch>
+          </v-col>
 
-        <v-col cols="auto">
-          <v-switch
-            :model-value="!!settings.custom_arg_assets[index]"
-            :label="settings.custom_arg_assets[index] ? 'Asset' : 'Value'"
-            true-icon="mdi-database-outline"
-            false-icon="mdi-code-json"
-            density="compact"
-            hide-details
-            :disabled="disabled"
-            :readonly="readonly"
-            @update:model-value="setSource(index, $event === true)" />
-        </v-col>
+          <v-col style="min-width: 0">
+            <v-select
+              v-if="settings.custom_arg_assets[index]"
+              variant="underlined"
+              density="compact"
+              :model-value="settings.custom_arg_assets[index]?.name"
+              :items="arrAsset"
+              item-title="name"
+              item-value="name"
+              label="(same dept, non-secret)"
+              hide-details="auto"
+              :error-messages="
+                getFieldErrors(fieldErrors, `settings.custom_arg_assets.${index}`)
+              "
+              :disabled="disabled"
+              :readonly="readonly"
+              :loading="boolLoadingAssets"
+              :rules="[(value) => !!value || 'Select an asset.']"
+              @update:model-value="setAsset(index, $event)">
+              <template #item="{ props: itemProps, item }">
+                <v-list-item v-bind="itemProps" :subtitle="item.raw.asset_type" />
+              </template>
+            </v-select>
 
-        <v-col cols="12">
-          <v-select
-            v-if="settings.custom_arg_assets[index]"
-            variant="underlined"
-            density="compact"
-            :model-value="settings.custom_arg_assets[index]?.name"
-            :items="arrAsset"
-            item-title="name"
-            item-value="name"
-            label="(same dept, non-secret)"
-            hide-details="auto"
-            :error-messages="
-              getFieldErrors(fieldErrors, `settings.custom_arg_assets.${index}`)
-            "
-            :disabled="disabled"
-            :readonly="readonly"
-            :loading="boolLoadingAssets"
-            :rules="[(value) => !!value || 'Select an asset.']"
-            @update:model-value="setAsset(index, $event)">
-            <template #item="{ props: itemProps, item }">
-              <v-list-item v-bind="itemProps" :subtitle="item.raw.asset_type" />
-            </template>
-          </v-select>
-
-          <v-textarea
-            v-else
-            v-model="arrValue[index]"
-            variant="underlined"
-            density="compact"
-            :aria-label="`Value for ${argument[0]} (JSON)`"
-            rows="1"
-            auto-grow
-            hide-details="auto"
-            :disabled="disabled"
-            :readonly="readonly"
-            :error-messages="[
-              ...(arrError[index] ? [arrError[index]!] : []),
-              ...getFieldErrors(fieldErrors, `settings.custom_prj_args.${index}`),
-            ]"
-            spellcheck="false"
-            @update:model-value="updateValue(index, $event)" />
-        </v-col>
-      </v-row>
+            <v-text-field
+              v-else
+              v-model="arrValue[index]"
+              variant="underlined"
+              density="compact"
+              :aria-label="`Value for ${argument[0]} (JSON)`"
+              hide-details="auto"
+              :disabled="disabled"
+              :readonly="readonly"
+              :error-messages="[
+                ...(arrError[index] ? [arrError[index]!] : []),
+                ...getFieldErrors(fieldErrors, `settings.custom_prj_args.${index}`),
+              ]"
+              spellcheck="false"
+              @update:model-value="updateValue(index, $event)" />
+          </v-col>
+        </v-row>
+      </v-sheet>
     </v-col>
   </v-row>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { useDisplay } from "vuetify";
 
 import BuiltInArguments from "./BuiltInArguments.vue";
 
@@ -154,6 +162,8 @@ const props = defineProps<{
   readonly?: boolean;
   fieldErrors?: Record<string, string[]>;
 }>();
+
+const { mdAndUp } = useDisplay();
 
 const INT_CUSTOM_ARGUMENT_MAX_COUNT = 100;
 const settings = defineModel<RunSettings>({ required: true });

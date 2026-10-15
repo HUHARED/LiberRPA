@@ -3,10 +3,12 @@
   <v-dialog :model-value="true" persistent max-width="680">
     <v-card>
       <v-card-title>Upload Package</v-card-title>
+
       <v-card-text>
         <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
           {{ strError }}
         </v-alert>
+
         <v-select
           v-model="strDepartmentId"
           :items="arrDepartment"
@@ -14,30 +16,42 @@
           item-value="id"
           label="Department"
           :disabled="boolBusy || !!upload" />
+
         <v-file-input
           v-model="file"
           label="Package ZIP"
           accept=".zip,application/zip"
           show-size
           :disabled="boolBusy || !!upload" />
+
         <p class="text-body-2 text-medium-emphasis">
           Existing package versions cannot be overwritten.
         </p>
+
         <v-progress-linear
           v-if="upload"
           :model-value="upload.size_bytes ? (upload.offset / upload.size_bytes) * 100 : 0"
           height="12"
           class="my-4" />
+
         <p v-if="upload">
           {{ formatFileSize(upload.offset) }} / {{ formatFileSize(upload.size_bytes) }} ·
           {{ PACKAGE_UPLOAD_LABELS[upload.state] }}
         </p>
       </v-card-text>
+
       <v-card-actions>
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolBusy" @click="cancel">Cancel</v-btn>
         <v-btn
           variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolBusy"
+          @click="cancel">
+          Cancel
+        </v-btn>
+        <v-spacer />
+        <v-btn
+          variant="tonal"
+          :prepend-icon="upload ? 'mdi-refresh' : 'mdi-upload'"
           color="primary"
           :loading="boolBusy"
           :disabled="!file || !strDepartmentId"
@@ -48,9 +62,12 @@
     </v-card>
   </v-dialog>
 </template>
+
 <script setup lang="ts">
 import { computed, ref, shallowRef } from "vue";
+
 import { useSessionStore } from "@/stores/sessionStore";
+
 import {
   createPackageUpload,
   getPackageUpload,
@@ -61,25 +78,31 @@ import {
   type PackageInfo,
 } from "@/api/packages";
 import { getApiError } from "@/api/errors";
+
 import { formatFileSize } from "@/app/formatters";
 import { PACKAGE_UPLOAD_LABELS } from "@/app/runLabels";
+
 const emit = defineEmits<{ close: []; saved: [packageInfo: PackageInfo] }>();
 const sessionStore = useSessionStore();
+
 const arrDepartment = computed(
   () =>
     sessionStore.access?.departments.filter(
       (department) => sessionStore.access?.is_org_admin || department.role === "developer",
     ) ?? [],
 );
+
 const strDepartmentId = ref(
   arrDepartment.value.length === 1 ? arrDepartment.value[0]!.id : "",
 );
+
 const file = ref<File | null>(null);
 const upload = shallowRef<PackageUpload | null>(null);
 const strError = ref("");
 const boolBusy = ref(false);
 let strRequestId = crypto.randomUUID();
 let strSubmittedIdentity = "";
+
 async function cancel(): Promise<void> {
   boolBusy.value = true;
   try {
@@ -92,6 +115,7 @@ async function cancel(): Promise<void> {
     boolBusy.value = false;
   }
 }
+
 async function submit(): Promise<void> {
   if (!file.value || !strDepartmentId.value) return;
   const strIdentity = JSON.stringify([
@@ -136,4 +160,5 @@ async function submit(): Promise<void> {
   }
 }
 </script>
+
 <style scoped></style>

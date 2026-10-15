@@ -23,7 +23,9 @@ from .models import RunEmailRecipient, RunEmailEvent
 if TYPE_CHECKING:
     from runs.models import Run
 
-_RE_FIELD = re.compile(r"{{([^{}]+)}}")
+_RE_FIELD = re.compile(
+    r'{{((?:Input_CustomArgs|Output_CustomArgs)\["(?:[^"\\]|\\.)*"\]|[A-Za-z_][A-Za-z0-9_]*)}}'
+)
 _RE_SUBJECT_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 _INT_MAX_SUBJECT_LENGTH = 256
 _INT_MAX_BODY_TEMPLATE_BYTES = 16 * 1024
@@ -134,10 +136,12 @@ def validate_run_email(
             "Select currently verified Run email recipients in this organization."
         ]
     setInputField = {
-        "Input_CustomArgs_" + str(entry[0]).encode("utf-8").hex() for entry in customArgs
+        f"Input_CustomArgs[{json.dumps(str(entry[0]), ensure_ascii=False)}]"
+        for entry in customArgs
     }
     setOutputField = {
-        "CustomArgs_" + str(entry[0]).encode("utf-8").hex() for entry in customArgs
+        f"Output_CustomArgs[{json.dumps(str(entry[0]), ensure_ascii=False)}]"
+        for entry in customArgs
     }
     for event, strKey, template in (
         (RunEmailEvent.START, "on_start", config.on_start),
@@ -263,11 +267,11 @@ def build_run_email(run: "Run", *, event: str, recipient: str) -> EmailMessage:
     dictOutput = dict(run.outputs or [])
     for strField in dict.fromkeys(_RE_FIELD.findall(strSubject + strBody)):
         for strPrefix, dictValue in (
-            ("Input_CustomArgs_", dictInput),
-            ("CustomArgs_", dictOutput),
+            ("Input_CustomArgs", dictInput),
+            ("Output_CustomArgs", dictOutput),
         ):
-            if strField.startswith(strPrefix):
-                strName = bytes.fromhex(strField[len(strPrefix) :]).decode("utf-8")
+            if strField.startswith(strPrefix + "["):
+                strName = json.loads(strField[len(strPrefix) + 1 : -1])
                 dictField[strField] = (
                     _render_value(dictValue[strName])
                     if strName in dictValue

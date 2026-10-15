@@ -1,11 +1,12 @@
 <!-- FileName: AssetDetailsDialog.vue -->
 <template>
   <AssetFormDialog
-    v-if="strEditMode && asset"
-    :mode="strEditMode"
+    v-if="boolEdit && asset"
+    mode="edit"
     :asset="asset"
-    @close="strEditMode = null"
+    @close="boolEdit = false"
     @saved="handleSaved" />
+
   <v-dialog
     :model-value="true"
     persistent
@@ -16,14 +17,17 @@
       <v-card-title id="asset-details-title">
         {{ boolConfirmDelete ? "Delete Asset" : "Asset Details" }}
       </v-card-title>
+
       <v-card-text>
         <v-progress-linear v-if="boolLoading" indeterminate class="mb-4" />
+
         <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
           {{ requestError.message }}
           <p v-if="asset" class="mt-2">
             Previously loaded details are shown and may be out of date.
           </p>
         </v-alert>
+
         <v-alert
           v-if="strSuccessMessage"
           type="success"
@@ -32,16 +36,19 @@
           role="status">
           {{ strSuccessMessage }}
         </v-alert>
+
         <template v-if="asset">
           <p v-if="boolConfirmDelete" class="text-anywhere mb-4">
             Delete
             <span class="text-highlight font-weight-bold">"{{ asset.path }}"?</span>
             This permanently removes the asset and its value.
           </p>
+
           <v-alert v-if="boolConfirmDelete" type="warning" variant="tonal" class="mb-4">
             Future Jobs that need this asset will fail to read it. Inputs for Jobs already
             created remain unchanged. Check any references in your flow code as well.
           </v-alert>
+
           <v-table v-if="boolConfirmDelete && asset.references?.length" class="mb-4">
             <thead>
               <tr>
@@ -50,6 +57,7 @@
                 <th>Type</th>
               </tr>
             </thead>
+
             <tbody>
               <tr
                 v-for="reference in asset.references"
@@ -57,10 +65,7 @@
                 <td>
                   <RouterLink
                     :to="{
-                      name:
-                        reference.kind === 'package'
-                          ? 'package-details'
-                          : 'schedule-details',
+                      name: reference.kind === 'package' ? 'package-details' : 'schedule',
                       params:
                         reference.kind === 'package'
                           ? { packageId: reference.id }
@@ -77,36 +82,45 @@
               </tr>
             </tbody>
           </v-table>
+
           <dl class="detail-fields">
             <div>
               <dt class="text-caption text-medium-emphasis">Name</dt>
               <dd>{{ asset.name }}</dd>
             </div>
+
             <div>
               <dt class="text-caption text-medium-emphasis">Department</dt>
               <dd>{{ asset.department.path }}</dd>
             </div>
+
             <div>
               <dt class="text-caption text-medium-emphasis">Type</dt>
               <dd>{{ getAssetTypeLabel(asset.asset_type) }}</dd>
             </div>
+
             <div>
               <dt class="text-caption text-medium-emphasis">
                 Updated At ({{ strTimeZone }})
               </dt>
+
               <dd>{{ formatDateTime(asset.updated_at, strTimeZone) }}</dd>
             </div>
+
             <div>
               <dt class="text-caption text-medium-emphasis">
                 Created At ({{ strTimeZone }})
               </dt>
+
               <dd>{{ formatDateTime(asset.created_at, strTimeZone) }}</dd>
             </div>
+
             <div class="full-width-field">
               <dt class="text-caption text-medium-emphasis">Path</dt>
               <dd>{{ asset.path }}</dd>
             </div>
           </dl>
+
           <template v-if="!boolConfirmDelete">
             <v-textarea
               class="mt-5"
@@ -116,9 +130,11 @@
               :rows="isSecretAsset(asset.asset_type) ? 1 : 6"
               readonly
               hide-details />
+
             <p v-if="isSecretAsset(asset.asset_type)" class="mt-2">
               The stored secret is never displayed.
             </p>
+
             <v-textarea
               class="mt-5"
               :model-value="asset.notes || '—'"
@@ -130,58 +146,65 @@
           </template>
         </template>
       </v-card-text>
+
       <v-card-actions class="flex-wrap ga-2">
         <template v-if="boolConfirmDelete">
-          <v-spacer />
-          <v-btn variant="tonal" :disabled="boolBusy" @click="boolConfirmDelete = false">
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-close"
+            :disabled="boolBusy"
+            @click="boolConfirmDelete = false">
             Cancel
           </v-btn>
+          <v-spacer />
           <v-btn
             color="error"
             variant="tonal"
+            prepend-icon="mdi-delete-outline"
             :loading="boolDeleting"
             :disabled="boolBusy"
             @click="submitDelete">
             Delete
           </v-btn>
         </template>
+
         <template v-else>
-          <v-btn
-            v-if="requestError && !boolDeleted"
-            variant="tonal"
-            :disabled="boolBusy"
-            @click="loadDetails">
-            Retry
-          </v-btn>
-          <v-btn
-            v-if="asset?.can_manage"
-            variant="tonal"
-            :disabled="boolBusy || !!requestError"
-            @click="openEdit('details')">
-            Edit Details
-          </v-btn>
-          <v-btn
-            v-if="asset?.can_edit_value"
-            variant="tonal"
-            :disabled="boolBusy || !!requestError"
-            @click="openEdit('value')">
-            {{ isSecretAsset(asset!.asset_type) ? "Replace Value" : "Edit Value" }}
-          </v-btn>
-          <v-btn
-            v-if="asset?.can_manage"
-            color="error"
-            variant="tonal"
-            :disabled="boolBusy || !!requestError"
-            @click="boolConfirmDelete = true">
-            Delete
-          </v-btn>
-          <v-spacer />
           <v-btn
             :to="{ name: 'assets', query: route.query }"
             replace
             variant="tonal"
+            :active="false"
+            prepend-icon="mdi-close"
             :disabled="boolBusy">
             Close
+          </v-btn>
+
+          <v-btn
+            v-if="requestError && !boolDeleted"
+            variant="tonal"
+            prepend-icon="mdi-refresh"
+            :disabled="boolBusy"
+            @click="loadDetails">
+            Retry
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            v-if="asset?.can_manage || asset?.can_edit_value"
+            variant="tonal"
+            prepend-icon="mdi-pencil-outline"
+            :disabled="boolBusy || !!requestError"
+            @click="openEdit">
+            Edit
+          </v-btn>
+
+          <v-btn
+            v-if="asset?.can_manage"
+            color="error"
+            variant="tonal"
+            prepend-icon="mdi-delete-outline"
+            :disabled="boolBusy || !!requestError"
+            @click="boolConfirmDelete = true">
+            Delete
           </v-btn>
         </template>
       </v-card-actions>
@@ -209,6 +232,7 @@ import type {
   AssetDetailsEntryResponse,
   AssetDetailsResponse,
 } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ assetId: string }>();
@@ -217,7 +241,7 @@ const route = useRoute();
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const asset = shallowRef<AssetDetailsEntryResponse | null>(null);
-const strEditMode = ref<"details" | "value" | null>(null);
+const boolEdit = ref(false);
 const requestError = shallowRef<ApiError | null>(null);
 const strSuccessMessage = ref("");
 const boolLoading = ref(false);
@@ -239,7 +263,7 @@ async function loadDetails(): Promise<void> {
     requestError.value = getApiError(e);
     if ([401, 403, 404].includes(requestError.value.statusCode)) {
       asset.value = null;
-      strEditMode.value = null;
+      boolEdit.value = false;
       boolConfirmDelete.value = false;
       if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
     }
@@ -248,15 +272,15 @@ async function loadDetails(): Promise<void> {
   }
 }
 
-function openEdit(mode: "details" | "value"): void {
+function openEdit(): void {
   if (boolBusy.value || !asset.value) return;
   strSuccessMessage.value = "";
-  strEditMode.value = mode;
+  boolEdit.value = true;
 }
 
 function handleSaved(response: AssetDetailsResponse): void {
   asset.value = response.asset;
-  strEditMode.value = null;
+  boolEdit.value = false;
   strSuccessMessage.value = "Asset updated.";
   requestError.value = null;
   emit("updated");
@@ -288,6 +312,7 @@ async function submitDelete(): Promise<void> {
 }
 
 onMounted(() => void loadDetails());
+
 onBeforeUnmount(() => {
   boolUnmounted = true;
 });

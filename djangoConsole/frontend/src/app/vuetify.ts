@@ -14,8 +14,8 @@ export const vuetify = createVuetify({
     defaultTheme: "light",
     themes: {
       // NOTE: Reserve highlight for important non-interactive text.
-      light: { colors: { highlight: "#A65332" } },
-      dark: { colors: { highlight: "#E8AE8C" } },
+      light: { colors: { highlight: "#A65332", inactive: "#66727A" } },
+      dark: { colors: { highlight: "#E8AE8C", inactive: "#A8B0B6" } },
     },
   },
 });

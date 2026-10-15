@@ -8,9 +8,19 @@
       density="compact"
       @update:model-value="resumeFollow" />
     <v-spacer />
-    <v-btn variant="tonal" :loading="boolLoading" @click="refresh">Refresh</v-btn>
+    <v-btn
+      variant="tonal"
+      prepend-icon="mdi-refresh"
+      :loading="boolLoading"
+      @click="refresh">
+      Refresh
+    </v-btn>
 
-    <v-btn variant="tonal" :disabled="!downloadEnabled" @click="emit('download')">
+    <v-btn
+      variant="tonal"
+      prepend-icon="mdi-download"
+      :disabled="!downloadEnabled"
+      @click="emit('download')">
       Download Logs
     </v-btn>
   </div>
@@ -38,6 +48,7 @@
           ...arrProcess.map((name) => ({ title: name, value: name })),
         ]"
         label="Process"
+        variant="underlined"
         hide-details
         @update:model-value="intPage = 1" />
     </v-col>
@@ -47,6 +58,7 @@
         v-model="arrLevel"
         :items="ARR_LOG_LEVEL"
         label="Level"
+        variant="underlined"
         multiple
         chips
         hide-details
@@ -57,6 +69,7 @@
       <v-text-field
         v-model="strMessage"
         label="Message"
+        variant="underlined"
         hide-details
         @update:model-value="intPage = 1" />
     </v-col>
@@ -134,6 +147,7 @@
       :disabled="!boolHasMore || boolLimit || boolLoading"
       :loading="boolLoading"
       variant="tonal"
+      prepend-icon="mdi-history"
       @click="loadOlder">
       Load Older
     </v-btn>

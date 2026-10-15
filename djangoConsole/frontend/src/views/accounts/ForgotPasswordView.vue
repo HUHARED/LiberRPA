@@ -1,108 +1,80 @@
-<!-- FileName: ForgotPasswordView.vue -->
+<!-- FileName: VerifyRunEmailView.vue -->
 <template>
-  <AuthLayout>
-    <h1 class="text-h5 mb-2">Forgot Password</h1>
-    <p class="text-medium-emphasis mb-6">
-      Enter your account email address to request a password reset link.
-    </p>
+  <v-card max-width="640" class="mx-auto">
+    <v-card-title>Run Email Verification</v-card-title>
 
-    <v-alert
-      v-if="strEmailMessage"
-      type="success"
-      variant="tonal"
-      class="mb-4"
-      role="status">
-      {{ strEmailMessage }}
-    </v-alert>
-    <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
-      {{ requestError.message }}
-      <p v-if="intRetrySeconds" class="mt-2">Try again in {{ intRetrySeconds }} seconds.</p>
-    </v-alert>
+    <v-card-text>
+      <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
+        {{ strError }}
+      </v-alert>
 
-    <v-form :novalidate="false" validate-on="submit" @submit.prevent="submitEmailRequest">
-      <v-text-field
-        v-model="strEmail"
-        label="Email"
-        name="email"
-        type="email"
-        autocomplete="email"
-        variant="outlined"
-        maxlength="254"
-        spellcheck="false"
-        autocapitalize="none"
-        :rules="[validateRequiredEmail]"
-        :error-messages="requestError?.fields.email ?? []"
-        :disabled="boolSending"
-        required />
-      <v-btn
-        type="submit"
-        color="primary"
-        variant="tonal"
-        block
-        :loading="boolSending"
-        :disabled="boolSending || intRetrySeconds > 0">
-        Send Reset Link
-      </v-btn>
-    </v-form>
+      <v-progress-linear v-if="boolLoading" indeterminate />
 
-    <v-btn
-      :to="{ name: 'sign-in' }"
-      variant="tonal"
-      block
-      class="mt-4"
-      :disabled="boolSending">
-      Back to Sign In
-    </v-btn>
-  </AuthLayout>
+      <template v-if="info">
+        <p class="text-anywhere mb-4">
+          <span class="text-highlight font-weight-bold">{{ info.organization_name }}</span>
+          would like to send automation run notifications to
+          <span class="text-highlight font-weight-bold">{{ info.email }}.</span>
+        </p>
+
+        <v-alert v-if="info.verified" type="success" variant="tonal">
+          This address is verified.
+        </v-alert>
+
+        <div v-else class="d-flex justify-end">
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-check"
+            color="primary"
+            :loading="boolBusy"
+            @click="confirm">
+            Confirm Email Address
+          </v-btn>
+        </div>
+      </template>
+    </v-card-text>
+  </v-card>
 </template>
+
 <script setup lang="ts">
-import { onBeforeUnmount, ref, shallowRef, watch } from "vue";
-import type { SubmitEventPromise } from "vuetify";
+import { onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
 
-import AuthLayout from "@/layouts/AuthLayout.vue";
+import { verifyRunEmail } from "@/api/runEmail";
+import { getApiError } from "@/api/errors";
 
-import { useRetryDelay } from "@/composables/useRetryDelay";
-import { type ApiError, getApiError } from "@/api/errors";
-import { requestPasswordResetEmail } from "@/api/passwordReset";
+const route = useRoute();
 
-const strEmail = ref("");
-const strEmailMessage = ref("");
-const boolSending = ref(false);
-const requestError = shallowRef<ApiError | null>(null);
-const { intRetrySeconds, setRetryDelay } = useRetryDelay();
-let boolUnmounted = false;
+const strToken =
+  new URLSearchParams(route.hash.slice(1)).get("token") ??
+  (typeof route.query.token === "string" ? route.query.token : "");
 
-function validateRequiredEmail(value: string): true | string {
-  return value.trim() ? true : "Enter your email address.";
-}
+const info = ref<Awaited<ReturnType<typeof verifyRunEmail>> | null>(null);
+const strError = ref("");
+const boolLoading = ref(true);
+const boolBusy = ref(false);
 
-async function submitEmailRequest(event: SubmitEventPromise): Promise<void> {
-  if (boolSending.value || intRetrySeconds.value) return;
-  const validation = await event;
-  if (!validation.valid || boolUnmounted || boolSending.value || intRetrySeconds.value)
-    return;
-  boolSending.value = true;
-  requestError.value = null;
-  strEmailMessage.value = "";
+async function confirm(): Promise<void> {
+  boolBusy.value = true;
+  strError.value = "";
   try {
-    const response = await requestPasswordResetEmail(strEmail.value.trim());
-    if (!boolUnmounted) strEmailMessage.value = response.message;
+    info.value = await verifyRunEmail(strToken, true);
   } catch (e) {
-    if (boolUnmounted) return;
-    requestError.value = getApiError(e);
-    setRetryDelay(requestError.value.retryAfterSeconds);
+    strError.value = getApiError(e).message;
   } finally {
-    boolSending.value = false;
+    boolBusy.value = false;
   }
 }
 
-watch(strEmail, () => {
-  strEmailMessage.value = "";
-  if (!intRetrySeconds.value) requestError.value = null;
-});
-
-onBeforeUnmount(() => {
-  boolUnmounted = true;
+onMounted(async () => {
+  try {
+    info.value = await verifyRunEmail(strToken);
+  } catch (e) {
+    strError.value = getApiError(e).message;
+  } finally {
+    boolLoading.value = false;
+  }
 });
 </script>
+
 <style scoped></style>

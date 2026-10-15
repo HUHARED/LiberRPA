@@ -69,10 +69,10 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       },
       {
         path: "/schedules/:scheduleId",
-        name: "schedule-details",
-        component: () => import("@/views/schedules/ScheduleDetailsView.vue"),
+        name: "schedule",
+        component: () => import("@/views/schedules/SchedulesView.vue"),
         props: true,
-        meta: { title: "Schedule Details", requiresBusiness: true },
+        meta: { title: "Schedule", requiresBusiness: true },
       },
       {
         path: "/jobs",

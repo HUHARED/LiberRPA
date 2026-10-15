@@ -9,7 +9,6 @@ from django.urls import path
 from .views import (
     list_or_create_assets,
     get_or_update_asset,
-    set_asset_value,
     delete_asset_view,
 )
 from . import public_views
@@ -17,7 +16,6 @@ from . import public_views
 urlpatterns = [
     path("assets/", list_or_create_assets, name="assets"),
     path("assets/<uuid:assetId>/", get_or_update_asset, name="asset"),
-    path("assets/<uuid:assetId>/value/", set_asset_value, name="asset-value"),
     path("assets/<uuid:assetId>/deletion/", delete_asset_view, name="asset-deletion"),
     path(
         "v1/assets/get_value/", public_views.get_asset_value, name="api-asset-get-value"

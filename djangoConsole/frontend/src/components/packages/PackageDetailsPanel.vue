@@ -1,238 +1,281 @@
 <!-- FileName: PackageDetailsPanel.vue -->
 <template>
-  <h2 class="text-h6 text-break mb-3">
-    {{ details.package.project_name }} · {{ details.package.project_version }}
-  </h2>
+  <v-card
+    variant="flat"
+    rounded="0"
+    class="d-flex flex-column flex-grow-1"
+    style="min-height: 0">
+    <v-card-text class="flex-grow-0 pb-2">
+      <h2 class="text-h6 text-break mb-3">
+        {{ details.package.project_name }} · {{ details.package.project_version }}
+      </h2>
 
-  <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
-    {{ strError }}
-  </v-alert>
+      <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
+        {{ strError }}
+      </v-alert>
 
-  <v-alert v-if="strSuccess" type="success" variant="tonal" class="mb-4">
-    {{ strSuccess }}
-  </v-alert>
+      <v-alert v-if="strSuccess" type="success" variant="tonal" class="mb-4">
+        {{ strSuccess }}
+      </v-alert>
 
-  <div class="d-flex flex-wrap ga-2 mb-4">
-    <v-btn
-      v-if="boolCanRun"
-      color="primary"
-      variant="tonal"
-      prepend-icon="mdi-play-outline"
-      :disabled="boolChanged || boolBusy"
-      @click="boolRun = true">
-      Run
-    </v-btn>
-
-    <v-btn
-      variant="tonal"
-      prepend-icon="mdi-download"
-      :loading="boolDownload"
-      @click="download">
-      Download Package
-    </v-btn>
-
-    <v-btn
-      v-if="details.package.can_manage"
-      color="error"
-      variant="tonal"
-      prepend-icon="mdi-delete-outline"
-      :disabled="boolBusy"
-      @click="boolDelete = true">
-      Delete
-    </v-btn>
-  </div>
-
-  <v-tabs v-model="strTab" show-arrows>
-    <v-tab value="settings">Settings</v-tab>
-    <v-tab value="metadata">Package</v-tab>
-    <v-tab value="preparation">Preparation</v-tab>
-    <v-tab value="references">References</v-tab>
-  </v-tabs>
-
-  <v-tabs-window v-model="strTab" class="mt-4">
-    <v-tabs-window-item value="settings" eager>
-      <v-form
-        v-if="draft"
-        ref="form"
-        :disabled="boolBusy"
-        :readonly="!details.package.can_manage">
-        <v-alert v-if="strEditError" type="error" variant="tonal" class="mb-4">
-          {{ strEditError }}
-        </v-alert>
-
-        <RunArgumentsEditor
-          v-model="draft"
-          :field-errors="dictFieldError"
-          :department-id="details.package.department_id"
+      <div class="d-flex flex-wrap ga-2 mb-4">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-download"
+          :loading="boolDownload"
+          @click="download">
+          Download Package
+        </v-btn>
+        <v-spacer />
+        <v-btn
+          v-if="details.package.can_manage"
+          color="error"
+          variant="tonal"
+          prepend-icon="mdi-delete-outline"
           :disabled="boolBusy"
-          :readonly="!details.package.can_manage"
-          @valid="boolArgsValid = $event">
-          <template #environment>
-            <v-text-field
-              v-model="strEnvironment"
-              :error-messages="getFieldErrors(dictFieldError, 'python_environment_name')"
-              label="Python Environment"
-              variant="underlined"
-              density="compact"
-              :rules="[validateEnvironmentName]" />
-          </template>
-        </RunArgumentsEditor>
+          @click="boolDelete = true">
+          Delete
+        </v-btn>
 
-        <v-select
-          v-model="arrApiInputKey"
-          :error-messages="getFieldErrors(dictFieldError, 'api_input_keys')"
-          :items="[...new Set(draft.custom_prj_args.map((argument) => argument[0]))]"
-          label="API Input Keys"
-          variant="underlined"
-          class="mt-3"
-          multiple
-          chips
-          hint="Only these inputs can be supplied through an API key."
-          persistent-hint />
+        <v-btn
+          v-if="boolCanRun"
+          color="primary"
+          variant="tonal"
+          prepend-icon="mdi-play-outline"
+          :disabled="boolChanged || boolBusy"
+          @click="boolRun = true">
+          Run
+        </v-btn>
+      </div>
+    </v-card-text>
 
-        <h3 class="text-h6 my-4">Dispatch &amp; Email</h3>
+    <v-tabs v-model="strTab" :disabled="boolBusy" show-arrows class="flex-shrink-0 mx-4">
+      <v-tab value="settings">Settings</v-tab>
+      <v-tab value="metadata">Package</v-tab>
+      <v-tab value="preparation">Preparation</v-tab>
+      <v-tab value="references">References</v-tab>
+    </v-tabs>
 
-        <RunDispatchEmailEditor
-          v-model="draft"
-          :disabled="boolBusy"
-          :readonly="!details.package.can_manage"
-          :field-errors="dictFieldError" />
-
-        <div class="d-flex ga-2 mt-4">
-          <v-btn
-            variant="tonal"
-            color="primary"
-            prepend-icon="mdi-content-save-outline"
-            :loading="boolBusy"
-            :disabled="!details.package.can_manage || !boolChanged || !boolArgsValid"
-            @click="save">
-            Save
-          </v-btn>
-
-          <v-btn
-            variant="tonal"
-            prepend-icon="mdi-close"
-            :disabled="!details.package.can_manage || !boolChanged || boolBusy"
-            @click="resetDraft">
-            Cancel
-          </v-btn>
-        </div>
-      </v-form>
-    </v-tabs-window-item>
-
-    <v-tabs-window-item value="metadata">
-      <v-card variant="outlined">
-        <v-card-text>
-          <p class="text-pre-wrap mb-4">
-            {{ details.package.description || "No description." }}
-          </p>
-
-          <v-table>
-            <tbody>
-              <tr>
-                <th scope="row" class="text-caption text-medium-emphasis">
-                  Version Summary
-                </th>
-                <td class="text-pre-wrap">
-                  {{ details.package.version_summary || "—" }}
-                </td>
-              </tr>
-
-              <tr>
-                <th scope="row" class="text-caption text-medium-emphasis">
-                  Requires LiberRPA
-                </th>
-                <td>{{ details.package.requires_liberrpa }}</td>
-              </tr>
-
-              <tr>
-                <th scope="row" class="text-caption text-medium-emphasis">Size</th>
-                <td>{{ formatFileSize(details.package.size_bytes) }}</td>
-              </tr>
-
-              <tr>
-                <th scope="row" class="text-caption text-medium-emphasis">Uploaded At</th>
-                <td>{{ formatDateTime(details.package.uploaded_at, strTimeZone) }}</td>
-              </tr>
-
-              <tr>
-                <th scope="row" class="text-caption text-medium-emphasis">Uploaded By</th>
-                <td>{{ details.package.uploaded_by_name }}</td>
-              </tr>
-
-              <tr>
-                <th scope="row" class="text-caption text-medium-emphasis">SHA-256</th>
-                <td class="text-break">{{ details.package.sha256 }}</td>
-              </tr>
-            </tbody>
-          </v-table>
-        </v-card-text>
-      </v-card>
-    </v-tabs-window-item>
-
-    <v-tabs-window-item value="preparation">
-      <v-card variant="outlined">
-        <v-card-text>
-          <v-btn
-            v-if="details.package.can_manage && boolHasPreparationRequests"
-            class="mb-4"
-            variant="tonal"
+    <v-card-text class="pa-0 overflow-hidden" style="min-height: 0">
+      <v-tabs-window v-model="strTab" class="h-100">
+        <v-tabs-window-item value="settings" eager class="h-100 overflow-y-auto pa-4">
+          <v-form
+            v-if="draft"
+            ref="form"
+            class="d-flex flex-column h-100"
             :disabled="boolBusy"
-            @click="openCancelPreparation">
-            Cancel Preparation Requests
-          </v-btn>
+            :readonly="!details.package.can_manage">
+            <v-alert
+              v-if="strEditError"
+              type="error"
+              variant="tonal"
+              class="mb-4 flex-shrink-0">
+              {{ strEditError }}
+            </v-alert>
 
-          <v-table>
-            <thead>
-              <tr>
-                <th>Executor</th>
-                <th>Status</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
+            <RunArgumentsEditor
+              v-model="draft"
+              class="flex-grow-1 flex-shrink-0"
+              :field-errors="dictFieldError"
+              :department-id="details.package.department_id"
+              :disabled="boolBusy"
+              :readonly="!details.package.can_manage"
+              @valid="boolArgsValid = $event">
+              <template #environment>
+                <v-text-field
+                  v-model="strEnvironment"
+                  :error-messages="
+                    getFieldErrors(dictFieldError, 'python_environment_name')
+                  "
+                  label="Python Environment"
+                  variant="underlined"
+                  density="compact"
+                  :rules="[validateEnvironmentName]">
+                  <v-tooltip activator="parent" location="top">
+                    Name of the Python environment used to run this package.
+                    <template v-if="!details.package.can_manage">
+                      A department developer or organization administrator can change it in
+                      Package Settings.
+                    </template>
+                  </v-tooltip>
+                </v-text-field>
+              </template>
+            </RunArgumentsEditor>
 
-            <tbody>
-              <tr v-for="preparation in details.preparation" :key="preparation.executor_id">
-                <td>
-                  <RouterLink
-                    :to="{
-                      name: 'executor-details',
-                      params: { executorId: preparation.executor_id },
-                    }"
-                    class="text-primary text-decoration-none">
-                    {{ preparation.executor_name }}
-                  </RouterLink>
-                </td>
-                <td>{{ PACKAGE_PREPARATION_LABELS[preparation.state] }}</td>
-                <td>{{ preparation.reason || "—" }}</td>
-              </tr>
+            <v-select
+              v-model="arrApiInputKey"
+              :error-messages="getFieldErrors(dictFieldError, 'api_input_keys')"
+              :items="[...new Set(draft.custom_prj_args.map((argument) => argument[0]))]"
+              label="API Input Keys"
+              variant="underlined"
+              class="mt-3 flex-grow-0 flex-shrink-0"
+              multiple
+              chips
+              hint="Only these inputs can be supplied through an API key."
+              persistent-hint />
 
-              <tr v-if="!details.preparation.length">
-                <td colspan="3">No preparation reports.</td>
-              </tr>
-            </tbody>
-          </v-table>
-        </v-card-text>
-      </v-card>
-    </v-tabs-window-item>
+            <v-sheet class="flex-shrink-0">
+              <h3 class="text-h6 my-4">Dispatch &amp; Email</h3>
 
-    <v-tabs-window-item value="references">
-      <v-card variant="outlined">
-        <v-card-text>
-          <p v-if="!details.references.length">No active references.</p>
+              <RunDispatchEmailEditor
+                v-model="draft"
+                :disabled="boolBusy"
+                :readonly="!details.package.can_manage"
+                :field-errors="dictFieldError" />
+            </v-sheet>
+          </v-form>
+        </v-tabs-window-item>
 
-          <v-list v-else>
-            <v-list-item
-              v-for="reference in details.references"
-              :key="`${reference.kind}:${reference.id}`"
-              :title="reference.name"
-              :subtitle="PACKAGE_REFERENCE_LABELS[reference.kind]"
-              :to="getReferenceLocation(reference)" />
-          </v-list>
-        </v-card-text>
-      </v-card>
-    </v-tabs-window-item>
-  </v-tabs-window>
+        <v-tabs-window-item value="metadata" class="h-100 overflow-y-auto pa-4">
+          <v-card variant="outlined">
+            <v-card-text>
+              <p class="text-pre-wrap mb-4">
+                {{ details.package.description || "No description." }}
+              </p>
+
+              <v-table>
+                <tbody>
+                  <tr>
+                    <th scope="row" class="text-caption text-medium-emphasis">
+                      Version Summary
+                    </th>
+                    <td class="text-pre-wrap">
+                      {{ details.package.version_summary || "—" }}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <th scope="row" class="text-caption text-medium-emphasis">
+                      Requires LiberRPA
+                    </th>
+                    <td>{{ details.package.requires_liberrpa }}</td>
+                  </tr>
+
+                  <tr>
+                    <th scope="row" class="text-caption text-medium-emphasis">Size</th>
+                    <td>{{ formatFileSize(details.package.size_bytes) }}</td>
+                  </tr>
+
+                  <tr>
+                    <th scope="row" class="text-caption text-medium-emphasis">
+                      Uploaded At
+                    </th>
+                    <td>{{ formatDateTime(details.package.uploaded_at, strTimeZone) }}</td>
+                  </tr>
+
+                  <tr>
+                    <th scope="row" class="text-caption text-medium-emphasis">
+                      Uploaded By
+                    </th>
+                    <td>{{ details.package.uploaded_by_name }}</td>
+                  </tr>
+
+                  <tr>
+                    <th scope="row" class="text-caption text-medium-emphasis">SHA-256</th>
+                    <td class="text-break">{{ details.package.sha256 }}</td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </v-card-text>
+          </v-card>
+        </v-tabs-window-item>
+
+        <v-tabs-window-item value="preparation" class="h-100 overflow-y-auto pa-4">
+          <v-card variant="outlined">
+            <v-card-text>
+              <div class="d-flex justify-end">
+                <v-btn
+                  v-if="details.package.can_manage && boolHasPreparationRequests"
+                  class="mb-4"
+                  variant="tonal"
+                  prepend-icon="mdi-cancel"
+                  :disabled="boolBusy"
+                  @click="openCancelPreparation">
+                  Cancel Preparation Requests
+                </v-btn>
+              </div>
+
+              <v-table>
+                <thead>
+                  <tr>
+                    <th>Executor</th>
+                    <th>Status</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <tr
+                    v-for="preparation in details.preparation"
+                    :key="preparation.executor_id">
+                    <td>
+                      <RouterLink
+                        :to="{
+                          name: 'executor-details',
+                          params: { executorId: preparation.executor_id },
+                        }"
+                        class="text-primary text-decoration-none">
+                        {{ preparation.executor_name }}
+                      </RouterLink>
+                    </td>
+                    <td>{{ PACKAGE_PREPARATION_LABELS[preparation.state] }}</td>
+                    <td>{{ preparation.reason || "—" }}</td>
+                  </tr>
+
+                  <tr v-if="!details.preparation.length">
+                    <td colspan="3">No preparation reports.</td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </v-card-text>
+          </v-card>
+        </v-tabs-window-item>
+
+        <v-tabs-window-item value="references" class="h-100 overflow-y-auto pa-4">
+          <v-card variant="outlined">
+            <v-card-text>
+              <p v-if="!details.references.length">No active references.</p>
+
+              <v-list v-else>
+                <v-list-item
+                  v-for="reference in details.references"
+                  :key="`${reference.kind}:${reference.id}`"
+                  :subtitle="PACKAGE_REFERENCE_LABELS[reference.kind]"
+                  :to="getReferenceLocation(reference)"
+                  class="text-decoration-none">
+                  <template #title>
+                    <span :class="{ 'text-primary': !!getReferenceLocation(reference) }">
+                      {{ reference.name }}
+                    </span>
+                  </template>
+                </v-list-item>
+              </v-list>
+            </v-card-text>
+          </v-card>
+        </v-tabs-window-item>
+      </v-tabs-window>
+    </v-card-text>
+
+    <v-card-actions v-if="strTab === 'settings'" class="px-4 border-t-thin">
+      <v-btn
+        variant="tonal"
+        prepend-icon="mdi-close"
+        :disabled="!details.package.can_manage || !boolChanged || boolBusy"
+        @click="resetDraft">
+        Cancel
+      </v-btn>
+      <v-spacer />
+      <v-btn
+        variant="tonal"
+        prepend-icon="mdi-content-save-outline"
+        color="primary"
+        :loading="boolBusy"
+        :disabled="!details.package.can_manage || !boolChanged || !boolArgsValid"
+        @click="save">
+        Save
+      </v-btn>
+    </v-card-actions>
+  </v-card>
 
   <v-dialog v-model="boolDelete" persistent scrollable max-width="600">
     <v-card>
@@ -249,9 +292,15 @@
           <v-list-item
             v-for="reference in details.references"
             :key="`${reference.kind}:${reference.id}`"
-            :title="reference.name"
             :subtitle="PACKAGE_REFERENCE_LABELS[reference.kind]"
-            :to="getReferenceLocation(reference)" />
+            :to="getReferenceLocation(reference)"
+            class="text-decoration-none">
+            <template #title>
+              <span :class="{ 'text-primary': !!getReferenceLocation(reference) }">
+                {{ reference.name }}
+              </span>
+            </template>
+          </v-list-item>
         </v-list>
 
         <v-alert v-if="strDeleteError" type="error" variant="tonal" class="mt-4">
@@ -260,12 +309,20 @@
       </v-card-text>
 
       <v-card-actions>
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolBusy" @click="boolDelete = false">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolBusy"
+          @click="boolDelete = false">
           Cancel
         </v-btn>
-
-        <v-btn variant="tonal" color="error" :loading="boolBusy" @click="remove">
+        <v-spacer />
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-delete-outline"
+          color="error"
+          :loading="boolBusy"
+          @click="remove">
           Delete
         </v-btn>
       </v-card-actions>
@@ -285,12 +342,20 @@
       </v-card-text>
 
       <v-card-actions>
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolBusy" @click="boolCancelPreparation = false">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-arrow-left"
+          :disabled="boolBusy"
+          @click="boolCancelPreparation = false">
           Back
         </v-btn>
-
-        <v-btn variant="tonal" color="error" :loading="boolBusy" @click="cancelPreparation">
+        <v-spacer />
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-cancel"
+          color="error"
+          :loading="boolBusy"
+          @click="cancelPreparation">
           Cancel Requests
         </v-btn>
       </v-card-actions>
@@ -387,7 +452,7 @@ let boolActive = true;
 
 function getReferenceLocation(reference: PackageReference): RouteLocationRaw | undefined {
   return reference.kind === PackageReferenceKind.Schedule
-    ? { name: "schedule-details", params: { scheduleId: reference.id } }
+    ? { name: "schedule", params: { scheduleId: reference.id } }
     : reference.kind === PackageReferenceKind.Job
       ? { name: "job-details", params: { jobId: reference.id } }
       : undefined;
@@ -433,7 +498,12 @@ async function save(): Promise<void> {
   dictFieldError.value = {};
   try {
     await nextTick();
-    if (!(await form.value?.validate())?.valid || !boolActive) return;
+    const validation = await form.value?.validate();
+    if (!boolActive) return;
+    if (!validation?.valid) {
+      strTab.value = "settings";
+      return;
+    }
 
     const packageInfo = await savePackageSettings(
       props.details.package.id,
@@ -447,6 +517,7 @@ async function save(): Promise<void> {
     strSuccess.value = "Settings saved.";
   } catch (e) {
     const error = getApiError(e);
+    strTab.value = "settings";
     strEditError.value = error.message;
     dictFieldError.value = error.fields;
   } finally {
@@ -500,6 +571,10 @@ function handleRun(): void {
 }
 
 watch(() => props.details.package, resetDraft, { immediate: true });
+
+watch(strTab, (_strTab, strPreviousTab) => {
+  if (strPreviousTab === "settings") resetDraft();
+});
 
 onBeforeUnmount(() => {
   boolActive = false;

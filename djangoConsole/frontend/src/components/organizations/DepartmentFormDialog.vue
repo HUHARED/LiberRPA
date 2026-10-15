@@ -16,6 +16,7 @@
               : "New Subdepartment"
         }}
       </v-card-title>
+
       <v-card-text>
         <v-form
           id="department-form"
@@ -33,6 +34,7 @@
               {{ strMessage }}
             </p>
           </v-alert>
+
           <v-text-field
             v-model="strName"
             label="Name"
@@ -42,6 +44,7 @@
             :disabled="boolSaving"
             required
             @update:model-value="saveError = null" />
+
           <v-select
             v-model="strParentId"
             :items="arrParentOption"
@@ -53,21 +56,25 @@
             :error-messages="saveError?.fields.parent_id ?? []"
             :disabled="boolSaving"
             @update:model-value="saveError = null" />
+
           <v-text-field
             v-if="department"
             :model-value="department.path"
             label="Current Path"
             variant="outlined"
             readonly />
+
           <v-text-field
             :model-value="strNewPath"
             :label="department ? 'New Path' : 'Path'"
             variant="outlined"
             readonly />
+
           <v-alert v-if="boolPathChanged" type="warning" variant="tonal" class="mb-4">
             Subdepartment and resource paths will also change. Update any paths used in
             code, arguments, and templates.
           </v-alert>
+
           <v-textarea
             v-model="strNotes"
             label="Notes"
@@ -80,14 +87,22 @@
             @update:model-value="saveError = null" />
         </v-form>
       </v-card-text>
+
       <v-card-actions>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolSaving"
+          @click="closeForm">
+          Cancel
+        </v-btn>
         <v-spacer />
-        <v-btn variant="tonal" :disabled="boolSaving" @click="closeForm">Cancel</v-btn>
         <v-btn
           type="submit"
           form="department-form"
           color="primary"
           variant="tonal"
+          :prepend-icon="department ? 'mdi-content-save-outline' : 'mdi-plus'"
           :loading="boolSaving"
           :disabled="boolSaving || !boolCanManage">
           {{ department ? "Save" : "Create" }}
@@ -118,19 +133,24 @@ const props = defineProps<{
   department?: DepartmentListEntryResponse;
   parentId?: string | null;
 }>();
+
 const emit = defineEmits<{
   close: [];
   saved: [department: DepartmentRecordResponse];
 }>();
 
 const sessionStore = useSessionStore();
+
 const boolCanManage = computed(
   () => sessionStore.access?.is_org_admin && sessionStore.access.business_available,
 );
+
 const strName = ref<string | null>(props.department?.name ?? "");
+
 const strParentId = ref<string | null>(
   props.department ? props.department.parent_id : (props.parentId ?? null),
 );
+
 const strNotes = ref<string | null>(props.department?.notes ?? "");
 const saveError = shallowRef<ApiError | null>(null);
 const boolSaving = ref(false);
@@ -145,6 +165,7 @@ const arrParentOption = computed(() => [
         !department.path.startsWith(`${props.department.path}/`)),
   ),
 ]);
+
 const strNewPath = computed(() => {
   if (!strName.value) return "";
   if (strParentId.value === null) return strName.value;
@@ -153,6 +174,7 @@ const strNewPath = computed(() => {
   );
   return parent ? `${parent.path}/${strName.value}` : "";
 });
+
 const boolPathChanged = computed(
   () =>
     !!props.department && !!strNewPath.value && strNewPath.value !== props.department.path,

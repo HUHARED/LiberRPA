@@ -7,6 +7,15 @@
 
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
+        variant="tonal"
+        prepend-icon="mdi-refresh"
+        :loading="boolLoading"
+        :disabled="boolLoading || !strActiveDepartmentPath"
+        @click="load">
+        Refresh
+      </v-btn>
+
+      <v-btn
         color="primary"
         variant="tonal"
         prepend-icon="mdi-upload"
@@ -18,18 +27,10 @@
       <v-btn
         color="error"
         variant="tonal"
+        prepend-icon="mdi-delete-outline"
         :disabled="!boolReady || !selectedFilePaths.length"
         @click="deletePaths = [...selectedFilePaths]">
         Delete Selected
-      </v-btn>
-
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="boolLoading"
-        :disabled="boolLoading || !strActiveDepartmentPath"
-        @click="load">
-        Refresh
       </v-btn>
     </v-col>
   </v-row>
@@ -45,33 +46,36 @@
               item-title="path"
               item-value="path"
               label="Department"
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               clearable
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" md="3">
             <v-text-field
               v-model="strName"
               label="File Name"
               maxlength="128"
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               clearable
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" sm="6" md="3">
             <v-select
               v-model="strSortBy"
               :items="ARR_SORT_OPTION"
               label="Sort By"
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" sm="6" md="3">
             <v-switch
               v-model="strOrder"
@@ -86,17 +90,29 @@
               :disabled="boolLoading" />
           </v-col>
         </v-row>
+
         <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
-            Apply
-          </v-btn>
-          <v-btn variant="tonal" :disabled="boolLoading" @click="clearFilters">
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-filter-remove-outline"
+            :disabled="boolLoading"
+            @click="clearFilters">
             Reset Filters
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            type="submit"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-check"
+            :disabled="boolLoading">
+            Apply
           </v-btn>
         </div>
       </form>
     </v-card-text>
   </v-card>
+
   <v-alert
     v-if="strMessage"
     type="success"
@@ -105,9 +121,11 @@
     role="status">
     {{ strMessage }}
   </v-alert>
+
   <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
     {{ error.message }}
   </v-alert>
+
   <v-alert
     v-if="strActionError"
     type="error"
@@ -118,18 +136,22 @@
     @click:close="strActionError = ''">
     {{ strActionError }}
   </v-alert>
+
   <v-alert v-if="!strActiveDepartmentPath" type="info" variant="tonal">
     Select a department to view its files.
   </v-alert>
+
   <template v-else>
     <div v-if="page" class="mb-4">
       <p class="file-path mb-1">{{ page.department_path }}</p>
+
       <p class="text-body-2">
         Packages + Files:
         {{ formatFileSize(page.usage.used_bytes + page.usage.reserved_bytes) }} /
         {{ formatFileSize(page.usage.limit_bytes) }} · Maximum
         {{ formatFileSize(page.usage.max_file_bytes) }} per file
       </p>
+
       <p
         v-if="page.usage.reserved_bytes || page.usage.pending_cleanup_bytes"
         class="text-body-2 text-medium-emphasis">
@@ -137,6 +159,7 @@
         cleanup: {{ formatFileSize(page.usage.pending_cleanup_bytes) }}
       </p>
     </div>
+
     <v-card variant="outlined">
       <v-data-table-server
         v-model="selectedFilePaths"
@@ -154,15 +177,19 @@
         <template #item.name="{ item }">
           <span class="file-path">{{ item.name }}</span>
         </template>
+
         <template #item.size_bytes="{ item }">
           {{ formatFileSize(item.size_bytes) }}
         </template>
+
         <template #item.uploaded_by_name="{ item }">
           <span class="file-path">{{ item.uploaded_by_name }}</span>
         </template>
+
         <template #item.uploaded_at="{ item }">
           {{ formatDateTime(item.uploaded_at, strTimeZone) }}
         </template>
+
         <template #item.actions="{ item }">
           <div class="d-flex align-center ga-1">
             <v-btn
@@ -174,6 +201,7 @@
               aria-label="Download"
               icon="mdi-download"
               @click="download(item.path)" />
+
             <v-btn
               v-tooltip:bottom="'Copy Path'"
               variant="text"
@@ -181,6 +209,7 @@
               aria-label="Copy Path"
               icon="mdi-content-copy"
               @click="copyPath(item.path)" />
+
             <v-btn
               v-tooltip:bottom="'Delete'"
               variant="text"
@@ -192,6 +221,7 @@
               @click="deletePaths = [item.path]" />
           </div>
         </template>
+
         <template #no-data>
           {{
             error
@@ -200,10 +230,12 @@
           }}
         </template>
       </v-data-table-server>
+
       <div
         v-if="page"
         class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
         <p>{{ page.total_count }} files · Page {{ page.page }} of {{ page.total_pages }}</p>
+
         <v-pagination
           v-if="page.total_pages > 1"
           :model-value="page.page"
@@ -214,12 +246,14 @@
       </div>
     </v-card>
   </template>
+
   <SharedFileUploadDialog
     v-if="boolShowUpload && page"
     :department-path="page.department_path"
     :max-file-bytes="page.usage.max_file_bytes"
     @close="boolShowUpload = false"
     @saved="handleUploaded" />
+
   <SharedFileDeleteDialog
     v-if="deletePaths"
     :paths="deletePaths"
@@ -237,6 +271,7 @@ import SharedFileUploadDialog from "@/components/sharedFiles/SharedFileUploadDia
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { formatDateTime, formatFileSize } from "@/app/formatters";
+
 import { type ApiError, getApiError } from "@/api/errors";
 import { getSharedFiles, downloadSharedFile } from "@/api/sharedFiles";
 import type {
@@ -253,18 +288,23 @@ const ARR_HEADER = [
   { title: "Uploaded At", key: "uploaded_at", minWidth: 200 },
   { title: "Actions", key: "actions", width: 152 },
 ];
+
 const ARR_SORT_OPTION = [
   { title: "File Name", value: "name" },
   { title: "Size", value: "size" },
   { title: "Uploaded At", value: "uploaded_at" },
 ];
+
 const sessionStore = useSessionStore();
 const route = useRoute();
 const router = useRouter();
+
 const departments = computed(() =>
   (sessionStore.access?.departments ?? []).map((entry) => ({ path: `/${entry.path}` })),
 );
+
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+
 const strActiveDepartmentPath = computed(() =>
   typeof route.query.department_path === "string"
     ? route.query.department_path
@@ -272,17 +312,21 @@ const strActiveDepartmentPath = computed(() =>
       ? departments.value[0]!.path
       : "",
 );
+
 const strActiveName = computed(() =>
   typeof route.query.name === "string" ? route.query.name : "",
 );
+
 const strActiveSort = computed<FileListRequest["sort_by"]>(() =>
   route.query.sort_by === "name" || route.query.sort_by === "size"
     ? route.query.sort_by
     : "uploaded_at",
 );
+
 const strActiveOrder = computed<FileListRequest["order"]>(() =>
   route.query.order === "asc" ? "asc" : "desc",
 );
+
 const strDepartmentPath = ref<string | null>("");
 const strName = ref<string | null>("");
 const strSortBy = ref<FileListRequest["sort_by"]>("uploaded_at");
@@ -296,6 +340,7 @@ const boolLoading = ref(false);
 const boolShowUpload = ref(false);
 const deletePaths = shallowRef<string[] | null>(null);
 const setDownloadingFilePath = ref(new Set<string>());
+
 const boolDirty = computed(
   () =>
     (strDepartmentPath.value ?? "") !== strActiveDepartmentPath.value ||
@@ -303,6 +348,7 @@ const boolDirty = computed(
     strSortBy.value !== strActiveSort.value ||
     strOrder.value !== strActiveOrder.value,
 );
+
 const boolReady = computed(
   () =>
     !!page.value &&
@@ -311,8 +357,10 @@ const boolReady = computed(
     !boolDirty.value &&
     !!sessionStore.access?.business_available,
 );
+
 let intRevision = 0;
 let boolAlive = true;
+
 async function changePage(value: number): Promise<void> {
   await router.replace({ query: { ...route.query, page: String(value) } });
 }
@@ -354,6 +402,7 @@ async function load(): Promise<void> {
     if (intCurrentRevision === intRevision) boolLoading.value = false;
   }
 }
+
 async function applyFilters(): Promise<void> {
   const query = {
     department_path: strDepartmentPath.value || undefined,
@@ -365,22 +414,26 @@ async function applyFilters(): Promise<void> {
     await load();
   else await router.replace({ name: "shared-files", query });
 }
+
 function clearFilters(): void {
   strName.value = "";
   strSortBy.value = "uploaded_at";
   strOrder.value = "desc";
   void applyFilters();
 }
+
 function handleUploaded(file: FileInfoResponse): void {
   boolShowUpload.value = false;
   strMessage.value = `File uploaded: ${file.path}`;
   void load();
 }
+
 function handleDeleted(result: FileDeleteResponse): void {
   deletePaths.value = null;
   strMessage.value = `${result.deleted_count} ${result.deleted_count === 1 ? "file deleted" : "files deleted"}.${result.missing_paths.length ? ` ${result.missing_paths.length} already unavailable.` : ""}`;
   void load();
 }
+
 async function copyPath(path: string): Promise<void> {
   const intCurrentRevision = intRevision;
   strActionError.value = "";
@@ -393,6 +446,7 @@ async function copyPath(path: string): Promise<void> {
       strActionError.value = `Could not copy the path: ${path}`;
   }
 }
+
 async function download(path: string): Promise<void> {
   if (setDownloadingFilePath.value.has(path)) return;
   const intCurrentRevision = intRevision;
@@ -436,6 +490,7 @@ watch(
   },
   { immediate: true },
 );
+
 onBeforeUnmount(() => {
   boolAlive = false;
   intRevision += 1;

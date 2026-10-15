@@ -25,6 +25,7 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
+from .contracts import AssetUpdateRequest
 from .models import AssetType, SECRET_ASSET_TYPES, Asset
 from .queries import get_asset_query
 
@@ -154,26 +155,52 @@ def create_asset(
 
 
 @sensitive_variables()
-def update_asset_details(
-    access: OrganizationAccessContext, assetId: uuid.UUID, *, name: str, notes: str
+def update_asset(
+    access: OrganizationAccessContext, assetId: uuid.UUID, form: AssetUpdateRequest
 ) -> Asset:
-    asset = get_asset_query(access, requiredRole=DepartmentRole.DEVELOPER).get(pk=assetId)
+    """The caller owns the organization/account locks and the enclosing transaction."""
+    asset = get_asset_query(access).get(pk=assetId)
+    boolSetValue = "value" in form.model_fields_set
+    if form.details is not None or (
+        boolSetValue and asset.asset_type in SECRET_ASSET_TYPES
+    ):
+        get_authorized_departments(access, requiredRole=DepartmentRole.DEVELOPER).get(
+            pk=asset.department_id
+        )
+
     dictBefore = get_audit_snapshot(asset)
-    asset.name = name
-    asset.notes = notes
-    _prepare_asset_details(asset)
-    if dictBefore == get_audit_snapshot(asset):
+    if form.details is not None:
+        asset.name = form.details.name
+        asset.notes = form.details.notes
+        _prepare_asset_details(asset)
+    boolDetailsChanged = dictBefore != get_audit_snapshot(asset)
+    listField = ["name", "name_key", "notes"] if boolDetailsChanged else []
+    if boolSetValue:
+        _set_asset_value(asset, form.value)
+        listField.extend(["value_json", "encrypted_value"])
+    if not listField:
         return asset
+
     asset.updated_at = timezone.now()
-    asset.save(update_fields=["name", "name_key", "notes", "updated_at"])
-    record_audit(
-        "asset.update",
-        actor=access.actor,
-        organization=access.organization,
-        target=asset,
-        channel=access.channel,
-        before=dictBefore,
-    )
+    asset.save(update_fields=[*listField, "updated_at"])
+    if boolDetailsChanged:
+        record_audit(
+            "asset.update",
+            actor=access.actor,
+            organization=access.organization,
+            target=asset,
+            channel=access.channel,
+            before=dictBefore,
+        )
+    if boolSetValue:
+        # Keep values out of the audit trail, including ordinary values.
+        record_audit(
+            "asset.set_value",
+            actor=access.actor,
+            organization=access.organization,
+            target=asset,
+            channel=access.channel,
+        )
     return asset
 
 
@@ -194,18 +221,6 @@ def save_asset_value(
         channel=access.channel,
     )
     return asset
-
-
-@sensitive_variables()
-def update_asset_value(
-    access: OrganizationAccessContext, assetId: uuid.UUID, *, value: JsonValue
-) -> Asset:
-    asset = get_asset_query(access).get(pk=assetId)
-    if asset.asset_type in SECRET_ASSET_TYPES:
-        get_authorized_departments(access, requiredRole=DepartmentRole.DEVELOPER).get(
-            pk=asset.department_id
-        )
-    return save_asset_value(access, asset, value=value)
 
 
 def delete_asset(access: OrganizationAccessContext, assetId: uuid.UUID) -> None:

@@ -5,7 +5,9 @@
       Back to Job Queue
     </v-btn>
     <v-spacer />
-    <v-btn variant="tonal" :loading="boolLoading" @click="load">Refresh</v-btn>
+    <v-btn variant="tonal" prepend-icon="mdi-refresh" :loading="boolLoading" @click="load">
+      Refresh
+    </v-btn>
   </div>
 
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
@@ -93,6 +95,7 @@
 
       <v-card-text>
         <RunArgumentsDetails
+          snapshot
           :settings="job.run_snapshot"
           :python-environment-name="job.run_snapshot.python_environment_name" />
       </v-card-text>

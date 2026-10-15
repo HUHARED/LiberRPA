@@ -73,20 +73,20 @@
       </v-card-text>
 
       <v-card-actions>
-        <v-spacer />
-
         <v-btn
           variant="tonal"
+          :prepend-icon="boolBusy ? 'mdi-cancel' : 'mdi-close'"
           :disabled="boolCancelRequested || boolCanceling"
           @click="cancel">
           {{ boolBusy ? "Cancel Upload" : "Cancel" }}
         </v-btn>
-
+        <v-spacer />
         <v-btn
           type="submit"
           form="file-upload-form"
           color="primary"
           variant="tonal"
+          prepend-icon="mdi-upload"
           :loading="boolBusy"
           :disabled="boolBusy || boolCanceling || !boolAllowed">
           {{ upload ? "Retry Upload" : "Upload" }}
@@ -120,9 +120,11 @@ const props = defineProps<{ departmentPath: string; maxFileBytes: number }>();
 const emit = defineEmits<{ close: []; saved: [file: FileInfoResponse] }>();
 const sessionStore = useSessionStore();
 const fileInput = shallowRef<File | File[] | null>(null);
+
 const file = computed(() =>
   Array.isArray(fileInput.value) ? (fileInput.value[0] ?? null) : fileInput.value,
 );
+
 const strName = ref("");
 const boolOverwrite = ref(false);
 const upload = shallowRef<FileUploadResponse | null>(null);
@@ -132,10 +134,13 @@ const boolCanceling = ref(false);
 const boolCancelRequested = ref(false);
 const strStage = ref("");
 const floatProgress = ref(0);
+
 const boolLocked = computed(
   () => boolBusy.value || boolCanceling.value || upload.value !== null,
 );
+
 const strPath = computed(() => `${props.departmentPath}/${strName.value}`);
+
 const boolAllowed = computed(
   () =>
     sessionStore.access?.business_available &&
@@ -143,12 +148,15 @@ const boolAllowed = computed(
       (department) => `/${department.path}` === props.departmentPath,
     ),
 );
+
 let identity: Awaited<ReturnType<typeof getOrCreateFileRequestIdentity>> | null = null;
 let boolAlive = true;
+
 function selectFile(): void {
   strName.value = file.value?.name ?? "";
   error.value = null;
 }
+
 function validateFile(): true | string {
   return !file.value
     ? "Select a file."
@@ -156,6 +164,7 @@ function validateFile(): true | string {
       ? `Select a file no larger than ${formatFileSize(props.maxFileBytes)}.`
       : true;
 }
+
 function handleUploadCompleted(result: FileUploadResponse): void {
   if (result.state !== "completed" || !result.file)
     throw new ApiError("The upload is not complete. Retry to check its status.");
@@ -163,6 +172,7 @@ function handleUploadCompleted(result: FileUploadResponse): void {
   if (identity) clearFileRequestIdentity(identity);
   if (boolAlive) emit("saved", result.file);
 }
+
 async function cancelKnownUpload(): Promise<void> {
   if (upload.value) {
     const result = await finishSharedUpload(upload.value.upload_id, "cancel");
@@ -177,6 +187,7 @@ async function cancelKnownUpload(): Promise<void> {
   // An unknown create result keeps its identity for a later retry with the same file.
   if (boolAlive) emit("close");
 }
+
 async function cancel(): Promise<void> {
   if (boolBusy.value) {
     boolCancelRequested.value = true;
@@ -193,6 +204,7 @@ async function cancel(): Promise<void> {
     if (boolAlive) boolCanceling.value = false;
   }
 }
+
 async function submit(event: SubmitEventPromise): Promise<void> {
   if (boolBusy.value || boolCanceling.value || !boolAllowed.value) return;
   boolBusy.value = true;
@@ -263,6 +275,7 @@ async function submit(event: SubmitEventPromise): Promise<void> {
     }
   }
 }
+
 onBeforeUnmount(() => {
   boolAlive = false;
 });

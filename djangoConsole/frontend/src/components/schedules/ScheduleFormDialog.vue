@@ -2,7 +2,9 @@
 <template>
   <v-dialog :model-value="true" persistent scrollable max-width="1160">
     <v-card>
-      <v-card-title>{{ scheduleId ? "Edit Schedule" : "New Schedule" }}</v-card-title>
+      <v-card-title>
+        {{ scheduleId ? (boolReadonly ? "Schedule" : "Edit Schedule") : "New Schedule" }}
+      </v-card-title>
 
       <v-card-text>
         <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
@@ -15,6 +17,7 @@
           v-if="boolInitialized"
           ref="form"
           :disabled="boolBusy"
+          :readonly="boolReadonly"
           @submit.prevent="save">
           <h2 class="text-h6 mb-4">Basic &amp; Target</h2>
 
@@ -24,11 +27,58 @@
                 v-model="strName"
                 :error-messages="getFieldErrors(dictFieldError, 'name')"
                 label="Name"
+                variant="underlined"
+                density="compact"
+                hide-details="auto"
                 maxlength="128"
                 :rules="[(value) => !!value.trim() || 'Enter a name.']" />
             </v-col>
 
-            <v-col cols="12" md="6">
+            <v-col cols="6" md="3">
+              <v-select
+                :model-value="settings?.run_conflict_policy"
+                :items="ARR_CONFLICT_POLICY_OPTION"
+                :error-messages="
+                  getFieldErrors(dictFieldError, 'settings.run_conflict_policy')
+                "
+                label="Conflict Policy"
+                variant="underlined"
+                density="compact"
+                hide-details="auto"
+                :disabled="!settings || boolBusy"
+                @update:model-value="settings && (settings.run_conflict_policy = $event)" />
+            </v-col>
+
+            <v-col cols="6" md="3">
+              <v-select
+                :model-value="settings?.priority"
+                :items="ARR_PRIORITY_OPTION"
+                :error-messages="getFieldErrors(dictFieldError, 'settings.priority')"
+                label="Priority"
+                variant="underlined"
+                density="compact"
+                hide-details="auto"
+                :disabled="!settings || boolBusy"
+                @update:model-value="settings && (settings.priority = $event)" />
+            </v-col>
+          </v-row>
+
+          <v-row>
+            <v-col cols="12">
+              <v-textarea
+                v-model="strNotes"
+                :error-messages="getFieldErrors(dictFieldError, 'notes')"
+                label="Notes (optional)"
+                variant="underlined"
+                density="compact"
+                hide-details="auto"
+                rows="1"
+                auto-grow />
+            </v-col>
+          </v-row>
+
+          <v-row align="center">
+            <v-col cols="12" md="3">
               <v-select
                 v-model="strDepartmentId"
                 :error-messages="getFieldErrors(dictFieldError, 'department_id')"
@@ -36,39 +86,53 @@
                 item-title="path"
                 item-value="id"
                 label="Department"
-                :readonly="!!scheduleId"
+                variant="underlined"
+                density="compact"
+                hide-details="auto"
                 :rules="[(value) => !!value || 'Select a department.']"
                 @update:model-value="changeDepartment" />
             </v-col>
-          </v-row>
 
-          <v-row>
-            <v-col cols="12" md="8">
+            <v-col cols="7" md="4">
+              <v-select
+                v-model="strProjectNameKey"
+                :items="arrProjectOption"
+                label="Project Name"
+                variant="underlined"
+                density="compact"
+                hide-details="auto"
+                :loading="boolPackagesLoading"
+                :disabled="boolBusy || boolPackagesLoading || !strDepartmentId"
+                :error-messages="strPackagesError"
+                :rules="[(value) => !!value || 'Select a project.']"
+                @update:model-value="changeProject" />
+            </v-col>
+
+            <v-col cols="5" md="3">
               <v-select
                 v-model="strPackageId"
-                :items="arrPackage"
-                :item-title="
-                  (item: PackageListEntry) =>
-                    `${item.project_name} · ${item.project_version}`
-                "
+                :items="arrProjectPackage"
+                item-title="project_version"
                 item-value="id"
-                label="Project Name / Project Version"
-                :loading="boolPackagesLoading || boolSettingsLoading"
-                :disabled="boolBusy || boolPackagesLoading"
-                :error-messages="[
-                  ...(strPackagesError ? [strPackagesError] : []),
-                  ...getFieldErrors(dictFieldError, 'package_id'),
-                ]"
-                :rules="[(value) => !!value || 'Select a package.']"
+                label="Project Version"
+                variant="underlined"
+                density="compact"
+                hide-details="auto"
+                :loading="boolSettingsLoading"
+                :disabled="boolBusy || boolPackagesLoading || !strProjectNameKey"
+                :error-messages="getFieldErrors(dictFieldError, 'package_id')"
+                :rules="[(value) => !!value || 'Select a project version.']"
                 @update:model-value="changePackage" />
             </v-col>
 
-            <v-col cols="12" md="4">
+            <v-col cols="12" md="2">
               <v-switch
                 v-model="boolEnabled"
                 :error-messages="getFieldErrors(dictFieldError, 'enabled')"
                 label="Enabled"
-                true-icon="mdi-flash" />
+                true-icon="mdi-flash"
+                density="compact"
+                hide-details="auto" />
             </v-col>
           </v-row>
 
@@ -78,44 +142,48 @@
             v-model:group-id="strGroupId"
             :field-errors="dictFieldError"
             :department-id="strDepartmentId"
-            :disabled="boolBusy" />
-
-          <v-textarea
-            v-model="strNotes"
-            :error-messages="getFieldErrors(dictFieldError, 'notes')"
-            label="Notes (optional)"
-            rows="2"
-            class="mt-4" />
+            :disabled="boolBusy || boolReadonly"
+            class="mt-2" />
 
           <v-divider class="my-5" />
           <h2 class="text-h6 mb-4">Time</h2>
 
-          <v-autocomplete
-            v-model="strTimeZone"
-            :items="arrTimeZone"
-            :error-messages="getFieldErrors(dictFieldError, 'time_zone')"
-            label="Schedule Time Zone"
-            variant="outlined"
-            :rules="[(value) => !!value || 'Select a time zone.']" />
-
           <v-row>
-            <v-col cols="12" md="6">
+            <v-col cols="12" md="4">
+              <v-autocomplete
+                v-model="strTimeZone"
+                :items="arrTimeZone"
+                :error-messages="getFieldErrors(dictFieldError, 'time_zone')"
+                label="Schedule Time Zone"
+                variant="underlined"
+                density="compact"
+                hide-details="auto"
+                :rules="[(value) => !!value || 'Select a time zone.']" />
+            </v-col>
+
+            <v-col cols="12" md="4">
               <v-text-field
                 v-model="strActiveFrom"
                 :error-messages="getFieldErrors(dictFieldError, 'active_from')"
                 type="datetime-local"
                 step="1"
                 label="Active From"
+                variant="underlined"
+                density="compact"
+                hide-details="auto"
                 :rules="[(value) => !!value || 'Enter the start time.']" />
             </v-col>
 
-            <v-col cols="12" md="6">
+            <v-col cols="12" md="4">
               <v-text-field
                 v-model="strActiveUntil"
                 :error-messages="getFieldErrors(dictFieldError, 'active_until')"
                 type="datetime-local"
                 step="1"
                 label="Active Until"
+                variant="underlined"
+                density="compact"
+                hide-details="auto"
                 :rules="[(value) => !!value || 'Enter the end time.']" />
             </v-col>
           </v-row>
@@ -126,6 +194,8 @@
                 :model-value="strCron"
                 :error-messages="getFieldErrors(dictFieldError, 'cron')"
                 label="Cron Expression"
+                variant="underlined"
+                density="compact"
                 hint="Five fields, or six fields with seconds first."
                 persistent-hint
                 @update:model-value="changeCron">
@@ -140,7 +210,7 @@
                 v-if="strVisualCron"
                 :key="intVisualRevision"
                 :model-value="strVisualCron"
-                :disabled="boolBusy"
+                :disabled="boolBusy || boolReadonly"
                 @update:model-value="changeVisualCron" />
 
               <p v-else class="text-body-2 text-medium-emphasis">
@@ -153,18 +223,22 @@
             {{ strPreviewError }}
           </v-alert>
 
-          <h3 class="text-subtitle-1 mt-4">Upcoming Triggers · {{ strTimeZone }}</h3>
-          <v-progress-linear v-if="boolPreviewLoading" indeterminate />
+          <v-progress-linear v-if="boolPreviewLoading" indeterminate class="mt-3" />
 
-          <p v-for="time in arrPreview" :key="time">
-            {{ formatDateTime(time, strTimeZone) }}
-          </p>
-
-          <p
-            v-if="!boolPreviewLoading && !arrPreview.length && !strPreviewError"
-            class="text-medium-emphasis">
-            No upcoming trigger within the active period.
-          </p>
+          <v-alert
+            v-else-if="!strPreviewError"
+            variant="plain"
+            density="compact"
+            class="mt-3 px-0 text-body-2">
+            Next:
+            {{
+              arrPreview
+                .map((time) =>
+                  formatDateTimeInput(time, strTimeZone, true).replace("T", " "),
+                )
+                .join(" · ") || "No upcoming trigger within the active period."
+            }}
+          </v-alert>
 
           <template v-if="settings">
             <v-divider class="my-5" />
@@ -175,6 +249,7 @@
               :field-errors="dictFieldError"
               :department-id="strDepartmentId"
               :disabled="boolBusy"
+              :readonly="boolReadonly"
               @valid="boolArgsValid = $event">
               <template #environment>
                 <v-text-field
@@ -182,27 +257,49 @@
                   label="Python Environment"
                   variant="underlined"
                   density="compact"
-                  readonly />
+                  readonly>
+                  <v-tooltip activator="parent" location="top">
+                    Python environment from Package Settings. Change it there for future
+                    runs.
+                  </v-tooltip>
+                </v-text-field>
               </template>
             </RunArgumentsEditor>
 
             <v-divider class="my-5" />
-            <h2 class="text-h6 mb-4">Dispatch &amp; Email</h2>
+            <h2 class="text-h6 mb-4">Run Email</h2>
 
-            <RunDispatchEmailEditor
-              v-model="settings"
+            <RunEmailEditor
+              v-model="settings.run_email"
+              :argument-keys="settings.custom_prj_args.map((argument) => argument[0])"
               :disabled="boolBusy"
+              :readonly="boolReadonly"
               :field-errors="dictFieldError" />
           </template>
         </v-form>
       </v-card-text>
 
       <v-card-actions>
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolBusy" @click="emit('close')">Cancel</v-btn>
-
         <v-btn
           variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolBusy"
+          @click="emit('close')">
+          {{ boolReadonly ? "Close" : "Cancel" }}
+        </v-btn>
+        <v-spacer />
+        <v-btn
+          v-if="boolReadonly && boolCanManage && boolInitialized"
+          variant="tonal"
+          prepend-icon="mdi-pencil-outline"
+          @click="emit('edit')">
+          Edit
+        </v-btn>
+
+        <v-btn
+          v-if="!boolReadonly"
+          variant="tonal"
+          prepend-icon="mdi-content-save-outline"
           color="primary"
           :loading="boolBusy"
           :disabled="
@@ -236,11 +333,11 @@ import type { VForm } from "vuetify/components";
 import cronstrue from "cronstrue";
 
 import RunArgumentsEditor from "@/components/runSettings/RunArgumentsEditor.vue";
-import RunDispatchEmailEditor from "@/components/runSettings/RunDispatchEmailEditor.vue";
+import RunEmailEditor from "@/components/runSettings/RunEmailEditor.vue";
 import TargetSelector from "@/components/runSettings/TargetSelector.vue";
 
 import {
-  type PackageListEntry,
+  type PackageOptionEntry,
   getPackageOptions,
   getPackageDetails,
 } from "@/api/packages";
@@ -256,17 +353,24 @@ import { getApiError, getFieldErrors } from "@/api/errors";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
-import { formatDateTime, formatDateTimeInput } from "@/app/formatters";
+import { ARR_CONFLICT_POLICY_OPTION, ARR_PRIORITY_OPTION } from "@/app/runLabels";
+import { formatDateTimeInput } from "@/app/formatters";
 
-const props = defineProps<{ scheduleId?: string }>();
-const emit = defineEmits<{ close: []; saved: [schedule: ScheduleInfo] }>();
+const props = defineProps<{ scheduleId?: string; readonly?: boolean }>();
+const emit = defineEmits<{ close: []; edit: []; saved: [schedule: ScheduleInfo] }>();
 const sessionStore = useSessionStore();
 const form = ref<InstanceType<typeof VForm> | null>(null);
+
+const boolCanManage = ref(!props.scheduleId);
+const boolReadonly = computed(() => props.readonly || !boolCanManage.value);
 
 const arrDepartment = computed(
   () =>
     sessionStore.access?.departments.filter(
-      (department) => sessionStore.access?.is_org_admin || department.role === "developer",
+      (department) =>
+        !boolCanManage.value ||
+        sessionStore.access?.is_org_admin ||
+        department.role === "developer",
     ) ?? [],
 );
 
@@ -276,6 +380,7 @@ const strDepartmentId = ref(
   arrDepartment.value.length === 1 ? arrDepartment.value[0]!.id : "",
 );
 
+const strProjectNameKey = ref("");
 const strPackageId = ref("");
 const arrExecutorId = ref<string[]>([]);
 const strGroupId = ref<string | null>(null);
@@ -307,11 +412,29 @@ let boolDisposed = false;
 const strError = ref("");
 const dictFieldError = ref<Record<string, string[]>>({});
 const boolArgsValid = ref(true);
-const arrPackage = shallowRef<PackageListEntry[]>([]);
+const arrPackage = shallowRef<PackageOptionEntry[]>([]);
 const settings: Ref<RunSettings | null> = ref(null);
 
 const selectedPackage = computed(() =>
   arrPackage.value.find((entry) => entry.id === strPackageId.value),
+);
+
+const arrProjectOption = computed(() => {
+  const mapProject = new Map<string, { title: string; value: string }>();
+  for (const packageEntry of arrPackage.value) {
+    if (!mapProject.has(packageEntry.project_name_key))
+      mapProject.set(packageEntry.project_name_key, {
+        title: packageEntry.project_name,
+        value: packageEntry.project_name_key,
+      });
+  }
+  return [...mapProject.values()];
+});
+
+const arrProjectPackage = computed(() =>
+  arrPackage.value.filter(
+    (packageEntry) => packageEntry.project_name_key === strProjectNameKey.value,
+  ),
 );
 
 const arrPreview = ref<string[]>([]);
@@ -398,6 +521,7 @@ function changeDepartment(): void {
   boolSettingsLoading.value = false;
   arrExecutorId.value = [];
   strGroupId.value = null;
+  strProjectNameKey.value = "";
   strPackageId.value = "";
   settings.value = null;
   void loadPackages();
@@ -422,6 +546,11 @@ async function changePackage(): Promise<void> {
   }
 }
 
+function changeProject(): void {
+  strPackageId.value = arrProjectPackage.value[0]?.id ?? "";
+  void changePackage();
+}
+
 async function changeCron(value: string): Promise<void> {
   strCron.value = value;
   boolVisualSyncing = true;
@@ -433,7 +562,8 @@ async function changeCron(value: string): Promise<void> {
 
 function changeVisualCron(value: string): void {
   // Ignore normalization emitted while the editor is loading the text draft.
-  if (boolVisualSyncing || boolBusy.value || !strVisualCron.value) return;
+  if (boolVisualSyncing || boolBusy.value || boolReadonly.value || !strVisualCron.value)
+    return;
   const boolHasSeconds = strCron.value.trim().split(/\s+/).length === 6;
   strCron.value = boolHasSeconds ? `0 ${value}` : value;
 }
@@ -459,6 +589,7 @@ async function refreshPreview(intRevision: number): Promise<void> {
 
 async function save(): Promise<void> {
   if (
+    boolReadonly.value ||
     boolBusy.value ||
     boolLoading.value ||
     boolPackagesLoading.value ||
@@ -529,6 +660,7 @@ onMounted(async () => {
     if (props.scheduleId) {
       const schedule = await getSchedule(props.scheduleId);
       if (boolDisposed) return;
+      boolCanManage.value = schedule.can_manage;
       strName.value = schedule.name;
       strDepartmentId.value = schedule.department_id;
       strPackageId.value = schedule.package_id;
@@ -552,6 +684,7 @@ onMounted(async () => {
     }
     await loadPackages();
     if (boolDisposed) return;
+    strProjectNameKey.value = selectedPackage.value?.project_name_key ?? "";
     boolInitialized.value = true;
     void changeCron(strCron.value);
   } catch (e) {

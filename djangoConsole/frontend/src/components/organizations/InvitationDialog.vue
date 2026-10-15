@@ -16,6 +16,7 @@
               : "Revoke Invitation"
         }}
       </v-card-title>
+
       <v-card-text>
         <v-progress-linear
           v-if="boolLoading"
@@ -23,9 +24,11 @@
           color="primary"
           class="mb-4"
           aria-label="Loading invitation" />
+
         <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
           {{ requestError.message }}
         </v-alert>
+
         <v-alert v-if="actionError" type="error" variant="tonal" class="mb-4" role="alert">
           The operation was not confirmed. {{ actionError.message }}
           <p
@@ -34,42 +37,53 @@
             class="mt-2">
             {{ strMessage }}
           </p>
+
           <p v-if="intRetrySeconds" class="mt-2">
             Try again in {{ intRetrySeconds }} seconds.
           </p>
         </v-alert>
+
         <template v-if="invitationInfo">
           <dl class="detail-fields mb-4">
             <div>
               <dt class="text-caption text-medium-emphasis">Email</dt>
               <dd>{{ invitationInfo.email }}</dd>
             </div>
+
             <div>
               <dt class="text-caption text-medium-emphasis">Status</dt>
               <dd class="text-capitalize">{{ strStatus }}</dd>
             </div>
+
             <div>
               <dt class="text-caption text-medium-emphasis">Organization Role</dt>
               <dd>{{ invitationInfo.is_org_admin ? "OrgAdmin" : "Member" }}</dd>
             </div>
+
             <div>
               <dt class="text-caption text-medium-emphasis">Email Delivery</dt>
               <dd>{{ getDeliveryLabel(invitationInfo.email_delivery) }}</dd>
             </div>
+
             <div>
               <dt class="text-caption text-medium-emphasis">
                 Expires At ({{ strTimeZone }})
               </dt>
+
               <dd>{{ formatDateTime(invitationInfo.expires_at, strTimeZone) }}</dd>
             </div>
+
             <div>
               <dt class="text-caption text-medium-emphasis">
                 Last Requested At ({{ strTimeZone }})
               </dt>
+
               <dd>{{ formatDateTime(invitationInfo.requested_at, strTimeZone) }}</dd>
             </div>
+
             <div class="full-width-field">
               <dt class="text-caption text-medium-emphasis">Department Roles</dt>
+
               <dd>
                 <ul v-if="invitationInfo.department_roles.length" class="pl-4">
                   <li
@@ -90,6 +104,7 @@
                     <span class="text-capitalize ms-1">— {{ assignment.role }}</span>
                   </li>
                 </ul>
+
                 <template v-else>
                   {{
                     invitationInfo.is_org_admin
@@ -99,19 +114,23 @@
                 </template>
               </dd>
             </div>
+
             <div class="full-width-field">
               <dt class="text-caption text-medium-emphasis">Notes</dt>
               <dd class="text-pre-wrap">{{ invitationInfo.notes || "—" }}</dd>
             </div>
           </dl>
+
           <p class="mb-4">
             Email delivery status does not confirm that the recipient read the message.
             Revoke and create a new invitation to change roles or Notes.
           </p>
+
           <v-alert v-if="action === 'resend'" type="warning" variant="tonal" class="mb-4">
             Resending requests a new email and invalidates the previous invitation link. The
             assigned roles and Notes are kept.
           </v-alert>
+
           <v-alert
             v-else-if="action === 'revoke'"
             type="warning"
@@ -120,28 +139,38 @@
             Revoking invalidates this invitation link. It cannot remove an account that has
             already accepted the invitation.
           </v-alert>
+
           <p v-if="action === 'resend' && intResendSeconds > 0">
             Resend is available in {{ intResendSeconds }} seconds.
           </p>
+
           <p v-if="!boolOpen">This invitation is closed.</p>
         </template>
       </v-card-text>
+
       <v-card-actions class="flex-wrap ga-2">
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolSaving" @click="closeDialog">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolSaving"
+          @click="closeDialog">
           {{ action === "view" ? "Close" : "Cancel" }}
         </v-btn>
+
         <v-btn
           v-if="requestError || actionError"
           variant="tonal"
+          prepend-icon="mdi-refresh"
           :disabled="boolLoading || boolSaving || !boolCanManage"
           @click="loadInvitation">
           {{ requestError ? "Retry" : "Check Status" }}
         </v-btn>
+        <v-spacer />
         <v-btn
           v-if="action !== 'view'"
           :color="action === 'revoke' ? 'error' : 'primary'"
           variant="tonal"
+          :prepend-icon="action === 'resend' ? 'mdi-email-sync-outline' : 'mdi-cancel'"
           :loading="boolSaving"
           :disabled="boolActionBlocked"
           @click="submitAction">
@@ -157,6 +186,7 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { RouterLink } from "vue-router";
 
 import { useSessionStore } from "@/stores/sessionStore";
+
 import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { type ApiError, getApiError } from "@/api/errors";
@@ -167,14 +197,17 @@ import {
   getDeliveryLabel,
 } from "@/api/invitations";
 import type { InvitationResponse } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ invitationId: string; action: "view" | "resend" | "revoke" }>();
 const emit = defineEmits<{ close: []; updated: [invitation: InvitationResponse] }>();
 const sessionStore = useSessionStore();
+
 const boolCanManage = computed(
   () => sessionStore.access?.is_org_admin && sessionStore.access.business_available,
 );
+
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const { intCurrentTimeMs, intRetrySeconds, setRetryDelay } = useRetryDelay();
 const invitationInfo = shallowRef<InvitationResponse | null>(null);
@@ -183,14 +216,17 @@ const actionError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const boolSaving = ref(false);
 let boolUnmounted = false;
+
 const strStatus = computed(() =>
   invitationInfo.value
     ? getInvitationStatus(invitationInfo.value, intCurrentTimeMs.value)
     : "",
 );
+
 const boolOpen = computed(
   () => strStatus.value === "pending" || strStatus.value === "expired",
 );
+
 const intResendSeconds = computed(() =>
   invitationInfo.value
     ? Math.max(
@@ -202,6 +238,7 @@ const intResendSeconds = computed(() =>
       )
     : 0,
 );
+
 const boolActionBlocked = computed(
   () =>
     boolLoading.value ||
@@ -259,6 +296,7 @@ async function submitAction(): Promise<void> {
 }
 
 onMounted(() => void loadInvitation());
+
 onBeforeUnmount(() => {
   boolUnmounted = true;
 });

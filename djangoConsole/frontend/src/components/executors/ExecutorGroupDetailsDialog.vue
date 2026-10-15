@@ -7,6 +7,7 @@
     @close="editTarget = null"
     @saved="handleGroupSaved"
     @refresh="loadGroupDetails" />
+
   <v-dialog
     v-else
     :model-value="true"
@@ -18,7 +19,9 @@
       <v-card-title id="executor-group-details-title">
         {{ boolConfirmDelete ? "Delete Group" : "Group Details" }}
       </v-card-title>
+
       <v-progress-linear v-if="boolLoading" indeterminate color="primary" />
+
       <v-card-text>
         <v-alert
           v-if="strSuccessMessage"
@@ -28,6 +31,7 @@
           role="status">
           {{ strSuccessMessage }}
         </v-alert>
+
         <v-alert
           v-for="warning in arrWarning"
           :key="warning.code"
@@ -37,55 +41,68 @@
           role="status">
           {{ warning.message }}
         </v-alert>
+
         <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
           {{ requestError.message }}
           <p v-if="groupInfo" class="mt-2">
             Previously loaded details are shown. Refresh to try again.
           </p>
         </v-alert>
+
         <v-alert v-if="deleteError" type="error" variant="tonal" class="mb-4" role="alert">
           Deletion was not confirmed. {{ deleteError.message }}
         </v-alert>
+
         <template v-if="groupInfo">
           <h2 class="text-subtitle-1 mb-3">Group Information</h2>
+
           <dl class="detail-fields mb-4">
             <div>
               <dt class="text-caption text-medium-emphasis">Name</dt>
               <dd>{{ groupInfo.name }}</dd>
             </div>
+
             <div>
               <dt class="text-caption text-medium-emphasis">Department</dt>
               <dd>{{ groupInfo.department.path }}</dd>
             </div>
+
             <template v-if="!boolConfirmDelete">
               <div>
                 <dt class="text-caption text-medium-emphasis">Members</dt>
                 <dd>{{ groupInfo.member_count }}</dd>
               </div>
+
               <div>
                 <dt class="text-caption text-medium-emphasis">Online</dt>
                 <dd>{{ groupInfo.online_count }}</dd>
               </div>
+
               <div>
                 <dt class="text-caption text-medium-emphasis">
                   Created At ({{ strTimeZone }})
                 </dt>
+
                 <dd>{{ formatDateTime(groupInfo.created_at, strTimeZone) }}</dd>
               </div>
             </template>
           </dl>
+
           <template v-if="boolConfirmDelete">
             <p class="mb-2">This deletes the group and removes its member relationships.</p>
+
             <p>
               Executors, their client associations, and Console Dispatch settings are
               retained.
             </p>
           </template>
+
           <template v-else>
             <h2 class="text-subtitle-1 mb-2">Notes</h2>
             <p class="text-pre-wrap text-anywhere mb-4">{{ groupInfo.notes || "—" }}</p>
             <h2 class="text-subtitle-1 mb-2">Members</h2>
             <p class="mb-3">Member links open in a new tab.</p>
+
             <v-data-table
               :headers="ARR_MEMBER_HEADER"
               :items="groupInfo.members"
@@ -104,6 +121,7 @@
                   {{ item.name }}
                 </RouterLink>
               </template>
+
               <template #item.account="{ item }">
                 <div class="table-text-narrow">
                   {{
@@ -115,16 +133,21 @@
                   }}
                 </div>
               </template>
+
               <template #item.association_status="{ item }">
                 <span class="text-capitalize">{{ item.association_status }}</span>
               </template>
+
               <template #item.dispatch_enabled="{ item }">
                 {{ item.dispatch_enabled ? "Enabled" : "Paused" }}
               </template>
+
               <template #no-data>This group has no members.</template>
             </v-data-table>
+
             <h2 class="text-subtitle-1 mt-5 mb-2">Referencing Schedules</h2>
             <p v-if="!groupInfo.referencing_schedules.length">No referencing schedules.</p>
+
             <v-table v-else>
               <thead>
                 <tr>
@@ -132,12 +155,13 @@
                   <th>Enabled</th>
                 </tr>
               </thead>
+
               <tbody>
                 <tr v-for="schedule in groupInfo.referencing_schedules" :key="schedule.id">
                   <td>
                     <RouterLink
                       :to="{
-                        name: 'schedule-details',
+                        name: 'schedule',
                         params: { scheduleId: schedule.id },
                       }"
                       class="text-primary text-decoration-none"
@@ -153,49 +177,65 @@
           </template>
         </template>
       </v-card-text>
+
       <v-card-actions class="flex-wrap ga-2">
         <template v-if="boolConfirmDelete">
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-close"
+            :disabled="boolBusy"
+            @click="closeDelete">
+            Cancel
+          </v-btn>
           <v-spacer />
-          <v-btn variant="tonal" :disabled="boolBusy" @click="closeDelete">Cancel</v-btn>
           <v-btn
             color="error"
             variant="tonal"
+            prepend-icon="mdi-delete-outline"
             :loading="boolDeleting"
             :disabled="boolBusy || !boolCanManage"
             @click="submitDelete">
             Delete
           </v-btn>
         </template>
+
         <template v-else>
-          <v-btn
-            v-if="!boolDeleted"
-            variant="tonal"
-            :disabled="boolBusy"
-            @click="loadGroupDetails">
-            Refresh
-          </v-btn>
-          <v-btn
-            v-if="boolCanManage"
-            variant="tonal"
-            :disabled="boolBusy"
-            @click="openEdit">
-            Edit
-          </v-btn>
-          <v-btn
-            v-if="boolCanManage"
-            color="error"
-            variant="tonal"
-            :disabled="boolBusy"
-            @click="openDelete">
-            Delete
-          </v-btn>
-          <v-spacer />
           <v-btn
             :to="{ name: 'executor-groups', query: route.query }"
             replace
             variant="tonal"
+            :active="false"
+            prepend-icon="mdi-close"
             :disabled="boolBusy">
             Close
+          </v-btn>
+
+          <v-btn
+            v-if="!boolDeleted"
+            variant="tonal"
+            prepend-icon="mdi-refresh"
+            :disabled="boolBusy"
+            @click="loadGroupDetails">
+            Refresh
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            v-if="boolCanManage"
+            variant="tonal"
+            prepend-icon="mdi-pencil-outline"
+            :disabled="boolBusy"
+            @click="openEdit">
+            Edit
+          </v-btn>
+
+          <v-btn
+            v-if="boolCanManage"
+            color="error"
+            variant="tonal"
+            prepend-icon="mdi-delete-outline"
+            :disabled="boolBusy"
+            @click="openDelete">
+            Delete
           </v-btn>
         </template>
       </v-card-actions>
@@ -219,11 +259,13 @@ import type {
   ExecutorGroupWriteResponse,
   ExecutorGroupWarningResponse,
 } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ groupId: string }>();
 const route = useRoute();
 const emit = defineEmits<{ updated: []; deleted: [group: ExecutorGroupRecordResponse] }>();
+
 const ARR_MEMBER_HEADER = [
   { title: "Name", key: "name", minWidth: 180 },
   { title: "Account", key: "account", minWidth: 220 },
@@ -244,11 +286,13 @@ const boolDeleting = ref(false);
 const boolConfirmDelete = ref(false);
 const boolDeleted = ref(false);
 const boolBusy = computed(() => boolLoading.value || boolDeleting.value);
+
 const arrManagedDepartment = computed(() =>
   (sessionStore.access?.departments ?? []).filter(
     (department) => sessionStore.access?.is_org_admin || department.role === "developer",
   ),
 );
+
 const boolCanManage = computed(
   () =>
     groupInfo.value?.can_manage &&
@@ -256,6 +300,7 @@ const boolCanManage = computed(
       (department) => department.id === groupInfo.value?.department_id,
     ),
 );
+
 let boolUnmounted = false;
 
 async function loadGroupDetails(): Promise<void> {
@@ -337,6 +382,7 @@ async function submitDelete(): Promise<void> {
 }
 
 onMounted(() => void loadGroupDetails());
+
 onBeforeUnmount(() => {
   boolUnmounted = true;
 });

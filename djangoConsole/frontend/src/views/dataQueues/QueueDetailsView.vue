@@ -1,18 +1,27 @@
 <!-- FileName: QueueDetailsView.vue -->
 <template>
-  <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
-    <h1 class="text-h5">Queue Details{{ page ? ` — ${page.queue.name}` : "" }}</h1>
-    <v-btn
-      :to="{ name: 'data-queues', query: listQuery }"
-      variant="tonal"
-      prepend-icon="mdi-arrow-left">
-      Back to Data Queues
-    </v-btn>
-  </div>
+  <v-btn
+    class="mb-4"
+    :to="{ name: 'data-queues', query: listQuery }"
+    variant="tonal"
+    prepend-icon="mdi-arrow-left">
+    Back to Data Queues
+  </v-btn>
+
+  <h1 class="text-h5 mb-4">Queue Details{{ page ? ` — ${page.queue.name}` : "" }}</h1>
+
   <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
     {{ error.message }}
-    <v-btn v-if="!page" variant="tonal" :disabled="boolLoading" @click="load">Retry</v-btn>
+    <v-btn
+      v-if="!page"
+      variant="tonal"
+      prepend-icon="mdi-refresh"
+      :disabled="boolLoading"
+      @click="load">
+      Retry
+    </v-btn>
   </v-alert>
+
   <v-alert
     v-if="strActionError"
     type="error"
@@ -23,10 +32,13 @@
     @click:close="strActionError = ''">
     {{ strActionError }}
   </v-alert>
+
   <v-alert v-if="strMessage" type="success" variant="tonal" class="mb-4" role="status">
     {{ strMessage }}
   </v-alert>
+
   <v-progress-linear v-if="boolLoading && !page" indeterminate />
+
   <template v-if="page">
     <v-card variant="elevated" class="mb-4">
       <v-card-text>
@@ -36,6 +48,7 @@
           variant="plain"
           readonly
           hide-details />
+
         <v-textarea
           :model-value="page.queue.notes || '—'"
           label="Notes"
@@ -44,25 +57,33 @@
           readonly
           hide-details
           class="mt-4" />
+
         <p class="mt-4">
           <span class="text-caption text-medium-emphasis">Unclaimed:</span>
           {{ page.queue.unclaimed_count }} ·
           <span class="text-caption text-medium-emphasis">Claimed:</span>
           {{ page.queue.claimed_count }}
         </p>
+
         <div class="d-flex flex-wrap ga-2 mt-4">
-          <v-btn variant="tonal" @click="copyPath">Copy Path</v-btn>
+          <v-btn variant="tonal" prepend-icon="mdi-content-copy" @click="copyPath">
+            Copy Path
+          </v-btn>
+          <v-spacer />
           <v-btn
             v-if="page.queue.can_manage"
             variant="tonal"
+            prepend-icon="mdi-pencil-outline"
             :disabled="boolBusy || !!error"
             @click="boolEditOpen = true">
             Edit Queue
           </v-btn>
+
           <v-btn
             v-if="page.queue.can_manage"
             color="error"
             variant="tonal"
+            prepend-icon="mdi-delete-outline"
             :disabled="boolBusy || !!error"
             @click="strConfirm = 'queue'">
             Delete Queue
@@ -70,6 +91,7 @@
         </div>
       </v-card-text>
     </v-card>
+
     <v-card variant="elevated" class="mb-4">
       <v-card-text>
         <form @submit.prevent="applyFilters">
@@ -79,21 +101,23 @@
                 v-model="strStatus"
                 :items="QUEUE_STATUSES"
                 label="Status"
-                variant="outlined"
+                variant="underlined"
                 density="compact"
                 hide-details
                 :disabled="boolBusy" />
             </v-col>
+
             <v-col cols="12" md="5">
               <v-text-field
                 v-model="strItemId"
                 label="Item ID"
-                variant="outlined"
+                variant="underlined"
                 density="compact"
                 hide-details
                 clearable
                 :disabled="boolBusy" />
             </v-col>
+
             <v-col cols="12" md="4">
               <v-switch
                 v-model="strOrder"
@@ -111,40 +135,30 @@
                 :disabled="boolBusy" />
             </v-col>
           </v-row>
+
           <div class="d-flex flex-wrap ga-2 mt-4">
-            <v-btn type="submit" variant="tonal" color="primary" :disabled="boolBusy">
-              Apply
-            </v-btn>
-            <v-btn variant="tonal" :disabled="boolBusy" @click="clearFilters">
+            <v-btn
+              variant="tonal"
+              prepend-icon="mdi-filter-remove-outline"
+              :disabled="boolBusy"
+              @click="clearFilters">
               Reset Filters
+            </v-btn>
+            <v-spacer />
+            <v-btn
+              type="submit"
+              variant="tonal"
+              prepend-icon="mdi-check"
+              color="primary"
+              :disabled="boolBusy">
+              Apply
             </v-btn>
           </div>
         </form>
       </v-card-text>
     </v-card>
+
     <div class="d-flex flex-wrap ga-2 mb-4">
-      <v-btn
-        color="primary"
-        variant="tonal"
-        prepend-icon="mdi-upload"
-        :disabled="boolBusy || !!error"
-        @click="boolUploadOpen = true">
-        Upload Items
-      </v-btn>
-      <v-btn
-        variant="tonal"
-        :disabled="boolBusy || !!error || !boolCanReset"
-        @click="strConfirm = 'reset'">
-        Reset Selected
-      </v-btn>
-      <v-btn
-        color="error"
-        variant="tonal"
-        :disabled="boolBusy || !!error || !selectedItemIds.length"
-        @click="strConfirm = 'items'">
-        Delete Selected
-      </v-btn>
-      <v-spacer />
       <v-btn
         variant="tonal"
         prepend-icon="mdi-refresh"
@@ -153,8 +167,36 @@
         @click="load">
         Refresh
       </v-btn>
+      <v-spacer />
+      <v-btn
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-upload"
+        :disabled="boolBusy || !!error"
+        @click="boolUploadOpen = true">
+        Upload Items
+      </v-btn>
+
+      <v-btn
+        variant="tonal"
+        prepend-icon="mdi-restore"
+        :disabled="boolBusy || !!error || !boolCanReset"
+        @click="strConfirm = 'reset'">
+        Reset Selected
+      </v-btn>
+
+      <v-btn
+        color="error"
+        variant="tonal"
+        prepend-icon="mdi-delete-outline"
+        :disabled="boolBusy || !!error || !selectedItemIds.length"
+        @click="strConfirm = 'items'">
+        Delete Selected
+      </v-btn>
     </div>
+
     <p class="text-body-2 text-medium-emphasis mb-3">Time zone: {{ strTimeZone }}</p>
+
     <v-card variant="outlined">
       <v-data-table-server
         v-model="selectedItemIds"
@@ -174,27 +216,33 @@
         <template #item.data_summary="{ item }">
           <div class="table-text notes-summary">{{ item.data_summary }}</div>
         </template>
+
         <template #item.status="{ item }">
           {{ item.status === "claimed" ? "Claimed" : "Unclaimed" }}
         </template>
+
         <template #item.uploaded_by_name="{ item }">
           <div class="table-text-narrow">{{ item.uploaded_by_name }}</div>
         </template>
+
         <template #item.uploaded_at="{ item }">
           <span class="text-no-wrap">
             {{ formatDateTime(item.uploaded_at, strTimeZone) }}
           </span>
         </template>
+
         <template #item.last_claimed_by_name="{ item }">
           <div class="table-text-narrow">
             {{ item.last_claimed_by_name || "—" }}
           </div>
         </template>
+
         <template #item.last_claimed_at="{ item }">
           <span class="text-no-wrap">
             {{ formatDateTime(item.last_claimed_at, strTimeZone) }}
           </span>
         </template>
+
         <template #item.actions="{ item }">
           <div class="d-flex align-center ga-1">
             <v-btn
@@ -210,13 +258,16 @@
               icon="mdi-eye-outline" />
           </div>
         </template>
+
         <template #no-data>No items match the current filters.</template>
       </v-data-table-server>
+
       <div class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
         <p>
           {{ page.total_count }} matching items · Page {{ page.page }} of
           {{ page.total_pages }}
         </p>
+
         <v-pagination
           v-if="page.total_pages > 1"
           :model-value="page.page"
@@ -226,16 +277,19 @@
           @update:model-value="changePage" />
       </div>
     </v-card>
+
     <QueueFormDialog
       v-if="boolEditOpen"
       :queue="page.queue"
       @close="boolEditOpen = false"
       @saved="handleEdited" />
+
     <QueueUploadDialog
       v-if="boolUploadOpen"
       :queue="page.queue"
       @close="boolUploadOpen = false"
       @uploaded="handleUploaded" />
+
     <v-dialog
       :model-value="!!strConfirm"
       persistent
@@ -251,8 +305,10 @@
                 : "Delete Items"
           }}
         </v-card-title>
+
         <v-card-text>
           <p class="text-break mb-3">{{ page.queue.path }}</p>
+
           <p>
             {{
               strConfirm === "queue"
@@ -262,6 +318,7 @@
                   : `Delete ${selectedItemIds.length} selected items?`
             }}
           </p>
+
           <v-alert
             v-if="mutationError"
             type="error"
@@ -271,12 +328,20 @@
             The operation was not confirmed. {{ mutationError.message }}
           </v-alert>
         </v-card-text>
+
         <v-card-actions>
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-close"
+            :disabled="boolSaving"
+            @click="closeConfirm">
+            Cancel
+          </v-btn>
           <v-spacer />
-          <v-btn variant="tonal" :disabled="boolSaving" @click="closeConfirm">Cancel</v-btn>
           <v-btn
             :color="strConfirm === 'reset' ? 'primary' : 'error'"
             variant="tonal"
+            :prepend-icon="strConfirm === 'reset' ? 'mdi-restore' : 'mdi-delete-outline'"
             :disabled="boolSaving"
             :loading="boolSaving"
             @click="submitMutation">
@@ -286,6 +351,7 @@
       </v-card>
     </v-dialog>
   </template>
+
   <RouterView v-slot="{ Component }">
     <component :is="Component" :key="route.path" />
   </RouterView>
@@ -308,6 +374,7 @@ import {
   changeQueueItems,
 } from "@/api/dataQueues";
 import type { QueueItemsResponse, QueueMutationResponse } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ queueId: string }>();
@@ -315,6 +382,7 @@ const route = useRoute();
 const router = useRouter();
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+
 const ARR_HEADER = [
   { title: "Data", key: "data_summary", minWidth: 220 },
   { title: "Status", key: "status" },
@@ -324,6 +392,7 @@ const ARR_HEADER = [
   { title: "Last Claimed At", key: "last_claimed_at", minWidth: 240 },
   { title: "Actions", key: "actions" },
 ];
+
 const page = shallowRef<QueueItemsResponse | null>(null);
 const error = shallowRef<ApiError | null>(null);
 const mutationError = shallowRef<ApiError | null>(null);
@@ -339,19 +408,24 @@ const boolEditOpen = ref(false);
 const boolUploadOpen = ref(false);
 const strConfirm = ref<"queue" | "items" | "reset" | null>(null);
 const boolBusy = computed(() => boolLoading.value || boolSaving.value);
+
 const boolCanReset = computed(() =>
   page.value?.items.some(
     (item) => selectedItemIds.value.includes(item.id) && item.status === "claimed",
   ),
 );
+
 const listQuery = computed(() => ({
   name: route.query.name,
   department_id: route.query.department_id,
   page: route.query.page,
 }));
+
 let intRevision = 0;
+
 const getQueryText = (key: string, fallback: string): string =>
   typeof route.query[key] === "string" ? route.query[key] : fallback;
+
 async function changePage(value: number): Promise<void> {
   selectedItemIds.value = [];
   await router.replace({ query: { ...route.query, item_page: String(value) } });
@@ -393,6 +467,7 @@ async function load(): Promise<void> {
     if (intCurrentRevision === intRevision) boolLoading.value = false;
   }
 }
+
 async function applyFilters(): Promise<void> {
   selectedItemIds.value = [];
   const query = {
@@ -409,26 +484,31 @@ async function applyFilters(): Promise<void> {
   if (router.resolve(location).fullPath === route.fullPath) await load();
   else await router.replace(location);
 }
+
 function clearFilters(): void {
   strStatus.value = "all";
   strOrder.value = "oldest_first";
   strItemId.value = "";
   void applyFilters();
 }
+
 function handleEdited(): void {
   boolEditOpen.value = false;
   strMessage.value = "Queue updated.";
   void load();
 }
+
 function handleUploaded(result: QueueMutationResponse): void {
   boolUploadOpen.value = false;
   strMessage.value = `${result.item_ids.length} items uploaded${result.deduplicated ? " (original request confirmed)" : ""}.`;
   void load();
 }
+
 function closeConfirm(): void {
   strConfirm.value = null;
   mutationError.value = null;
 }
+
 async function submitMutation(): Promise<void> {
   if (boolSaving.value || !strConfirm.value || !sessionStore.session) return;
   const intCurrentRevision = intRevision;
@@ -459,6 +539,7 @@ async function submitMutation(): Promise<void> {
     boolSaving.value = false;
   }
 }
+
 async function copyPath(): Promise<void> {
   if (!page.value) return;
   const intCurrentRevision = intRevision;
@@ -480,6 +561,7 @@ watch(
     strMessage.value = "";
   },
 );
+
 watch([strStatus, strOrder, strItemId], () => {
   selectedItemIds.value = [];
 });
@@ -503,6 +585,7 @@ watch(
   },
   { immediate: true },
 );
+
 onBeforeUnmount(() => {
   intRevision += 1;
 });

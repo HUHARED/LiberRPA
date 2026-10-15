@@ -3,16 +3,16 @@
 import { requestApi } from "./client";
 import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./responses";
 import type {
-  ScheduleCreationRequest,
+  ScheduleSaveRequest,
   ScheduleResponse,
   ScheduleListEntryResponse,
   ScheduleListResponse,
   ScheduleDefaultsResponse,
   SchedulePreviewResponse,
 } from "./generated/browserApi";
-import { isRunSettings, type RunSettings } from "./runSettings";
+import { ARR_CONFLICT_POLICY, isRunSettings, type RunSettings } from "./runSettings";
 
-export type ScheduleDraft = Omit<Required<ScheduleCreationRequest>, "settings"> & {
+export type ScheduleDraft = Omit<Required<ScheduleSaveRequest>, "settings"> & {
   settings: RunSettings;
 };
 export type ScheduleInfo = ScheduleResponse;
@@ -31,6 +31,7 @@ function parseScheduleListEntry(value: unknown): ScheduleListEntry {
     typeof value.id !== "string" ||
     typeof value.name !== "string" ||
     typeof value.cron !== "string" ||
+    !ARR_CONFLICT_POLICY.some((policy) => policy === value.run_conflict_policy) ||
     typeof value.project_version !== "string" ||
     !isRecord(value.department) ||
     !Array.isArray(value.executor_ids) ||
@@ -86,12 +87,9 @@ export async function saveSchedule(
   id: string | null,
   draft: ScheduleDraft,
 ): Promise<ScheduleInfo> {
-  const body = id
-    ? Object.fromEntries(Object.entries(draft).filter(([key]) => key !== "department_id"))
-    : draft;
   const result = await requestApi(`/schedules/${id ? `${encodeURIComponent(id)}/` : ""}`, {
     method: "POST",
-    body,
+    body: draft,
   });
   if (!isRecord(result)) return rejectInvalidResponse();
   return parseSchedule(result.schedule);

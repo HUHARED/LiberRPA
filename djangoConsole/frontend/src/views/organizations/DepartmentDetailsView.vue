@@ -7,13 +7,16 @@
     class="mb-4">
     Back to Departments
   </v-btn>
+
   <v-row align="center" class="mb-4">
     <v-col>
       <h2 class="text-h5 mb-2 text-anywhere">
         {{ detailsInfo?.department.name ?? "Department Details" }}
       </h2>
+
       <p class="text-medium-emphasis">Department Details</p>
     </v-col>
+
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
       <v-btn
         v-if="detailsInfo && boolCanManage"
@@ -24,6 +27,7 @@
         @click="openEdit">
         Edit
       </v-btn>
+
       <v-btn
         v-if="detailsInfo && boolCanManage"
         color="error"
@@ -35,6 +39,7 @@
       </v-btn>
     </v-col>
   </v-row>
+
   <v-alert
     v-if="strSuccessMessage"
     type="success"
@@ -43,6 +48,7 @@
     role="status">
     {{ strSuccessMessage }}
   </v-alert>
+
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{
       requestError.statusCode === 404
@@ -52,9 +58,11 @@
     <p v-if="detailsInfo" class="mt-2">
       Previously loaded details are shown and may be out of date.
     </p>
+
     <template #append>
       <v-btn
         variant="tonal"
+        prepend-icon="mdi-refresh"
         size="small"
         :disabled="boolActionBlocked"
         @click="loadDepartmentDetails">
@@ -62,26 +70,32 @@
       </v-btn>
     </template>
   </v-alert>
+
   <v-progress-linear
     v-if="boolLoading"
     indeterminate
     color="primary"
     class="mb-4"
     aria-label="Loading department details" />
+
   <template v-if="detailsInfo">
     <p v-if="strUpdatedAt" class="text-body-2 text-medium-emphasis mb-3">
       Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
     </p>
+
     <v-card variant="outlined" class="mb-4" :aria-busy="boolLoading">
       <v-card-title>Department Information</v-card-title>
+
       <v-card-text>
         <dl class="detail-fields">
           <div>
             <dt class="text-caption text-medium-emphasis">Name</dt>
             <dd>{{ detailsInfo.department.name }}</dd>
           </div>
+
           <div>
             <dt class="text-caption text-medium-emphasis">Parent Department</dt>
+
             <dd>
               <RouterLink
                 v-if="detailsInfo.department.parent_id !== null"
@@ -95,10 +109,12 @@
               <template v-else>No parent (top level)</template>
             </dd>
           </div>
+
           <div class="full-width-field">
             <dt class="text-caption text-medium-emphasis">Path</dt>
             <dd>{{ detailsInfo.department.path }}</dd>
           </div>
+
           <div class="full-width-field">
             <dt class="text-caption text-medium-emphasis">Notes</dt>
             <dd class="text-pre-wrap">{{ detailsInfo.department.notes || "—" }}</dd>
@@ -106,13 +122,16 @@
         </dl>
       </v-card-text>
     </v-card>
+
     <v-card variant="outlined" class="mb-4" :aria-busy="boolLoading">
       <v-card-title>Members</v-card-title>
+
       <v-card-text>
         <p class="mb-3">
           Only explicitly assigned department roles are listed. Organization administrators
           do not need an assignment to access this department.
         </p>
+
         <v-data-table
           :headers="ARR_MEMBER_HEADER"
           :items="detailsInfo.members"
@@ -134,17 +153,22 @@
               </p>
             </div>
           </template>
+
           <template #item.role="{ item }">
             <span class="text-capitalize">{{ item.role }}</span>
           </template>
+
           <template #no-data>No members assigned to this department.</template>
         </v-data-table>
       </v-card-text>
     </v-card>
+
     <v-card variant="outlined">
       <v-card-title>Resources</v-card-title>
+
       <v-card-text>
         <p class="mb-3">Open a resource list filtered to this department.</p>
+
         <div class="d-flex flex-wrap ga-2">
           <v-btn
             :to="{
@@ -155,6 +179,7 @@
             prepend-icon="mdi-desktop-classic">
             Executors
           </v-btn>
+
           <v-btn
             :to="{
               name: 'executor-groups',
@@ -164,6 +189,7 @@
             prepend-icon="mdi-group">
             Executor Groups
           </v-btn>
+
           <v-btn
             :to="{
               name: 'assets',
@@ -173,6 +199,7 @@
             prepend-icon="mdi-archive-outline">
             Assets
           </v-btn>
+
           <v-btn
             :to="{
               name: 'data-queues',
@@ -182,6 +209,7 @@
             prepend-icon="mdi-database-outline">
             Data Queues
           </v-btn>
+
           <v-btn
             :to="{
               name: 'shared-files',
@@ -195,12 +223,14 @@
       </v-card-text>
     </v-card>
   </template>
+
   <DepartmentFormDialog
     v-if="editTarget"
     :departments="arrEditDepartment"
     :department="editTarget"
     @close="editTarget = null"
     @saved="handleDepartmentSaved" />
+
   <DepartmentDeleteDialog
     v-if="deleteTarget"
     :department="deleteTarget"
@@ -225,18 +255,22 @@ import type {
   DepartmentListEntryResponse,
   DepartmentRecordResponse,
 } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ departmentId: string }>();
+
 const ARR_MEMBER_HEADER = [
   { title: "Account", key: "account", minWidth: 240 },
   { title: "Role", key: "role", minWidth: 120 },
 ];
 
 const sessionStore = useSessionStore();
+
 const boolCanManage = computed(
   () => sessionStore.access?.is_org_admin && sessionStore.access.business_available,
 );
+
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const detailsInfo = shallowRef<DepartmentDetailsResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
@@ -246,6 +280,7 @@ const deleteTarget = shallowRef<DepartmentListEntryResponse | null>(null);
 const boolLoading = ref(false);
 const boolOpeningEdit = ref(false);
 const boolDeleted = ref(false);
+
 const boolActionBlocked = computed(
   () =>
     boolLoading.value ||
@@ -253,6 +288,7 @@ const boolActionBlocked = computed(
     editTarget.value !== null ||
     deleteTarget.value !== null,
 );
+
 const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 let intRequestRevision = 0;
@@ -363,6 +399,7 @@ watch(
   },
   { immediate: true },
 );
+
 onBeforeUnmount(() => {
   intRequestRevision += 1;
 });

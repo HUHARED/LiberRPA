@@ -2,6 +2,7 @@
 <template>
   <AuthLayout>
     <h1 class="text-h5 mb-4">Confirm Email Change</h1>
+
     <v-alert
       v-if="boolConfirmed"
       type="success"
@@ -13,6 +14,7 @@
       Use this address for future sign-ins. Your password, sessions and API keys remain
       active.
     </v-alert>
+
     <template v-else>
       <v-progress-linear
         v-if="boolLoading"
@@ -20,6 +22,7 @@
         color="primary"
         class="mb-4"
         aria-label="Checking email change link" />
+
       <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
         {{ boolConfirmationFailed ? "Email change was not confirmed." : "" }}
         {{ requestError.message }}
@@ -27,27 +30,32 @@
           Try again in {{ intRetrySeconds }} seconds.
         </p>
       </v-alert>
+
       <template v-if="linkInfo">
         <v-text-field
           :model-value="linkInfo.new_email"
           label="New Email"
           variant="outlined"
           readonly />
+
         <p class="text-medium-emphasis mb-4">
           Expires at
           <span class="font-weight-bold">
             {{ formatDateTime(linkInfo.expires_at, "UTC") }}.
           </span>
         </p>
+
         <p class="mb-4">
           Select
           <span class="font-weight-bold">Confirm Email Change</span>
           to update the account that requested this link. Opening this page does not change
           the email or sign you in.
         </p>
+
         <v-btn
           color="primary"
           variant="tonal"
+          prepend-icon="mdi-check"
           block
           class="mb-3"
           :loading="boolConfirming"
@@ -56,11 +64,13 @@
           Confirm Email Change
         </v-btn>
       </template>
+
       <v-btn
         v-else-if="
           strToken && requestError && requestError.code !== 'invalid_email_change_token'
         "
         variant="tonal"
+        prepend-icon="mdi-refresh"
         block
         class="mb-3"
         :disabled="boolLoading || boolConfirming || intRetrySeconds > 0"
@@ -68,8 +78,10 @@
         Retry
       </v-btn>
     </template>
+
     <v-btn
       variant="tonal"
+      prepend-icon="mdi-view-dashboard-outline"
       block
       :disabled="boolConfirming"
       :to="sessionStore.authenticated ? '/overview' : '/sign-in'">
@@ -85,7 +97,9 @@ import { useRoute, useRouter } from "vue-router";
 import AuthLayout from "@/layouts/AuthLayout.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
+
 import { useRetryDelay } from "@/composables/useRetryDelay";
+
 import { formatDateTime } from "@/app/formatters";
 
 import { ApiError, getApiError } from "@/api/errors";

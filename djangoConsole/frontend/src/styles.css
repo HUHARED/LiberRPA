@@ -1,5 +1,9 @@
 /* FileName: styles.css */
 
+html {
+  overflow-y: auto;
+}
+
 /* Keep icon fonts separate from the global text font. */
 body,
 body :not(.v-icon, .mdi-set) {

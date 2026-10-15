@@ -76,9 +76,10 @@
         Console address.
       </v-alert>
 
-      <div class="d-flex ga-3">
+      <div class="d-flex justify-end ga-3">
         <v-btn
           variant="tonal"
+          prepend-icon="mdi-link-edit"
           :disabled="boolBusy || boolSelectingExecutor"
           @click="openAddressDialog">
           Change Address
@@ -88,6 +89,7 @@
           v-if="!account.hasCredential"
           color="primary"
           variant="tonal"
+          append-icon="mdi-arrow-right"
           :disabled="boolBusy || !account.consoleUrl"
           @click="openSignInDialog">
           Sign In
@@ -96,6 +98,7 @@
         <v-btn
           v-else-if="!boolSelectingExecutor"
           variant="tonal"
+          prepend-icon="mdi-logout"
           :disabled="boolBusy || account.hasActiveRun"
           @click="signOut">
           Sign Out
@@ -124,6 +127,7 @@
                   <th>Console Dispatch</th>
                 </tr>
               </thead>
+
               <tbody>
                 <tr v-for="executor in executorPage.executors" :key="executor.id">
                   <td>
@@ -133,6 +137,7 @@
                   <td>{{ executor.department.path }}</td>
                   <td>{{ executor.dispatch_enabled ? "Enabled" : "Paused" }}</td>
                 </tr>
+
                 <tr v-if="executorPage.executors.length === 0">
                   <td colspan="4">
                     No available Executors. Create or unassociate an Executor in Console,
@@ -159,14 +164,7 @@
         <v-card-actions>
           <v-btn
             variant="tonal"
-            :disabled="boolBusy"
-            @click="loadChoices(executorPage.page)">
-            Refresh
-          </v-btn>
-
-          <v-spacer />
-          <v-btn
-            variant="tonal"
+            prepend-icon="mdi-close"
             :disabled="boolBusy || account.hasActiveRun"
             @click="signOut">
             Cancel
@@ -174,6 +172,15 @@
 
           <v-btn
             variant="tonal"
+            prepend-icon="mdi-refresh"
+            :disabled="boolBusy"
+            @click="loadChoices(executorPage.page)">
+            Refresh
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-check"
             color="primary"
             :disabled="boolBusy || !strExecutorId"
             :loading="boolBusy"
@@ -203,12 +210,17 @@
           </v-card-text>
 
           <v-card-actions>
-            <v-spacer />
-            <v-btn variant="tonal" :disabled="boolBusy" @click="boolShowAddress = false">
-              Cancel
-            </v-btn>
             <v-btn
               variant="tonal"
+              prepend-icon="mdi-close"
+              :disabled="boolBusy"
+              @click="boolShowAddress = false">
+              Cancel
+            </v-btn>
+            <v-spacer />
+            <v-btn
+              variant="tonal"
+              prepend-icon="mdi-content-save-outline"
               type="submit"
               color="primary"
               :disabled="boolBusy || !strAddress.trim() || account.hasActiveRun"
@@ -247,12 +259,17 @@
           </v-card-text>
 
           <v-card-actions>
-            <v-spacer />
-            <v-btn variant="tonal" :disabled="boolBusy" @click="closeSignInDialog">
-              Cancel
-            </v-btn>
             <v-btn
               variant="tonal"
+              prepend-icon="mdi-close"
+              :disabled="boolBusy"
+              @click="closeSignInDialog">
+              Cancel
+            </v-btn>
+            <v-spacer />
+            <v-btn
+              variant="tonal"
+              append-icon="mdi-arrow-right"
               color="primary"
               type="submit"
               :disabled="boolBusy || !strEmail.trim() || !strPassword"
@@ -265,6 +282,7 @@
     </v-dialog>
   </v-container>
 </template>
+
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 
@@ -288,9 +306,11 @@ const settingStore = useSettingStore();
 const account = computed(() => consoleStore.account);
 const sessionInfo = computed(() => account.value.sessionInfo);
 const boolBusy = computed(() => consoleStore.boolWorking || account.value.busy);
+
 const boolSelectingExecutor = computed(
   () => sessionInfo.value?.session.selection_required === true,
 );
+
 const boolShowAddress = ref(false);
 const boolShowSignIn = ref(false);
 const boolShowPassword = ref(false);
@@ -311,7 +331,9 @@ const DICT_CONNECTION_LABEL: Record<ConsoleConnection, string> = {
   [ConsoleConnection.Reconnecting]: "Reconnecting",
   [ConsoleConnection.AccessUnavailable]: "Access Unavailable",
 };
+
 const strConnectionLabel = computed(() => DICT_CONNECTION_LABEL[account.value.connection]);
+
 const strAccountDepartments = computed(() => {
   if (sessionInfo.value?.is_org_admin) {
     return "OrgAdmin — All departments";
@@ -322,18 +344,21 @@ const strAccountDepartments = computed(() => {
       .join("\n") || "No department access"
   );
 });
+
 const strExecutorDepartment = computed(
   () =>
     sessionInfo.value?.account_departments.find(
       (department) => department.id === sessionInfo.value?.executor?.department_id,
     )?.path || "—",
 );
+
 const strDispatchLabel = computed(() => {
   const strValue = sessionInfo.value?.executor?.dispatch_enabled ? "Enabled" : "Paused";
   return account.value.connection === ConsoleConnection.Connected
     ? strValue
     : `${strValue} (last received)`;
 });
+
 const strLastContact = computed(() => {
   const strTimestamp = sessionInfo.value?.last_seen_at ?? null;
   return strTimestamp === null
@@ -464,4 +489,5 @@ onBeforeUnmount(() => {
   strPassword.value = "";
 });
 </script>
+
 <style scoped></style>

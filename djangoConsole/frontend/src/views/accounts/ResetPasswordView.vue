@@ -1,27 +1,47 @@
 <!-- FileName: ResetPasswordView.vue -->
 <template>
   <AuthLayout>
+    <v-btn
+      v-if="!boolCompleted"
+      :to="sessionStore.authenticated ? '/overview' : '/sign-in'"
+      variant="tonal"
+      :prepend-icon="
+        sessionStore.authenticated ? 'mdi-view-dashboard-outline' : 'mdi-arrow-left'
+      "
+      class="mb-4"
+      :disabled="boolSaving">
+      {{ sessionStore.authenticated ? "Open Console" : "Back to Sign In" }}
+    </v-btn>
+
     <h1 class="text-h5 mb-4">Reset Password</h1>
+
     <template v-if="boolCompleted">
       <v-alert type="success" variant="tonal" class="text-anywhere mb-4" role="status">
         The password for
         <span class="font-weight-bold">{{ linkInfo?.email }}</span>
         has been reset.
       </v-alert>
+
       <p v-if="sessionStore.authenticated" class="text-anywhere mb-4">
         You are still signed in as
         <span class="text-highlight font-weight-bold">
           {{ sessionStore.session?.user.email }}.
         </span>
       </p>
+
       <v-btn
         :to="sessionStore.authenticated ? '/overview' : '/sign-in'"
         color="primary"
         variant="tonal"
+        :prepend-icon="
+          sessionStore.authenticated ? 'mdi-view-dashboard-outline' : undefined
+        "
+        :append-icon="sessionStore.authenticated ? undefined : 'mdi-arrow-right'"
         block>
         {{ sessionStore.authenticated ? "Open Console" : "Sign In" }}
       </v-btn>
     </template>
+
     <template v-else>
       <v-progress-linear
         v-if="boolChecking"
@@ -29,6 +49,7 @@
         color="primary"
         class="mb-4"
         aria-label="Checking password reset link" />
+
       <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
         {{ requestError.message }}
         <p v-if="intRetrySeconds" class="mt-2">
@@ -47,6 +68,7 @@
           autocomplete="username"
           variant="outlined"
           readonly />
+
         <PasswordField
           v-model="strNewPassword"
           label="New Password"
@@ -56,6 +78,7 @@
           :error-messages="requestError?.fields.new_password ?? []"
           :disabled="boolSaving"
           required />
+
         <PasswordField
           v-model="strConfirmPassword"
           label="Confirm Password"
@@ -65,14 +88,17 @@
           :error-messages="requestError?.fields.confirm_password ?? []"
           :disabled="boolSaving"
           required />
+
         <p class="mb-4">
           Resetting your password will sign you out of all sessions and revoke your active
           API keys.
         </p>
+
         <v-btn
           type="submit"
           color="primary"
           variant="tonal"
+          prepend-icon="mdi-lock-reset"
           block
           :loading="boolSaving"
           :disabled="
@@ -86,28 +112,27 @@
         <v-btn
           v-if="strToken && requestError?.code !== 'invalid_password_reset_token'"
           variant="tonal"
+          prepend-icon="mdi-refresh"
           block
           class="mb-3"
           :disabled="intRetrySeconds > 0"
           @click="loadLink">
           Check Again
         </v-btn>
-        <v-btn :to="{ name: 'forgot-password' }" color="primary" variant="tonal" block>
+
+        <v-btn
+          :to="{ name: 'forgot-password' }"
+          color="primary"
+          variant="tonal"
+          prepend-icon="mdi-email-sync-outline"
+          block>
           Request a New Reset Link
         </v-btn>
       </template>
-
-      <v-btn
-        :to="sessionStore.authenticated ? '/overview' : '/sign-in'"
-        variant="tonal"
-        block
-        class="mt-4"
-        :disabled="boolSaving">
-        {{ sessionStore.authenticated ? "Open Console" : "Back to Sign In" }}
-      </v-btn>
     </template>
   </AuthLayout>
 </template>
+
 <script setup lang="ts">
 import { onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -117,6 +142,7 @@ import AuthLayout from "@/layouts/AuthLayout.vue";
 import PasswordField from "@/components/common/PasswordField.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
+
 import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { ApiError, getApiError } from "@/api/errors";
@@ -251,4 +277,5 @@ onBeforeUnmount(() => {
   clearPasswords();
 });
 </script>
+
 <style scoped></style>

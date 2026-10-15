@@ -1,11 +1,11 @@
 <!-- FileName: BuiltInArguments.vue -->
 <template>
   <v-row class="w-100">
-    <v-col v-if="$slots.environment" cols="6">
+    <v-col cols="7">
       <slot name="environment" />
     </v-col>
 
-    <v-col :cols="$slots.environment ? 6 : 12">
+    <v-col cols="5">
       <v-number-input
         v-model="intMaxRetryCount"
         label="Max Retry Count"
@@ -21,7 +21,7 @@
       </v-number-input>
     </v-col>
 
-    <v-col :cols="props.timeoutCols">
+    <v-col cols="7">
       <v-number-input
         v-model="intTimeoutMin"
         control-variant="default"
@@ -40,7 +40,7 @@
       </v-number-input>
     </v-col>
 
-    <v-col :cols="props.logLevelCols">
+    <v-col cols="5">
       <v-select
         v-model="logLevel"
         label="Log Level"
@@ -92,17 +92,6 @@ import {
   INT_MAX_RUN_TIMEOUT_MIN,
 } from "../../../../shared/runSettings";
 import type { LogLevel } from "../../../../shared/runSettings";
-
-const props = withDefaults(
-  defineProps<{
-    timeoutCols?: number;
-    logLevelCols?: number;
-  }>(),
-  {
-    timeoutCols: 6,
-    logLevelCols: 6,
-  },
-);
 
 const maxRetryCount = defineModel<number>("maxRetryCount", { required: true });
 const timeoutMin = defineModel<number>("timeoutMin", { required: true });

@@ -52,7 +52,6 @@ _DICT_WRITE_ACTION = {
     "executor-group-deletion": "executor_group.delete",
     "assets": "asset.create",
     "asset": "asset.update",
-    "asset-value": "asset.set_value",
     "asset-deletion": "asset.delete",
 }
 

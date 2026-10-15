@@ -10,6 +10,7 @@
       <v-card-title id="api-key-create-title">
         {{ createdKey ? "API Key Created" : "New API Key" }}
       </v-card-title>
+
       <v-card-text>
         <template v-if="createdKey">
           <v-alert type="success" variant="tonal" class="text-anywhere mb-4" role="status">
@@ -17,9 +18,11 @@
             <span class="font-weight-bold">{{ createdKey.name }}</span>
             created.
           </v-alert>
+
           <p class="mb-4">
             Copy and save this key now. You won't be able to view it again.
           </p>
+
           <v-textarea
             :model-value="strSecret"
             label="API Key"
@@ -28,11 +31,14 @@
             readonly
             spellcheck="false"
             autocomplete="off" />
+
           <p v-if="boolCopied" class="text-success" role="status">Copied.</p>
+
           <p v-if="strCopyError" class="text-error" role="alert">
             {{ strCopyError }}
           </p>
         </template>
+
         <v-form
           v-else
           id="api-key-create-form"
@@ -47,20 +53,24 @@
               class="mt-2">
               {{ strMessage }}
             </p>
+
             <p
               v-for="strMessage in saveError.fields.time_zone"
               :key="strMessage"
               class="mt-2">
               {{ strMessage }}
             </p>
+
             <p v-if="boolUncertain" class="mt-2">
               Check the list before creating another key. If a key was created without
               displaying its secret, revoke it and create a replacement.
             </p>
+
             <p v-if="intRetrySeconds" class="mt-2">
               Try again in {{ intRetrySeconds }} seconds.
             </p>
           </v-alert>
+
           <v-text-field
             v-model="strName"
             label="Name"
@@ -70,6 +80,7 @@
             :error-messages="saveError?.fields.name ?? []"
             :disabled="boolSaving || boolUncertain"
             required />
+
           <v-text-field
             v-model="strExpiresAt"
             :label="`Expires At (${strTimeZone})`"
@@ -79,6 +90,7 @@
             :error-messages="saveError?.fields.expires_at ?? []"
             :disabled="boolSaving || boolUncertain"
             required />
+
           <v-textarea
             v-model="strNotes"
             label="Notes"
@@ -88,6 +100,7 @@
             counter="2000"
             :error-messages="saveError?.fields.notes ?? []"
             :disabled="boolSaving || boolUncertain" />
+
           <p>
             API keys perform Operator actions within your current department access. Your
             account can have up to
@@ -96,23 +109,51 @@
           </p>
         </v-form>
       </v-card-text>
+
       <v-card-actions class="flex-wrap ga-2">
-        <v-spacer />
         <template v-if="createdKey">
-          <v-btn variant="tonal" :loading="boolCopying" @click="copySecret">Copy</v-btn>
-          <v-btn color="primary" variant="tonal" @click="finishCreation">Done</v-btn>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-close"
+            @click="finishCreation">
+            Done
+          </v-btn>
+
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-content-copy"
+            :loading="boolCopying"
+            @click="copySecret">
+            Copy
+          </v-btn>
+          <v-spacer />
         </template>
+
         <template v-else>
-          <v-btn variant="tonal" :disabled="boolSaving" @click="closeDialog">Cancel</v-btn>
-          <v-btn v-if="boolUncertain" variant="tonal" @click="emit('refresh')">
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-close"
+            :disabled="boolSaving"
+            @click="closeDialog">
+            Cancel
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            v-if="boolUncertain"
+            variant="tonal"
+            prepend-icon="mdi-refresh"
+            @click="emit('refresh')">
             Check List
           </v-btn>
+
           <v-btn
             v-else
             type="submit"
             form="api-key-create-form"
             color="primary"
             variant="tonal"
+            prepend-icon="mdi-plus"
             :loading="boolSaving"
             :disabled="boolSubmitBlocked">
             Create
@@ -128,11 +169,13 @@ import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "@/stores/sessionStore";
+
 import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { createApiKey } from "@/api/apiKeys";
 import type { ApiKeyResponse } from "@/api/generated/browserApi";
+
 import { formatDateTimeInput } from "@/app/formatters";
 
 const props = defineProps<{ defaultExpiresAt: string; activeKeyLimit: number }>();
@@ -142,9 +185,11 @@ const sessionStore = useSessionStore();
 const strTimeZone = sessionStore.session?.user.time_zone ?? "UTC";
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 const strName = ref("");
+
 const strExpiresAt = ref(
   `${formatDateTimeInput(props.defaultExpiresAt, strTimeZone).slice(0, 10)}T00:00`,
 );
+
 const strNotes = ref("");
 const strSecret = ref("");
 const createdKey = shallowRef<ApiKeyResponse | null>(null);
@@ -154,6 +199,7 @@ const boolUncertain = ref(false);
 const boolCopied = ref(false);
 const boolCopying = ref(false);
 const strCopyError = ref("");
+
 const boolSubmitBlocked = computed(
   () =>
     boolSaving.value ||
@@ -163,6 +209,7 @@ const boolSubmitBlocked = computed(
     !sessionStore.access?.business_available ||
     intRetrySeconds.value > 0,
 );
+
 let boolUnmounted = false;
 
 function validateName(value: string): true | string {

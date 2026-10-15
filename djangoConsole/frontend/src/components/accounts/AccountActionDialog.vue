@@ -28,11 +28,13 @@
             Changing your password will sign you out of all sessions and revoke your active
             API keys.
           </p>
+
           <p v-else-if="action === 'sessions'" class="mb-4">
             This signs out other browsers and connected clients, and clears their Executor
             associations. This browser session, tabs sharing it, and API keys remain active.
             Executor records are kept.
           </p>
+
           <p v-else class="mb-4">
             Confirm the new address through its verification email. Your password, sessions
             and API keys remain active. The link expires after
@@ -116,17 +118,27 @@
       </v-card-text>
 
       <v-card-actions class="flex-wrap ga-2">
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolSubmitting" @click="emit('close')">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolSubmitting"
+          @click="emit('close')">
           {{ boolEmailQueued ? "Done" : "Cancel" }}
         </v-btn>
-
+        <v-spacer />
         <v-btn
           v-if="!boolEmailQueued"
           type="submit"
           form="account-action-form"
           color="primary"
           variant="tonal"
+          :prepend-icon="
+            action === 'email'
+              ? 'mdi-email-outline'
+              : action === 'password'
+                ? 'mdi-lock-reset'
+                : 'mdi-logout'
+          "
           :loading="boolSubmitting"
           :disabled="boolSubmitting || sessionStore.busy || intRetrySeconds > 0">
           {{ action === "email" ? "Send Verification Email" : strTitle }}
@@ -143,6 +155,7 @@ import type { SubmitEventPromise } from "vuetify";
 import PasswordField from "@/components/common/PasswordField.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
+
 import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { type ApiError, getApiError } from "@/api/errors";
@@ -152,11 +165,13 @@ const props = defineProps<{ action: "password" | "sessions" | "email" }>();
 const emit = defineEmits<{ close: []; completed: [message: string] }>();
 const sessionStore = useSessionStore();
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
+
 const strTitle = computed(() => {
   if (props.action === "password") return "Change Password";
   if (props.action === "sessions") return "Sign Out Other Sessions";
   return "Change Email";
 });
+
 const strCurrentPassword = ref("");
 const strNewPassword = ref("");
 const strConfirmPassword = ref("");
@@ -169,12 +184,15 @@ let boolUnmounted = false;
 function validateRequiredPassword(value: string): true | string {
   return value ? true : "Enter a password.";
 }
+
 function validatePasswordMatch(value: string): true | string {
   return value === strNewPassword.value ? true : "The new passwords do not match.";
 }
+
 function validateEmail(value: string): true | string {
   return value.trim() ? true : "Enter the new email address.";
 }
+
 function clearPasswords(): void {
   strCurrentPassword.value = "";
   strNewPassword.value = "";

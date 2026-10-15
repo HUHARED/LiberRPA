@@ -3,10 +3,12 @@
   <v-row align="center" class="mb-4">
     <v-col>
       <h2 class="text-h6 mb-2">Audit Log</h2>
+
       <p class="text-medium-emphasis">
         Retained activity in your organization, newest first.
       </p>
     </v-col>
+
     <v-col cols="auto">
       <v-btn
         variant="tonal"
@@ -18,6 +20,7 @@
       </v-btn>
     </v-col>
   </v-row>
+
   <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form aria-label="Audit filters" @submit.prevent="applyFilters">
@@ -26,29 +29,32 @@
           <span class="font-weight-bold">{{ strTimeZone }}</span>
           and includes both selected dates.
         </p>
+
         <v-row>
           <v-col cols="12" sm="6">
             <v-text-field
               v-model="draftFilters.fromDate"
               type="date"
               label="From Date"
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details="auto"
               :error-messages="requestError?.fields.date_from ?? []"
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" sm="6">
             <v-text-field
               v-model="draftFilters.toDate"
               type="date"
               label="Through Date"
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details="auto"
               :error-messages="requestError?.fields.date_to ?? []"
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" sm="6" lg="3">
             <v-autocomplete
               v-model="draftFilters.actorIds"
@@ -60,11 +66,12 @@
               chips
               closable-chips
               clearable
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" sm="6" lg="3">
             <v-autocomplete
               v-model="draftFilters.modules"
@@ -76,11 +83,12 @@
               chips
               closable-chips
               clearable
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" sm="6" lg="3">
             <v-autocomplete
               v-model="draftFilters.actions"
@@ -92,11 +100,12 @@
               chips
               closable-chips
               clearable
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" sm="6" lg="3">
             <v-select
               v-model="draftFilters.results"
@@ -108,29 +117,42 @@
               chips
               closable-chips
               clearable
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               :disabled="boolLoading" />
           </v-col>
         </v-row>
+
         <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
-            Apply
-          </v-btn>
-          <v-btn variant="tonal" :disabled="boolLoading" @click="resetFilters">
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-filter-remove-outline"
+            :disabled="boolLoading"
+            @click="resetFilters">
             Reset Filters
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            type="submit"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-check"
+            :disabled="boolLoading">
+            Apply
           </v-btn>
         </div>
       </form>
     </v-card-text>
   </v-card>
+
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="recordPage" class="mt-2">
       Previously loaded results are shown. Refresh to try again.
     </p>
   </v-alert>
+
   <div
     class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
     <span>Time zone: {{ strTimeZone }}</span>
@@ -138,6 +160,7 @@
       Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
     </span>
   </div>
+
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
       :headers="ARR_HEADER"
@@ -154,24 +177,30 @@
       <template #item.created_at="{ item }">
         {{ formatDateTime(item.created_at, strTimeZone) }}
       </template>
+
       <template #item.actor_name="{ item }">
         <div class="table-text-narrow">{{ item.actor_name }}</div>
       </template>
+
       <template #item.channel="{ item }">{{ AUDIT_CHANNEL_LABEL[item.channel] }}</template>
+
       <template #item.action="{ item }">
         <div class="table-text-narrow">{{ formatAuditLabel(item.action) }}</div>
       </template>
+
       <template #item.object="{ item }">
         <div class="table-text">
           {{ formatAuditLabel(item.object_type) }}:
           {{ item.object_name || item.object_id || "—" }}
         </div>
       </template>
+
       <template #item.result="{ item }">
         <v-chip :color="item.result === 'succeeded' ? 'success' : 'error'" size="small">
           {{ formatAuditLabel(item.result) }}
         </v-chip>
       </template>
+
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
           <v-btn
@@ -183,6 +212,7 @@
             @click="strDetailsId = item.id" />
         </div>
       </template>
+
       <template #no-data>
         {{
           requestError
@@ -191,13 +221,16 @@
         }}
       </template>
     </v-data-table-server>
+
     <template v-if="recordPage">
       <v-divider />
+
       <div class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
         <p class="text-body-2 text-medium-emphasis" aria-live="polite">
           {{ recordPage.pagination.total_count }} records · Page
           {{ recordPage.pagination.page }} of {{ recordPage.pagination.total_pages }}
         </p>
+
         <v-pagination
           v-if="recordPage.pagination.total_pages > 1"
           :model-value="recordPage.pagination.page"
@@ -210,6 +243,7 @@
       </div>
     </template>
   </v-card>
+
   <AuditDetailsDialog
     v-if="strDetailsId"
     :audit-id="strDetailsId"
@@ -237,6 +271,7 @@ import type {
   AuditFilterOptionsResponse,
   AuditListResponse,
 } from "@/api/generated/browserApi";
+
 import { AUDIT_CHANNEL_LABEL, ARR_AUDIT_RESULT, formatAuditLabel } from "@/app/audit";
 import { formatDateTime } from "@/app/formatters";
 
@@ -252,6 +287,7 @@ const ARR_HEADER = [
 
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+
 const draftFilters = reactive<Omit<AuditListFilters, "timeZone">>({
   fromDate: "",
   toDate: "",
@@ -260,30 +296,35 @@ const draftFilters = reactive<Omit<AuditListFilters, "timeZone">>({
   actions: [],
   results: [],
 });
+
 const recordPage = shallowRef<AuditListResponse | null>(null);
 const filterOptions = shallowRef<AuditFilterOptionsResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const strUpdatedAt = ref<string | null>(null);
 const strDetailsId = ref<string | null>(null);
+
 const arrActorOption = computed(() =>
   (filterOptions.value?.actors ?? []).map((actor) => ({
     title: actor.name,
     value: actor.id ?? "system",
   })),
 );
+
 const arrModuleOption = computed(() =>
   (filterOptions.value?.modules ?? []).map((module) => ({
     title: formatAuditLabel(module),
     value: module,
   })),
 );
+
 const arrActionOption = computed(() =>
   (filterOptions.value?.actions ?? []).map((action) => ({
     title: formatAuditLabel(action),
     value: action,
   })),
 );
+
 let appliedFilters = buildFilters();
 let intRequestedPage = 1;
 let intListRevision = 0;
@@ -363,7 +404,9 @@ watch(strTimeZone, (timeZone) => {
   strUpdatedAt.value = null;
   void loadRecords(1);
 });
+
 onMounted(() => void loadRecords());
+
 onBeforeUnmount(() => {
   intListRevision += 1;
 });

@@ -10,6 +10,7 @@
       <v-card-title id="membership-form-title">
         {{ member ? "Edit Membership" : "Invite Member" }}
       </v-card-title>
+
       <v-card-text>
         <v-progress-linear
           v-if="boolLoading"
@@ -17,9 +18,11 @@
           color="primary"
           class="mb-4"
           aria-label="Loading membership form" />
+
         <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
           {{ requestError.message }}
         </v-alert>
+
         <v-form
           v-if="arrDepartment !== null"
           id="membership-form"
@@ -37,16 +40,19 @@
               class="mt-2">
               {{ strMessage }}
             </p>
+
             <p v-if="intRetrySeconds" class="mt-2">
               Try again in {{ intRetrySeconds }} seconds.
             </p>
           </v-alert>
+
           <v-text-field
             v-if="member"
             :model-value="strAccount"
             label="Account"
             variant="outlined"
             readonly />
+
           <v-text-field
             v-else
             v-model="strEmail"
@@ -59,16 +65,19 @@
             :error-messages="saveError?.fields.email ?? []"
             :disabled="boolSaving"
             required />
+
           <v-switch
             v-model="boolOrgAdmin"
             label="OrgAdmin"
             color="primary"
             :disabled="boolSaving"
             :error-messages="saveError?.fields.is_org_admin ?? []" />
+
           <v-alert v-if="boolOrgAdmin" type="info" variant="tonal" class="mb-4">
             Organization administrators can access all departments. Any existing explicit
             department roles are kept and will reappear when OrgAdmin is turned off.
           </v-alert>
+
           <v-alert
             v-if="member && member.id === sessionStore.session?.user.id && !boolOrgAdmin"
             type="warning"
@@ -77,8 +86,10 @@
             Saving will remove your organization administration access. You will keep only
             your explicit department roles.
           </v-alert>
+
           <div v-show="!boolOrgAdmin" class="mb-4">
             <h3 class="text-subtitle-1 mb-2">Department Roles</h3>
+
             <v-alert
               v-if="saveError?.fields.department_roles"
               type="error"
@@ -88,6 +99,7 @@
                 {{ strMessage }}
               </p>
             </v-alert>
+
             <v-table>
               <thead>
                 <tr>
@@ -96,6 +108,7 @@
                   <th scope="col">Actions</th>
                 </tr>
               </thead>
+
               <tbody>
                 <tr
                   v-for="(assignment, intIndex) in arrRole"
@@ -113,14 +126,19 @@
                       :disabled="boolSaving" />
                   </td>
                   <td>
-                    <v-select
+                    <v-radio-group
                       v-model="assignment.role"
-                      :items="ARR_ROLE_OPTION"
                       :aria-label="`Role ${intIndex + 1}`"
-                      variant="outlined"
+                      inline
                       density="compact"
                       hide-details
-                      :disabled="boolSaving" />
+                      :disabled="boolSaving">
+                      <v-radio
+                        label="Operator"
+                        :value="DepartmentRole.Operator"
+                        class="mr-3" />
+                      <v-radio label="Developer" :value="DepartmentRole.Developer" />
+                    </v-radio-group>
                   </td>
                   <td>
                     <v-btn
@@ -133,6 +151,7 @@
                       @click="arrRole.splice(intIndex, 1)" />
                   </td>
                 </tr>
+
                 <tr v-if="!arrRole.length">
                   <td colspan="3" class="text-medium-emphasis py-4">
                     No department access. A member can be saved without department roles.
@@ -140,15 +159,19 @@
                 </tr>
               </tbody>
             </v-table>
-            <v-btn
-              variant="tonal"
-              prepend-icon="mdi-plus"
-              class="mt-3"
-              :disabled="boolSaving || arrRole.length >= arrDepartment.length"
-              @click="addDepartment">
-              Add Department
-            </v-btn>
+
+            <div class="d-flex justify-end">
+              <v-btn
+                variant="tonal"
+                prepend-icon="mdi-plus"
+                class="mt-3"
+                :disabled="boolSaving || arrRole.length >= arrDepartment.length"
+                @click="addDepartment">
+                Add Department
+              </v-btn>
+            </div>
           </div>
+
           <v-textarea
             v-model="strNotes"
             label="Notes"
@@ -158,24 +181,35 @@
             counter="2000"
             :error-messages="saveError?.fields.notes ?? []"
             :disabled="boolSaving" />
+
           <p v-if="!member">The recipient will receive a link to create an account.</p>
         </v-form>
       </v-card-text>
+
       <v-card-actions class="flex-wrap ga-2">
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolSaving" @click="closeForm">Cancel</v-btn>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolSaving"
+          @click="closeForm">
+          Cancel
+        </v-btn>
+
         <v-btn
           v-if="requestError"
           variant="tonal"
+          prepend-icon="mdi-refresh"
           :disabled="boolLoading || !boolCanManage"
           @click="loadForm">
           Retry
         </v-btn>
+        <v-spacer />
         <v-btn
           type="submit"
           form="membership-form"
           color="primary"
           variant="tonal"
+          :prepend-icon="member ? 'mdi-content-save-outline' : 'mdi-account-plus-outline'"
           :loading="boolSaving"
           :disabled="
             boolLoading ||
@@ -196,11 +230,12 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "@/stores/sessionStore";
+
 import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { getDepartmentList } from "@/api/departments";
-import { getMemberDetails, updateMembership } from "@/api/members";
+import { DepartmentRole, getMemberDetails, updateMembership } from "@/api/members";
 import { createInvitation } from "@/api/invitations";
 import type {
   UserResponse,
@@ -212,19 +247,19 @@ import type {
 } from "@/api/generated/browserApi";
 
 const props = defineProps<{ member?: UserResponse }>();
+
 const emit = defineEmits<{
   close: [];
   saved: [member: MembershipRecordResponse];
   invited: [invitation: InvitationResponse];
 }>();
-const ARR_ROLE_OPTION = [
-  { title: "Developer", value: "developer" },
-  { title: "Operator", value: "operator" },
-];
+
 const sessionStore = useSessionStore();
+
 const boolCanManage = computed(
   () => sessionStore.access?.is_org_admin && sessionStore.access.business_available,
 );
+
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 const arrDepartment = shallowRef<DepartmentListEntryResponse[] | null>(null);
 const strAccount = ref("");
@@ -282,7 +317,8 @@ function addDepartment(): void {
     (department) =>
       !arrRole.value.some((assignment) => assignment.department_id === department.id),
   );
-  if (department) arrRole.value.push({ department_id: department.id, role: "operator" });
+  if (department)
+    arrRole.value.push({ department_id: department.id, role: DepartmentRole.Operator });
 }
 
 function validateEmail(value: string): true | string {
@@ -340,6 +376,7 @@ async function submitMembership(event: SubmitEventPromise): Promise<void> {
 }
 
 onMounted(() => void loadForm());
+
 onBeforeUnmount(() => {
   boolUnmounted = true;
 });
@@ -347,7 +384,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .department-cell {
-  width: 55%;
+  width: 45%;
   min-width: 240px;
 }
 </style>

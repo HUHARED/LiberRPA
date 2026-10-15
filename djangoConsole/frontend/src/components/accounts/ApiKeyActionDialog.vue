@@ -10,19 +10,23 @@
       <v-card-title id="api-key-action-title">
         {{ action === "edit" ? "Edit API Key Notes" : "Revoke API Key" }}
       </v-card-title>
+
       <v-card-text>
         <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
           The operation was not confirmed. {{ saveError.message }}
           <p v-for="strMessage in saveError.fields.__all__" :key="strMessage" class="mt-2">
             {{ strMessage }}
           </p>
+
           <p v-if="boolRefreshRequired" class="mt-2">
             Refresh the list to check this key's current state before trying again.
           </p>
+
           <p v-if="intRetrySeconds" class="mt-2">
             Try again in {{ intRetrySeconds }} seconds.
           </p>
         </v-alert>
+
         <v-form
           id="api-key-action-form"
           validate-on="submit"
@@ -32,11 +36,13 @@
             label="Account"
             variant="outlined"
             readonly />
+
           <v-text-field
             :model-value="apiKey.name"
             label="Name"
             variant="outlined"
             readonly />
+
           <v-textarea
             v-if="action === 'edit'"
             v-model="strNotes"
@@ -47,27 +53,42 @@
             counter="2000"
             :error-messages="saveError?.fields.notes ?? []"
             :disabled="boolSaving || boolRefreshRequired" />
+
           <template v-else>
             <v-alert type="warning" variant="tonal" class="mb-4">
               Revoking this key is permanent. Further requests using it will be rejected.
             </v-alert>
+
             <p v-if="strStatus !== 'active'">
               This key is {{ strStatus }} and cannot be revoked.
             </p>
           </template>
         </v-form>
       </v-card-text>
+
       <v-card-actions class="flex-wrap ga-2">
-        <v-spacer />
-        <v-btn variant="tonal" :disabled="boolSaving" @click="closeDialog">Cancel</v-btn>
-        <v-btn v-if="boolRefreshRequired" variant="tonal" @click="emit('refresh')">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolSaving"
+          @click="closeDialog">
+          Cancel
+        </v-btn>
+
+        <v-btn
+          v-if="boolRefreshRequired"
+          variant="tonal"
+          prepend-icon="mdi-refresh"
+          @click="emit('refresh')">
           Refresh List
         </v-btn>
+        <v-spacer />
         <v-btn
           type="submit"
           form="api-key-action-form"
           :color="action === 'revoke' ? 'error' : 'primary'"
           variant="tonal"
+          :prepend-icon="action === 'edit' ? 'mdi-content-save-outline' : 'mdi-cancel'"
           :loading="boolSaving"
           :disabled="boolSubmitBlocked">
           {{ action === "edit" ? "Save" : "Revoke" }}
@@ -82,6 +103,7 @@ import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "@/stores/sessionStore";
+
 import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { type ApiError, getApiError } from "@/api/errors";
@@ -94,6 +116,7 @@ const props = defineProps<{
   account: UserResponse;
   asAdministrator: boolean;
 }>();
+
 const emit = defineEmits<{ close: []; refresh: []; saved: [apiKey: ApiKeyResponse] }>();
 const sessionStore = useSessionStore();
 const { intCurrentTimeMs, intRetrySeconds, setRetryDelay } = useRetryDelay();
@@ -102,6 +125,7 @@ const boolSaving = ref(false);
 const saveError = shallowRef<ApiError | null>(null);
 const boolRefreshRequired = ref(false);
 const strStatus = computed(() => getApiKeyStatus(props.apiKey, intCurrentTimeMs.value));
+
 const boolSubmitBlocked = computed(
   () =>
     boolSaving.value ||
@@ -114,6 +138,7 @@ const boolSubmitBlocked = computed(
     (props.action === "revoke" && strStatus.value !== "active") ||
     intRetrySeconds.value > 0,
 );
+
 let boolUnmounted = false;
 
 function closeDialog(): void {

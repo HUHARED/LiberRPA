@@ -5,7 +5,17 @@
       <h1 class="text-h5 mb-2">Assets</h1>
       <p class="text-medium-emphasis">Shared values in your authorized departments.</p>
     </v-col>
+
     <v-col cols="auto" class="d-flex flex-wrap ga-2">
+      <v-btn
+        variant="tonal"
+        prepend-icon="mdi-refresh"
+        :loading="boolLoading"
+        :disabled="boolLoading || boolNewAssetOpen"
+        @click="loadAssets()">
+        Refresh
+      </v-btn>
+
       <v-btn
         v-if="boolCanCreate"
         color="primary"
@@ -15,16 +25,9 @@
         @click="boolNewAssetOpen = true">
         New Asset
       </v-btn>
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="boolLoading"
-        :disabled="boolLoading || boolNewAssetOpen"
-        @click="loadAssets()">
-        Refresh
-      </v-btn>
     </v-col>
   </v-row>
+
   <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form aria-label="Asset filters" @submit.prevent="applyFilters">
@@ -34,12 +37,13 @@
               v-model="strName"
               label="Name"
               maxlength="128"
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               clearable
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" md="4">
             <v-select
               v-model="arrDepartmentId"
@@ -51,11 +55,12 @@
               chips
               closable-chips
               clearable
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               :disabled="boolLoading" />
           </v-col>
+
           <v-col cols="12" md="4">
             <v-select
               v-model="arrAssetType"
@@ -65,23 +70,35 @@
               chips
               closable-chips
               clearable
-              variant="outlined"
+              variant="underlined"
               density="compact"
               hide-details
               :disabled="boolLoading" />
           </v-col>
         </v-row>
+
         <div class="d-flex ga-2 mt-4">
-          <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
-            Apply
-          </v-btn>
-          <v-btn variant="tonal" :disabled="boolLoading" @click="clearFilters">
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-filter-remove-outline"
+            :disabled="boolLoading"
+            @click="clearFilters">
             Reset Filters
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            type="submit"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-check"
+            :disabled="boolLoading">
+            Apply
           </v-btn>
         </div>
       </form>
     </v-card-text>
   </v-card>
+
   <v-alert
     v-if="strSuccessMessage"
     type="success"
@@ -90,12 +107,14 @@
     role="status">
     {{ strSuccessMessage }}
   </v-alert>
+
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{ requestError.message }}
     <p v-if="assetPage" class="mt-2">
       Previously loaded results are shown. Refresh to try again.
     </p>
   </v-alert>
+
   <v-alert
     v-if="strActionError"
     type="error"
@@ -106,6 +125,7 @@
     @click:close="strActionError = ''">
     {{ strActionError }}
   </v-alert>
+
   <v-alert
     v-if="!sessionStore.access?.departments.length"
     type="info"
@@ -114,6 +134,7 @@
     No department access. Ask an organization administrator to check departments and your
     access.
   </v-alert>
+
   <div
     class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
     <span>Time zone: {{ strTimeZone }}</span>
@@ -121,6 +142,7 @@
       Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
     </span>
   </div>
+
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
       :headers="ARR_HEADER"
@@ -140,23 +162,40 @@
           {{ item.name }}
         </RouterLink>
       </template>
+
       <template #item.department="{ item }">
         <div class="table-text-narrow">{{ item.department.path }}</div>
       </template>
+
       <template #item.asset_type="{ item }">
         {{ getAssetTypeLabel(item.asset_type) }}
       </template>
+
       <template #item.value_summary="{ item }">
         <div class="table-text notes-summary">{{ item.value_summary }}</div>
       </template>
+
       <template #item.notes="{ item }">
         <div class="table-text notes-summary">{{ item.notes || "—" }}</div>
       </template>
+
       <template #item.updated_at="{ item }">
         <span class="text-no-wrap">{{ formatDateTime(item.updated_at, strTimeZone) }}</span>
       </template>
+
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
+          <v-btn
+            v-if="item.can_manage || item.can_edit_value"
+            v-tooltip:bottom="'Edit'"
+            variant="text"
+            size="small"
+            aria-label="Edit"
+            icon="mdi-pencil-outline"
+            :loading="strLoadingAssetId === item.id"
+            :disabled="boolLoading || !!strLoadingAssetId"
+            @click="openEdit(item.id)" />
+
           <v-btn
             v-tooltip:bottom="'Copy Path'"
             variant="text"
@@ -166,6 +205,7 @@
             @click="copyPath(item.path)" />
         </div>
       </template>
+
       <template #no-data>
         {{
           requestError
@@ -174,13 +214,16 @@
         }}
       </template>
     </v-data-table-server>
+
     <template v-if="assetPage">
       <v-divider />
+
       <div class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
         <p class="text-body-2 text-medium-emphasis" aria-live="polite">
           {{ assetPage.total_count }} assets · Page {{ assetPage.page }} of
           {{ assetPage.total_pages }}
         </p>
+
         <v-pagination
           v-if="assetPage.total_pages > 1"
           :model-value="assetPage.page"
@@ -193,11 +236,21 @@
       </div>
     </template>
   </v-card>
+
   <AssetFormDialog
     v-if="boolNewAssetOpen"
     mode="create"
     @close="boolNewAssetOpen = false"
     @saved="handleCreated" />
+
+  <AssetFormDialog
+    v-if="assetEdit"
+    :key="assetEdit.id"
+    mode="edit"
+    :asset="assetEdit"
+    @close="assetEdit = null"
+    @saved="handleSaved" />
+
   <RouterView v-slot="{ Component }">
     <component
       :is="Component"
@@ -222,12 +275,15 @@ import {
   type AssetListFilters,
   getAssetTypeLabel,
   getAssetList,
+  getAssetDetails,
 } from "@/api/assets";
 import type {
   AssetType,
   AssetListResponse,
   AssetDetailsResponse,
+  AssetDetailsEntryResponse,
 } from "@/api/generated/browserApi";
+
 import { formatDateTime } from "@/app/formatters";
 
 const ARR_HEADER = [
@@ -237,30 +293,39 @@ const ARR_HEADER = [
   { title: "Value", key: "value_summary", minWidth: 220 },
   { title: "Notes", key: "notes", minWidth: 200 },
   { title: "Updated At", key: "updated_at", minWidth: 240 },
-  { title: "Actions", key: "actions", width: 72 },
+  { title: "Actions", key: "actions", width: 112 },
 ];
+
 const sessionStore = useSessionStore();
 const route = useRoute();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+
 const boolCanCreate = computed(() =>
   (sessionStore.access?.departments ?? []).some(
     (department) => sessionStore.access?.is_org_admin || department.role === "developer",
   ),
 );
+
 const strName = ref<string | null>("");
+
 const arrDepartmentId = ref<string[]>(
   typeof route.query.department_id === "string" ? [route.query.department_id] : [],
 );
+
 const arrAssetType = ref<AssetType[]>([]);
 const assetPage = shallowRef<AssetListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const boolNewAssetOpen = ref(false);
+const assetEdit = shallowRef<AssetDetailsEntryResponse | null>(null);
+const strLoadingAssetId = ref<string | null>(null);
+let intEditRevision = 0;
 const strUpdatedAt = ref<string | null>(null);
 const strSuccessMessage = ref("");
 const strActionError = ref("");
 let intListRevision = 0;
 let intRequestedPage = 1;
+
 let appliedFilters: AssetListFilters = {
   name: "",
   departmentIds: [...arrDepartmentId.value],
@@ -307,21 +372,46 @@ function applyFilters(): void {
   };
   void loadAssets(1);
 }
+
 function clearFilters(): void {
   strName.value = "";
   arrDepartmentId.value = [];
   arrAssetType.value = [];
   applyFilters();
 }
+
 function handleCreated(response: AssetDetailsResponse): void {
   boolNewAssetOpen.value = false;
   strSuccessMessage.value = `Asset "${response.asset.name}" created.`;
   void loadAssets();
 }
+
+async function openEdit(assetId: string): Promise<void> {
+  if (strLoadingAssetId.value) return;
+  const intRevision = ++intEditRevision;
+  strLoadingAssetId.value = assetId;
+  strActionError.value = "";
+  try {
+    const response = await getAssetDetails(assetId);
+    if (intRevision === intEditRevision) assetEdit.value = response.asset;
+  } catch (e) {
+    if (intRevision === intEditRevision) strActionError.value = getApiError(e).message;
+  } finally {
+    if (intRevision === intEditRevision) strLoadingAssetId.value = null;
+  }
+}
+
+function handleSaved(): void {
+  assetEdit.value = null;
+  strSuccessMessage.value = "Asset updated.";
+  void loadAssets();
+}
+
 function handleUpdated(): void {
   strSuccessMessage.value = "";
   void loadAssets();
 }
+
 function handleDeleted(): void {
   strSuccessMessage.value = "Asset deleted.";
   void loadAssets();
@@ -344,12 +434,20 @@ async function copyPath(path: string): Promise<void> {
 watch(
   () => route.params.assetId,
   (assetId) => {
-    if (assetId) boolNewAssetOpen.value = false;
+    if (assetId) {
+      boolNewAssetOpen.value = false;
+      assetEdit.value = null;
+      strLoadingAssetId.value = null;
+      intEditRevision += 1;
+    }
   },
 );
+
 onMounted(() => void loadAssets());
+
 onBeforeUnmount(() => {
   intListRevision += 1;
+  intEditRevision += 1;
 });
 </script>
 
