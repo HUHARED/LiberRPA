@@ -44,7 +44,7 @@ from .contracts import (
     ScheduleEnabledRequest,
     ScheduleDeletionRequest,
 )
-from .cron import preview_triggers
+from .cron import format_cron, preview_triggers
 from .models import Schedule
 from .services import (
     get_schedule_for_access,
@@ -149,7 +149,7 @@ def _build_payloads(
             else {"id": group.id, "name": group.name},
             "enabled": schedule.enabled,
             "notes": schedule.notes,
-            "cron": schedule.cron,
+            "cron": format_cron(schedule.cron.split()),
             "run_conflict_policy": schedule.run_conflict_policy,
             "time_zone": schedule.time_zone,
             "active_from": schedule.active_from,

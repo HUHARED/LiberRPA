@@ -14,6 +14,13 @@ from django.core.exceptions import ValidationError
 _RE_CRON_FIELD = re.compile(r"[0-9*,/\-]+\Z")
 
 
+def format_cron(fields: list[str]) -> str:
+    """Format Cron fields, omitting a literal zero seconds field."""
+    if len(fields) == 6 and fields[0] == "0":
+        fields = fields[1:]
+    return " ".join(fields)
+
+
 def normalize_cron(expression: str) -> str:
     listField = expression.upper().split()
     if len(listField) == 5:
@@ -58,7 +65,7 @@ def normalize_cron(expression: str) -> str:
         except ValueError:
             raise ValidationError({"cron": "The day-of-week field is invalid."}) from None
         listField[5] = ",".join(map(str, sorted(setWeekday)))
-    strCron = " ".join(listField)
+    strCron = format_cron(listField)
     if not croniter.is_valid(strCron, second_at_beginning=True):
         raise ValidationError({"cron": "The Cron expression is invalid."})
     return strCron

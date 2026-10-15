@@ -29,7 +29,7 @@ from packages.runtime import (
 )
 
 from .contracts import ScheduleTimeRequest, ScheduleSaveRequest
-from .cron import normalize_cron, get_schedule_zone, get_next_trigger
+from .cron import format_cron, normalize_cron, get_schedule_zone, get_next_trigger
 from .models import Schedule
 
 
@@ -127,7 +127,7 @@ def save_schedule(
         boolCreated
         or (form.enabled and not schedule.enabled)
         or (
-            schedule.cron,
+            format_cron(schedule.cron.split()),
             schedule.time_zone,
             schedule.active_from,
             schedule.active_until,
