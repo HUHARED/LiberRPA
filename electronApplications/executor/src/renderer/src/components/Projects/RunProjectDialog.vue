@@ -1,6 +1,12 @@
 <!-- FileName: RunProjectDialog.vue -->
 <template>
-  <v-dialog :model-value="true" max-width="1000" height="100%" persistent scrollable>
+  <v-dialog
+    :model-value="true"
+    :persistent="boolStarting"
+    max-width="1000"
+    height="100%"
+    scrollable
+    @update:model-value="!$event && emit('close')">
     <v-card title="Run">
       <v-card-text class="flex-column overflow-hidden">
         <p class="text-subtitle-1 mb-3 flex-shrink-0 text-break">

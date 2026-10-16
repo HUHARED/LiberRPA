@@ -191,7 +191,7 @@
       </v-card>
     </v-container>
 
-    <v-dialog v-model="boolShowAddress" persistent max-width="650">
+    <v-dialog v-model="boolShowAddress" :persistent="boolBusy" max-width="650">
       <v-card title="Change Address">
         <v-form @submit.prevent="saveAddress">
           <v-card-text>
@@ -232,7 +232,11 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="boolShowSignIn" persistent max-width="550">
+    <v-dialog
+      :model-value="boolShowSignIn"
+      :persistent="boolBusy"
+      max-width="550"
+      @update:model-value="!$event && closeSignInDialog()">
       <v-card title="Sign In to Console">
         <v-form @submit.prevent="signIn">
           <v-card-text>

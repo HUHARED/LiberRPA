@@ -180,7 +180,7 @@
       :project="rerunProject"
       @close="rerunProject = undefined" />
 
-    <v-dialog v-model="boolShowDetails" max-width="850" height="80vh" persistent scrollable>
+    <v-dialog v-model="boolShowDetails" max-width="850" height="80vh" scrollable>
       <v-card v-if="runDetails" title="Run Details">
         <v-card-text class="flex-column overflow-hidden">
           <div class="flex-shrink-0">
