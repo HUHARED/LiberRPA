@@ -126,7 +126,7 @@
           <v-text-field
             v-model="packageProjectStore.outputFolderPath"
             label="Output folder"
-            variant="outlined"
+            variant="plain"
             density="comfortable"
             readonly
             hide-details>

@@ -21,13 +21,13 @@
       <v-text-field
         :model-value="consoleAccountStore.accountState.url || 'Not configured'"
         label="Console URL"
-        variant="underlined"
+        variant="plain"
         readonly></v-text-field>
 
       <v-text-field
         :model-value="strConnection"
         label="Last Connection Check"
-        variant="underlined"
+        variant="plain"
         readonly></v-text-field>
 
       <template v-if="consoleAccountStore.accountState.signedIn">
@@ -39,7 +39,7 @@
         <v-text-field
           :model-value="strAccount"
           label="Account"
-          variant="underlined"
+          variant="plain"
           readonly></v-text-field>
 
         <v-text-field
@@ -47,7 +47,7 @@
             consoleAccountStore.accountState.account?.organization.name ?? 'Unavailable'
           "
           label="Organization"
-          variant="underlined"
+          variant="plain"
           readonly></v-text-field>
 
         <div class="text-subtitle-1 font-weight-bold mb-2">Account Departments</div>
@@ -87,7 +87,7 @@
         <v-text-field
           :model-value="strLastContact"
           label="Last Successful Contact"
-          variant="underlined"
+          variant="plain"
           readonly></v-text-field>
       </template>
     </v-card-text>
@@ -144,6 +144,7 @@
 
         <v-text-field
           v-model="strUrlDraft"
+          variant="outlined"
           label="Console URL"
           placeholder="https://console.example.com"
           :disabled="boolBusy"
@@ -190,6 +191,7 @@
 
         <v-text-field
           v-model="strEmail"
+          variant="outlined"
           label="Email"
           type="email"
           autocomplete="username"
@@ -197,6 +199,7 @@
 
         <v-text-field
           v-model="strPassword"
+          variant="outlined"
           label="Password"
           autocomplete="off"
           :type="boolShowPassword ? 'text' : 'password'"

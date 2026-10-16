@@ -27,6 +27,7 @@
 
         <v-col cols="12" md="6">
           <v-select
+            variant="outlined"
             :model-value="createProjectStore.templateName"
             :items="availableTemplates"
             item-title="templateName"
@@ -39,6 +40,7 @@
         <v-col cols="12" md="6">
           <v-text-field
             v-model="createProjectStore.version"
+            variant="outlined"
             class="version-field"
             label="Version"
             placeholder="1.0.0"
@@ -50,6 +52,7 @@
 
         <v-col cols="12">
           <v-text-field
+            variant="plain"
             :model-value="createProjectStore.targetFolderPath"
             label="Target folder"
             readonly
@@ -71,6 +74,7 @@
         <v-col cols="12" md="6">
           <v-text-field
             v-model="createProjectStore.projectFolderName"
+            variant="outlined"
             label="Project folder name"
             :error-messages="projectFolderNameError"
             :disabled="projectManagerStore.busy"></v-text-field>
@@ -80,6 +84,7 @@
           <v-col cols="12" md="6">
             <v-text-field
               v-model="createProjectStore.packageName"
+              variant="outlined"
               label="Component package name"
               placeholder="ExcelTools"
               hint="PascalCase; used as the top-level Python package name."
@@ -91,6 +96,7 @@
           <v-col cols="12">
             <v-text-field
               v-model="createProjectStore.displayName"
+              variant="outlined"
               label="Component display name"
               :hint="STR_COMPONENT_DISPLAY_NAME_HINT"
               persistent-hint
@@ -102,6 +108,7 @@
         <v-col cols="12">
           <v-textarea
             v-model="createProjectStore.description"
+            variant="outlined"
             label="Description"
             hint="Optional. Up to 2,000 characters; multiple lines are allowed."
             persistent-hint

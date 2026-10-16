@@ -24,6 +24,7 @@
 
         <v-autocomplete
           v-model="selectedComponentId"
+          variant="outlined"
           :items="addComponentItems"
           item-title="title"
           item-value="value"
@@ -46,6 +47,7 @@
 
         <v-text-field
           v-model="requirement"
+          variant="outlined"
           class="mt-3"
           label="Version requirement"
           placeholder=">=1.0.0,<2"
@@ -65,6 +67,7 @@
 
         <v-select
           v-model="selectedUpdateComponentIds"
+          variant="outlined"
           :items="installedComponentItems"
           item-title="title"
           item-value="value"
@@ -88,6 +91,7 @@
 
         <v-select
           v-model="selectedComponentId"
+          variant="outlined"
           :items="directDependencyItems"
           item-title="title"
           item-value="value"
@@ -96,6 +100,7 @@
 
         <v-text-field
           v-model="requirement"
+          variant="outlined"
           class="mt-3"
           label="New version requirement"
           placeholder=">=1.0.0,<2"
@@ -115,6 +120,7 @@
 
         <v-select
           v-model="selectedComponentId"
+          variant="outlined"
           :items="directDependencyItems"
           item-title="title"
           item-value="value"
