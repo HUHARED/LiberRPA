@@ -98,16 +98,6 @@
         <div class="d-flex align-center ga-1">
           <v-btn
             v-if="boolCanManage"
-            v-tooltip:bottom="'New Subdepartment'"
-            variant="text"
-            size="small"
-            :disabled="boolActionBlocked"
-            :aria-label="`New subdepartment of ${item.path}`"
-            icon="mdi-folder-plus-outline"
-            @click="openNewDepartment(item.id)" />
-
-          <v-btn
-            v-if="boolCanManage"
             v-tooltip:bottom="'Edit'"
             variant="text"
             size="small"
@@ -115,6 +105,16 @@
             :aria-label="`Edit department ${item.path}`"
             icon="mdi-pencil-outline"
             @click="openEditDepartment(item)" />
+
+          <v-btn
+            v-if="boolCanManage"
+            v-tooltip:bottom="'New Subdepartment'"
+            variant="text"
+            size="small"
+            :disabled="boolActionBlocked"
+            :aria-label="`New subdepartment of ${item.path}`"
+            icon="mdi-folder-plus-outline"
+            @click="openNewDepartment(item.id)" />
 
           <v-btn
             v-if="boolCanManage"

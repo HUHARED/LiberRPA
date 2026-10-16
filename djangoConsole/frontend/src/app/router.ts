@@ -152,15 +152,6 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         name: "assets",
         component: () => import("@/views/assets/AssetsView.vue"),
         meta: { title: "Assets", requiresBusiness: true },
-        children: [
-          {
-            path: ":assetId",
-            name: "asset-details",
-            component: () => import("@/components/assets/AssetDetailsDialog.vue"),
-            props: true,
-            meta: { title: "Asset Details" },
-          },
-        ],
       },
       {
         path: "/executors/groups",

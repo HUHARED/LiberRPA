@@ -30,7 +30,7 @@
           <li
             v-for="strPath in paths"
             :key="strPath"
-            class="file-path text-highlight font-weight-bold">
+            class="text-anywhere text-highlight font-weight-bold">
             {{ strPath }}
           </li>
         </ul>
@@ -94,8 +94,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.file-path {
-  overflow-wrap: anywhere;
-}
-</style>
+<style scoped></style>

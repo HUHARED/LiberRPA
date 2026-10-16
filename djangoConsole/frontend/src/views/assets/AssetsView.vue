@@ -156,11 +156,9 @@
       disable-sort
       hide-default-footer>
       <template #item.name="{ item }">
-        <RouterLink
-          :to="getDetailsLocation(item.id)"
-          class="d-inline-block table-text-narrow text-primary text-decoration-none">
+        <span class="d-inline-block table-text-narrow">
           {{ item.name }}
-        </RouterLink>
+        </span>
       </template>
 
       <template #item.department="{ item }">
@@ -186,6 +184,14 @@
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
           <v-btn
+            v-tooltip:bottom="'Copy Path'"
+            variant="text"
+            size="small"
+            aria-label="Copy Path"
+            icon="mdi-content-copy"
+            @click="copyPath(item.path)" />
+
+          <v-btn
             v-if="item.can_manage || item.can_edit_value"
             v-tooltip:bottom="'Edit'"
             variant="text"
@@ -197,12 +203,14 @@
             @click="openEdit(item.id)" />
 
           <v-btn
-            v-tooltip:bottom="'Copy Path'"
+            v-if="item.can_manage"
+            v-tooltip:bottom="'Delete'"
             variant="text"
             size="small"
-            aria-label="Copy Path"
-            icon="mdi-content-copy"
-            @click="copyPath(item.path)" />
+            aria-label="Delete"
+            icon="mdi-delete-outline"
+            :disabled="boolLoading || !!strLoadingAssetId"
+            @click="strDeleteAssetId = item.id" />
         </div>
       </template>
 
@@ -251,21 +259,19 @@
     @close="assetEdit = null"
     @saved="handleSaved" />
 
-  <RouterView v-slot="{ Component }">
-    <component
-      :is="Component"
-      :key="route.path"
-      @updated="handleUpdated"
-      @deleted="handleDeleted" />
-  </RouterView>
+  <AssetDeleteDialog
+    v-if="strDeleteAssetId"
+    :asset-id="strDeleteAssetId"
+    @close="strDeleteAssetId = null"
+    @deleted="handleDeleted" />
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
-import { RouterLink, RouterView, useRoute } from "vue-router";
-import type { RouteLocationRaw } from "vue-router";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { useRoute } from "vue-router";
 
 import AssetFormDialog from "@/components/assets/AssetFormDialog.vue";
+import AssetDeleteDialog from "@/components/assets/AssetDeleteDialog.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -293,7 +299,7 @@ const ARR_HEADER = [
   { title: "Value", key: "value_summary", minWidth: 220 },
   { title: "Notes", key: "notes", minWidth: 200 },
   { title: "Updated At", key: "updated_at", minWidth: 240 },
-  { title: "Actions", key: "actions", width: 112 },
+  { title: "Actions", key: "actions", width: 152 },
 ];
 
 const sessionStore = useSessionStore();
@@ -318,6 +324,7 @@ const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const boolNewAssetOpen = ref(false);
 const assetEdit = shallowRef<AssetDetailsEntryResponse | null>(null);
+const strDeleteAssetId = ref<string | null>(null);
 const strLoadingAssetId = ref<string | null>(null);
 let intEditRevision = 0;
 const strUpdatedAt = ref<string | null>(null);
@@ -331,10 +338,6 @@ let appliedFilters: AssetListFilters = {
   departmentIds: [...arrDepartmentId.value],
   assetTypes: [],
 };
-
-function getDetailsLocation(assetId: string): RouteLocationRaw {
-  return { name: "asset-details", params: { assetId }, query: route.query };
-}
 
 async function loadAssets(pageNumber: number = intRequestedPage): Promise<void> {
   const intCurrentRevision = ++intListRevision;
@@ -407,12 +410,8 @@ function handleSaved(): void {
   void loadAssets();
 }
 
-function handleUpdated(): void {
-  strSuccessMessage.value = "";
-  void loadAssets();
-}
-
 function handleDeleted(): void {
+  strDeleteAssetId.value = null;
   strSuccessMessage.value = "Asset deleted.";
   void loadAssets();
 }
@@ -426,22 +425,9 @@ async function copyPath(path: string): Promise<void> {
     if (intCurrentRevision === intListRevision) strSuccessMessage.value = "Path copied.";
   } catch {
     if (intCurrentRevision === intListRevision)
-      strActionError.value =
-        "The path could not be copied. Open the asset details to copy it manually.";
+      strActionError.value = "The path could not be copied.";
   }
 }
-
-watch(
-  () => route.params.assetId,
-  (assetId) => {
-    if (assetId) {
-      boolNewAssetOpen.value = false;
-      assetEdit.value = null;
-      strLoadingAssetId.value = null;
-      intEditRevision += 1;
-    }
-  },
-);
 
 onMounted(() => void loadAssets());
 

@@ -117,7 +117,7 @@
     v-if="strMessage"
     type="success"
     variant="tonal"
-    class="mb-4 file-path"
+    class="mb-4 text-anywhere"
     role="status">
     {{ strMessage }}
   </v-alert>
@@ -131,14 +131,14 @@
     type="error"
     variant="tonal"
     closable
-    class="mb-4 file-path"
+    class="mb-4 text-anywhere"
     role="alert"
     @click:close="strActionError = ''">
     {{ strActionError }}
   </v-alert>
 
   <div v-if="page" class="mb-4">
-    <p v-if="page.department_path" class="file-path mb-1">
+    <p v-if="page.department_path" class="text-anywhere mb-1">
       {{ page.department_path }}
     </p>
 
@@ -172,11 +172,11 @@
       hide-default-footer
       :mobile-breakpoint="600">
       <template #item.department_path="{ item }">
-        <span class="file-path">{{ item.department_path }}</span>
+        <span class="text-anywhere">{{ item.department_path }}</span>
       </template>
 
       <template #item.name="{ item }">
-        <span class="file-path">{{ item.name }}</span>
+        <span class="text-anywhere">{{ item.name }}</span>
       </template>
 
       <template #item.size_bytes="{ item }">
@@ -184,7 +184,7 @@
       </template>
 
       <template #item.uploaded_by_name="{ item }">
-        <span class="file-path">{{ item.uploaded_by_name }}</span>
+        <span class="text-anywhere">{{ item.uploaded_by_name }}</span>
       </template>
 
       <template #item.uploaded_at="{ item }">
@@ -488,8 +488,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.file-path {
-  overflow-wrap: anywhere;
-}
-</style>
+<style scoped></style>

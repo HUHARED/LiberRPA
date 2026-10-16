@@ -13,7 +13,6 @@ import type {
   AssetCreationRequest,
   AssetEntryResponse,
   AssetListResponse,
-  AssetDetailsEntryResponse,
   AssetDetailsResponse,
   AssetUpdateRequest,
   AssetReferenceResponse,
@@ -41,13 +40,6 @@ export function isSecretAsset(assetType: AssetType): boolean {
 
 export function getAssetTypeLabel(assetType: AssetType): string {
   return ARR_ASSET_TYPE.find((option) => option.value === assetType)!.title;
-}
-
-export function formatAssetValue(asset: AssetDetailsEntryResponse): string {
-  if (isSecretAsset(asset.asset_type)) return "Configured";
-  if (asset.asset_type === "text" && typeof asset.value === "string")
-    return asset.value === "" ? '""' : asset.value;
-  return JSON.stringify(asset.value, null, 2) ?? "";
 }
 
 function isAssetEntry(value: unknown): value is AssetEntryResponse {
