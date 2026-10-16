@@ -11,6 +11,7 @@
 
     <v-btn
       v-if="run"
+      v-tooltip:bottom="'Run Most Recently Uploaded Version'"
       :disabled="boolBusy || !run.can_rerun"
       variant="tonal"
       prepend-icon="mdi-replay"
@@ -38,37 +39,61 @@
 
     <v-card variant="outlined" class="mb-4">
       <v-card-text>
+        <v-chip
+          :border="`${RUN_STATUS_COLORS[run.status]} thin opacity-25`"
+          :color="RUN_STATUS_COLORS[run.status]"
+          :text="RUN_STATUS_LABELS[run.status]"
+          variant="text"
+          size="x-small"
+          class="mb-4" />
+
         <v-row>
-          <v-col cols="12" md="4">
-            <p>
-              <v-chip>{{ RUN_STATUS_LABELS[run.status] }}</v-chip>
-            </p>
-
-            <p class="mt-2">
-              <span class="text-caption text-medium-emphasis">Executor:</span>
-              {{ run.executor_name }}
-            </p>
-
-            <p>
-              <span class="text-caption text-medium-emphasis">Account:</span>
-              {{ run.account_name }}
-            </p>
+          <v-col cols="12" md="6">
+            <v-textarea
+              :model-value="run.executor_name"
+              label="Executor"
+              variant="plain"
+              density="compact"
+              rows="1"
+              auto-grow
+              readonly
+              hide-details />
           </v-col>
 
-          <v-col cols="12" md="8">
-            <p>
-              <span class="text-caption text-medium-emphasis">Started At:</span>
-              {{ formatDateTime(run.started_at, strTimeZone) }}
-            </p>
+          <v-col cols="12" md="6">
+            <v-textarea
+              :model-value="run.account_name"
+              label="Account"
+              variant="plain"
+              density="compact"
+              rows="1"
+              auto-grow
+              readonly
+              hide-details />
+          </v-col>
 
-            <p>
-              <span class="text-caption text-medium-emphasis">Ended At:</span>
-              {{ formatRunEndTime(run, strTimeZone) }}
-            </p>
+          <v-col cols="12" md="6">
+            <v-text-field
+              :model-value="formatDateTime(run.started_at, strTimeZone)"
+              label="Started At"
+              variant="plain"
+              density="compact"
+              readonly
+              hide-details />
+          </v-col>
 
-            <p v-if="run.reason" class="text-pre-wrap">{{ run.reason }}</p>
+          <v-col cols="12" md="6">
+            <v-text-field
+              :model-value="formatRunEndTime(run, strTimeZone)"
+              label="Ended At"
+              variant="plain"
+              density="compact"
+              readonly
+              hide-details />
           </v-col>
         </v-row>
+
+        <p v-if="run.reason" class="text-pre-wrap text-break mt-3">{{ run.reason }}</p>
       </v-card-text>
     </v-card>
 
@@ -81,16 +106,19 @@
 
     <v-card variant="outlined" class="mt-4">
       <v-card-text>
-        <RunLogs
-          v-show="strTab === 'logs'"
-          :key="run.id"
-          :run-id="run.id"
-          :running="run.status === RunStatus.Running"
-          :time-zone="strTimeZone"
-          :active="strTab === 'logs'"
-          :download-enabled="run.files.logs.available"
-          :download-reason="run.files.logs.reason"
-          @download="download(RunFileKind.Logs)" />
+        <!-- NOTE: Apply v-show to a DOM element because RunLogs has multiple roots. -->
+        <div v-show="strTab === 'logs'">
+          <RunLogs
+            :key="run.id"
+            :run-id="run.id"
+            :running="run.status === RunStatus.Running"
+            :time-zone="strTimeZone"
+            :active="strTab === 'logs'"
+            :download-enabled="run.files.logs.available"
+            :download-reason="run.files.logs.reason"
+            @refresh="load"
+            @download="download(RunFileKind.Logs)" />
+        </div>
 
         <RunArgumentsDetails
           v-if="strTab === 'inputs'"
@@ -272,7 +300,9 @@
                   </td>
                   <td>
                     <v-btn
-                      v-tooltip:bottom="'Download Video'"
+                      v-tooltip:bottom="
+                        `Download Video. Please use your browser's built-in downloader.`
+                      "
                       :disabled="!run.files.video.available"
                       :loading="boolDownloading"
                       variant="text"
@@ -292,7 +322,9 @@
                   <td>{{ formatFileSize(run.recording.subtitleSizeBytes) }}</td>
                   <td>
                     <v-btn
-                      v-tooltip:bottom="'Download Subtitles'"
+                      v-tooltip:bottom="
+                        `Download Subtitles. Please use your browser's built-in downloader.`
+                      "
                       :disabled="!run.files.subtitles.available"
                       :loading="boolDownloading"
                       variant="text"
@@ -309,22 +341,6 @@
               </tbody>
             </v-table>
           </template>
-
-          <v-expansion-panels class="mt-5">
-            <v-expansion-panel title="Identifiers">
-              <v-expansion-panel-text>
-                <p>
-                  <span class="text-caption text-medium-emphasis">Job ID:</span>
-                  {{ run.job_id }}
-                </p>
-
-                <p>
-                  <span class="text-caption text-medium-emphasis">Run ID:</span>
-                  {{ run.id }}
-                </p>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-          </v-expansion-panels>
         </template>
       </v-card-text>
     </v-card>
@@ -362,7 +378,7 @@ import {
 } from "@/api/runs";
 import { getApiError } from "@/api/errors";
 
-import { JOB_SOURCE_LABELS, RUN_STATUS_LABELS } from "@/app/runLabels";
+import { JOB_SOURCE_LABELS, RUN_STATUS_LABELS, RUN_STATUS_COLORS } from "@/app/runLabels";
 import {
   formatDateTime,
   formatRunEndTime,

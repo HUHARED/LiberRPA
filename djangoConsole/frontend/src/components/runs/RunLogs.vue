@@ -4,6 +4,7 @@
     <v-switch
       v-model="boolFollow"
       label="Follow Latest"
+      true-icon="mdi-sync"
       hide-details
       density="compact"
       @update:model-value="resumeFollow" />
@@ -17,6 +18,7 @@
     </v-btn>
 
     <v-btn
+      v-tooltip:bottom="`Please use your browser's built-in downloader.`"
       variant="tonal"
       prepend-icon="mdi-download"
       :disabled="!downloadEnabled"
@@ -85,28 +87,27 @@
     v-model:page="intPage"
     :headers="ARR_HEADER"
     :items="arrFiltered"
-    :items-per-page="200"
-    :items-per-page-options="[200]"
+    :items-per-page="INT_ENTRIES_PER_PAGE"
     item-value="log_id"
     show-expand
     disable-sort
-    @update:expanded="pauseFollow"
-    @update:page="pauseFollow">
+    @update:expanded="pauseFollow">
     <template #item.timestamp="{ item }">
       {{ formatDateTime(item.timestamp, timeZone) }}
     </template>
 
-    <template #item.level="{ item }">{{ item.level }}</template>
+    <template #item.level="{ item }">
+      <span :class="DICT_LOG_LEVEL_CLASS[item.level]">{{ item.level }}</span>
+    </template>
+
     <template #item.process="{ item }">{{ item.process_name || "—" }}</template>
 
     <template #item.message_text="{ item }">
-      <div class="text-truncate">
-        {{
-          item.message_omitted
-            ? "Message exceeds the preview size limit."
-            : item.message_text
-        }}
-      </div>
+      <span v-if="item.message_omitted" class="text-medium-emphasis">
+        Message exceeds the preview size limit.
+      </span>
+
+      <RunLogMessage v-else :message="item.message_text" class="d-block text-truncate" />
     </template>
 
     <template #expanded-row="{ item, columns }">
@@ -119,7 +120,8 @@
             it.
           </v-alert>
 
-          <pre v-else class="text-pre-wrap text-break mb-4">{{ item.message_text }}</pre>
+          <pre v-else class="text-pre-wrap text-break mb-4"><RunLogMessage
+            :message="item.message_text" /></pre>
 
           <h3 class="text-subtitle-1 my-2">Fields</h3>
 
@@ -139,6 +141,20 @@
 
     <template #no-data>
       {{ boolLoading ? "Loading logs…" : "No loaded logs match the filters." }}
+    </template>
+
+    <template #bottom>
+      <v-divider />
+
+      <div class="d-flex align-center justify-space-between pa-3">
+        <span>{{ arrFiltered.length }} entries</span>
+        <v-pagination
+          v-if="arrFiltered.length > INT_ENTRIES_PER_PAGE"
+          v-model="intPage"
+          :length="Math.ceil(arrFiltered.length / INT_ENTRIES_PER_PAGE)"
+          :total-visible="5"
+          @update:model-value="pauseFollow" />
+      </div>
     </template>
   </v-data-table>
 
@@ -166,6 +182,8 @@
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 
+import RunLogMessage from "./RunLogMessage.vue";
+
 import { type LogEntry, getRunLogs } from "@/api/runs";
 import { type LogLevel, ARR_LOG_LEVEL } from "@/api/runSettings";
 import { getApiError } from "@/api/errors";
@@ -181,7 +199,7 @@ const props = defineProps<{
   downloadReason: string;
 }>();
 
-const emit = defineEmits<{ download: [] }>();
+const emit = defineEmits<{ download: []; refresh: [] }>();
 
 const ARR_HEADER = [
   { title: "Timestamp", key: "timestamp", width: 235 },
@@ -190,6 +208,16 @@ const ARR_HEADER = [
   { title: "Message", key: "message_text", maxWidth: 600 },
 ];
 
+const DICT_LOG_LEVEL_CLASS: Record<LogLevel, string> = {
+  VERBOSE: "text-medium-emphasis",
+  DEBUG: "text-info",
+  INFO: "text-success",
+  WARNING: "text-warning font-weight-bold",
+  ERROR: "text-error font-weight-bold",
+  CRITICAL: "text-error font-weight-bold",
+};
+
+const INT_ENTRIES_PER_PAGE = 200;
 const INT_MAX_ENTRIES = 10000;
 const INT_MAX_BYTES = 10 * 1024 * 1024;
 const arrLog = shallowRef<LogEntry[]>([]);
@@ -325,6 +353,7 @@ function loadOlder(): void {
 
 function refresh(): void {
   if (boolLoading.value) return;
+  emit("refresh");
   boolLatestFinished = false;
   intBefore = null;
   intAfter = 0;

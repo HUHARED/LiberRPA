@@ -11,6 +11,7 @@
         <th>Actions</th>
       </tr>
     </thead>
+
     <tbody>
       <tr v-for="run in runs" :key="run.id">
         <td>{{ run.attempt_number }}</td>
@@ -19,7 +20,14 @@
         <td class="text-no-wrap">
           {{ formatRunEndTime(run, timeZone) }}
         </td>
-        <td>{{ RUN_STATUS_LABELS[run.status] }}</td>
+        <td>
+          <v-chip
+            :border="`${RUN_STATUS_COLORS[run.status]} thin opacity-25`"
+            :color="RUN_STATUS_COLORS[run.status]"
+            :text="RUN_STATUS_LABELS[run.status]"
+            variant="text"
+            size="x-small" />
+        </td>
         <td>
           <v-btn
             v-tooltip:bottom="'View Run Details'"
@@ -30,20 +38,24 @@
             icon="mdi-eye-outline" />
         </td>
       </tr>
+
       <tr v-if="!runs.length">
         <td colspan="6">{{ emptyText ?? "No runs." }}</td>
       </tr>
     </tbody>
   </v-table>
 </template>
+
 <script setup lang="ts">
 import type { RunInfo } from "@/api/runs";
-import { RUN_STATUS_LABELS } from "@/app/runLabels";
+import { RUN_STATUS_LABELS, RUN_STATUS_COLORS } from "@/app/runLabels";
 import { formatDateTime, formatRunEndTime } from "@/app/formatters";
+
 defineProps<{
   runs: RunInfo[];
   timeZone: string;
   emptyText?: string;
 }>();
 </script>
+
 <style scoped></style>

@@ -126,22 +126,6 @@
         </tbody>
       </v-table>
     </v-card>
-
-    <v-expansion-panels>
-      <v-expansion-panel title="Identifiers">
-        <v-expansion-panel-text>
-          <p>
-            <span class="text-caption text-medium-emphasis">Job ID:</span>
-            {{ job.id }}
-          </p>
-
-          <p>
-            <span class="text-caption text-medium-emphasis">Job Request ID:</span>
-            {{ job.job_request_id }}
-          </p>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
-    </v-expansion-panels>
   </template>
 </template>
 

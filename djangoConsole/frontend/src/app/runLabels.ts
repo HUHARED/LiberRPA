@@ -7,7 +7,7 @@ import {
   type Priority,
 } from "@/api/runSettings";
 import type { PackagePreparationState, PackageUploadState } from "@/api/packages";
-import type { JobSource, JobState, RunStatus, RunEventKind } from "@/api/runs";
+import { RunStatus, type JobSource, type JobState, type RunEventKind } from "@/api/runs";
 
 export const CONFLICT_POLICY_LABELS: Record<ConflictPolicy, string> = {
   skip: "Skip This Run",
@@ -64,6 +64,14 @@ export const RUN_STATUS_LABELS: Record<RunStatus, string> = {
   canceled: "Canceled",
   timed_out: "Timed Out",
   interrupted: "Interrupted",
+};
+export const RUN_STATUS_COLORS: Record<RunStatus, string> = {
+  [RunStatus.Running]: "success",
+  [RunStatus.Completed]: "inactive",
+  [RunStatus.Error]: "error",
+  [RunStatus.Canceled]: "warning",
+  [RunStatus.TimedOut]: "run-timeout",
+  [RunStatus.Interrupted]: "run-interrupted",
 };
 export const RUN_EVENT_LABELS: Record<RunEventKind, string> = {
   started: "Started",

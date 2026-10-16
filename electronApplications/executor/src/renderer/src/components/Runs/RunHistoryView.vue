@@ -26,7 +26,12 @@
       </template>
 
       <template #item.source="{ item }">
-        {{ DICT_RUN_SOURCE_LABEL[item.source] }}
+        <v-chip
+          :border="`${DICT_RUN_SOURCE_COLOR[item.source]} thin opacity-25`"
+          :color="DICT_RUN_SOURCE_COLOR[item.source]"
+          :text="DICT_RUN_SOURCE_LABEL[item.source]"
+          variant="text"
+          size="x-small"></v-chip>
       </template>
 
       <template #item.run_started_at_ms="{ value }">
@@ -218,6 +223,11 @@ import { formatTimestamp } from "../../Common/time";
 const DICT_RUN_SOURCE_LABEL: Record<RunSource, string> = {
   [RunSource.Local]: "Local",
   [RunSource.Console]: "Console",
+};
+
+const DICT_RUN_SOURCE_COLOR: Record<RunSource, string> = {
+  [RunSource.Local]: "info",
+  [RunSource.Console]: "success",
 };
 
 const ARR_RUN_SOURCE_OPTION = Object.values(RunSource).map((source) => ({

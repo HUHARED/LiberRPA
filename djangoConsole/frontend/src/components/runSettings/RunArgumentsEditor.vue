@@ -99,7 +99,8 @@
           <v-col style="min-width: 0">
             <v-select
               v-if="settings.custom_arg_assets[index]"
-              variant="underlined"
+              :variant="readonly ? 'plain' : 'underlined'"
+              :menu-icon="readonly ? '' : undefined"
               density="compact"
               :model-value="settings.custom_arg_assets[index]?.name"
               :items="arrAsset"
@@ -123,7 +124,7 @@
             <v-text-field
               v-else
               v-model="arrValue[index]"
-              variant="underlined"
+              :variant="readonly ? 'plain' : 'underlined'"
               density="compact"
               :aria-label="`Value for ${argument[0]} (JSON)`"
               hide-details="auto"

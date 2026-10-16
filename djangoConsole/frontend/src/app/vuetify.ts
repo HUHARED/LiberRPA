@@ -18,8 +18,22 @@ export const vuetify = createVuetify({
     defaultTheme: "light",
     themes: {
       // NOTE: Reserve highlight for important non-interactive text.
-      light: { colors: { highlight: "#A65332", inactive: "#66727A" } },
-      dark: { colors: { highlight: "#E8AE8C", inactive: "#A8B0B6" } },
+      light: {
+        colors: {
+          highlight: "#A65332",
+          inactive: "#66727A",
+          "run-timeout": "#E65100",
+          "run-interrupted": "#FF5722",
+        },
+      },
+      dark: {
+        colors: {
+          highlight: "#E8AE8C",
+          inactive: "#A8B0B6",
+          "run-timeout": "#FFB74D",
+          "run-interrupted": "#FF8A65",
+        },
+      },
     },
   },
 });

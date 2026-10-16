@@ -9,7 +9,7 @@
           <v-text-field
             :model-value="pythonEnvironmentName"
             label="Python Environment"
-            variant="underlined"
+            variant="plain"
             density="compact"
             readonly>
             <v-tooltip activator="parent" location="top">
@@ -59,7 +59,7 @@
           <v-textarea
             :model-value="formatJsonValue(argument[1])"
             :aria-label="`Value for ${argument[0]} (JSON)`"
-            variant="underlined"
+            variant="plain"
             density="compact"
             rows="1"
             auto-grow

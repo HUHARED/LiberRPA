@@ -174,7 +174,14 @@
         {{ formatRunEndTime(item, strTimeZone) }}
       </template>
 
-      <template #item.status="{ item }">{{ RUN_STATUS_LABELS[item.status] }}</template>
+      <template #item.status="{ item }">
+        <v-chip
+          :border="`${RUN_STATUS_COLORS[item.status]} thin opacity-25`"
+          :color="RUN_STATUS_COLORS[item.status]"
+          :text="RUN_STATUS_LABELS[item.status]"
+          variant="text"
+          size="x-small" />
+      </template>
 
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
@@ -187,7 +194,7 @@
             icon="mdi-eye-outline" />
 
           <v-btn
-            v-tooltip:bottom="'Rerun'"
+            v-tooltip:bottom="'Run Most Recently Uploaded Version'"
             size="small"
             variant="text"
             :disabled="boolActionBusy || !item.can_rerun"
@@ -293,7 +300,7 @@ import {
 } from "@/api/runs";
 import { getApiError } from "@/api/errors";
 
-import { RUN_STATUS_LABELS } from "@/app/runLabels";
+import { RUN_STATUS_LABELS, RUN_STATUS_COLORS } from "@/app/runLabels";
 import { formatDateTime, formatRunEndTime } from "@/app/formatters";
 
 import { useSessionStore } from "@/stores/sessionStore";
