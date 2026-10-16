@@ -17,7 +17,12 @@
   <template v-if="job">
     <div class="d-flex align-center flex-wrap ga-3 mb-4">
       <h1 class="text-h5">{{ job.project_name }} · {{ job.project_version }}</h1>
-      <v-chip>{{ JOB_STATE_LABELS[job.state] }}</v-chip>
+      <v-chip
+        :border="`${JOB_STATE_COLORS[job.state]} thin opacity-25`"
+        :color="JOB_STATE_COLORS[job.state]"
+        :text="JOB_STATE_LABELS[job.state]"
+        variant="text"
+        size="x-small" />
       <v-spacer />
       <JobActions :job="job" @updated="load" @error="strError = $event" />
     </div>
@@ -143,6 +148,7 @@ import {
   PRIORITY_LABELS,
   JOB_SOURCE_LABELS,
   JOB_STATE_LABELS,
+  JOB_STATE_COLORS,
   RUN_EVENT_LABELS,
 } from "@/app/runLabels";
 import { formatDateTime } from "@/app/formatters";

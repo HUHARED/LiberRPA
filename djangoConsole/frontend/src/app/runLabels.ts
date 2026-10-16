@@ -7,7 +7,7 @@ import {
   type Priority,
 } from "@/api/runSettings";
 import type { PackagePreparationState, PackageUploadState } from "@/api/packages";
-import { RunStatus, type JobSource, type JobState, type RunEventKind } from "@/api/runs";
+import { RunStatus, type JobSource, JobState, type RunEventKind } from "@/api/runs";
 
 export const CONFLICT_POLICY_LABELS: Record<ConflictPolicy, string> = {
   skip: "Skip This Run",
@@ -56,6 +56,16 @@ export const JOB_STATE_LABELS: Record<JobState, string> = {
   waiting_retry: "Waiting for Retry",
   needs_review: "Needs Review",
   finished: "Finished",
+};
+export const JOB_STATE_COLORS: Record<JobState, string> = {
+  [JobState.Waiting]: "warning",
+  [JobState.Preparing]: "info",
+  [JobState.Starting]: "info",
+  [JobState.Running]: "success",
+  [JobState.Stopping]: "warning",
+  [JobState.WaitingRetry]: "info",
+  [JobState.NeedsReview]: "warning",
+  [JobState.Finished]: "inactive",
 };
 export const RUN_STATUS_LABELS: Record<RunStatus, string> = {
   running: "Running",

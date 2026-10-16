@@ -134,10 +134,11 @@
 
       <template #item.state="{ item }">
         <v-chip
-          size="small"
-          :color="item.state === JobState.NeedsReview ? 'warning' : undefined">
-          {{ JOB_STATE_LABELS[item.state] }}
-        </v-chip>
+          :border="`${JOB_STATE_COLORS[item.state]} thin opacity-25`"
+          :color="JOB_STATE_COLORS[item.state]"
+          :text="JOB_STATE_LABELS[item.state]"
+          variant="text"
+          size="x-small" />
       </template>
 
       <template #item.actions="{ item }">
@@ -178,16 +179,10 @@ import { RouterLink, useRoute } from "vue-router";
 
 import JobActions from "@/components/runs/JobActions.vue";
 
-import {
-  JobState,
-  ARR_JOB_STATE,
-  getJobs,
-  type JobPage,
-  type JobFilters,
-} from "@/api/runs";
+import { ARR_JOB_STATE, getJobs, type JobPage, type JobFilters } from "@/api/runs";
 import { getApiError } from "@/api/errors";
 
-import { PRIORITY_LABELS, JOB_STATE_LABELS } from "@/app/runLabels";
+import { PRIORITY_LABELS, JOB_STATE_LABELS, JOB_STATE_COLORS } from "@/app/runLabels";
 import { formatDateTime } from "@/app/formatters";
 
 import { useSessionStore } from "@/stores/sessionStore";
