@@ -14,32 +14,32 @@
 
       <v-text-field
         label="Console URL"
-        variant="underlined"
+        variant="plain"
         :model-value="account.consoleUrl || 'Not configured'"
         readonly />
 
       <v-text-field
         label="Connection"
-        variant="underlined"
+        variant="plain"
         :model-value="strConnectionLabel"
         readonly />
 
       <template v-if="sessionInfo && !boolSelectingExecutor">
         <v-text-field
           label="Account"
-          variant="underlined"
+          variant="plain"
           :model-value="`${sessionInfo.user.username} (${sessionInfo.user.email})`"
           readonly />
 
         <v-text-field
           label="Organization"
-          variant="underlined"
+          variant="plain"
           :model-value="sessionInfo.organization.name"
           readonly />
 
         <v-textarea
           label="Account Departments"
-          variant="underlined"
+          variant="plain"
           :model-value="strAccountDepartments"
           readonly
           auto-grow
@@ -47,26 +47,26 @@
 
         <v-text-field
           label="Executor"
-          variant="underlined"
+          variant="plain"
           :model-value="sessionInfo.executor?.name"
           readonly />
 
         <v-text-field
           label="Executor Department"
-          variant="underlined"
+          variant="plain"
           :model-value="strExecutorDepartment"
           readonly />
 
         <v-text-field
           label="Console Dispatch"
-          variant="underlined"
+          variant="plain"
           :model-value="strDispatchLabel"
           readonly />
 
         <v-text-field
           v-if="sessionInfo.last_seen_at"
           label="Last Contact"
-          variant="underlined"
+          variant="plain"
           :model-value="strLastContact"
           readonly />
       </template>
@@ -199,6 +199,7 @@
 
             <v-text-field
               v-model="strAddress"
+              variant="outlined"
               label="Console URL"
               autofocus
               :disabled="boolBusy"
@@ -246,6 +247,7 @@
 
             <v-text-field
               v-model="strEmail"
+              variant="outlined"
               label="Email"
               type="email"
               autocomplete="username"
@@ -254,6 +256,7 @@
 
             <v-text-field
               v-model="strPassword"
+              variant="outlined"
               label="Password"
               :type="boolShowPassword ? 'text' : 'password'"
               autocomplete="current-password"

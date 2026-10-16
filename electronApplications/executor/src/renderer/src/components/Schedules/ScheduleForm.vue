@@ -152,7 +152,7 @@
                 "
                 :model-value="detail.python_environment_name || '—'"
                 label="Python Environment"
-                variant="underlined"
+                variant="plain"
                 class="clean-space"
                 density="compact"
                 hide-details
