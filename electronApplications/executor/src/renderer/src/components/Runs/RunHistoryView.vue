@@ -180,58 +180,11 @@
       :project="rerunProject"
       @close="rerunProject = undefined" />
 
-    <v-dialog v-model="boolShowDetails" max-width="850" height="80vh" scrollable>
-      <v-card v-if="runDetails" title="Run Details">
-        <v-card-text class="flex-column overflow-hidden">
-          <div class="flex-shrink-0">
-            {{ DICT_RUN_SOURCE_LABEL[runDetails.source] }} · Attempt
-            {{ runDetails.attempt_number }}
-          </div>
-
-          <div v-if="runDetails.source === RunSource.Console" class="flex-shrink-0">
-            Job {{ runDetails.job_id }}
-          </div>
-
-          <div class="flex-column flex-column-grow-1 overflow-hidden">
-            <h3 class="mt-3 flex-shrink-0">Inputs</h3>
-
-            <pre class="flex-column-grow-1 text-pre-wrap text-break">{{
-              JSON.stringify(runDetails.snapshot, null, 2)
-            }}</pre>
-          </div>
-
-          <div class="flex-column flex-column-grow-1 overflow-hidden">
-            <h3 class="mt-3 flex-shrink-0">Outputs — {{ runDetails.outputs.status }}</h3>
-
-            <div class="flex-column-grow-1">
-              <v-alert v-if="runDetails.outputs.reason" variant="tonal" class="my-2">
-                {{ runDetails.outputs.reason }}
-              </v-alert>
-
-              <pre class="text-pre-wrap text-break">{{
-                JSON.stringify(runDetails.outputs.values, null, 2)
-              }}</pre>
-
-              <div v-if="runDetails.outputs.unavailableKeys.length" class="text-break">
-                Unavailable: {{ runDetails.outputs.unavailableKeys.join(", ") }}
-              </div>
-
-              <v-alert v-if="runDetails.error_summary" type="error" variant="tonal">
-                {{ runDetails.error_summary.type }}:
-                {{ runDetails.error_summary.message }}
-              </v-alert>
-            </div>
-          </div>
-        </v-card-text>
-
-        <v-card-actions>
-          <v-btn variant="tonal" prepend-icon="mdi-close" @click="boolShowDetails = false">
-            Close
-          </v-btn>
-          <v-spacer />
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <RunDetailsDialog
+      v-if="runDetails"
+      :details="runDetails"
+      :source-label="DICT_RUN_SOURCE_LABEL[runDetails.source]"
+      @close="runDetails = undefined" />
   </v-container>
 </template>
 
@@ -241,6 +194,7 @@ import { debounce } from "lodash";
 import type { DataTableHeader } from "vuetify";
 
 import PackageRunDialog from "../Projects/PackageRunDialog.vue";
+import RunDetailsDialog from "./RunDetailsDialog.vue";
 
 import type { ProjectDetails } from "../../../../shared/project";
 
@@ -289,14 +243,12 @@ const ARR_RUN_STATUS_OPTION = Object.values(RunStatus).map((status) => ({
 const runHistoryStore = useRunHistoryStore();
 const settingStore = useSettingStore();
 
-const boolShowDetails = ref(false);
 const runDetails = ref<RunDetails>();
 const setPendingRerun = ref(new Set<number>());
 const rerunProject = ref<ProjectDetails>();
 
 async function showRunDetails(id: number): Promise<void> {
   runDetails.value = await invokeMain("getRunDetails", id);
-  boolShowDetails.value = true;
 }
 
 const itemPerPage: Ref<15 | 50 | 100> = ref(15);
