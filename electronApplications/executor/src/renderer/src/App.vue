@@ -17,12 +17,12 @@
 import { computed } from "vue";
 import Alert from "./components/Common/Alert.vue";
 import NavigationBar from "./components/Layout/NavigationBar.vue";
-import Projects from "./components/Projects/Projects.vue";
-import Schedules from "./components/Schedules/Schedules.vue";
-import JobQueue from "./components/Runs/JobQueue.vue";
-import RunHistory from "./components/Runs/RunHistory.vue";
-import Settings from "./components/Settings/Settings.vue";
-import Console from "./components/Console/Console.vue";
+import PackagesView from "./components/Projects/PackagesView.vue";
+import SchedulesView from "./components/Schedules/SchedulesView.vue";
+import JobQueueView from "./components/Runs/JobQueueView.vue";
+import RunHistoryView from "./components/Runs/RunHistoryView.vue";
+import SettingsView from "./components/Settings/SettingsView.vue";
+import ConsoleView from "./components/Console/ConsoleView.vue";
 import { loggerRenderer } from "./Logging/logger";
 import { useInformationStore } from "./Store/informationStore";
 import { useSettingStore } from "./Store/settingStore";
@@ -33,20 +33,20 @@ const componentCurrent = computed(() => {
   loggerRenderer.info(`Switch to tab: ${informationStore.tab}`);
   switch (informationStore.tab) {
     case "projects":
-      return Projects;
+      return PackagesView;
     case "schedules":
       // Schedules refresh their data when opened.
-      return Schedules;
+      return SchedulesView;
     case "jobQueue":
       // Job Queue displays the shared scheduling state.
-      return JobQueue;
+      return JobQueueView;
     case "runHistory":
       // Run History loads its data through the server table.
-      return RunHistory;
+      return RunHistoryView;
     case "console":
-      return Console;
+      return ConsoleView;
     default:
-      return Settings;
+      return SettingsView;
   }
 });
 </script>

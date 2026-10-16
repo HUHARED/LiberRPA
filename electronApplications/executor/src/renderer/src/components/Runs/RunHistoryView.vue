@@ -1,4 +1,4 @@
-<!-- FileName: RunHistory.vue -->
+<!-- FileName: RunHistoryView.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Run History</v-label>
@@ -175,7 +175,7 @@
       </template>
     </v-data-table-server>
 
-    <RunProjectDialog
+    <PackageRunDialog
       v-if="rerunProject"
       :project="rerunProject"
       @close="rerunProject = undefined" />
@@ -240,7 +240,7 @@ import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { debounce } from "lodash";
 import type { DataTableHeader } from "vuetify";
 
-import RunProjectDialog from "../Projects/RunProjectDialog.vue";
+import PackageRunDialog from "../Projects/PackageRunDialog.vue";
 
 import type { ProjectDetails } from "../../../../shared/project";
 

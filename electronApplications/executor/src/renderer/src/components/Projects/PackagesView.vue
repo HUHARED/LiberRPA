@@ -1,4 +1,4 @@
-<!-- FileName: Projects.vue -->
+<!-- FileName: PackagesView.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Packages</v-label>
@@ -72,14 +72,14 @@
           v-if="projectStore.dictDetailEdit"
           fluid
           class="clean-space flex-column flex-column-grow-1">
-          <ProjectMetadata />
+          <PackageMetadata />
 
           <!-- The data can be modified. -->
           <!-- Due to the labels in v-text-field and other single labels are positioned differently, use pt, mt to align them consistently. -->
           <v-container fluid class="pa-2 ma-0 pt-0 flex-column-grow-1">
             <v-row class="clean-space fill-height">
               <!-- Left half -->
-              <ProjectRunSettings v-if="projectStore.dictDetailEdit" />
+              <PackageRunSettings v-if="projectStore.dictDetailEdit" />
 
               <!-- Right half: Custom Project Arguments -->
               <v-col cols="6" class="clean-space flex-column">
@@ -132,23 +132,23 @@
           </v-btn>
         </v-container>
 
-        <RunProjectDialog
+        <PackageRunDialog
           v-if="boolShowRunDialog && projectStore.dictDetailEdit"
           :project="projectStore.dictDetailEdit"
           @close="boolShowRunDialog = false" />
 
-        <DeleteProjectDialog @deleted="resetProjectSelection" />
+        <PackageDeleteDialog @deleted="resetProjectSelection" />
       </v-container>
     </v-container>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import DeleteProjectDialog from "./DeleteProjectDialog.vue";
-import ProjectMetadata from "./ProjectMetadata.vue";
-import ProjectRunSettings from "./ProjectRunSettings.vue";
+import PackageDeleteDialog from "./PackageDeleteDialog.vue";
+import PackageMetadata from "./PackageMetadata.vue";
+import PackageRunSettings from "./PackageRunSettings.vue";
 import CustomArgumentsEditor from "../RunSettings/CustomArgumentsEditor.vue";
-import RunProjectDialog from "./RunProjectDialog.vue";
+import PackageRunDialog from "./PackageRunDialog.vue";
 import VerticalDivider from "../Common/VerticalDivider.vue";
 
 import { onBeforeMount, onBeforeUnmount, ref, watch } from "vue";

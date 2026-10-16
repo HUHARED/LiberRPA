@@ -1,4 +1,4 @@
-<!-- FileName: ProjectRunSettings.vue -->
+<!-- FileName: PackageRunSettings.vue -->
 <template>
   <v-col v-if="projectStore.dictDetailEdit" cols="6" class="clean-space fill-height pt-3">
     <v-alert

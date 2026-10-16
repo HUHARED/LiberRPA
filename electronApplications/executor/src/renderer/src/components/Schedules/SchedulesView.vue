@@ -1,4 +1,4 @@
-<!-- FileName: Schedules.vue -->
+<!-- FileName: SchedulesView.vue -->
 <template>
   <v-container fluid class="clean-space flex-row-grow-1 fill-height flex-column">
     <v-label class="header-label tab-header">Schedules</v-label>
@@ -80,13 +80,9 @@
       </template>
     </v-data-table>
 
-    <v-dialog v-model="scheduleStore.showFormDialog" width="800px" height="800px">
-      <ScheduleDialog />
-    </v-dialog>
+    <ScheduleFormDialog v-if="scheduleStore.showFormDialog" />
 
-    <v-dialog v-model="scheduleStore.showDeleteDialog" width="400px">
-      <DeleteScheduleDialog />
-    </v-dialog>
+    <ScheduleDeleteDialog v-if="scheduleStore.showDeleteDialog" />
   </v-container>
 </template>
 
@@ -95,8 +91,8 @@ import { onBeforeMount, ref } from "vue";
 import type { DataTableHeader } from "vuetify";
 import cronstrue from "cronstrue";
 
-import DeleteScheduleDialog from "./DeleteScheduleDialog.vue";
-import ScheduleDialog from "./ScheduleDialog.vue";
+import ScheduleDeleteDialog from "./ScheduleDeleteDialog.vue";
+import ScheduleFormDialog from "./ScheduleFormDialog.vue";
 import HorizontalDivider from "../Common/HorizontalDivider.vue";
 
 import { invokeMain } from "../../IPC/ipc";

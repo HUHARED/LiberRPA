@@ -1,4 +1,4 @@
-<!-- FileName: DeleteProjectDialog.vue -->
+<!-- FileName: PackageDeleteDialog.vue -->
 <template>
   <v-dialog v-model="projectStore.showDeleteDialog" width="800px" height="400px">
     <v-card title="Delete Package">

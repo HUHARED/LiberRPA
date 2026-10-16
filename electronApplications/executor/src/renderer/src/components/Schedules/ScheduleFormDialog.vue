@@ -1,72 +1,74 @@
-<!-- FileName: ScheduleDialog.vue -->
+<!-- FileName: ScheduleFormDialog.vue -->
 <template>
-  <v-card v-if="currentDetail" :title="dialogTitle">
-    <template #text>
-      <v-container fluid class="clean-space fill-height flex-column">
-        <v-container
-          v-if="scheduleStore.formMode === 'edit' && scheduleStore.dictDetailEdit"
-          fluid
-          class="pa-2 ma-0 pt-0">
-          <v-row class="w-100">
-            <v-col cols="5" class="pb-0">
-              <v-text-field
-                :model-value="
-                  formatTimestamp(
-                    scheduleStore.dictDetailEdit.created_at_ms,
-                    settingStore.timezone,
-                  )
-                "
-                label="Created At"
-                class="clean-space"
-                density="compact"
-                hide-details
-                readonly
-                variant="plain"></v-text-field>
-            </v-col>
+  <v-dialog v-model="scheduleStore.showFormDialog" width="800px" height="800px">
+    <v-card v-if="currentDetail" :title="dialogTitle">
+      <template #text>
+        <v-container fluid class="clean-space fill-height flex-column">
+          <v-container
+            v-if="scheduleStore.formMode === 'edit' && scheduleStore.dictDetailEdit"
+            fluid
+            class="pa-2 ma-0 pt-0">
+            <v-row class="w-100">
+              <v-col cols="5" class="pb-0">
+                <v-text-field
+                  :model-value="
+                    formatTimestamp(
+                      scheduleStore.dictDetailEdit.created_at_ms,
+                      settingStore.timezone,
+                    )
+                  "
+                  label="Created At"
+                  class="clean-space"
+                  density="compact"
+                  hide-details
+                  readonly
+                  variant="plain"></v-text-field>
+              </v-col>
 
-            <v-col cols="7" class="pb-0">
-              <v-text-field
-                :model-value="
-                  formatTimestamp(
-                    scheduleStore.dictDetailEdit.updated_at_ms,
-                    settingStore.timezone,
-                  )
-                "
-                label="Updated At"
-                class="clean-space"
-                density="compact"
-                hide-details
-                readonly
-                variant="plain"></v-text-field>
-            </v-col>
-          </v-row>
+              <v-col cols="7" class="pb-0">
+                <v-text-field
+                  :model-value="
+                    formatTimestamp(
+                      scheduleStore.dictDetailEdit.updated_at_ms,
+                      settingStore.timezone,
+                    )
+                  "
+                  label="Updated At"
+                  class="clean-space"
+                  density="compact"
+                  hide-details
+                  readonly
+                  variant="plain"></v-text-field>
+              </v-col>
+            </v-row>
+          </v-container>
+
+          <ScheduleForm />
         </v-container>
+      </template>
 
-        <ScheduleForm />
-      </v-container>
-    </template>
+      <v-divider></v-divider>
 
-    <v-divider></v-divider>
+      <v-card-actions class="bg-surface-light">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          @click="scheduleStore.showFormDialog = false">
+          Cancel
+        </v-btn>
 
-    <v-card-actions class="bg-surface-light">
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-close"
-        @click="scheduleStore.showFormDialog = false">
-        Cancel
-      </v-btn>
+        <v-spacer></v-spacer>
 
-      <v-spacer></v-spacer>
-
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-content-save-outline"
-        :disabled="!boolCanSave"
-        @click="saveSchedule()">
-        Save
-      </v-btn>
-    </v-card-actions>
-  </v-card>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-content-save-outline"
+          :disabled="!boolCanSave"
+          @click="saveSchedule()">
+          Save
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
