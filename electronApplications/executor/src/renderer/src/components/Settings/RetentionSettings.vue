@@ -38,7 +38,7 @@
       inset
       :min="7"
       :precision="0"
-      style="max-width: 100px"
+      max-width="100"
       :disabled="!boolLogRetentionEnabled"></v-number-input>
 
     <span class="pa-0 ma-0 mt-2">days</span>
@@ -81,7 +81,7 @@
       inset
       :min="1"
       :precision="0"
-      style="max-width: 100px"
+      max-width="100"
       :disabled="!boolVideoRetentionEnabled"></v-number-input>
 
     <span class="pa-0 ma-0 mt-2">days</span>
@@ -124,7 +124,7 @@
       inset
       :min="1"
       :precision="0"
-      style="max-width: 100px"
+      max-width="100"
       :disabled="!boolVideoStorageLimitEnabled"></v-number-input>
 
     <span class="pa-0 ma-0 mt-2">GiB</span>
@@ -159,9 +159,18 @@
       </v-card-text>
 
       <v-card-actions>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          @click="boolConfirmationDialogOpen = false">
+          Cancel
+        </v-btn>
         <v-spacer></v-spacer>
-        <v-btn variant="tonal" @click="boolConfirmationDialogOpen = false">Cancel</v-btn>
-        <v-btn color="warning" variant="tonal" @click="confirmRetentionSettings()">
+        <v-btn
+          color="warning"
+          variant="tonal"
+          prepend-icon="mdi-check"
+          @click="confirmRetentionSettings()">
           Apply
         </v-btn>
       </v-card-actions>

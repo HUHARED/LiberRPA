@@ -13,7 +13,7 @@
       </v-btn>
     </v-container>
 
-    <HorizontalDivider />
+    <v-divider class="w-100" />
 
     <v-alert v-if="strError" type="error" variant="tonal" class="my-2">
       {{ strError }}
@@ -93,7 +93,6 @@ import cronstrue from "cronstrue";
 
 import ScheduleDeleteDialog from "./ScheduleDeleteDialog.vue";
 import ScheduleFormDialog from "./ScheduleFormDialog.vue";
-import HorizontalDivider from "../Common/HorizontalDivider.vue";
 
 import { invokeMain } from "../../IPC/ipc";
 import { getDefaultSchedulePeriod } from "../../Common/time";

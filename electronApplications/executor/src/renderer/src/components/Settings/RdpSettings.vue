@@ -10,15 +10,17 @@
           v-bind="props"
           prepend-icon="mdi-account-lock-open-outline"
           true-icon="mdi-lock-open-variant-outline"
-          density="compact">
-        </v-switch>
+          density="compact"></v-switch>
       </template>
 
       <div>
-        Keep the GUI session active after an RDP connection is disconnected.<br />
-        Executor must run as administrator.<br />
+        Keep the GUI session active after an RDP connection is disconnected.
+        <br />
+        Executor must run as administrator.
+        <br />
         If the mouse has not moved for 30 seconds, Executor moves it to help prevent the
-        screen from locking. This cannot prevent every type of session lock.<br />
+        screen from locking. This cannot prevent every type of session lock.
+        <br />
         (May not work without a Virtual Display Driver or when multiple users are active.)
       </div>
     </v-tooltip>
@@ -27,8 +29,10 @@
   <v-container fluid class="pa-2 ma-0 flex-row">
     <v-tooltip activator="parent" location="bottom">
       <div>
-        Session width after RDP is disconnected.<br />
-        The requested resolution must be supported by the Console display driver.<br />
+        Session width after RDP is disconnected.
+        <br />
+        The requested resolution must be supported by the Console display driver.
+        <br />
         Range: 480–7680 px.
       </div>
     </v-tooltip>
@@ -36,8 +40,7 @@
     <v-icon
       class="pa-0 ma-0 mt-2 ml-12 mr-2"
       color="medium-emphasis"
-      icon="mdi-arrow-split-vertical">
-    </v-icon>
+      icon="mdi-arrow-split-vertical"></v-icon>
 
     <v-text-field
       class="clean-space"
@@ -46,9 +49,8 @@
       variant="plain"
       readonly
       spellcheck="false"
-      style="max-width: 210px"
-      model-value="Session Width">
-    </v-text-field>
+      max-width="210"
+      model-value="Session Width"></v-text-field>
 
     <v-number-input
       v-model="intKeepRdpSessionWidth"
@@ -60,9 +62,8 @@
       :min="480"
       :max="7680"
       :precision="0"
-      style="max-width: 100px"
-      :disabled="!settingStore.keepRdpSession">
-    </v-number-input>
+      max-width="100"
+      :disabled="!settingStore.keepRdpSession"></v-number-input>
 
     <span class="pa-0 ma-0 mt-2">px</span>
   </v-container>
@@ -70,8 +71,10 @@
   <v-container fluid class="pa-2 ma-0 flex-row">
     <v-tooltip activator="parent" location="bottom">
       <div>
-        Session height after RDP is disconnected.<br />
-        The requested resolution must be supported by the Console display driver.<br />
+        Session height after RDP is disconnected.
+        <br />
+        The requested resolution must be supported by the Console display driver.
+        <br />
         Range: 480–7680 px.
       </div>
     </v-tooltip>
@@ -79,8 +82,7 @@
     <v-icon
       class="pa-0 ma-0 mt-2 ml-12 mr-2"
       color="medium-emphasis"
-      icon="mdi-arrow-split-horizontal">
-    </v-icon>
+      icon="mdi-arrow-split-horizontal"></v-icon>
 
     <v-text-field
       class="clean-space"
@@ -89,9 +91,8 @@
       variant="plain"
       readonly
       spellcheck="false"
-      style="max-width: 210px"
-      model-value="Session Height">
-    </v-text-field>
+      max-width="210"
+      model-value="Session Height"></v-text-field>
 
     <v-number-input
       v-model="intKeepRdpSessionHeight"
@@ -103,9 +104,8 @@
       :min="480"
       :max="7680"
       :precision="0"
-      style="max-width: 100px"
-      :disabled="!settingStore.keepRdpSession">
-    </v-number-input>
+      max-width="100"
+      :disabled="!settingStore.keepRdpSession"></v-number-input>
 
     <span class="pa-0 ma-0 mt-2">px</span>
   </v-container>

@@ -11,8 +11,7 @@
     <v-text-field
       id="project-log-folder-path"
       v-model="strProjectLogFolderPath"
-      style="cursor: pointer !important"
-      class="pa-0 ma-0 ml-2 mr-2"
+      class="pa-0 ma-0 ml-2 mr-2 cursor-pointer"
       density="compact"
       variant="underlined"
       hide-details
@@ -50,7 +49,7 @@
       variant="plain"
       readonly
       spellcheck="false"
-      style="max-width: 110px"
+      max-width="110"
       model-value="Time Zone:">
       <v-tooltip activator="parent" location="bottom">
         <div>
@@ -65,7 +64,7 @@
       class="clean-space"
       density="compact"
       hide-details
-      style="max-width: 400px"
+      max-width="400"
       :items="arrTimezone"></v-autocomplete>
   </v-container>
 </template>

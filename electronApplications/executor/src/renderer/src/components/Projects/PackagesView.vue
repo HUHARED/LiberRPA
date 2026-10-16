@@ -36,7 +36,7 @@
           @update:activated="clickNewProjectItem($event as string[])"></v-list>
       </v-container>
 
-      <VerticalDivider />
+      <v-divider vertical />
 
       <v-container
         fluid
@@ -59,7 +59,7 @@
           @update:activated="clickNewVersionItem($event as string[])"></v-list>
       </v-container>
 
-      <VerticalDivider />
+      <v-divider vertical />
 
       <v-container
         fluid
@@ -149,7 +149,6 @@ import PackageMetadata from "./PackageMetadata.vue";
 import PackageRunSettings from "./PackageRunSettings.vue";
 import CustomArgumentsEditor from "../RunSettings/CustomArgumentsEditor.vue";
 import PackageRunDialog from "./PackageRunDialog.vue";
-import VerticalDivider from "../Common/VerticalDivider.vue";
 
 import { onBeforeMount, onBeforeUnmount, ref, watch } from "vue";
 import { debounce } from "lodash";
