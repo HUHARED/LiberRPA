@@ -61,16 +61,14 @@
         </v-col>
 
         <v-col cols="2" class="pt-0 pb-1">
-          <v-container fluid class="clean-space">
-            <v-label class="clean-space" style="font-size: 0.75em">Enabled</v-label>
+          <v-label class="clean-space" style="font-size: 0.75em">Enabled</v-label>
 
-            <v-switch
-              v-model="detail.enabled"
-              hide-details
-              class="clean-space pl-1"
-              density="compact"
-              true-icon="mdi-flash"></v-switch>
-          </v-container>
+          <v-switch
+            v-model="detail.enabled"
+            hide-details
+            class="clean-space pl-1"
+            density="compact"
+            true-icon="mdi-flash"></v-switch>
         </v-col>
       </v-row>
 
@@ -90,10 +88,8 @@
           </v-text-field>
         </v-col>
 
-        <v-col cols="9" class="clean-space">
-          <v-container fluid class="clean-space pt-0 flex-column">
-            <cron-vuetify v-model="detail.cron" class="clean-space mb-2"></cron-vuetify>
-          </v-container>
+        <v-col cols="9" class="clean-space flex-column">
+          <cron-vuetify v-model="detail.cron" class="clean-space mb-2"></cron-vuetify>
         </v-col>
       </v-row>
 

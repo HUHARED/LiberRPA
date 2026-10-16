@@ -1,10 +1,6 @@
 <!-- FileName: PackageDetailsPanel.vue -->
 <template>
-  <v-card
-    variant="flat"
-    rounded="0"
-    class="d-flex flex-column flex-grow-1"
-    style="min-height: 0">
+  <v-card variant="flat" rounded="0" class="d-flex flex-column flex-grow-1" min-height="0">
     <v-card-text class="flex-grow-0 pb-2">
       <h2 class="text-h6 text-break mb-3">
         {{ details.package.project_name }} · {{ details.package.project_version }}

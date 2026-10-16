@@ -56,7 +56,7 @@
           variant="flat"
           rounded="0"
           class="d-flex flex-column flex-grow-1"
-          style="min-height: 0"
+          min-height="0"
           :height="mdAndUp ? undefined : 360">
           <v-card-title class="text-subtitle-1">Project Name</v-card-title>
 
@@ -112,7 +112,7 @@
           variant="flat"
           rounded="0"
           class="d-flex flex-column flex-grow-1"
-          style="min-height: 0"
+          min-height="0"
           :height="mdAndUp ? undefined : 360">
           <v-card-title class="text-subtitle-1 px-2">Project Version</v-card-title>
 
@@ -150,7 +150,7 @@
           variant="flat"
           rounded="0"
           class="d-flex flex-column flex-grow-1"
-          style="min-height: 0"
+          min-height="0"
           :height="mdAndUp ? undefined : 'max(640px, calc(100dvh - 112px))'">
           <v-card-title class="text-subtitle-1">Package Details</v-card-title>
 

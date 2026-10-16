@@ -138,16 +138,15 @@
         </p>
       </template>
 
-      <div class="d-flex flex-wrap align-center ga-3 mt-4">
-        <v-btn
-          v-if="!registrationInfo && !boolLoading && strToken"
-          variant="tonal"
-          prepend-icon="mdi-refresh"
-          :disabled="intRetrySeconds > 0"
-          @click="loadInvitation">
-          Check Again
-        </v-btn>
-      </div>
+      <v-btn
+        v-if="!registrationInfo && !boolLoading && strToken"
+        variant="tonal"
+        prepend-icon="mdi-refresh"
+        class="mt-4"
+        :disabled="intRetrySeconds > 0"
+        @click="loadInvitation">
+        Check Again
+      </v-btn>
     </template>
   </AuthLayout>
 </template>

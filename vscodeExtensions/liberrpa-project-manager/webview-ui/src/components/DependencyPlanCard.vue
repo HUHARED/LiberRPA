@@ -33,10 +33,9 @@
       <v-list v-else density="compact" class="mb-4">
         <v-list-item
           v-for="change in plan.directDependencyChanges"
-          :key="`${change.componentId}-${change.change}`">
-          <v-list-item-title>{{ getDirectChangeText(change) }}</v-list-item-title>
-          <v-list-item-subtitle>{{ change.componentId }}</v-list-item-subtitle>
-        </v-list-item>
+          :key="`${change.componentId}-${change.change}`"
+          :title="getDirectChangeText(change)"
+          :subtitle="change.componentId" />
       </v-list>
 
       <div class="text-subtitle-2 mb-2">Resolved Component changes</div>
@@ -52,10 +51,9 @@
       <v-list v-else density="compact">
         <v-list-item
           v-for="change in plan.resolvedComponentChanges"
-          :key="`${change.componentId}-${change.change}`">
-          <v-list-item-title>{{ getResolvedChangeText(change) }}</v-list-item-title>
-          <v-list-item-subtitle>{{ change.componentId }}</v-list-item-subtitle>
-        </v-list-item>
+          :key="`${change.componentId}-${change.change}`"
+          :title="getResolvedChangeText(change)"
+          :subtitle="change.componentId" />
       </v-list>
     </v-card-text>
 

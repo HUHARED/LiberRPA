@@ -8,15 +8,11 @@
     Back to Departments
   </v-btn>
 
-  <v-row align="center" class="mb-4">
-    <v-col>
-      <h2 class="text-h5 mb-2 text-anywhere">
-        {{ detailsInfo?.department.name ?? "Department Details" }}
-      </h2>
+  <h2 class="text-h5 mb-2 text-anywhere">
+    {{ detailsInfo?.department.name ?? "Department Details" }}
+  </h2>
 
-      <p class="text-medium-emphasis">Department Details</p>
-    </v-col>
-  </v-row>
+  <p class="text-medium-emphasis mb-6">Department Details</p>
 
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{

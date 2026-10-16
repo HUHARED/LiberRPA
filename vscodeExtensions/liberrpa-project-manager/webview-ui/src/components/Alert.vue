@@ -4,20 +4,19 @@
     v-if="projectManagerStore.showAlert"
     :key="projectManagerStore.alertRevision"
     :type="projectManagerStore.alertType"
+    :text="projectManagerStore.alertMessage"
     variant="flat"
     closable
     @click:close="clearAlert">
-    <div class="d-flex align-center ga-2">
-      <span class="flex-grow-1">{{ projectManagerStore.alertMessage }}</span>
+    <template v-if="projectManagerStore.alertType === 'error'" #append>
       <v-btn
-        v-if="projectManagerStore.alertType === 'error'"
         prepend-icon="mdi-text-box-outline"
         variant="tonal"
         size="small"
         @click.stop="showLogs">
         Show Logs
       </v-btn>
-    </div>
+    </template>
   </v-alert>
 </template>
 
