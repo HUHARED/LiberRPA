@@ -35,14 +35,10 @@
           <v-text-field
             :model-value="`${account.username} (${account.email})`"
             label="Account"
-            variant="outlined"
+            variant="plain"
             readonly />
 
-          <v-text-field
-            :model-value="apiKey.name"
-            label="Name"
-            variant="outlined"
-            readonly />
+          <v-text-field :model-value="apiKey.name" label="Name" variant="plain" readonly />
 
           <v-textarea
             v-if="action === 'edit'"

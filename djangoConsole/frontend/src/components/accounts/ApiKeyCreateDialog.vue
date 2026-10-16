@@ -27,7 +27,7 @@
           <v-textarea
             :model-value="strSecret"
             label="API Key"
-            variant="outlined"
+            variant="plain"
             rows="3"
             readonly
             spellcheck="false"

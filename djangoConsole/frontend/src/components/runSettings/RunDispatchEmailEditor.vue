@@ -4,7 +4,8 @@
     <v-col cols="12" md="6">
       <v-select
         v-model="settings.run_conflict_policy"
-        variant="underlined"
+        :variant="readonly ? 'plain' : 'underlined'"
+        :menu-icon="readonly ? '' : undefined"
         :error-messages="getFieldErrors(fieldErrors, 'settings.run_conflict_policy')"
         :items="ARR_CONFLICT_POLICY_OPTION"
         label="Conflict Policy"
@@ -15,7 +16,8 @@
     <v-col cols="12" md="6">
       <v-select
         v-model="settings.priority"
-        variant="underlined"
+        :variant="readonly ? 'plain' : 'underlined'"
+        :menu-icon="readonly ? '' : undefined"
         :error-messages="getFieldErrors(fieldErrors, 'settings.priority')"
         :items="ARR_PRIORITY_OPTION"
         label="Priority"

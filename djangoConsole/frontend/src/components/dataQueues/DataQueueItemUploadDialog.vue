@@ -11,7 +11,7 @@
       <v-card-title id="queue-upload-title">Upload Items</v-card-title>
 
       <v-card-text>
-        <v-text-field :model-value="queue.path" label="Queue" variant="outlined" readonly />
+        <v-text-field :model-value="queue.path" label="Queue" variant="plain" readonly />
 
         <v-file-input
           label="File"

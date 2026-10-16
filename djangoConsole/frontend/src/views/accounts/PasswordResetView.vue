@@ -66,7 +66,7 @@
           :model-value="linkInfo.email"
           label="Email"
           autocomplete="username"
-          variant="outlined"
+          variant="plain"
           readonly />
 
         <PasswordField

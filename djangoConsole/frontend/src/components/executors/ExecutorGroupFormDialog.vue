@@ -57,7 +57,7 @@
                 v-if="group"
                 :model-value="group.department.path"
                 label="Department"
-                variant="outlined"
+                variant="plain"
                 density="compact"
                 readonly />
 

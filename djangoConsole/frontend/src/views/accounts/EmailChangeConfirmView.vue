@@ -35,7 +35,7 @@
         <v-text-field
           :model-value="linkInfo.new_email"
           label="New Email"
-          variant="outlined"
+          variant="plain"
           readonly />
 
         <p class="text-medium-emphasis mb-4">

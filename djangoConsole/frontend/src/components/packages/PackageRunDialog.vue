@@ -65,7 +65,7 @@
               <v-text-field
                 :model-value="packageInfo.python_environment_name"
                 label="Python Environment"
-                variant="underlined"
+                variant="plain"
                 density="compact"
                 readonly>
                 <v-tooltip activator="parent" location="top">

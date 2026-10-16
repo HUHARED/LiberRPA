@@ -123,7 +123,7 @@
             :model-value="registrationInfo.email"
             label="Email"
             autocomplete="username"
-            variant="outlined"
+            variant="plain"
             readonly />
 
           <v-text-field

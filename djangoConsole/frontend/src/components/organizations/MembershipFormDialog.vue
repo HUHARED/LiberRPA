@@ -51,7 +51,7 @@
             v-if="member"
             :model-value="strAccount"
             label="Account"
-            variant="outlined"
+            variant="plain"
             readonly />
 
           <v-text-field

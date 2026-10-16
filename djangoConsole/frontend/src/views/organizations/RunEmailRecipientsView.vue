@@ -22,12 +22,13 @@
 
   <v-row class="mb-4">
     <v-col cols="12" md="8">
-      <v-text-field v-model="strSearch" label="Email" hide-details />
+      <v-text-field v-model="strSearch" variant="underlined" label="Email" hide-details />
     </v-col>
 
     <v-col cols="12" md="4">
       <v-select
         v-model="strStatus"
+        variant="underlined"
         :items="ARR_STATUS"
         label="Status"
         hide-details
@@ -89,12 +90,17 @@
 
           <v-text-field
             v-model="strEmail"
+            :variant="recipientEdit ? 'plain' : 'outlined'"
             label="Email"
             type="email"
             :readonly="!!recipientEdit"
             :rules="[(value) => !!value.trim() || 'Enter an email address.']" />
 
-          <v-textarea v-model="strNotes" label="Notes (optional)" rows="3" />
+          <v-textarea
+            v-model="strNotes"
+            variant="outlined"
+            label="Notes (optional)"
+            rows="3" />
         </v-form>
       </v-card-text>
 

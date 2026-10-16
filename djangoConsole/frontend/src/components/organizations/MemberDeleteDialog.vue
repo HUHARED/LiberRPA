@@ -46,7 +46,7 @@
           <v-text-field
             :model-value="`${deletionInfo?.user.username ?? user.username} (${deletionInfo?.user.email ?? user.email})`"
             label="Account to delete"
-            variant="outlined"
+            variant="plain"
             readonly />
 
           <v-alert

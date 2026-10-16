@@ -32,7 +32,7 @@
                 v-model="strName"
                 :error-messages="getFieldErrors(dictFieldError, 'name')"
                 label="Name"
-                variant="underlined"
+                :variant="boolReadonly ? 'plain' : 'underlined'"
                 density="compact"
                 hide-details="auto"
                 maxlength="128"
@@ -47,7 +47,8 @@
                   getFieldErrors(dictFieldError, 'settings.run_conflict_policy')
                 "
                 label="Conflict Policy"
-                variant="underlined"
+                :variant="boolReadonly ? 'plain' : 'underlined'"
+                :menu-icon="boolReadonly ? '' : undefined"
                 density="compact"
                 hide-details="auto"
                 :disabled="!settings || boolBusy"
@@ -60,7 +61,8 @@
                 :items="ARR_PRIORITY_OPTION"
                 :error-messages="getFieldErrors(dictFieldError, 'settings.priority')"
                 label="Priority"
-                variant="underlined"
+                :variant="boolReadonly ? 'plain' : 'underlined'"
+                :menu-icon="boolReadonly ? '' : undefined"
                 density="compact"
                 hide-details="auto"
                 :disabled="!settings || boolBusy"
@@ -74,7 +76,7 @@
                 v-model="strNotes"
                 :error-messages="getFieldErrors(dictFieldError, 'notes')"
                 label="Notes (optional)"
-                variant="underlined"
+                :variant="boolReadonly ? 'plain' : 'underlined'"
                 density="compact"
                 hide-details="auto"
                 rows="1"
@@ -91,7 +93,8 @@
                 item-title="path"
                 item-value="id"
                 label="Department"
-                variant="underlined"
+                :variant="boolReadonly ? 'plain' : 'underlined'"
+                :menu-icon="boolReadonly ? '' : undefined"
                 density="compact"
                 hide-details="auto"
                 :rules="[(value) => !!value || 'Select a department.']"
@@ -103,7 +106,8 @@
                 v-model="strProjectNameKey"
                 :items="arrProjectOption"
                 label="Project Name"
-                variant="underlined"
+                :variant="boolReadonly ? 'plain' : 'underlined'"
+                :menu-icon="boolReadonly ? '' : undefined"
                 density="compact"
                 hide-details="auto"
                 :loading="boolPackagesLoading"
@@ -120,7 +124,8 @@
                 item-title="project_version"
                 item-value="id"
                 label="Project Version"
-                variant="underlined"
+                :variant="boolReadonly ? 'plain' : 'underlined'"
+                :menu-icon="boolReadonly ? '' : undefined"
                 density="compact"
                 hide-details="auto"
                 :loading="boolSettingsLoading"
@@ -147,7 +152,8 @@
             v-model:group-id="strGroupId"
             :field-errors="dictFieldError"
             :department-id="strDepartmentId"
-            :disabled="boolBusy || boolReadonly"
+            :disabled="boolBusy"
+            :readonly="boolReadonly"
             class="mt-2" />
 
           <v-divider class="my-5" />
@@ -160,7 +166,8 @@
                 :items="arrTimeZone"
                 :error-messages="getFieldErrors(dictFieldError, 'time_zone')"
                 label="Schedule Time Zone"
-                variant="underlined"
+                :variant="boolReadonly ? 'plain' : 'underlined'"
+                :menu-icon="boolReadonly ? '' : undefined"
                 density="compact"
                 hide-details="auto"
                 :rules="[(value) => !!value || 'Select a time zone.']" />
@@ -173,7 +180,7 @@
                 type="datetime-local"
                 step="1"
                 label="Active From"
-                variant="underlined"
+                :variant="boolReadonly ? 'plain' : 'underlined'"
                 density="compact"
                 hide-details="auto"
                 :rules="[(value) => !!value || 'Enter the start time.']" />
@@ -186,7 +193,7 @@
                 type="datetime-local"
                 step="1"
                 label="Active Until"
-                variant="underlined"
+                :variant="boolReadonly ? 'plain' : 'underlined'"
                 density="compact"
                 hide-details="auto"
                 :rules="[(value) => !!value || 'Enter the end time.']" />
@@ -199,7 +206,7 @@
                 :model-value="strCron"
                 :error-messages="getFieldErrors(dictFieldError, 'cron')"
                 label="Cron Expression"
-                variant="underlined"
+                :variant="boolReadonly ? 'plain' : 'underlined'"
                 density="compact"
                 hint="Five fields, or six fields with seconds first."
                 persistent-hint
@@ -260,7 +267,7 @@
                 <v-text-field
                   :model-value="selectedPackage?.python_environment_name ?? '—'"
                   label="Python Environment"
-                  variant="underlined"
+                  variant="plain"
                   density="compact"
                   readonly>
                   <v-tooltip activator="parent" location="top">

@@ -62,13 +62,13 @@
             v-if="department"
             :model-value="department.path"
             label="Current Path"
-            variant="outlined"
+            variant="plain"
             readonly />
 
           <v-text-field
             :model-value="strNewPath"
             :label="department ? 'New Path' : 'Path'"
-            variant="outlined"
+            variant="plain"
             readonly />
 
           <v-alert v-if="boolPathChanged" type="warning" variant="tonal" class="mb-4">

@@ -9,7 +9,7 @@
       <v-number-input
         v-model="settings.max_retry_count"
         :control-variant="readonly ? 'hidden' : 'default'"
-        variant="underlined"
+        :variant="readonly ? 'plain' : 'underlined'"
         density="compact"
         :error-messages="getFieldErrors(fieldErrors, 'settings.max_retry_count')"
         label="Max Retry Count"
@@ -32,7 +32,7 @@
       <v-number-input
         v-model="settings.timeout_min"
         :control-variant="readonly ? 'hidden' : 'default'"
-        variant="underlined"
+        :variant="readonly ? 'plain' : 'underlined'"
         density="compact"
         :error-messages="getFieldErrors(fieldErrors, 'settings.timeout_min')"
         label="Timeout (min)"
@@ -53,8 +53,8 @@
     <v-col cols="12" sm="5">
       <v-select
         v-model="settings.builtin_log_level"
+        :variant="readonly ? 'plain' : 'underlined'"
         :menu-icon="readonly ? '' : undefined"
-        variant="underlined"
         density="compact"
         :error-messages="getFieldErrors(fieldErrors, 'settings.builtin_log_level')"
         label="Log Level"

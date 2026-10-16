@@ -32,7 +32,7 @@
             v-if="queue"
             :model-value="queue.department.path"
             label="Department"
-            variant="outlined"
+            variant="plain"
             readonly />
 
           <v-select
@@ -46,7 +46,7 @@
             :rules="[(value) => !!value || 'Select a department.']"
             :disabled="boolSaving" />
 
-          <v-text-field :model-value="strPath" label="Path" variant="outlined" readonly />
+          <v-text-field :model-value="strPath" label="Path" variant="plain" readonly />
 
           <v-alert
             v-if="queue && strName !== queue.name"

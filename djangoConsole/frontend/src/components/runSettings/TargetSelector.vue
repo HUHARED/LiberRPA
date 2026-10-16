@@ -11,6 +11,7 @@
         class="flex-grow-0"
         density="compact"
         hide-details="auto"
+        :readonly="readonly"
         :disabled="disabled || boolLoading || !departmentId"
         @update:model-value="changeType">
         <v-radio label="Executors" value="executor" />
@@ -34,7 +35,8 @@
       <v-select
         v-if="strTargetType === 'executor'"
         v-model="executorIds"
-        variant="underlined"
+        :variant="readonly ? 'plain' : 'underlined'"
+        :menu-icon="readonly ? '' : undefined"
         density="compact"
         hide-details="auto"
         :items="arrExecutor"
@@ -47,8 +49,9 @@
         :error-messages="getFieldErrors(fieldErrors, 'executor_ids')"
         multiple
         chips
-        closable-chips
+        :closable-chips="!readonly"
         :loading="boolLoading"
+        :readonly="readonly"
         :disabled="disabled || boolLoading || !departmentId"
         :rules="[(value) => value.length > 0 || 'Select at least one Executor.']">
         <template #item="{ props: itemProps, item }">
@@ -61,7 +64,8 @@
       <v-select
         v-else
         v-model="groupId"
-        variant="underlined"
+        :variant="readonly ? 'plain' : 'underlined'"
+        :menu-icon="readonly ? '' : undefined"
         density="compact"
         hide-details="auto"
         :items="arrGroup"
@@ -73,6 +77,7 @@
         "
         :error-messages="getFieldErrors(fieldErrors, 'group_id')"
         :loading="boolLoading"
+        :readonly="readonly"
         :disabled="disabled || boolLoading || !departmentId"
         :rules="[(value) => !!value || 'Select a group.']">
         <template #item="{ props: itemProps, item }">
@@ -99,6 +104,7 @@ import type {
 const props = defineProps<{
   departmentId: string;
   disabled?: boolean;
+  readonly?: boolean;
   fieldErrors?: Record<string, string[]>;
 }>();
 

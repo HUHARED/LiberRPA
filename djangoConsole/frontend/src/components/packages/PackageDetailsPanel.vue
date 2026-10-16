@@ -84,7 +84,7 @@
                     getFieldErrors(dictFieldError, 'python_environment_name')
                   "
                   label="Python Environment"
-                  variant="underlined"
+                  :variant="details.package.can_manage ? 'underlined' : 'plain'"
                   density="compact"
                   :rules="[validateEnvironmentName]">
                   <v-tooltip activator="parent" location="top">
@@ -103,7 +103,8 @@
               :error-messages="getFieldErrors(dictFieldError, 'api_input_keys')"
               :items="[...new Set(draft.custom_prj_args.map((argument) => argument[0]))]"
               label="API Input Keys"
-              variant="underlined"
+              :variant="details.package.can_manage ? 'underlined' : 'plain'"
+              :menu-icon="!details.package.can_manage ? '' : undefined"
               class="mt-3 flex-grow-0 flex-shrink-0"
               multiple
               chips

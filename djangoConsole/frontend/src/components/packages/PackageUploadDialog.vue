@@ -15,6 +15,7 @@
 
         <v-select
           v-model="strDepartmentId"
+          variant="outlined"
           :items="arrDepartment"
           item-title="path"
           item-value="id"
@@ -23,6 +24,7 @@
 
         <v-file-input
           v-model="file"
+          variant="outlined"
           label="Package ZIP"
           accept=".zip,application/zip"
           show-size

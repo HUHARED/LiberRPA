@@ -49,7 +49,7 @@
             :disabled="boolLocked"
             :rules="[validatePathName]" />
 
-          <v-text-field :model-value="strPath" label="Path" variant="outlined" readonly />
+          <v-text-field :model-value="strPath" label="Path" variant="plain" readonly />
 
           <v-switch
             v-model="boolOverwrite"

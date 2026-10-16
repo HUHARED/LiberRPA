@@ -82,7 +82,7 @@
           <v-textarea
             :model-value="strJson"
             label="Data (JSON)"
-            variant="outlined"
+            variant="plain"
             readonly
             rows="12"
             class="mt-5"

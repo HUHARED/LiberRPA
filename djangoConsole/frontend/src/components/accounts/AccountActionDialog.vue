@@ -66,7 +66,7 @@
               v-if="action === 'email'"
               :model-value="sessionStore.session?.user.email"
               label="Current Email"
-              variant="outlined"
+              variant="plain"
               readonly />
 
             <PasswordField

@@ -15,7 +15,8 @@
 
   <v-select
     v-model="config.recipient_ids"
-    variant="underlined"
+    :variant="readonly ? 'plain' : 'underlined'"
+    :menu-icon="readonly ? '' : undefined"
     :items="arrRecipient"
     item-title="email"
     item-value="id"
@@ -53,7 +54,7 @@
 
         <v-text-field
           :model-value="draft[event.key].subject"
-          variant="underlined"
+          :variant="readonly ? 'plain' : 'underlined'"
           :error-messages="
             getFieldErrors(fieldErrors, `settings.run_email.${event.key}.subject`)
           "
@@ -68,7 +69,7 @@
         <v-textarea
           :id="`${strEditorId}-${event.key}-body`"
           :model-value="draft[event.key].body"
-          variant="underlined"
+          :variant="readonly ? 'plain' : 'underlined'"
           :error-messages="
             getFieldErrors(fieldErrors, `settings.run_email.${event.key}.body`)
           "
@@ -155,7 +156,6 @@ const props = defineProps<{
 }>();
 
 const config = defineModel<RunEmailConfig>({ required: true });
-
 const strEditorId = useId();
 
 const ARR_EVENT: { key: RunEmailEventKey; title: string }[] = [
