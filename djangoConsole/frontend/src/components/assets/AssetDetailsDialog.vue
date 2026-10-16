@@ -9,10 +9,11 @@
 
   <v-dialog
     :model-value="true"
-    persistent
+    :persistent="boolBusy"
     scrollable
     max-width="900"
-    aria-labelledby="asset-details-title">
+    aria-labelledby="asset-details-title"
+    @update:model-value="!$event && closeDialog()">
     <v-card>
       <v-card-title id="asset-details-title">
         {{ boolConfirmDelete ? "Delete Asset" : "Asset Details" }}
@@ -170,11 +171,10 @@
 
         <template v-else>
           <v-btn
-            :to="{ name: 'assets', query: route.query }"
-            replace
             variant="tonal"
             prepend-icon="mdi-close"
-            :disabled="boolBusy">
+            :disabled="boolBusy"
+            @click="closeDialog">
             Close
           </v-btn>
 
@@ -213,7 +213,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
-import { RouterLink, useRoute } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 
 import AssetFormDialog from "./AssetFormDialog.vue";
 
@@ -237,6 +237,7 @@ import { formatDateTime } from "@/app/formatters";
 const props = defineProps<{ assetId: string }>();
 const emit = defineEmits<{ updated: []; deleted: [] }>();
 const route = useRoute();
+const router = useRouter();
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const asset = shallowRef<AssetDetailsEntryResponse | null>(null);
@@ -269,6 +270,15 @@ async function loadDetails(): Promise<void> {
   } finally {
     boolLoading.value = false;
   }
+}
+
+function closeDialog(): void {
+  if (boolBusy.value) return;
+  if (boolConfirmDelete.value) {
+    boolConfirmDelete.value = false;
+    return;
+  }
+  void router.replace({ name: "assets", query: route.query });
 }
 
 function openEdit(): void {

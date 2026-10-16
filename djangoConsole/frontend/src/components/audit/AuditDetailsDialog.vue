@@ -2,10 +2,10 @@
 <template>
   <v-dialog
     :model-value="true"
-    persistent
     scrollable
     max-width="1000"
-    aria-labelledby="audit-details-title">
+    aria-labelledby="audit-details-title"
+    @update:model-value="!$event && emit('close')">
     <v-card :aria-busy="boolLoading">
       <v-card-title id="audit-details-title">Audit Details</v-card-title>
       <v-progress-linear v-if="boolLoading" indeterminate color="primary" />

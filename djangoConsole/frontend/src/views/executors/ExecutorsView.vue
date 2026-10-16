@@ -252,10 +252,11 @@
   </v-card>
 
   <v-dialog
-    v-model="boolNewExecutorOpen"
-    persistent
+    :model-value="boolNewExecutorOpen"
+    :persistent="boolSavingNewExecutor"
     max-width="640"
-    aria-labelledby="executor-create-title">
+    aria-labelledby="executor-create-title"
+    @update:model-value="!$event && closeNewExecutor()">
     <v-card v-if="boolNewExecutorOpen">
       <v-card-title id="executor-create-title">New Executor</v-card-title>
 

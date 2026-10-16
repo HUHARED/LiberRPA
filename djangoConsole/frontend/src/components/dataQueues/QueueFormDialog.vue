@@ -2,10 +2,11 @@
 <template>
   <v-dialog
     :model-value="true"
-    persistent
+    :persistent="boolSaving"
     scrollable
     max-width="660"
-    aria-labelledby="queue-form-title">
+    aria-labelledby="queue-form-title"
+    @update:model-value="!$event && emit('close')">
     <v-card>
       <v-card-title id="queue-form-title">
         {{ queue ? "Edit Queue" : "New Queue" }}

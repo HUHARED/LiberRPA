@@ -156,6 +156,17 @@
             aria-label="Edit"
             icon="mdi-pencil-outline"
             @click="form = item" />
+
+          <v-btn
+            v-if="item.can_manage"
+            v-tooltip:bottom="'Delete'"
+            color="error"
+            variant="text"
+            size="small"
+            :disabled="boolLoading || !!error"
+            aria-label="Delete"
+            icon="mdi-delete-outline"
+            @click="deleteTarget = item" />
         </div>
       </template>
 
@@ -187,6 +198,12 @@
     :initial-department-id="departmentIds.length === 1 ? departmentIds[0] : undefined"
     @close="form = null"
     @saved="handleSaved" />
+
+  <QueueDeleteDialog
+    v-if="deleteTarget"
+    :queue="deleteTarget"
+    @close="deleteTarget = null"
+    @deleted="handleDeleted" />
 </template>
 
 <script setup lang="ts">
@@ -194,6 +211,7 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { RouterLink, useRoute, useRouter, type RouteLocationRaw } from "vue-router";
 
 import QueueFormDialog from "@/components/dataQueues/QueueFormDialog.vue";
+import QueueDeleteDialog from "@/components/dataQueues/QueueDeleteDialog.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -211,7 +229,7 @@ const ARR_HEADER = [
   { title: "Unclaimed", key: "unclaimed_count" },
   { title: "Claimed", key: "claimed_count" },
   { title: "Notes", key: "notes", minWidth: 220 },
-  { title: "Actions", key: "actions", width: 112 },
+  { title: "Actions", key: "actions", width: 160 },
 ];
 
 const sessionStore = useSessionStore();
@@ -231,6 +249,7 @@ const departmentIds = ref<string[]>([]);
 const page = shallowRef<QueueListResponse | null>(null);
 const error = shallowRef<ApiError | null>(null);
 const form = shallowRef<QueueEntryResponse | "new" | null>(null);
+const deleteTarget = shallowRef<QueueEntryResponse | null>(null);
 const savedQueue = shallowRef<QueueEntryResponse | null>(null);
 const strMessage = ref("");
 const strActionError = ref("");
@@ -278,6 +297,7 @@ async function load(): Promise<void> {
     if ([401, 403].includes(error.value.statusCode)) {
       page.value = null;
       form.value = null;
+      deleteTarget.value = null;
       if (error.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
@@ -306,6 +326,13 @@ function handleSaved(response: QueueDetailsResponse): void {
   form.value = null;
   savedQueue.value = response.queue;
   strMessage.value = `Queue saved: ${response.queue.path}`;
+  void load();
+}
+
+function handleDeleted(queue: QueueEntryResponse): void {
+  deleteTarget.value = null;
+  savedQueue.value = null;
+  strMessage.value = `Queue deleted: ${queue.path}`;
   void load();
 }
 

@@ -2,10 +2,10 @@
 <template>
   <v-dialog
     :model-value="true"
-    persistent
     scrollable
     max-width="900"
-    aria-labelledby="queue-item-title">
+    aria-labelledby="queue-item-title"
+    @update:model-value="!$event && closeDialog()">
     <v-card>
       <v-card-title id="queue-item-title">Item Details</v-card-title>
 
@@ -91,13 +91,7 @@
       </v-card-text>
 
       <v-card-actions>
-        <v-btn
-          :to="{ name: 'data-queue-details', params: { queueId }, query: route.query }"
-          replace
-          variant="tonal"
-          prepend-icon="mdi-close">
-          Close
-        </v-btn>
+        <v-btn variant="tonal" prepend-icon="mdi-close" @click="closeDialog">Close</v-btn>
 
         <v-btn
           v-if="error"
@@ -123,7 +117,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -135,6 +129,7 @@ import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ queueId: string; itemId: string }>();
 const route = useRoute();
+const router = useRouter();
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const item = shallowRef<QueueItemDetailsResponse | null>(null);
@@ -166,6 +161,14 @@ async function load(): Promise<void> {
   } finally {
     boolLoading.value = false;
   }
+}
+
+function closeDialog(): void {
+  void router.replace({
+    name: "data-queue-details",
+    params: { queueId: props.queueId },
+    query: route.query,
+  });
 }
 
 async function copyJson(): Promise<void> {

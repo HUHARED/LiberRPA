@@ -1,6 +1,10 @@
 <!-- FileName: PackageUploadDialog.vue -->
 <template>
-  <v-dialog :model-value="true" persistent max-width="680">
+  <v-dialog
+    :model-value="true"
+    :persistent="boolBusy"
+    max-width="680"
+    @update:model-value="!$event && cancel()">
     <v-card>
       <v-card-title>Upload Package</v-card-title>
 

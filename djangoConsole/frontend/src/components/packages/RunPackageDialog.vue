@@ -1,6 +1,11 @@
 <!-- FileName: RunPackageDialog.vue -->
 <template>
-  <v-dialog :model-value="true" persistent max-width="1000" scrollable>
+  <v-dialog
+    :model-value="true"
+    :persistent="boolBusy"
+    max-width="1000"
+    scrollable
+    @update:model-value="!$event && emit('close')">
     <v-card>
       <v-card-title>Run Package</v-card-title>
 

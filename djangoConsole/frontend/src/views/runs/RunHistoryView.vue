@@ -225,7 +225,7 @@
     </div>
   </v-card>
 
-  <v-dialog v-model="boolClearDialog" persistent max-width="640">
+  <v-dialog v-model="boolClearDialog" :persistent="boolClearing" max-width="640">
     <v-card>
       <v-card-title>Clear Logs</v-card-title>
 

@@ -11,10 +11,11 @@
   <v-dialog
     v-else
     :model-value="true"
-    persistent
+    :persistent="boolBusy"
     scrollable
     max-width="1000"
-    aria-labelledby="executor-group-details-title">
+    aria-labelledby="executor-group-details-title"
+    @update:model-value="!$event && closeDialog()">
     <v-card :aria-busy="boolBusy">
       <v-card-title id="executor-group-details-title">
         {{ boolConfirmDelete ? "Delete Group" : "Group Details" }}
@@ -201,11 +202,10 @@
 
         <template v-else>
           <v-btn
-            :to="{ name: 'executor-groups', query: route.query }"
-            replace
             variant="tonal"
             prepend-icon="mdi-close"
-            :disabled="boolBusy">
+            :disabled="boolBusy"
+            @click="closeDialog">
             Close
           </v-btn>
 
@@ -244,7 +244,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
-import { RouterLink, useRoute } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 
 import ExecutorGroupFormDialog from "./ExecutorGroupFormDialog.vue";
 
@@ -263,6 +263,7 @@ import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ groupId: string }>();
 const route = useRoute();
+const router = useRouter();
 const emit = defineEmits<{ updated: []; deleted: [group: ExecutorGroupRecordResponse] }>();
 
 const ARR_MEMBER_HEADER = [
@@ -354,6 +355,15 @@ function closeDelete(): void {
   if (boolBusy.value) return;
   deleteError.value = null;
   boolConfirmDelete.value = false;
+}
+
+function closeDialog(): void {
+  if (boolBusy.value) return;
+  if (boolConfirmDelete.value) {
+    closeDelete();
+    return;
+  }
+  void router.replace({ name: "executor-groups", query: route.query });
 }
 
 async function submitDelete(): Promise<void> {

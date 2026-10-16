@@ -2,10 +2,11 @@
 <template>
   <v-dialog
     :model-value="true"
-    persistent
+    :persistent="boolSaving"
     scrollable
     max-width="820"
-    aria-labelledby="queue-upload-title">
+    aria-labelledby="queue-upload-title"
+    @update:model-value="!$event && emit('close')">
     <v-card>
       <v-card-title id="queue-upload-title">Upload Items</v-card-title>
 

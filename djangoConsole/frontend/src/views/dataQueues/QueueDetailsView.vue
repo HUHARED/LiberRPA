@@ -65,30 +65,13 @@
           {{ page.queue.claimed_count }}
         </p>
 
-        <div class="d-flex flex-wrap ga-2 mt-4">
-          <v-btn variant="tonal" prepend-icon="mdi-content-copy" @click="copyPath">
-            Copy Path
-          </v-btn>
-          <v-spacer />
-          <v-btn
-            v-if="page.queue.can_manage"
-            variant="tonal"
-            prepend-icon="mdi-pencil-outline"
-            :disabled="boolBusy || !!error"
-            @click="boolEditOpen = true">
-            Edit Queue
-          </v-btn>
-
-          <v-btn
-            v-if="page.queue.can_manage"
-            color="error"
-            variant="tonal"
-            prepend-icon="mdi-delete-outline"
-            :disabled="boolBusy || !!error"
-            @click="strConfirm = 'queue'">
-            Delete Queue
-          </v-btn>
-        </div>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-content-copy"
+          class="mt-4"
+          @click="copyPath">
+          Copy Path
+        </v-btn>
       </v-card-text>
     </v-card>
 
@@ -278,12 +261,6 @@
       </div>
     </v-card>
 
-    <QueueFormDialog
-      v-if="boolEditOpen"
-      :queue="page.queue"
-      @close="boolEditOpen = false"
-      @saved="handleEdited" />
-
     <QueueUploadDialog
       v-if="boolUploadOpen"
       :queue="page.queue"
@@ -292,18 +269,13 @@
 
     <v-dialog
       :model-value="!!strConfirm"
-      persistent
+      :persistent="boolSaving"
       max-width="560"
-      aria-labelledby="queue-confirm-title">
+      aria-labelledby="queue-confirm-title"
+      @update:model-value="!$event && closeConfirm()">
       <v-card>
         <v-card-title id="queue-confirm-title">
-          {{
-            strConfirm === "reset"
-              ? "Reset to Unclaimed"
-              : strConfirm === "queue"
-                ? "Delete Queue"
-                : "Delete Items"
-          }}
+          {{ strConfirm === "reset" ? "Reset to Unclaimed" : "Delete Items" }}
         </v-card-title>
 
         <v-card-text>
@@ -311,11 +283,9 @@
 
           <p>
             {{
-              strConfirm === "queue"
-                ? `Delete this queue and all ${page.queue.unclaimed_count + page.queue.claimed_count} items?`
-                : strConfirm === "reset"
-                  ? `Reset ${selectedItemIds.length} selected items to Unclaimed?`
-                  : `Delete ${selectedItemIds.length} selected items?`
+              strConfirm === "reset"
+                ? `Reset ${selectedItemIds.length} selected items to Unclaimed?`
+                : `Delete ${selectedItemIds.length} selected items?`
             }}
           </p>
 
@@ -361,18 +331,12 @@
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
 
-import QueueFormDialog from "@/components/dataQueues/QueueFormDialog.vue";
 import QueueUploadDialog from "@/components/dataQueues/QueueUploadDialog.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
-import {
-  QUEUE_STATUSES,
-  getQueueItems,
-  deleteQueue,
-  changeQueueItems,
-} from "@/api/dataQueues";
+import { QUEUE_STATUSES, getQueueItems, changeQueueItems } from "@/api/dataQueues";
 import type { QueueItemsResponse, QueueMutationResponse } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
@@ -404,9 +368,8 @@ const strOrder = ref("oldest_first");
 const strItemId = ref<string | null>("");
 const boolLoading = ref(false);
 const boolSaving = ref(false);
-const boolEditOpen = ref(false);
 const boolUploadOpen = ref(false);
-const strConfirm = ref<"queue" | "items" | "reset" | null>(null);
+const strConfirm = ref<"items" | "reset" | null>(null);
 const boolBusy = computed(() => boolLoading.value || boolSaving.value);
 
 const boolCanReset = computed(() =>
@@ -458,7 +421,6 @@ async function load(): Promise<void> {
     }
     if ([401, 403, 404].includes(error.value.statusCode)) {
       page.value = null;
-      boolEditOpen.value = false;
       boolUploadOpen.value = false;
       strConfirm.value = null;
       if (error.value.statusCode === 403) await sessionStore.refreshSession();
@@ -492,12 +454,6 @@ function clearFilters(): void {
   void applyFilters();
 }
 
-function handleEdited(): void {
-  boolEditOpen.value = false;
-  strMessage.value = "Queue updated.";
-  void load();
-}
-
 function handleUploaded(result: QueueMutationResponse): void {
   boolUploadOpen.value = false;
   strMessage.value = `${result.item_ids.length} items uploaded${result.deduplicated ? " (original request confirmed)" : ""}.`;
@@ -515,12 +471,6 @@ async function submitMutation(): Promise<void> {
   boolSaving.value = true;
   mutationError.value = null;
   try {
-    if (strConfirm.value === "queue") {
-      await deleteQueue(props.queueId);
-      if (intCurrentRevision !== intRevision) return;
-      await router.push({ name: "data-queues", query: listQuery.value });
-      return;
-    }
     const result = await changeQueueItems(
       sessionStore.session.user.id,
       props.queueId,
@@ -579,7 +529,6 @@ watch(
     strOrder.value = getQueryText("order", "oldest_first");
     strItemId.value = getQueryText("item_id", "");
     closeConfirm();
-    boolEditOpen.value = false;
     boolUploadOpen.value = false;
     void load();
   },

@@ -44,7 +44,7 @@
     <template v-else>Close Job</template>
   </v-btn>
   <span v-if="job.state === JobState.Stopping" class="text-body-2">Stop requested</span>
-  <v-dialog v-model="boolConfirm" persistent max-width="600">
+  <v-dialog v-model="boolConfirm" :persistent="boolBusy" max-width="600">
     <v-card>
       <v-card-title>Close Job</v-card-title>
 

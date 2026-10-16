@@ -277,7 +277,7 @@
     </v-card-actions>
   </v-card>
 
-  <v-dialog v-model="boolDelete" persistent scrollable max-width="600">
+  <v-dialog v-model="boolDelete" :persistent="boolBusy" scrollable max-width="600">
     <v-card>
       <v-card-title>Delete Package</v-card-title>
 
@@ -329,7 +329,7 @@
     </v-card>
   </v-dialog>
 
-  <v-dialog v-model="boolCancelPreparation" persistent max-width="600">
+  <v-dialog v-model="boolCancelPreparation" :persistent="boolBusy" max-width="600">
     <v-card>
       <v-card-title>Cancel Preparation Requests</v-card-title>
 

@@ -2,10 +2,11 @@
 <template>
   <v-dialog
     :model-value="true"
-    persistent
+    :persistent="boolSaving"
     scrollable
     max-width="1000"
-    aria-labelledby="executor-group-form-title">
+    aria-labelledby="executor-group-form-title"
+    @update:model-value="!$event && emit('close')">
     <v-card>
       <v-card-title id="executor-group-form-title">
         {{ group ? "Edit Group" : "New Group" }}

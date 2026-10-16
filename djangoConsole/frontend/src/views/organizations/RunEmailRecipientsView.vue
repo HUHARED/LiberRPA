@@ -77,7 +77,7 @@
     </template>
   </v-data-table>
 
-  <v-dialog v-model="boolForm" persistent max-width="640">
+  <v-dialog v-model="boolForm" :persistent="boolBusy" max-width="640">
     <v-card>
       <v-card-title>{{ recipientEdit ? "Edit Notes" : "Add Email" }}</v-card-title>
 
@@ -119,7 +119,11 @@
     </v-card>
   </v-dialog>
 
-  <v-dialog :model-value="!!recipientDelete" persistent max-width="680">
+  <v-dialog
+    :model-value="!!recipientDelete"
+    :persistent="boolBusy"
+    max-width="680"
+    @update:model-value="!$event && closeDelete()">
     <v-card>
       <v-card-title>Delete Email</v-card-title>
 
@@ -156,11 +160,7 @@
           variant="tonal"
           prepend-icon="mdi-close"
           :disabled="boolBusy"
-          @click="
-            recipientDelete = null;
-            strDeleteError = '';
-            arrReference = [];
-          ">
+          @click="closeDelete">
           Cancel
         </v-btn>
         <v-spacer />
@@ -295,6 +295,12 @@ async function resend(id: string): Promise<void> {
   } finally {
     boolBusy.value = false;
   }
+}
+
+function closeDelete(): void {
+  recipientDelete.value = null;
+  strDeleteError.value = "";
+  arrReference.value = [];
 }
 
 async function remove(): Promise<void> {

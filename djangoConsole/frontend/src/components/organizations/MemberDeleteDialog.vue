@@ -2,10 +2,11 @@
 <template>
   <v-dialog
     :model-value="true"
-    persistent
+    :persistent="boolDeleting"
     scrollable
     max-width="640"
-    aria-labelledby="member-delete-title">
+    aria-labelledby="member-delete-title"
+    @update:model-value="!$event && closeDialog()">
     <v-card>
       <v-card-title id="member-delete-title">Delete Account</v-card-title>
 

@@ -207,7 +207,11 @@
     @close="closeForm"
     @saved="saved" />
 
-  <v-dialog :model-value="!!scheduleDelete" persistent max-width="560">
+  <v-dialog
+    :model-value="!!scheduleDelete"
+    :persistent="boolDeleting"
+    max-width="560"
+    @update:model-value="!$event && (scheduleDelete = null)">
     <v-card>
       <v-card-title>Delete Schedule</v-card-title>
 

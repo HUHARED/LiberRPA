@@ -2,10 +2,11 @@
 <template>
   <v-dialog
     :model-value="true"
-    persistent
+    :persistent="boolSaving"
     scrollable
     max-width="640"
-    aria-labelledby="api-key-action-title">
+    aria-labelledby="api-key-action-title"
+    @update:model-value="!$event && closeDialog()">
     <v-card>
       <v-card-title id="api-key-action-title">
         {{ action === "edit" ? "Edit API Key Notes" : "Revoke API Key" }}

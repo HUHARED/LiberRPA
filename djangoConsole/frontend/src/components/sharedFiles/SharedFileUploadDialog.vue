@@ -2,10 +2,11 @@
 <template>
   <v-dialog
     :model-value="true"
-    persistent
+    :persistent="boolCancelRequested || boolCanceling"
     scrollable
     max-width="660"
-    aria-labelledby="file-upload-title">
+    aria-labelledby="file-upload-title"
+    @update:model-value="!$event && cancel()">
     <v-card>
       <v-card-title id="file-upload-title">Upload File</v-card-title>
 

@@ -2,10 +2,11 @@
 <template>
   <v-dialog
     :model-value="true"
-    persistent
+    :persistent="boolSubmitting"
     scrollable
     max-width="640"
-    aria-labelledby="account-action-title">
+    aria-labelledby="account-action-title"
+    @update:model-value="!$event && emit('close')">
     <v-card>
       <v-card-title id="account-action-title">{{ strTitle }}</v-card-title>
 

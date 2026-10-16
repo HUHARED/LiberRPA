@@ -1,6 +1,11 @@
 <!-- FileName: ScheduleFormDialog.vue -->
 <template>
-  <v-dialog :model-value="true" persistent scrollable max-width="1160">
+  <v-dialog
+    :model-value="true"
+    :persistent="boolBusy"
+    scrollable
+    max-width="1160"
+    @update:model-value="!$event && emit('close')">
     <v-card>
       <v-card-title>
         {{ scheduleId ? (boolReadonly ? "Schedule" : "Edit Schedule") : "New Schedule" }}

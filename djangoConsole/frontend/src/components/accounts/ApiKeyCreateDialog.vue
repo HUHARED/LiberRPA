@@ -2,10 +2,11 @@
 <template>
   <v-dialog
     :model-value="true"
-    persistent
+    :persistent="boolSaving"
     scrollable
     max-width="680"
-    aria-labelledby="api-key-create-title">
+    aria-labelledby="api-key-create-title"
+    @update:model-value="!$event && closeDialog()">
     <v-card>
       <v-card-title id="api-key-create-title">
         {{ createdKey ? "API Key Created" : "New API Key" }}
@@ -116,7 +117,7 @@
             color="primary"
             variant="tonal"
             prepend-icon="mdi-close"
-            @click="finishCreation">
+            @click="closeDialog">
             Done
           </v-btn>
 
@@ -221,7 +222,10 @@ function validateExpiry(value: string): true | string {
 }
 
 function closeDialog(): void {
-  if (!boolSaving.value) emit("close");
+  if (boolSaving.value) return;
+  strSecret.value = "";
+  if (createdKey.value) emit("created", createdKey.value);
+  else emit("close");
 }
 
 async function submitCreate(event: SubmitEventPromise): Promise<void> {
@@ -267,12 +271,6 @@ async function copySecret(): Promise<void> {
   } finally {
     boolCopying.value = false;
   }
-}
-
-function finishCreation(): void {
-  if (!createdKey.value) return;
-  strSecret.value = "";
-  emit("created", createdKey.value);
 }
 
 onBeforeUnmount(() => {

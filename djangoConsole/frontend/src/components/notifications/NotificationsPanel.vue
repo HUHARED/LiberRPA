@@ -64,7 +64,10 @@
     </v-card>
   </v-menu>
 
-  <v-dialog :model-value="!!details" persistent max-width="700">
+  <v-dialog
+    :model-value="!!details"
+    max-width="700"
+    @update:model-value="!$event && (details = null)">
     <v-card v-if="details">
       <v-card-title>{{ details.title }}</v-card-title>
 
@@ -85,7 +88,7 @@
     </v-card>
   </v-dialog>
 
-  <v-dialog v-model="boolClear" persistent max-width="520">
+  <v-dialog v-model="boolClear" :persistent="boolBusy" max-width="520">
     <v-card>
       <v-card-title>Clear All Notifications</v-card-title>
 

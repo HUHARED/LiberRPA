@@ -291,10 +291,11 @@
   </template>
 
   <v-dialog
-    v-model="boolEditing"
-    persistent
+    :model-value="boolEditing"
+    :persistent="boolSaving"
     max-width="640"
-    aria-labelledby="executor-edit-title">
+    aria-labelledby="executor-edit-title"
+    @update:model-value="!$event && closeEdit()">
     <v-card>
       <v-card-title id="executor-edit-title">Edit Executor</v-card-title>
 
@@ -369,9 +370,10 @@
 
   <v-dialog
     :model-value="unassociateTarget !== null"
-    persistent
+    :persistent="boolBusy"
     max-width="640"
-    aria-labelledby="executor-unassociate-title">
+    aria-labelledby="executor-unassociate-title"
+    @update:model-value="!$event && closeUnassociate()">
     <v-card v-if="unassociateTarget">
       <v-card-title id="executor-unassociate-title">Unassociate Executor</v-card-title>
 
@@ -458,9 +460,10 @@
 
   <v-dialog
     :model-value="deleteTarget !== null"
-    persistent
+    :persistent="boolBusy"
     max-width="640"
-    aria-labelledby="executor-delete-title">
+    aria-labelledby="executor-delete-title"
+    @update:model-value="!$event && closeDelete()">
     <v-card v-if="deleteTarget">
       <v-card-title id="executor-delete-title">Delete Executor</v-card-title>
 

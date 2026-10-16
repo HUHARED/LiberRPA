@@ -16,38 +16,7 @@
 
       <p class="text-medium-emphasis">Department Details</p>
     </v-col>
-
-    <v-col cols="auto" class="d-flex flex-wrap ga-2">
-      <v-btn
-        v-if="detailsInfo && boolCanManage"
-        variant="tonal"
-        prepend-icon="mdi-pencil-outline"
-        :loading="boolOpeningEdit"
-        :disabled="boolActionBlocked"
-        @click="openEdit">
-        Edit
-      </v-btn>
-
-      <v-btn
-        v-if="detailsInfo && boolCanManage"
-        color="error"
-        variant="tonal"
-        prepend-icon="mdi-delete-outline"
-        :disabled="boolActionBlocked"
-        @click="openDelete">
-        Delete
-      </v-btn>
-    </v-col>
   </v-row>
-
-  <v-alert
-    v-if="strSuccessMessage"
-    type="success"
-    variant="tonal"
-    class="mb-4"
-    role="status">
-    {{ strSuccessMessage }}
-  </v-alert>
 
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{
@@ -64,7 +33,7 @@
         variant="tonal"
         prepend-icon="mdi-refresh"
         size="small"
-        :disabled="boolActionBlocked"
+        :disabled="boolLoading"
         @click="loadDepartmentDetails">
         Retry
       </v-btn>
@@ -223,38 +192,17 @@
       </v-card-text>
     </v-card>
   </template>
-
-  <DepartmentFormDialog
-    v-if="editTarget"
-    :departments="arrEditDepartment"
-    :department="editTarget"
-    @close="editTarget = null"
-    @saved="handleDepartmentSaved" />
-
-  <DepartmentDeleteDialog
-    v-if="deleteTarget"
-    :department="deleteTarget"
-    @close="deleteTarget = null"
-    @deleted="handleDepartmentDeleted" />
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { RouterLink } from "vue-router";
 
-import DepartmentFormDialog from "@/components/organizations/DepartmentFormDialog.vue";
-import DepartmentDeleteDialog from "@/components/organizations/DepartmentDeleteDialog.vue";
-
 import { useSessionStore } from "@/stores/sessionStore";
 
-import { ApiError, getApiError } from "@/api/errors";
-import { getDepartmentList, getDepartmentDetails } from "@/api/departments";
-import type {
-  DeletedDepartmentResponse,
-  DepartmentDetailsResponse,
-  DepartmentListEntryResponse,
-  DepartmentRecordResponse,
-} from "@/api/generated/browserApi";
+import { type ApiError, getApiError } from "@/api/errors";
+import { getDepartmentDetails } from "@/api/departments";
+import type { DepartmentDetailsResponse } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
 
@@ -267,29 +215,10 @@ const ARR_MEMBER_HEADER = [
 
 const sessionStore = useSessionStore();
 
-const boolCanManage = computed(
-  () => sessionStore.access?.is_org_admin && sessionStore.access.business_available,
-);
-
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const detailsInfo = shallowRef<DepartmentDetailsResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
-const arrEditDepartment = shallowRef<DepartmentListEntryResponse[]>([]);
-const editTarget = shallowRef<DepartmentListEntryResponse | null>(null);
-const deleteTarget = shallowRef<DepartmentListEntryResponse | null>(null);
 const boolLoading = ref(false);
-const boolOpeningEdit = ref(false);
-const boolDeleted = ref(false);
-
-const boolActionBlocked = computed(
-  () =>
-    boolLoading.value ||
-    boolOpeningEdit.value ||
-    editTarget.value !== null ||
-    deleteTarget.value !== null,
-);
-
-const strSuccessMessage = ref("");
 const strUpdatedAt = ref<string | null>(null);
 let intRequestRevision = 0;
 
@@ -303,8 +232,6 @@ async function handleReadError(error: unknown): Promise<void> {
   requestError.value = getApiError(error);
   if ([401, 403, 404].includes(requestError.value.statusCode)) {
     detailsInfo.value = null;
-    editTarget.value = null;
-    deleteTarget.value = null;
     strUpdatedAt.value = null;
     if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
   }
@@ -312,7 +239,6 @@ async function handleReadError(error: unknown): Promise<void> {
 
 // TODO: Add remaining resource links when their list pages are available.
 async function loadDepartmentDetails(): Promise<void> {
-  if (boolDeleted.value) return;
   const intCurrentRevision = ++intRequestRevision;
   boolLoading.value = true;
   requestError.value = null;
@@ -329,71 +255,10 @@ async function loadDepartmentDetails(): Promise<void> {
   }
 }
 
-async function openEdit(): Promise<void> {
-  if (!detailsInfo.value || !boolCanManage.value || boolActionBlocked.value) return;
-  const intCurrentRevision = intRequestRevision;
-  boolOpeningEdit.value = true;
-  requestError.value = null;
-  strSuccessMessage.value = "";
-  try {
-    // The details page loads the current tree once to populate the edit form.
-    const response = await getDepartmentList();
-    if (intCurrentRevision !== intRequestRevision) return;
-    const department = response.departments.find(
-      (department) => department.id === props.departmentId,
-    );
-    if (!department) {
-      throw new ApiError("Department not found or unavailable.", {
-        statusCode: 404,
-        code: "department_not_found",
-      });
-    }
-    arrEditDepartment.value = response.departments;
-    editTarget.value = department;
-  } catch (e) {
-    if (intCurrentRevision !== intRequestRevision) return;
-    await handleReadError(e);
-  } finally {
-    if (intCurrentRevision === intRequestRevision) boolOpeningEdit.value = false;
-  }
-}
-
-async function handleDepartmentSaved(department: DepartmentRecordResponse): Promise<void> {
-  editTarget.value = null;
-  strSuccessMessage.value = `Department "${department.name}" updated.`;
-  // Reload the current path and member snapshot after a confirmed write.
-  detailsInfo.value = null;
-  strUpdatedAt.value = null;
-  await Promise.all([loadDepartmentDetails(), sessionStore.refreshSession()]);
-}
-
-function openDelete(): void {
-  if (!detailsInfo.value || !boolCanManage.value || boolActionBlocked.value) return;
-  deleteTarget.value = detailsInfo.value.department;
-  strSuccessMessage.value = "";
-}
-
-async function handleDepartmentDeleted(
-  department: DeletedDepartmentResponse,
-): Promise<void> {
-  deleteTarget.value = null;
-  detailsInfo.value = null;
-  strUpdatedAt.value = null;
-  requestError.value = null;
-  boolDeleted.value = true;
-  strSuccessMessage.value = `Department "${department.name}" deleted.`;
-  await sessionStore.refreshSession();
-}
-
 watch(
   () => props.departmentId,
   () => {
     detailsInfo.value = null;
-    editTarget.value = null;
-    deleteTarget.value = null;
-    boolOpeningEdit.value = false;
-    boolDeleted.value = false;
-    strSuccessMessage.value = "";
     strUpdatedAt.value = null;
     void loadDepartmentDetails();
   },

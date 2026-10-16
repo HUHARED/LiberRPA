@@ -2,10 +2,11 @@
 <template>
   <v-dialog
     :model-value="true"
-    persistent
+    :persistent="boolSaving"
     scrollable
     max-width="720"
-    aria-labelledby="invitation-title">
+    aria-labelledby="invitation-title"
+    @update:model-value="!$event && closeDialog()">
     <v-card>
       <v-card-title id="invitation-title">
         {{

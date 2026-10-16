@@ -2,10 +2,11 @@
 <template>
   <v-dialog
     :model-value="true"
-    persistent
+    :persistent="boolBusy"
     scrollable
     max-width="620"
-    aria-labelledby="file-delete-title">
+    aria-labelledby="file-delete-title"
+    @update:model-value="!$event && emit('close')">
     <v-card>
       <v-card-title id="file-delete-title">
         {{ paths.length === 1 ? "Delete File" : "Delete Selected Files" }}
