@@ -696,14 +696,14 @@ export interface FileInfoResponse {
   uploaded_by_name: string;
 }
 export interface FileListRequest {
-  department_path: FilePath;
+  department_path?: FilePath | null;
   name?: string;
   order?: "asc" | "desc";
   page?: number;
   sort_by?: "name" | "size" | "uploaded_at";
 }
 export interface FileListResponse {
-  department_path: string;
+  department_path: string | null;
   files: FileInfoResponse[];
   page: number;
   page_size: number;

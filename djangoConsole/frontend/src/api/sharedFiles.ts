@@ -82,7 +82,7 @@ export async function getSharedFiles(body: FileListRequest): Promise<FileListRes
     !isRecord(value) ||
     !Array.isArray(value.files) ||
     !value.files.every(isFileInfoResponse) ||
-    typeof value.department_path !== "string" ||
+    !(value.department_path === null || typeof value.department_path === "string") ||
     !isRecord(value.usage) ||
     ![
       value.page,

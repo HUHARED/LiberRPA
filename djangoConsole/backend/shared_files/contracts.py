@@ -21,7 +21,7 @@ type FilePath = Annotated[str, Field(min_length=1, max_length=16384)]
 
 
 class FileListRequest(JsonRequest):
-    department_path: FilePath
+    department_path: FilePath | None = None
     name: str = Field(default="", max_length=128)
     sort_by: Literal["name", "size", "uploaded_at"] = "uploaded_at"
     order: Literal["asc", "desc"] = "desc"
@@ -68,7 +68,7 @@ class FileUsageResponse(JsonResponsePayload):
 
 class FileListResponse(JsonResponsePayload):
     files: list[FileInfoResponse]
-    department_path: str
+    department_path: str | None
     usage: FileUsageResponse
     page: int
     page_size: int

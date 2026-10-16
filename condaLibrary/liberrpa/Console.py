@@ -305,7 +305,7 @@ def data_queue_delete_items(
 
 @Log.trace()
 def shared_file_list(
-    departmentPath: str,
+    departmentPath: str | None = None,
     *,
     name: str = "",
     sortBy: SharedFileSort = "uploaded_at",
@@ -313,19 +313,19 @@ def shared_file_list(
     page: int = 1,
 ) -> SharedFilePage:
     """
-    List one page of Shared Files in a Console department.
+    List one page of Shared Files from authorized Console departments.
 
     Each call returns one page. Console determines the page size, available as pageSize.
 
     Parameters:
-        departmentPath: The full department path containing the Shared Files.
+        departmentPath: An optional full department path. None includes all authorized departments.
         name: An optional filename search filter. An empty string includes all names.
         sortBy: The sort field: 'name', 'size', or 'uploaded_at'.
         order: The sort direction: 'asc' or 'desc'.
         page: The page number, starting from 1.
 
     Returns:
-        SharedFilePage: The file metadata, department storage usage, and pagination details.
+        SharedFilePage: The file metadata, selected department (None when unfiltered), organization storage usage, and pagination details.
     """
     _validate_choice(sortBy, get_args(SharedFileSort.__value__), "sortBy")
     _validate_choice(order, get_args(SortOrder.__value__), "order")

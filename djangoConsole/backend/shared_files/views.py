@@ -59,7 +59,11 @@ def list_shared_files(
     payload = parse_file_request(request, FileListRequest)
     if isinstance(payload, JsonResponse):
         return payload
-    departmentParts = parse_resource_path(payload.department_path, departmentOnly=True)
+    departmentParts = (
+        parse_resource_path(payload.department_path, departmentOnly=True)
+        if payload.department_path is not None
+        else None
+    )
     access = get_file_access(authentication)
     return build_file_response(get_file_list(access, payload, departmentParts))
 

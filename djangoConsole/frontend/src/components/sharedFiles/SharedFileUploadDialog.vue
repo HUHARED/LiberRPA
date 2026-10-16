@@ -19,11 +19,14 @@
             </p>
           </v-alert>
 
-          <v-text-field
-            :model-value="departmentPath"
+          <v-autocomplete
+            v-model="strDepartmentPath"
+            :items="departments"
+            item-title="path"
+            item-value="path"
             label="Department"
-            variant="outlined"
-            readonly />
+            variant="underlined"
+            :disabled="boolLocked" />
 
           <v-file-input
             v-model="fileInput"
@@ -117,9 +120,15 @@ import {
 } from "@/api/sharedFiles";
 import type { FileInfoResponse, FileUploadResponse } from "@/api/generated/browserApi";
 
-const props = defineProps<{ departmentPath: string; maxFileBytes: number }>();
+const props = defineProps<{ departmentPath: string | null; maxFileBytes: number }>();
 const emit = defineEmits<{ close: []; saved: [file: FileInfoResponse] }>();
 const sessionStore = useSessionStore();
+
+const departments = computed(() =>
+  (sessionStore.access?.departments ?? []).map((entry) => ({ path: `/${entry.path}` })),
+);
+
+const strDepartmentPath = ref<string | null>(props.departmentPath);
 const fileInput = shallowRef<File | File[] | null>(null);
 
 const file = computed(() =>
@@ -140,14 +149,14 @@ const boolLocked = computed(
   () => boolBusy.value || boolCanceling.value || upload.value !== null,
 );
 
-const strPath = computed(() => `${props.departmentPath}/${strName.value}`);
+const strPath = computed(() =>
+  strDepartmentPath.value ? `${strDepartmentPath.value}/${strName.value}` : "",
+);
 
 const boolAllowed = computed(
   () =>
     sessionStore.access?.business_available &&
-    sessionStore.access.departments.some(
-      (department) => `/${department.path}` === props.departmentPath,
-    ),
+    departments.value.some((department) => department.path === strDepartmentPath.value),
 );
 
 let identity: Awaited<ReturnType<typeof getOrCreateFileRequestIdentity>> | null = null;

@@ -133,7 +133,7 @@ class SharedFileUsage:
 @dataclass(frozen=True)
 class SharedFilePage:
     files: list[SharedFileInfo]
-    departmentPath: str
+    departmentPath: str | None
     usage: SharedFileUsage
     page: int
     pageSize: int

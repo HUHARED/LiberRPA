@@ -76,13 +76,22 @@ def resolve_file(
 def get_file_list(
     access: OrganizationAccessContext,
     payload: FileListRequest,
-    departmentParts: tuple[str, ...],
+    departmentParts: tuple[str, ...] | None,
 ) -> FileListResponse:
     departmentsById = get_department_tree(access.organization.pk)
-    department = resolve_department_path(departmentParts, departmentsById)
-    require_file_department_access(access, department.pk)
-    strDepartmentPath = "/" + get_department_path(department, departmentsById)
-    query = SharedFile.objects.filter(department=department).select_related("blob")
+    strDepartmentPath = None
+    if departmentParts is None:
+        query = SharedFile.objects.filter(
+            department__in=get_authorized_departments(
+                access, requiredRole=DepartmentRole.OPERATOR
+            )
+        )
+    else:
+        department = resolve_department_path(departmentParts, departmentsById)
+        require_file_department_access(access, department.pk)
+        strDepartmentPath = "/" + get_department_path(department, departmentsById)
+        query = SharedFile.objects.filter(department=department)
+    query = query.select_related("blob")
     if payload.name:
         query = query.filter(name_key__contains=get_path_name_key(payload.name))
     strOrderField = {
@@ -95,7 +104,18 @@ def get_file_list(
         _INT_FILES_PER_PAGE,
     ).page(payload.page)
     return FileListResponse(
-        files=[build_file_payload(file, strDepartmentPath) for file in page],
+        files=[
+            build_file_payload(
+                file,
+                strDepartmentPath
+                if strDepartmentPath is not None
+                else "/"
+                + get_department_path(
+                    departmentsById[file.department_id], departmentsById
+                ),
+            )
+            for file in page
+        ],
         department_path=strDepartmentPath,
         usage=FileUsageResponse(
             **get_storage_usage(access.organization.pk),

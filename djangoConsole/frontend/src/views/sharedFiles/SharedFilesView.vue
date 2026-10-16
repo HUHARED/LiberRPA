@@ -10,7 +10,7 @@
         variant="tonal"
         prepend-icon="mdi-refresh"
         :loading="boolLoading"
-        :disabled="boolLoading || !strActiveDepartmentPath"
+        :disabled="boolLoading"
         @click="load">
         Refresh
       </v-btn>
@@ -19,7 +19,7 @@
         color="primary"
         variant="tonal"
         prepend-icon="mdi-upload"
-        :disabled="!boolReady"
+        :disabled="!boolReady || !departments.length"
         @click="boolShowUpload = true">
         Upload File
       </v-btn>
@@ -137,115 +137,113 @@
     {{ strActionError }}
   </v-alert>
 
-  <v-alert v-if="!strActiveDepartmentPath" type="info" variant="tonal">
-    Select a department to view its files.
-  </v-alert>
+  <div v-if="page" class="mb-4">
+    <p v-if="page.department_path" class="file-path mb-1">
+      {{ page.department_path }}
+    </p>
 
-  <template v-else>
-    <div v-if="page" class="mb-4">
-      <p class="file-path mb-1">{{ page.department_path }}</p>
+    <p class="text-body-2">
+      Packages + Files:
+      {{ formatFileSize(page.usage.used_bytes + page.usage.reserved_bytes) }} /
+      {{ formatFileSize(page.usage.limit_bytes) }} · Maximum
+      {{ formatFileSize(page.usage.max_file_bytes) }} per file
+    </p>
 
-      <p class="text-body-2">
-        Packages + Files:
-        {{ formatFileSize(page.usage.used_bytes + page.usage.reserved_bytes) }} /
-        {{ formatFileSize(page.usage.limit_bytes) }} · Maximum
-        {{ formatFileSize(page.usage.max_file_bytes) }} per file
-      </p>
+    <p
+      v-if="page.usage.reserved_bytes || page.usage.pending_cleanup_bytes"
+      class="text-body-2 text-medium-emphasis">
+      Reserved for uploads: {{ formatFileSize(page.usage.reserved_bytes) }} · Awaiting
+      cleanup: {{ formatFileSize(page.usage.pending_cleanup_bytes) }}
+    </p>
+  </div>
 
-      <p
-        v-if="page.usage.reserved_bytes || page.usage.pending_cleanup_bytes"
-        class="text-body-2 text-medium-emphasis">
-        Reserved for uploads: {{ formatFileSize(page.usage.reserved_bytes) }} · Awaiting
-        cleanup: {{ formatFileSize(page.usage.pending_cleanup_bytes) }}
-      </p>
+  <v-card variant="outlined">
+    <v-data-table-server
+      v-model="selectedFilePaths"
+      :headers="ARR_HEADER"
+      :items="page?.files ?? []"
+      :items-length="page?.total_count ?? 0"
+      :items-per-page="50"
+      :page="page?.page ?? 1"
+      :loading="boolLoading"
+      item-value="path"
+      :show-select="boolReady"
+      disable-sort
+      hide-default-footer
+      :mobile-breakpoint="600">
+      <template #item.department_path="{ item }">
+        <span class="file-path">{{ item.department_path }}</span>
+      </template>
+
+      <template #item.name="{ item }">
+        <span class="file-path">{{ item.name }}</span>
+      </template>
+
+      <template #item.size_bytes="{ item }">
+        {{ formatFileSize(item.size_bytes) }}
+      </template>
+
+      <template #item.uploaded_by_name="{ item }">
+        <span class="file-path">{{ item.uploaded_by_name }}</span>
+      </template>
+
+      <template #item.uploaded_at="{ item }">
+        {{ formatDateTime(item.uploaded_at, strTimeZone) }}
+      </template>
+
+      <template #item.actions="{ item }">
+        <div class="d-flex align-center ga-1">
+          <v-btn
+            v-tooltip:bottom="'Download'"
+            variant="text"
+            size="small"
+            :loading="setDownloadingFilePath.has(item.path)"
+            :disabled="!boolReady || setDownloadingFilePath.has(item.path)"
+            aria-label="Download"
+            icon="mdi-download"
+            @click="download(item.path)" />
+
+          <v-btn
+            v-tooltip:bottom="'Copy Path'"
+            variant="text"
+            size="small"
+            aria-label="Copy Path"
+            icon="mdi-content-copy"
+            @click="copyPath(item.path)" />
+
+          <v-btn
+            v-tooltip:bottom="'Delete'"
+            variant="text"
+            size="small"
+            color="error"
+            :disabled="!boolReady"
+            aria-label="Delete"
+            icon="mdi-delete-outline"
+            @click="deletePaths = [item.path]" />
+        </div>
+      </template>
+
+      <template #no-data>
+        {{
+          error
+            ? "The file list could not be loaded."
+            : "No files match the current filters."
+        }}
+      </template>
+    </v-data-table-server>
+
+    <div v-if="page" class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
+      <p>{{ page.total_count }} files · Page {{ page.page }} of {{ page.total_pages }}</p>
+
+      <v-pagination
+        v-if="page.total_pages > 1"
+        :model-value="page.page"
+        :length="page.total_pages"
+        :total-visible="5"
+        :disabled="boolLoading || boolDirty"
+        @update:model-value="changePage" />
     </div>
-
-    <v-card variant="outlined">
-      <v-data-table-server
-        v-model="selectedFilePaths"
-        :headers="ARR_HEADER"
-        :items="page?.files ?? []"
-        :items-length="page?.total_count ?? 0"
-        :items-per-page="50"
-        :page="page?.page ?? 1"
-        :loading="boolLoading"
-        item-value="path"
-        :show-select="boolReady"
-        disable-sort
-        hide-default-footer
-        :mobile-breakpoint="600">
-        <template #item.name="{ item }">
-          <span class="file-path">{{ item.name }}</span>
-        </template>
-
-        <template #item.size_bytes="{ item }">
-          {{ formatFileSize(item.size_bytes) }}
-        </template>
-
-        <template #item.uploaded_by_name="{ item }">
-          <span class="file-path">{{ item.uploaded_by_name }}</span>
-        </template>
-
-        <template #item.uploaded_at="{ item }">
-          {{ formatDateTime(item.uploaded_at, strTimeZone) }}
-        </template>
-
-        <template #item.actions="{ item }">
-          <div class="d-flex align-center ga-1">
-            <v-btn
-              v-tooltip:bottom="'Download'"
-              variant="text"
-              size="small"
-              :loading="setDownloadingFilePath.has(item.path)"
-              :disabled="!boolReady || setDownloadingFilePath.has(item.path)"
-              aria-label="Download"
-              icon="mdi-download"
-              @click="download(item.path)" />
-
-            <v-btn
-              v-tooltip:bottom="'Copy Path'"
-              variant="text"
-              size="small"
-              aria-label="Copy Path"
-              icon="mdi-content-copy"
-              @click="copyPath(item.path)" />
-
-            <v-btn
-              v-tooltip:bottom="'Delete'"
-              variant="text"
-              size="small"
-              color="error"
-              :disabled="!boolReady"
-              aria-label="Delete"
-              icon="mdi-delete-outline"
-              @click="deletePaths = [item.path]" />
-          </div>
-        </template>
-
-        <template #no-data>
-          {{
-            error
-              ? "The file list could not be loaded."
-              : "No files match the current filters."
-          }}
-        </template>
-      </v-data-table-server>
-
-      <div
-        v-if="page"
-        class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
-        <p>{{ page.total_count }} files · Page {{ page.page }} of {{ page.total_pages }}</p>
-
-        <v-pagination
-          v-if="page.total_pages > 1"
-          :model-value="page.page"
-          :length="page.total_pages"
-          :total-visible="5"
-          :disabled="boolLoading || boolDirty"
-          @update:model-value="changePage" />
-      </div>
-    </v-card>
-  </template>
+  </v-card>
 
   <SharedFileUploadDialog
     v-if="boolShowUpload && page"
@@ -282,6 +280,7 @@ import type {
 } from "@/api/generated/browserApi";
 
 const ARR_HEADER = [
+  { title: "Department", key: "department_path", minWidth: 180 },
   { title: "File Name", key: "name", minWidth: 180 },
   { title: "Size", key: "size_bytes" },
   { title: "Uploaded By", key: "uploaded_by_name", minWidth: 150 },
@@ -306,11 +305,7 @@ const departments = computed(() =>
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 
 const strActiveDepartmentPath = computed(() =>
-  typeof route.query.department_path === "string"
-    ? route.query.department_path
-    : departments.value.length === 1
-      ? departments.value[0]!.path
-      : "",
+  typeof route.query.department_path === "string" ? route.query.department_path : "",
 );
 
 const strActiveName = computed(() =>
@@ -370,15 +365,10 @@ async function load(): Promise<void> {
   selectedFilePaths.value = [];
   error.value = null;
   strActionError.value = "";
-  if (!strActiveDepartmentPath.value) {
-    page.value = null;
-    boolLoading.value = false;
-    return;
-  }
   boolLoading.value = true;
   try {
     const result = await getSharedFiles({
-      department_path: strActiveDepartmentPath.value,
+      department_path: strActiveDepartmentPath.value || null,
       name: strActiveName.value,
       sort_by: strActiveSort.value,
       order: strActiveOrder.value,
@@ -416,6 +406,7 @@ async function applyFilters(): Promise<void> {
 }
 
 function clearFilters(): void {
+  strDepartmentPath.value = "";
   strName.value = "";
   strSortBy.value = "uploaded_at";
   strOrder.value = "desc";
