@@ -1,4 +1,4 @@
-<!-- FileName: QueueDetailsView.vue -->
+<!-- FileName: DataQueueDetailsView.vue -->
 <template>
   <v-btn
     class="mb-4"
@@ -261,7 +261,7 @@
       </div>
     </v-card>
 
-    <QueueUploadDialog
+    <DataQueueItemUploadDialog
       v-if="boolUploadOpen"
       :queue="page.queue"
       @close="boolUploadOpen = false"
@@ -331,7 +331,7 @@
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
 
-import QueueUploadDialog from "@/components/dataQueues/QueueUploadDialog.vue";
+import DataQueueItemUploadDialog from "@/components/dataQueues/DataQueueItemUploadDialog.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 

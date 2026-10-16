@@ -263,7 +263,7 @@
     </v-card>
   </v-dialog>
 
-  <RunPackageDialog
+  <PackageRunDialog
     v-if="rerunInfo"
     :package-id="rerunInfo.package_id"
     :executor-ids="rerunInfo.executor_ids"
@@ -277,7 +277,7 @@
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
+import PackageRunDialog from "@/components/packages/PackageRunDialog.vue";
 
 import {
   ARR_RUN_STATUS,

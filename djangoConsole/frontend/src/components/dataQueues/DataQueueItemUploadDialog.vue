@@ -1,4 +1,4 @@
-<!-- FileName: QueueUploadDialog.vue -->
+<!-- FileName: DataQueueItemUploadDialog.vue -->
 <template>
   <v-dialog
     :model-value="true"

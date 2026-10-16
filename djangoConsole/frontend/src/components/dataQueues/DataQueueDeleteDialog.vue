@@ -1,4 +1,4 @@
-<!-- FileName: QueueDeleteDialog.vue -->
+<!-- FileName: DataQueueDeleteDialog.vue -->
 <template>
   <v-dialog
     :model-value="true"

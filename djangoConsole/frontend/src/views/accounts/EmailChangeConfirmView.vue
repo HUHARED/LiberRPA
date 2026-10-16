@@ -1,4 +1,4 @@
-<!-- FileName: ConfirmEmailChangeView.vue -->
+<!-- FileName: EmailChangeConfirmView.vue -->
 <template>
   <AuthLayout>
     <h1 class="text-h5 mb-4">Confirm Email Change</h1>

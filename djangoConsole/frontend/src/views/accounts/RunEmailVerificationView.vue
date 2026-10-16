@@ -1,4 +1,4 @@
-<!-- FileName: VerifyRunEmailView.vue -->
+<!-- FileName: RunEmailVerificationView.vue -->
 <template>
   <v-card max-width="640" class="mx-auto">
     <v-card-title>Run Email Verification</v-card-title>

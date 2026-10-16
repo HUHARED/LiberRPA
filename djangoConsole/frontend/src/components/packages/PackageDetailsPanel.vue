@@ -362,7 +362,7 @@
     </v-card>
   </v-dialog>
 
-  <RunPackageDialog
+  <PackageRunDialog
     v-if="boolRun"
     :package-id="details.package.id"
     @close="boolRun = false"
@@ -376,7 +376,7 @@ import type { VForm } from "vuetify/components";
 
 import RunArgumentsEditor from "@/components/runSettings/RunArgumentsEditor.vue";
 import RunDispatchEmailEditor from "@/components/runSettings/RunDispatchEmailEditor.vue";
-import RunPackageDialog from "./RunPackageDialog.vue";
+import PackageRunDialog from "./PackageRunDialog.vue";
 
 import {
   PackageReferenceKind,

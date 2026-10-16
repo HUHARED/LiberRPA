@@ -15,19 +15,19 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       {
         path: "/create-organization",
         name: "create-organization",
-        component: () => import("@/views/accounts/CreateOrganizationView.vue"),
+        component: () => import("@/views/accounts/OrganizationCreateView.vue"),
         meta: { title: "Create Organization", public: true },
       },
       {
         path: "/confirm-email-change",
         name: "confirm-email-change",
-        component: () => import("@/views/accounts/ConfirmEmailChangeView.vue"),
+        component: () => import("@/views/accounts/EmailChangeConfirmView.vue"),
         meta: { title: "Confirm Email Change", public: true },
       },
       {
         path: "/create-account",
         name: "create-account",
-        component: () => import("@/views/accounts/CreateAccountView.vue"),
+        component: () => import("@/views/accounts/AccountCreateView.vue"),
         meta: { title: "Create Account", public: true },
       },
       {
@@ -39,13 +39,13 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       {
         path: "/forgot-password",
         name: "forgot-password",
-        component: () => import("@/views/accounts/ForgotPasswordView.vue"),
+        component: () => import("@/views/accounts/PasswordResetRequestView.vue"),
         meta: { title: "Forgot Password", public: true },
       },
       {
         path: "/reset-password",
         name: "reset-password",
-        component: () => import("@/views/accounts/ResetPasswordView.vue"),
+        component: () => import("@/views/accounts/PasswordResetView.vue"),
         meta: { title: "Reset Password", public: true },
       },
       {
@@ -103,7 +103,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       {
         path: "/verify-run-email/",
         name: "verify-run-email",
-        component: () => import("@/views/accounts/VerifyRunEmailView.vue"),
+        component: () => import("@/views/accounts/RunEmailVerificationView.vue"),
         meta: { title: "Run Email Verification", public: true },
       },
       {
@@ -133,14 +133,15 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       {
         path: "/data-queues/:queueId",
         name: "data-queue-details",
-        component: () => import("@/views/dataQueues/QueueDetailsView.vue"),
+        component: () => import("@/views/dataQueues/DataQueueDetailsView.vue"),
         props: true,
         meta: { title: "Queue Details", requiresBusiness: true },
         children: [
           {
             path: "items/:itemId",
             name: "queue-item-details",
-            component: () => import("@/components/dataQueues/QueueItemDetailsDialog.vue"),
+            component: () =>
+              import("@/components/dataQueues/DataQueueItemDetailsDialog.vue"),
             props: true,
             meta: { title: "Item Details" },
           },

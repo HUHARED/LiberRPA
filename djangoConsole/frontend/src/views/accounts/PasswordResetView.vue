@@ -1,4 +1,4 @@
-<!-- FileName: ResetPasswordView.vue -->
+<!-- FileName: PasswordResetView.vue -->
 <template>
   <AuthLayout>
     <v-btn

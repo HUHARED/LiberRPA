@@ -330,7 +330,7 @@
     </v-card>
   </template>
 
-  <RunPackageDialog
+  <PackageRunDialog
     v-if="rerunInfo"
     :package-id="rerunInfo.package_id"
     :executor-ids="rerunInfo.executor_ids"
@@ -347,7 +347,7 @@ import { RouterLink, useRouter } from "vue-router";
 import RunArgumentsDetails from "@/components/runSettings/RunArgumentsDetails.vue";
 import RunLogs from "@/components/runs/RunLogs.vue";
 import RunTable from "@/components/runs/RunTable.vue";
-import RunPackageDialog from "@/components/packages/RunPackageDialog.vue";
+import PackageRunDialog from "@/components/packages/PackageRunDialog.vue";
 
 import {
   RunStatus,

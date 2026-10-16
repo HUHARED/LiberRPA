@@ -177,7 +177,7 @@
             variant="text"
             aria-label="Delete"
             icon="mdi-delete-outline"
-            @click="openDelete(item)" />
+            @click="scheduleDelete = item" />
         </div>
       </template>
 
@@ -207,47 +207,11 @@
     @close="closeForm"
     @saved="saved" />
 
-  <v-dialog
-    :model-value="!!scheduleDelete"
-    :persistent="boolDeleting"
-    max-width="560"
-    @update:model-value="!$event && (scheduleDelete = null)">
-    <v-card>
-      <v-card-title>Delete Schedule</v-card-title>
-
-      <v-card-text>
-        <p>
-          Delete
-          <span class="font-weight-bold">{{ scheduleDelete?.name }}</span>
-          ? Future triggers will stop. Already accepted Jobs continue independently,
-          including waiting and retries.
-        </p>
-
-        <v-alert v-if="strDeleteError" type="error" variant="tonal" class="mt-4">
-          {{ strDeleteError }}
-        </v-alert>
-      </v-card-text>
-
-      <v-card-actions>
-        <v-btn
-          variant="tonal"
-          prepend-icon="mdi-close"
-          :disabled="boolDeleting"
-          @click="scheduleDelete = null">
-          Cancel
-        </v-btn>
-        <v-spacer />
-        <v-btn
-          variant="tonal"
-          prepend-icon="mdi-delete-outline"
-          color="error"
-          :loading="boolDeleting"
-          @click="remove">
-          Delete
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <ScheduleDeleteDialog
+    v-if="scheduleDelete"
+    :schedule="scheduleDelete"
+    @close="scheduleDelete = null"
+    @deleted="handleDeleted" />
 </template>
 
 <script setup lang="ts">
@@ -259,6 +223,7 @@ import { getExecutorList } from "@/api/executors";
 import { getExecutorGroupList } from "@/api/executorGroups";
 
 import ScheduleFormDialog from "@/components/schedules/ScheduleFormDialog.vue";
+import ScheduleDeleteDialog from "@/components/schedules/ScheduleDeleteDialog.vue";
 
 import {
   type ScheduleListEntry,
@@ -266,7 +231,6 @@ import {
   type ScheduleFilters,
   getSchedules,
   setScheduleEnabled,
-  deleteSchedule,
 } from "@/api/schedules";
 import { getApiError } from "@/api/errors";
 
@@ -319,8 +283,6 @@ const page = shallowRef<SchedulePage | null>(null);
 const boolNew = ref(false);
 const strEditId = ref<string | null>(null);
 const scheduleDelete = shallowRef<ScheduleListEntry | null>(null);
-const boolDeleting = ref(false);
-const strDeleteError = ref("");
 const setChangingId = ref(new Set<string>());
 const boolLoading = ref(false);
 const strError = ref("");
@@ -438,25 +400,9 @@ function saved(): void {
   void load();
 }
 
-function openDelete(schedule: ScheduleListEntry): void {
-  scheduleDelete.value = schedule;
-  strDeleteError.value = "";
-}
-
-async function remove(): Promise<void> {
-  if (!scheduleDelete.value || boolDeleting.value) return;
-
-  boolDeleting.value = true;
-  strDeleteError.value = "";
-  try {
-    await deleteSchedule(scheduleDelete.value.id);
-    scheduleDelete.value = null;
-    await load(1);
-  } catch (e) {
-    strDeleteError.value = getApiError(e).message;
-  } finally {
-    boolDeleting.value = false;
-  }
+function handleDeleted(): void {
+  scheduleDelete.value = null;
+  void load(1);
 }
 
 watch(

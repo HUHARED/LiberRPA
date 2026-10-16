@@ -192,14 +192,14 @@
     </div>
   </v-card>
 
-  <QueueFormDialog
+  <DataQueueFormDialog
     v-if="form"
     :queue="form === 'new' ? undefined : form"
     :initial-department-id="departmentIds.length === 1 ? departmentIds[0] : undefined"
     @close="form = null"
     @saved="handleSaved" />
 
-  <QueueDeleteDialog
+  <DataQueueDeleteDialog
     v-if="deleteTarget"
     :queue="deleteTarget"
     @close="deleteTarget = null"
@@ -210,8 +210,8 @@
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { RouterLink, useRoute, useRouter, type RouteLocationRaw } from "vue-router";
 
-import QueueFormDialog from "@/components/dataQueues/QueueFormDialog.vue";
-import QueueDeleteDialog from "@/components/dataQueues/QueueDeleteDialog.vue";
+import DataQueueFormDialog from "@/components/dataQueues/DataQueueFormDialog.vue";
+import DataQueueDeleteDialog from "@/components/dataQueues/DataQueueDeleteDialog.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 

@@ -1,4 +1,4 @@
-<!-- FileName: CreateAccountView.vue -->
+<!-- FileName: AccountCreateView.vue -->
 <template>
   <AuthLayout>
     <v-btn

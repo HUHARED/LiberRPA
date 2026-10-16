@@ -1,4 +1,4 @@
-<!-- FileName: RunPackageDialog.vue -->
+<!-- FileName: PackageRunDialog.vue -->
 <template>
   <v-dialog
     :model-value="true"
