@@ -15,6 +15,8 @@ from pydantic import (
     AwareDatetime,
     Field,
     ModelWrapValidatorHandler,
+    ValidatorFunctionWrapHandler,
+    field_validator,
     model_validator,
 )
 
@@ -22,6 +24,10 @@ from console_project.contracts import JsonValue, JsonRequest, JsonResponsePayloa
 from console_project.constants import RunLogLevel
 from console_project.validators import validate_json_string, validate_json_value
 from organizations.contracts import PaginationResponse
+from notifications.contracts import (
+    INT_RUN_EMAIL_MAX_BYTES,
+    RunEmailOutputValue,
+)
 from packages.contracts import (
     INT_CUSTOM_ARGUMENT_MAX_BYTES,
     RunPriority,
@@ -263,7 +269,26 @@ class WorkEndedEvent(WorkEventBase):
     started_at: Annotated[AwareDatetime, Field(strict=False)]
     status: RunEndedStatus
     outputs: RunOutputs = Field(default_factory=RunOutputs)
+    email_output_context: list[RunEmailOutputValue] | None = None
     error_summary: dict[str, str] | None = None
+
+    @field_validator("email_output_context", mode="wrap")
+    @classmethod
+    def parse_email_output_context(
+        cls, value: object, handler: ValidatorFunctionWrapHandler
+    ) -> list[RunEmailOutputValue] | None:
+        try:
+            context: list[RunEmailOutputValue] | None = handler(value)
+            if context is not None and (
+                len({entry.key for entry in context}) != len(context)
+                or sum(len(entry.text.encode("utf-8")) for entry in context)
+                > INT_RUN_EMAIL_MAX_BYTES
+            ):
+                raise ValueError("The email output context exceeds its limits.")
+            return context
+        except (ValueError, UnicodeError, RecursionError):
+            # Email capture cannot invalidate an otherwise valid execution result.
+            return None
 
     @model_validator(mode="after")
     def validate_times(self) -> Self:

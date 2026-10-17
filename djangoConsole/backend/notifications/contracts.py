@@ -6,11 +6,40 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Annotated, Self
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from console_project.contracts import JsonRequest, JsonResponsePayload
+from console_project.validators import validate_json_string
+
+
+INT_RUN_EMAIL_MAX_BYTES = 64 * 1024
+
+
+class RunEmailOutputStatus(StrEnum):
+    AVAILABLE = "available"
+    MISSING = "missing"
+    LIMIT = "limit"
+    UNAVAILABLE = "unavailable"
+
+
+class RunEmailOutputValue(JsonRequest):
+    key: str
+    status: Annotated[RunEmailOutputStatus, Field(strict=False)]
+    text: str
+
+    @model_validator(mode="after")
+    def validate_value(self) -> Self:
+        validate_json_string(self.key)
+        validate_json_string(self.text)
+        if self.status == RunEmailOutputStatus.AVAILABLE:
+            if not self.text:
+                raise ValueError("Available email values require text.")
+        elif self.text:
+            raise ValueError("Unavailable email values cannot contain text.")
+        return self
 
 
 class RecipientCreationRequest(JsonRequest):

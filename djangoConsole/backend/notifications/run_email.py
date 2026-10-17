@@ -9,6 +9,7 @@ import re
 import uuid
 from typing import TYPE_CHECKING
 from datetime import datetime
+from itertools import chain
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -18,6 +19,10 @@ from django.core.mail import EmailMessage
 from console_project.contracts import JsonValue
 from packages.contracts import RunEmailSettings
 
+from .contracts import (
+    INT_RUN_EMAIL_MAX_BYTES,
+    RunEmailOutputStatus,
+)
 from .models import RunEmailEvent
 from .recipients import get_eligible_recipients
 
@@ -29,11 +34,6 @@ _RE_FIELD = re.compile(
 )
 _RE_SUBJECT_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 _INT_MAX_SUBJECT_LENGTH = 256
-_INT_MAX_BODY_TEMPLATE_BYTES = 16 * 1024
-_INT_MAX_BODY_BYTES = 64 * 1024
-_INT_MAX_CONTEXT_KEYS = 64
-_INT_MAX_VALUE_BYTES = 16 * 1024
-_INT_MAX_CONTEXT_BYTES = 64 * 1024
 _INT_MAX_VALUE_DEPTH = 8
 _DICT_EVENT_KEY = {
     RunEmailEvent.START: "on_start",
@@ -122,7 +122,7 @@ def get_template_metadata() -> dict:
 
 def validate_run_email(
     organizationId: uuid.UUID, config: RunEmailSettings, customArgs: list[list[JsonValue]]
-) -> None:
+) -> dict[str, list[str]]:
     listRecipientId = config.recipient_ids
     dictFieldError: dict[str, list[str]] = {}
     strRecipientField = "settings.run_email.recipient_ids"
@@ -140,9 +140,15 @@ def validate_run_email(
         f"Input_CustomArgs[{json.dumps(str(entry[0]), ensure_ascii=False)}]"
         for entry in customArgs
     }
-    setOutputField = {
-        f"Output_CustomArgs[{json.dumps(str(entry[0]), ensure_ascii=False)}]"
+    dictOutputKey = {
+        f"Output_CustomArgs[{json.dumps(str(entry[0]), ensure_ascii=False)}]": str(
+            entry[0]
+        )
         for entry in customArgs
+    }
+    dictEmailOutputKey: dict[str, list[str]] = {
+        RunEmailEvent.COMPLETED: [],
+        RunEmailEvent.ERROR: [],
     }
     for event, strKey, template in (
         (RunEmailEvent.START, "on_start", config.on_start),
@@ -158,42 +164,46 @@ def validate_run_email(
                 "Enter one line of up to 256 characters without control characters."
             ]
         if (
-            len(template.body.encode("utf-8")) > _INT_MAX_BODY_TEMPLATE_BYTES
+            len(template.body.encode("utf-8")) > INT_RUN_EMAIL_MAX_BYTES
             or "\x00" in template.body
         ):
             dictFieldError[f"{strPrefix}.body"] = [
-                "Enter a body of at most 16 KiB without null characters."
-            ]
-        if (
-            len(set(_RE_FIELD.findall(template.subject + template.body)))
-            > _INT_MAX_CONTEXT_KEYS
-        ):
-            dictFieldError[f"{strPrefix}.body"] = [
-                "A Run email template can reference at most 64 different fields."
+                "Enter a body of at most 64 KiB without null characters."
             ]
         setAllowed = _SET_COMMON_FIELD | setInputField
         if event != RunEmailEvent.START:
-            setAllowed |= _SET_END_FIELD | setOutputField
+            setAllowed |= _SET_END_FIELD | dictOutputKey.keys()
         if event == RunEmailEvent.ERROR:
             setAllowed |= _SET_ERROR_FIELD
+        dictReferencedField: dict[str, None] = {}
         for strField, strTemplate in (
-            ("subject", template.subject),
-            ("body", template.body),
+            ("subject", template.subject or DEFAULT_TEMPLATES[strKey]["subject"]),
+            ("body", template.body or DEFAULT_TEMPLATES[strKey]["body"]),
         ):
-            strRemainder = _RE_FIELD.sub("", strTemplate)
-            if (
-                any(
-                    strName not in setAllowed
-                    for strName in _RE_FIELD.findall(strTemplate)
+            intPreviousEnd = 0
+            boolInvalid = False
+            for match in _RE_FIELD.finditer(strTemplate):
+                strGap = strTemplate[intPreviousEnd : match.start()]
+                strName = match[1]
+                boolInvalid |= (
+                    "{{" in strGap or "}}" in strGap or strName not in setAllowed
                 )
-                or "{{" in strRemainder
-                or "}}" in strRemainder
-            ):
+                dictReferencedField[strName] = None
+                intPreviousEnd = match.end()
+            strRemainder = strTemplate[intPreviousEnd:]
+            if boolInvalid or "{{" in strRemainder or "}}" in strRemainder:
                 dictFieldError.setdefault(f"{strPrefix}.{strField}", []).append(
                     "This template references an unknown or unavailable field."
                 )
+        if template.enabled and event != RunEmailEvent.START:
+            dictEmailOutputKey[event] = [
+                dictOutputKey[strName]
+                for strName in dictReferencedField
+                if strName in dictOutputKey
+            ]
     if dictFieldError:
         raise ValidationError(dictFieldError)
+    return dictEmailOutputKey
 
 
 def _format_time(value: datetime | None, zone: ZoneInfo) -> str:
@@ -216,14 +226,7 @@ def _has_valid_value_depth(value: object, depth: int = 0) -> bool:
 def _render_value(value: object) -> str:
     if not _has_valid_value_depth(value):
         return "Not available (value exceeds email depth limit)"
-    strValue = json.dumps(
-        value, ensure_ascii=False, allow_nan=False, separators=(",", ":")
-    )
-    return (
-        strValue
-        if len(strValue.encode("utf-8")) <= _INT_MAX_VALUE_BYTES
-        else "Not available (value exceeds email limit)"
-    )
+    return json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
 
 
 def build_run_email(run: "Run", *, event: str, recipient: str) -> EmailMessage:
@@ -265,46 +268,76 @@ def build_run_email(run: "Run", *, event: str, recipient: str) -> EmailMessage:
         "error_message": (run.error_summary or {}).get("message", "Not available"),
     }
     dictInput = dict(job.run_snapshot["custom_prj_args"])
-    dictOutput = dict(run.outputs or [])
-    for strField in dict.fromkeys(_RE_FIELD.findall(strSubject + strBody)):
-        for strPrefix, dictValue in (
-            ("Input_CustomArgs", dictInput),
-            ("Output_CustomArgs", dictOutput),
-        ):
-            if strField.startswith(strPrefix + "["):
-                strName = json.loads(strField[len(strPrefix) + 1 : -1])
-                dictField[strField] = (
-                    _render_value(dictValue[strName])
-                    if strName in dictValue
-                    else "Not available"
-                )
-    intContextBytes = 0
-    for strField in dict.fromkeys(_RE_FIELD.findall(strSubject + strBody)):
-        strValue = str(dictField.get(strField, "Not available"))
-        intValueBytes = len(strValue.encode("utf-8"))
-        if intContextBytes + intValueBytes > _INT_MAX_CONTEXT_BYTES:
-            dictField[strField] = "Not available (email context limit)"
-        else:
-            intContextBytes += intValueBytes
-    # Replacement values remain literal; they are never scanned for another template pass.
-    strRenderedSubject = _RE_SUBJECT_CONTROL.sub(
-        " ",
-        _RE_FIELD.sub(
-            lambda match: str(dictField.get(match[1], "Not available")), strSubject
-        ),
-    )[:_INT_MAX_SUBJECT_LENGTH]
-    strRenderedBody = _RE_FIELD.sub(
-        lambda match: str(dictField.get(match[1], "Not available")), strBody
-    )
-    bodyBytes = strRenderedBody.encode("utf-8")
-    if len(bodyBytes) > _INT_MAX_BODY_BYTES:
-        strSuffix = "\n[Email body truncated at 64 KiB.]"
-        strRenderedBody = (
-            bodyBytes[: _INT_MAX_BODY_BYTES - len(strSuffix)].decode(
-                "utf-8", errors="ignore"
+    dictOutputContext = {
+        entry["key"]: entry for entry in (run.email_output_context or [])
+    }
+    dictUnavailableText = {
+        RunEmailOutputStatus.MISSING: "Not available (output key is missing)",
+        RunEmailOutputStatus.LIMIT: "Not available (output exceeds email limits)",
+        RunEmailOutputStatus.UNAVAILABLE: "Not available (output could not be captured)",
+    }
+    listReferencedField = list(dict.fromkeys(_RE_FIELD.findall(strSubject + strBody)))
+    for strField in listReferencedField:
+        if strField.startswith("Input_CustomArgs["):
+            strName = json.loads(strField[len("Input_CustomArgs[") : -1])
+            dictField[strField] = (
+                _render_value(dictInput[strName])
+                if strName in dictInput
+                else "Not available (input key is missing)"
             )
-            + strSuffix
-        )
+        elif strField.startswith("Output_CustomArgs["):
+            strName = json.loads(strField[len("Output_CustomArgs[") : -1])
+            entry = dictOutputContext.get(strName)
+            if entry is None:
+                dictField[strField] = (
+                    "Not available (output context could not be captured)"
+                )
+            elif entry["status"] == RunEmailOutputStatus.AVAILABLE:
+                dictField[strField] = entry["text"]
+            else:
+                dictField[strField] = dictUnavailableText[entry["status"]]
+
+    def render_template(template: str, *, subject: bool) -> str:
+        listPart: list[str] = []
+        intRemaining = _INT_MAX_SUBJECT_LENGTH if subject else INT_RUN_EMAIL_MAX_BYTES
+        intPreviousEnd = 0
+        for match in chain(_RE_FIELD.finditer(template), (None,)):
+            if match is None:
+                listSegment = [template[intPreviousEnd:]]
+            else:
+                listSegment = [
+                    template[intPreviousEnd : match.start()],
+                    str(dictField.get(match[1], "Not available")),
+                ]
+                intPreviousEnd = match.end()
+            for strSegment in listSegment:
+                # Values remain literal, and only the remaining capacity is materialized.
+                strPart = strSegment[: intRemaining + 1]
+                if subject:
+                    strPart = _RE_SUBJECT_CONTROL.sub(" ", strPart)
+                    listPart.append(strPart[:intRemaining])
+                    if len(strPart) > intRemaining:
+                        return "".join(listPart)
+                    intRemaining -= len(strPart)
+                else:
+                    partBytes = strPart.encode("utf-8")
+                    listPart.append(
+                        partBytes[:intRemaining].decode("utf-8", errors="ignore")
+                    )
+                    if len(partBytes) > intRemaining:
+                        strSuffix = "\n[Email body truncated at 64 KiB.]"
+                        bodyBytes = "".join(listPart).encode("utf-8")
+                        return (
+                            bodyBytes[: INT_RUN_EMAIL_MAX_BYTES - len(strSuffix)].decode(
+                                "utf-8", errors="ignore"
+                            )
+                            + strSuffix
+                        )
+                    intRemaining -= len(partBytes)
+        return "".join(listPart)
+
+    strRenderedSubject = render_template(strSubject, subject=True)
+    strRenderedBody = render_template(strBody, subject=False)
     return EmailMessage(
         subject=strRenderedSubject,
         body=strRenderedBody,

@@ -302,7 +302,7 @@ class Logger:
 
         elif executorRunContext is not None:
             strToolName = "Executor"
-            self.strProjectName = executorRunContext.packageName
+            self.strProjectName = executorRunContext.projectName
 
         else:
             strToolName = "Editor"
@@ -337,7 +337,7 @@ class Logger:
                     os.path.join(
                         strLogBasePath,
                         self.strProjectName,
-                        executorRunContext.packageVersion,
+                        executorRunContext.projectVersion,
                         strRunFolderName,
                     )
                 )

@@ -33,6 +33,7 @@ export type ConsoleEventData =
       started_at: string;
       status: RunEndedStatus;
       outputs: RunOutputs;
+      email_output_context: RunEndedFact["emailOutputContext"];
       error_summary: RunEndedFact["errorSummary"];
     }
   | {

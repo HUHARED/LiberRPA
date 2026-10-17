@@ -894,6 +894,7 @@ export interface RunSnapshotResponse {
   custom_arg_assets: (OrdinaryAssetBinding | null)[];
   custom_prj_args: [string, JsonValue][];
   department_id: string;
+  email_output_keys: RunEmailOutputKeysResponse;
   max_retry_count: number;
   package_id: string;
   priority: RunPriority;
@@ -909,6 +910,10 @@ export interface RunSnapshotResponse {
 export interface OrdinaryAssetBinding {
   asset_type: "text" | "integer" | "number" | "boolean" | "json";
   name: string;
+}
+export interface RunEmailOutputKeysResponse {
+  completed: string[];
+  error: string[];
 }
 export interface RunEmailSettingsResponse {
   on_completed: RunEmailTemplateResponse;

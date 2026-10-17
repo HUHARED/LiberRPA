@@ -1,6 +1,12 @@
 // FileName: types.ts
 
-import type { RunSource, RunOutputs, RunEndedStatus } from "../../shared/run";
+import type {
+  RunSource,
+  RunOutputs,
+  RunEmailOutputKeys,
+  RunEmailOutputContext,
+  RunEndedStatus,
+} from "../../shared/run";
 export enum RunTerminationReason {
   Cancel = "cancel",
   Shutdown = "shutdown",
@@ -20,6 +26,7 @@ export interface RunEndedFact extends RunStartedFact {
   status: RunEndedStatus;
   retryEligible: boolean;
   outputs: RunOutputs;
+  emailOutputContext: RunEmailOutputContext;
   errorSummary: { type: string; message: string } | null;
 }
 
@@ -29,6 +36,7 @@ export interface RunExecutionContext {
   attemptNumber: number;
   runId?: string;
   packagePath?: string;
+  emailOutputKeys?: RunEmailOutputKeys;
   beforeSpawn?: (hasOtherActiveRun: boolean, startedAt: string) => void;
   onStarted?: (fact: RunStartedFact) => void;
   onStopping?: (reason: RunTerminationReason) => void;

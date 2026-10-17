@@ -5,7 +5,13 @@ import fs from "fs";
 import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
-import { RunOutputsStatus, type RunOutputs } from "../../shared/run";
+import {
+  RunOutputsStatus,
+  type RunOutputs,
+  RunEmailOutputStatus,
+  type RunEmailOutputContext,
+  INT_MAX_RUN_EMAIL_TEXT_BYTES,
+} from "../../shared/run";
 
 import { isProcessRunning } from "../Common/process";
 import {
@@ -30,13 +36,14 @@ export enum ExecutorRunStateStatus {
 export interface ExecutorRunState {
   schemaVersion: 1;
   runId: string;
-  packageName: string;
-  packageVersion: string;
+  projectName: string;
+  projectVersion: string;
   startedAt: string;
   logPath: string;
   status: ExecutorRunStateStatus;
   endedAt?: string;
   outputs?: RunOutputs;
+  emailOutputContext?: RunEmailOutputContext;
   errorSummary?: { type: string; message: string } | null;
 }
 
@@ -47,8 +54,8 @@ const REGEX_ISO_TIMESTAMP_WITH_TIMEZONE =
 const ARR_RUNNING_RUN_STATE_KEY = [
   "schemaVersion",
   "runId",
-  "packageName",
-  "packageVersion",
+  "projectName",
+  "projectVersion",
   "startedAt",
   "logPath",
   "status",
@@ -57,6 +64,7 @@ const ARR_FINAL_RUN_STATE_KEY = [
   ...ARR_RUNNING_RUN_STATE_KEY,
   "endedAt",
   "outputs",
+  "emailOutputContext",
   "errorSummary",
 ] as const;
 
@@ -207,6 +215,47 @@ function parseRunOutputs(value: unknown): RunOutputs {
   }
 }
 
+function parseEmailOutputContext(value: unknown): RunEmailOutputContext {
+  if (value === null || value === undefined) return null;
+  try {
+    if (!Array.isArray(value))
+      throw new Error("Run email output context must be an array.");
+    const setKey = new Set<string>();
+    let intTextBytes = 0;
+    const arrEntry = value.map((entry: unknown) => {
+      const dictEntry = ensureExactRecord(
+        entry,
+        ["key", "status", "text"],
+        "Run email output entry",
+      );
+      const strKey = ensureString(dictEntry.key, "Run email output key");
+      if (setKey.has(strKey)) throw new Error("Run email output keys must be unique.");
+      setKey.add(strKey);
+      const status = dictEntry.status;
+      if (
+        status !== RunEmailOutputStatus.Available &&
+        status !== RunEmailOutputStatus.Missing &&
+        status !== RunEmailOutputStatus.Limit &&
+        status !== RunEmailOutputStatus.Unavailable
+      )
+        throw new Error("Invalid Run email output status.");
+      const strText = ensureString(dictEntry.text, "Run email output text");
+      if (status === RunEmailOutputStatus.Available) {
+        intTextBytes += Buffer.byteLength(strText, "utf8");
+        if (strText.length === 0 || intTextBytes > INT_MAX_RUN_EMAIL_TEXT_BYTES)
+          throw new Error("Run email output text exceeds its size limit.");
+      } else if (strText !== "") {
+        throw new Error("Unavailable Run email output entries cannot contain text.");
+      }
+      // Python has already validated and serialized the selected business value.
+      return { key: strKey, status, text: strText };
+    });
+    return arrEntry;
+  } catch {
+    return null;
+  }
+}
+
 function parseErrorSummary(value: unknown): { type: string; message: string } | null {
   if (value === null) return null;
   try {
@@ -223,16 +272,16 @@ function parseErrorSummary(value: unknown): { type: string; message: string } | 
 export function readExecutorRunState({
   filePath,
   expectedRunId,
-  expectedPackageName,
-  expectedPackageVersion,
+  expectedProjectName,
+  expectedProjectVersion,
   expectedStartedAt,
   expectedLogRootPath,
   expectedLogPath,
 }: {
   filePath: string;
   expectedRunId: string;
-  expectedPackageName: string;
-  expectedPackageVersion: string;
+  expectedProjectName: string;
+  expectedProjectVersion: string;
   expectedStartedAt: string;
   expectedLogRootPath: string;
   expectedLogPath?: string;
@@ -242,7 +291,9 @@ export function readExecutorRunState({
   const dictRawState = ensureRecord(value, "Executor run state");
   const status = ensureExecutorRunStateStatus(dictRawState.status);
   const dictState = ensureExactRecord(
-    value,
+    status === ExecutorRunStateStatus.Running
+      ? dictRawState
+      : { emailOutputContext: null, ...dictRawState },
     status === ExecutorRunStateStatus.Running
       ? ARR_RUNNING_RUN_STATE_KEY
       : ARR_FINAL_RUN_STATE_KEY,
@@ -257,11 +308,11 @@ export function readExecutorRunState({
   if (dictState.runId !== expectedRunId) {
     throw new Error(`Executor run state has an unexpected runId: ${filePath}`);
   }
-  if (dictState.packageName !== expectedPackageName) {
-    throw new Error(`Executor run state has an unexpected packageName: ${filePath}`);
+  if (dictState.projectName !== expectedProjectName) {
+    throw new Error(`Executor run state has an unexpected projectName: ${filePath}`);
   }
-  if (dictState.packageVersion !== expectedPackageVersion) {
-    throw new Error(`Executor run state has an unexpected packageVersion: ${filePath}`);
+  if (dictState.projectVersion !== expectedProjectVersion) {
+    throw new Error(`Executor run state has an unexpected projectVersion: ${filePath}`);
   }
 
   const strStartedAt = ensureString(dictState.startedAt, "Executor run state.startedAt");
@@ -284,8 +335,8 @@ export function readExecutorRunState({
     return {
       schemaVersion: 1,
       runId: expectedRunId,
-      packageName: expectedPackageName,
-      packageVersion: expectedPackageVersion,
+      projectName: expectedProjectName,
+      projectVersion: expectedProjectVersion,
       startedAt: strStartedAt,
       logPath: strLogPath,
       status,
@@ -301,13 +352,14 @@ export function readExecutorRunState({
   return {
     schemaVersion: 1,
     runId: expectedRunId,
-    packageName: expectedPackageName,
-    packageVersion: expectedPackageVersion,
+    projectName: expectedProjectName,
+    projectVersion: expectedProjectVersion,
     startedAt: strStartedAt,
     logPath: strLogPath,
     status,
     endedAt: strEndedAt,
     outputs: parseRunOutputs(dictState.outputs),
+    emailOutputContext: parseEmailOutputContext(dictState.emailOutputContext),
     errorSummary: parseErrorSummary(dictState.errorSummary),
   };
 }
@@ -317,8 +369,8 @@ export async function waitForExecutorRunStateAvailable({
   processPy,
   getProcessError,
   expectedRunId,
-  expectedPackageName,
-  expectedPackageVersion,
+  expectedProjectName,
+  expectedProjectVersion,
   expectedStartedAt,
   expectedLogRootPath,
 }: {
@@ -326,8 +378,8 @@ export async function waitForExecutorRunStateAvailable({
   processPy: ChildProcessWithoutNullStreams;
   getProcessError: () => Error | undefined;
   expectedRunId: string;
-  expectedPackageName: string;
-  expectedPackageVersion: string;
+  expectedProjectName: string;
+  expectedProjectVersion: string;
   expectedStartedAt: string;
   expectedLogRootPath: string;
 }): Promise<ExecutorRunState> {
@@ -345,8 +397,8 @@ export async function waitForExecutorRunStateAvailable({
       return readExecutorRunState({
         filePath,
         expectedRunId,
-        expectedPackageName,
-        expectedPackageVersion,
+        expectedProjectName,
+        expectedProjectVersion,
         expectedStartedAt,
         expectedLogRootPath,
       });

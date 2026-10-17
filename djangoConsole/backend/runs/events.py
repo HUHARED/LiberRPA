@@ -119,6 +119,16 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             run.outputs = event.outputs.model_dump(mode="json")["values"]
             run.outputs_reason = event.outputs.reason
             run.outputs_unavailable_keys = event.outputs.unavailable_keys
+            emailContext = event.email_output_context
+            setEmailOutputKey = set(
+                job.run_snapshot["email_output_keys"].get(event.status, [])
+            )
+            run.email_output_context = (
+                [entry.model_dump(mode="json") for entry in emailContext]
+                if emailContext is not None
+                and {entry.key for entry in emailContext} == setEmailOutputKey
+                else None
+            )
             run.save()
             assignment.state = AssignmentState.FINISHED
             assignment.reason = event.reason

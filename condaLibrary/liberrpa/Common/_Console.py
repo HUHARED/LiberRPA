@@ -408,21 +408,12 @@ def _download_shared_file(
     pathFolder = Path(folderPath).absolute()
     pathFolder.mkdir(parents=True, exist_ok=True)
 
-    if strFilename is not None and not overwrite and (pathFolder / strFilename).exists():
-        raise FileExistsError(
-            f"The destination already exists: {pathFolder / strFilename}"
-        )
-
     retryBudget = RetryBudget()
-    dictDownload = request_json(
-        "shared-files/downloads/",
-        {"path": path},
-        retryBudget=retryBudget,
-    )
-    expectedFileInfo = _parse_shared_file_info(dictDownload["file"])
-
     if strFilename is None:
-        strFilename = sanitize_filename(expectedFileInfo.name)
+        fileInfo = _parse_shared_file_info(
+            request_json("shared-files/query/", {"path": path}, retryBudget=retryBudget)
+        )
+        strFilename = sanitize_filename(fileInfo.name)
     pathDestination = pathFolder / strFilename
 
     if not overwrite and pathDestination.exists():
@@ -435,18 +426,18 @@ def _download_shared_file(
     )
     os.close(intTemporaryFileDescriptor)
     pathTemporary = Path(strTemporaryPath)
-    boolFirstAttempt = True
+    expectedFileInfo: SharedFileInfo | None = None
 
     def _download_file_to_temporary_path() -> None:
-        nonlocal boolFirstAttempt
+        nonlocal expectedFileInfo
 
-        if boolFirstAttempt:
-            boolFirstAttempt = False
-            dictTransfer = dictDownload
-        else:
-            dictTransfer = request_json("shared-files/downloads/", {"path": path})
+        dictTransfer = request_json("shared-files/downloads/", {"path": path})
+        strTransferId = str(UUID(dictTransfer["transfer_id"]))
+        try:
             fileInfo = _parse_shared_file_info(dictTransfer["file"])
-            if (
+            if expectedFileInfo is None:
+                expectedFileInfo = fileInfo
+            elif (
                 fileInfo.sha256 != expectedFileInfo.sha256
                 or fileInfo.sizeBytes != expectedFileInfo.sizeBytes
             ):
@@ -455,38 +446,43 @@ def _download_shared_file(
                     "The Shared File changed while retrying; the destination was preserved.",
                 )
 
-        strTransferId = str(UUID(dictTransfer["transfer_id"]))
+            with open_response(
+                "GET",
+                f"shared-files/downloads/{strTransferId}/",
+                headers={"Accept": "application/octet-stream"},
+            ) as response:
+                if not 200 <= response.status_code < 300:
+                    read_json_response(response)
 
-        with open_response(
-            "GET",
-            f"shared-files/downloads/{strTransferId}/",
-            headers={"Accept": "application/octet-stream"},
-        ) as response:
-            if not 200 <= response.status_code < 300:
-                read_json_response(response)
+                checksumHasher = hashlib.sha256()
+                intDownloadedBytes = 0
 
-            checksumHasher = hashlib.sha256()
-            intDownloadedBytes = 0
+                with pathTemporary.open("wb") as temporaryFile:
+                    for fileChunkBytes in response.iter_content(chunk_size=65536):
+                        intDownloadedBytes += len(fileChunkBytes)
+                        if intDownloadedBytes > expectedFileInfo.sizeBytes:
+                            raise ConsoleError(
+                                "file_integrity_error",
+                                "Downloaded content exceeds the expected size.",
+                            )
+                        checksumHasher.update(fileChunkBytes)
+                        temporaryFile.write(fileChunkBytes)
 
-            with pathTemporary.open("wb") as temporaryFile:
-                for fileChunkBytes in response.iter_content(chunk_size=65536):
-                    intDownloadedBytes += len(fileChunkBytes)
-                    if intDownloadedBytes > expectedFileInfo.sizeBytes:
-                        raise ConsoleError(
-                            "file_integrity_error",
-                            "Downloaded content exceeds the expected size.",
-                        )
-                    checksumHasher.update(fileChunkBytes)
-                    temporaryFile.write(fileChunkBytes)
-
-            if (
-                intDownloadedBytes != expectedFileInfo.sizeBytes
-                or checksumHasher.hexdigest() != expectedFileInfo.sha256
-            ):
-                raise ConsoleError(
-                    "file_integrity_error",
-                    "Downloaded content failed its size or SHA-256 check.",
-                )
+                if (
+                    intDownloadedBytes != expectedFileInfo.sizeBytes
+                    or checksumHasher.hexdigest() != expectedFileInfo.sha256
+                ):
+                    raise ConsoleError(
+                        "file_integrity_error",
+                        "Downloaded content failed its size or SHA-256 check.",
+                    )
+        except BaseException:
+            try:
+                request_json(f"shared-files/downloads/{strTransferId}/cancel/", {})
+            except Exception:
+                # Preserve the original failure; Console expires unreachable downloads.
+                pass
+            raise
 
     try:
         retryBudget.run(_download_file_to_temporary_path)

@@ -172,6 +172,19 @@ def create_file_download(
         return build_file_response(prepare_download(access, pathParts), statusCode=201)
 
 
+@require_POST
+def cancel_file_download(
+    request: HttpRequest, authentication: FileAuthentication, transferId: uuid.UUID
+) -> HttpResponse:
+    payload = parse_file_request(request, EmptyFileRequest)
+    if isinstance(payload, JsonResponse):
+        return payload
+    with transaction.atomic():
+        access = lock_file_access(request, authentication)
+        release_unstarted_download(transferId, access.organization.pk, access.actorId)
+    return JsonResponse({})
+
+
 @require_GET
 def download_file_content(
     request: HttpRequest, authentication: FileAuthentication, transferId: uuid.UUID

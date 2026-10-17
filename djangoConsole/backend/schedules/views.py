@@ -185,7 +185,9 @@ def list_or_create_schedules(request: HttpRequest) -> JsonResponse:
     if isinstance(membership, JsonResponse):
         return membership
     if request.method == "POST":
-        form = parse_json_request(request, ScheduleSaveRequest, maxBodyBytes=262144)
+        form = parse_json_request(
+            request, ScheduleSaveRequest, maxBodyBytes=2 * 1024 * 1024
+        )
         if isinstance(form, JsonResponse):
             return form
         with transaction.atomic():
@@ -245,7 +247,9 @@ def get_or_update_schedule(request: HttpRequest, scheduleId: uuid.UUID) -> JsonR
     if isinstance(membership, JsonResponse):
         return membership
     if request.method == "POST":
-        form = parse_json_request(request, ScheduleSaveRequest, maxBodyBytes=262144)
+        form = parse_json_request(
+            request, ScheduleSaveRequest, maxBodyBytes=2 * 1024 * 1024
+        )
         if isinstance(form, JsonResponse):
             return form
         with transaction.atomic():

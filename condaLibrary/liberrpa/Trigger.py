@@ -492,19 +492,24 @@ def keyboard_trigger[T](
 
 
 def _register_force_exit() -> None:
-    """LiberRPA Main block will invoke it, should not invoke it by user."""
+    """Register the main Flow process's Ctrl+F12 stop shortcut."""
+    # LiberRPA Main block will invoke it, should not invoke it by user.
 
     # Only works on the MainProcess
     if PROCESS_NAME != "MainProcess":
-        Log.error("Should only invoke hotkey_exit() in main process.")
+        Log.error(
+            "The Ctrl+F12 stop shortcut can only be registered in the main process."
+        )
         return None
 
     def on_hotkey_pressed() -> None:
         # Assign the value to record exit reason.
         End.executionResult = ExecutorRunStateStatus.TERMINATED
-        End.cleanup()
-        Log.verbose("on_hotkey_pressed - os._exit")
-        os._exit(0)
+        try:
+            End.cleanup()
+            Log.verbose("Exit after Ctrl+F12.")
+        finally:
+            os._exit(0)
 
     try:
         keyboard.add_hotkey("ctrl+f12", on_hotkey_pressed)
@@ -543,11 +548,12 @@ def _listen_for_exit(stdinFd: int) -> None:
 
         for bytesLine in listLine:
             if bytesLine.strip() == b"Executor-terminated":
-                Log.critical("Terminated by Executor.")
                 End.executionResult = ExecutorRunStateStatus.TERMINATED
-                End.cleanup()
-                Log.verbose("_handle_sigterm - os._exit")
-                os._exit(0)
+                try:
+                    End.cleanup()
+                    Log.critical("Stopped by Executor.")
+                finally:
+                    os._exit(0)
                 return
 
         if not bytesChunk:

@@ -227,6 +227,7 @@ class Run(models.Model):
     outputs = models.JSONField(null=True)
     outputs_reason = models.CharField(max_length=2000, blank=True)
     outputs_unavailable_keys = models.JSONField(default=list)
+    email_output_context = models.JSONField(null=True, default=None, blank=True)
     error_summary = models.JSONField(null=True)
     logs_complete = models.BooleanField(default=False)
     logs_unavailable_reason = models.CharField(max_length=2000, blank=True)

@@ -68,7 +68,11 @@ def apply_run_settings(target: "Package | Schedule", values: RunSettings) -> Non
 
 
 def validate_run_settings(
-    package: Package, settings: RunSettings, *, resolveAssets: bool = False
+    package: Package,
+    settings: RunSettings,
+    *,
+    resolveAssets: bool = False,
+    emailOutputKeys: dict[str, list[str]] | None = None,
 ) -> RunSettings:
     """Check current business facts without parsing the settings model again."""
     if [entry[0] for entry in settings.custom_prj_args] != package.argument_names:
@@ -124,9 +128,11 @@ def validate_run_settings(
             raise ValidationError({"settings.custom_prj_args": str(e)}) from None
     from notifications.run_email import validate_run_email
 
-    validate_run_email(
+    dictEmailOutputKey = validate_run_email(
         package.department.organization_id, settings.run_email, listArgument
     )
+    if emailOutputKeys is not None:
+        emailOutputKeys.update(dictEmailOutputKey)
     return (
         settings.model_copy(
             update={
@@ -141,9 +147,15 @@ def validate_run_settings(
 
 def get_run_snapshot(package: Package, settings: RunSettings) -> dict[str, JsonValue]:
     """Read current asset values, then convert the accepted run settings to JSON for storage."""
-    runSettings = validate_run_settings(package, settings, resolveAssets=True)
+    dictEmailOutputKey: dict[str, list[str]] = {}
+    runSettings = validate_run_settings(
+        package, settings, resolveAssets=True, emailOutputKeys=dictEmailOutputKey
+    )
     dictSnapshot: dict[str, JsonValue] = runSettings.model_dump(mode="json")
     dictSnapshot.update({
+        "email_output_keys": {
+            strEvent: list(listKey) for strEvent, listKey in dictEmailOutputKey.items()
+        },
         "package_id": str(package.pk),
         "department_id": str(package.department_id),
         "project_name": package.project_name,

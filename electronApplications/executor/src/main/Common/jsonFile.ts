@@ -5,7 +5,10 @@ import path from "path";
 
 export function readJsonFile(filePath: string, sourceName: string): unknown {
   try {
-    return JSON.parse(fs.readFileSync(filePath, { encoding: "utf-8" }));
+    const content = new TextDecoder("utf-8", { fatal: true }).decode(
+      fs.readFileSync(filePath),
+    );
+    return JSON.parse(content);
   } catch (e: unknown) {
     throw new Error(`Failed to read ${sourceName}: ${filePath}`, { cause: e });
   }

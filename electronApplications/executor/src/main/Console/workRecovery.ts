@@ -35,13 +35,13 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
     state = readExecutorRunState({
       filePath: strStatePath,
       expectedRunId: record.assignment.run_id,
-      expectedPackageName: ensureNonEmptyString(
+      expectedProjectName: ensureNonEmptyString(
         record.assignment.snapshot.project_name,
-        "Package name",
+        "Project name",
       ),
-      expectedPackageVersion: ensureNonEmptyString(
+      expectedProjectVersion: ensureNonEmptyString(
         record.assignment.snapshot.project_version,
-        "Package version",
+        "Project version",
       ),
       expectedStartedAt: started.startedAt,
       expectedLogRootPath: started.logPath,
@@ -72,6 +72,7 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
     status,
     retryEligible: status === RunStatus.Error,
     outputs,
+    emailOutputContext: state.emailOutputContext ?? null,
     errorSummary: state.errorSummary ?? null,
   };
   record.state = ConsoleWorkState.Finished;
@@ -83,6 +84,7 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
       started_at: started.startedAt,
       status,
       outputs,
+      email_output_context: state.emailOutputContext ?? null,
       error_summary: state.errorSummary ?? null,
     });
     dbUpdateRunHistory({

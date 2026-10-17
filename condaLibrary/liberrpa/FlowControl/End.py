@@ -15,9 +15,10 @@ from liberrpa.Common._RunContext import (
 from liberrpa.Common._Utils import PROCESS_NAME
 import liberrpa.UI._TerminableThread as _TerminableThread
 from liberrpa.Dialog import show_notification
-from liberrpa.FlowControl.ProjectFlowInit import PrjArgs
+from liberrpa.FlowControl.ProjectFlowInit import PrjArgs, _executorEmailOutputKeys
 
 from datetime import timedelta
+import json
 import sys
 import threading
 
@@ -32,7 +33,6 @@ _boolCleanupStarted = False
 _cleanupError: BaseException | None = None
 
 
-@Log.trace()
 def cleanup() -> None:
     global _boolCleanupStarted, _cleanupError
 
@@ -52,53 +52,18 @@ def cleanup() -> None:
         return None
 
     try:
-        dictResultMessage = {
-            ExecutorRunStateStatus.COMPLETED: f"{PrjArgs.projectName} - Completed.",
-            ExecutorRunStateStatus.ERROR: f"{PrjArgs.projectName} - Encounter an error.",
-            ExecutorRunStateStatus.TERMINATED: f"{PrjArgs.projectName} - You pressed Ctrl+F12 or Executor stopped it.",
-        }
-
-        show_notification(
-            title="LiberRPA",
-            message=dictResultMessage[executionResult],
-            duration=2,
-            wait=False,
+        emailOutputKeys: list[str] = []
+        if executionResult == ExecutorRunStateStatus.COMPLETED:
+            emailOutputKeys = _executorEmailOutputKeys["completed"]
+        elif executionResult == ExecutorRunStateStatus.ERROR:
+            emailOutputKeys = _executorEmailOutputKeys["error"]
+        outputSnapshot, emailOutputContext = capture_output_snapshot(
+            PrjArgs.customArgs, emailOutputKeys
         )
-
-        Log.info(f"Elapsed time: {timedelta(seconds=int(PrjArgs.elapsedTime))}")
-
-        """
-        Summarize unsafe timeout fallback events at process end.
-        These counters are read from the module instead of imported by value, because integers are immutable and `from module import counter` would not track later rebinding in _TerminableThread.
-        """
-        if (
-            _TerminableThread.intUnsafeThreadTerminationCount > 0
-            or _TerminableThread.intUnstoppableThreadCount > 0
-        ):
-            strTemp = ""
-
-            if _TerminableThread.intUnsafeThreadTerminationCount > 0:
-                # The worker thread was actually interrupted by injected exception and then stopped.
-                strTemp += (
-                    f"Unsafe timeout fallback interrupted worker threads "
-                    f"{_TerminableThread.intUnsafeThreadTerminationCount} times. "
-                )
-
-            if _TerminableThread.intUnstoppableThreadCount > 0:
-                # The worker thread could not be stopped. The specific call raised UiUnstoppableThreadError.
-                strTemp += (
-                    f"Unsafe timeout fallback failed to stop worker threads "
-                    f"{_TerminableThread.intUnstoppableThreadCount} times. "
-                )
-
-            Log.critical(
-                strTemp + "This means a UI or third-party call did not return in time. "
-                "Please report this case with logs if it happens repeatedly."
-            )
-
-        # Capture late termination requests, then use one result for the state and final log.
+        # Capture late termination requests, then use one result for the state and diagnostics.
         finalResult = executionResult
-        outputSnapshot = capture_output_snapshot(PrjArgs.customArgs)
+        if finalResult == ExecutorRunStateStatus.TERMINATED:
+            emailOutputContext = []
         errorSummary = (
             capture_execution_error(executionError)
             if finalResult == ExecutorRunStateStatus.ERROR
@@ -109,8 +74,62 @@ def cleanup() -> None:
             logPath=Log.strLogFolder,
             outputs=outputSnapshot,
             errorSummary=errorSummary,
+            emailOutputContext=emailOutputContext,
         )
-        Log.debug(dictResultMessage[finalResult])
+
+        try:
+            dictResultMessage = {
+                ExecutorRunStateStatus.COMPLETED: f"{PrjArgs.projectName} - Completed.",
+                ExecutorRunStateStatus.ERROR: f"{PrjArgs.projectName} - An error occurred.",
+                ExecutorRunStateStatus.TERMINATED: f"{PrjArgs.projectName} - Stopped.",
+            }
+            show_notification(
+                title="LiberRPA",
+                message=dictResultMessage[finalResult],
+                duration=2,
+                wait=False,
+            )
+
+            Log.info(f"Elapsed time: {timedelta(seconds=int(PrjArgs.elapsedTime))}")
+            Log.debug(
+                f"Final output snapshot: {json.dumps(outputSnapshot, ensure_ascii=False, indent=4)}"
+            )
+
+            """
+            Summarize unsafe timeout fallback events at process end.
+            These counters are read from the module instead of imported by value, because integers are immutable and `from module import counter` would not track later rebinding in _TerminableThread.
+            """
+            if (
+                _TerminableThread.intUnsafeThreadTerminationCount > 0
+                or _TerminableThread.intUnstoppableThreadCount > 0
+            ):
+                strTemp = ""
+
+                if _TerminableThread.intUnsafeThreadTerminationCount > 0:
+                    # The worker thread was actually interrupted by injected exception and then stopped.
+                    strTemp += (
+                        f"Unsafe timeout fallback interrupted worker threads "
+                        f"{_TerminableThread.intUnsafeThreadTerminationCount} times. "
+                    )
+
+                if _TerminableThread.intUnstoppableThreadCount > 0:
+                    # The worker thread could not be stopped. The specific call raised UiUnstoppableThreadError.
+                    strTemp += (
+                        f"Unsafe timeout fallback failed to stop worker threads "
+                        f"{_TerminableThread.intUnstoppableThreadCount} times. "
+                    )
+
+                Log.critical(
+                    strTemp
+                    + "This means a UI or third-party call did not return in time. "
+                    "Please report this case with logs if it happens repeatedly."
+                )
+
+            Log.debug(dictResultMessage[finalResult])
+            Log.info(f"'{PROCESS_NAME}' exit.")
+        except Exception:
+            # Notifications and diagnostics must not change the saved execution result.
+            pass
     except BaseException as e:
         _cleanupError = e
         raise
@@ -121,7 +140,6 @@ def cleanup() -> None:
 
 def main() -> None:
     cleanup()
-    Log.info(f"'{PROCESS_NAME}' exit.")
     sys.exit()
 
 

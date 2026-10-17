@@ -17,6 +17,7 @@ from .views import (
     cancel_file_upload,
     delete_shared_files,
     create_file_download,
+    cancel_file_download,
     download_file_content,
 )
 
@@ -68,6 +69,11 @@ urlpatterns = [
         name="shared-files-download",
     ),
     path(
+        "shared-files/downloads/<uuid:transferId>/cancel/",
+        session_file_view(cancel_file_download),
+        name="shared-files-cancel-download",
+    ),
+    path(
         "shared-files/downloads/<uuid:transferId>/",
         session_file_view(download_file_content),
         name="shared-files-content",
@@ -116,6 +122,11 @@ urlpatterns = [
         "v1/shared-files/downloads/",
         api_file_view(create_file_download),
         name="public-shared-files-download",
+    ),
+    path(
+        "v1/shared-files/downloads/<uuid:transferId>/cancel/",
+        api_file_view(cancel_file_download),
+        name="public-shared-files-cancel-download",
     ),
     path(
         "v1/shared-files/downloads/<uuid:transferId>/",

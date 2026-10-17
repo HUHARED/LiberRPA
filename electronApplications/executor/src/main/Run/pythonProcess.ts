@@ -6,7 +6,7 @@ import fs from "fs";
 import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
-import type { RunConfig } from "../../shared/run";
+import type { RunConfig, RunEmailOutputKeys } from "../../shared/run";
 import { isProcessRunning } from "../Common/process";
 import { buildPythonProcessEnvironment } from "../Config/environment";
 import { getConsoleContextEnvironment } from "../Console/consoleContextBridge";
@@ -79,6 +79,7 @@ export function spawnPythonProcess({
   runId,
   startedAt,
   runStatePath,
+  emailOutputKeys,
 }: {
   detail: RunConfig;
   packagePath: string;
@@ -86,6 +87,7 @@ export function spawnPythonProcess({
   runId: string;
   startedAt: string;
   runStatePath: string;
+  emailOutputKeys: RunEmailOutputKeys;
 }): StartedPythonProcess {
   const strArgumentsPath = getExecutorRunArgumentsPath(runId);
   const strArguments = JSON.stringify({
@@ -94,6 +96,7 @@ export function spawnPythonProcess({
     stopShortcut: detail.builtin_stop_shortcut,
     highlightUi: detail.builtin_highlight_ui,
     customPrjArgs: detail.custom_prj_args,
+    emailOutputKeys,
   });
   const removeArgumentsFile = (): void => removeExecutorRunArgumentsFile(runId);
 
@@ -123,8 +126,8 @@ export function spawnPythonProcess({
             LIBERRPA_RUN_STARTED_AT: startedAt,
             LIBERRPA_EXECUTOR_RUN_ID: runId,
             LIBERRPA_EXECUTOR_RUN_STATE_PATH: runStatePath,
-            LIBERRPA_EXECUTOR_PACKAGE_NAME: detail.project_name,
-            LIBERRPA_EXECUTOR_PACKAGE_VERSION: detail.project_version,
+            LIBERRPA_EXECUTOR_PROJECT_NAME: detail.project_name,
+            LIBERRPA_EXECUTOR_PROJECT_VERSION: detail.project_version,
           },
         }),
         stdio: ["pipe", "pipe", "pipe"],

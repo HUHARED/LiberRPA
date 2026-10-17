@@ -17,6 +17,7 @@ from console_project.contracts import JsonValue, JsonRequest, JsonResponsePayloa
 from console_project.constants import INT_WINDOWS_NAME_MAX_LENGTH, RunLogLevel
 from console_project.validators import validate_windows_name, validate_json_value
 from organizations.contracts import PaginationResponse
+from notifications.contracts import INT_RUN_EMAIL_MAX_BYTES
 
 MAX_PACKAGE_BYTES = 512 * 1024 * 1024
 
@@ -73,7 +74,7 @@ class OrdinaryAssetBinding(JsonRequest):
 class RunEmailTemplate(JsonRequest):
     enabled: bool = False
     subject: str = Field(default="", max_length=256)
-    body: str = Field(default="", max_length=16384)
+    body: str = Field(default="", max_length=INT_RUN_EMAIL_MAX_BYTES)
 
     @field_validator("subject")
     @classmethod
@@ -215,7 +216,13 @@ class RunSettingsResponse(JsonResponsePayload):
     run_email: RunEmailSettingsResponse
 
 
+class RunEmailOutputKeysResponse(JsonResponsePayload):
+    completed: list[str]
+    error: list[str]
+
+
 class RunSnapshotResponse(RunSettingsResponse):
+    email_output_keys: RunEmailOutputKeysResponse
     package_id: UUID
     department_id: UUID
     project_name: str

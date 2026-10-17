@@ -10,6 +10,7 @@ import {
   RunSource,
   RunOutputsStatus,
   type RunOutputs,
+  type RunEmailOutputContext,
   type RunConfig,
   RunStatus,
   type RunEndedStatus,
@@ -193,8 +194,8 @@ async function waitForInitialRunState({
   getProcessError,
   runId,
   runStatePath,
-  packageName,
-  packageVersion,
+  projectName,
+  projectVersion,
   expectedStartedAt,
   expectedLogRootPath,
   diagnosticOutput,
@@ -203,8 +204,8 @@ async function waitForInitialRunState({
   getProcessError: () => Error | undefined;
   runId: string;
   runStatePath: string;
-  packageName: string;
-  packageVersion: string;
+  projectName: string;
+  projectVersion: string;
   expectedStartedAt: string;
   expectedLogRootPath: string;
   diagnosticOutput: PythonProcessDiagnosticOutput;
@@ -215,8 +216,8 @@ async function waitForInitialRunState({
       processPy,
       getProcessError,
       expectedRunId: runId,
-      expectedPackageName: packageName,
-      expectedPackageVersion: packageVersion,
+      expectedProjectName: projectName,
+      expectedProjectVersion: projectVersion,
       expectedStartedAt,
       expectedLogRootPath,
     });
@@ -228,7 +229,7 @@ async function waitForInitialRunState({
       diagnosticOutput,
     });
     removeExecutorRunStateFile(runStatePath);
-    const strMessage = `Failed to start ${packageName}-${packageVersion}: ${getErrorMessage(e)}`;
+    const strMessage = `Failed to start ${projectName}-${projectVersion}: ${getErrorMessage(e)}`;
     if (processPy.pid === undefined && getProcessError() !== undefined) {
       throw new PythonProcessNotStartedError(strMessage, { cause: e });
     }
@@ -331,6 +332,7 @@ async function spawnAndTrackRun(
     runId,
     startedAt: strStartedAt,
     runStatePath: strRunStatePath,
+    emailOutputKeys: context.emailOutputKeys ?? { completed: [], error: [] },
   });
   const activeRun: ActiveRun = {
     processPy,
@@ -346,8 +348,8 @@ async function spawnAndTrackRun(
     getProcessError,
     runId,
     runStatePath: strRunStatePath,
-    packageName: detailDict.project_name,
-    packageVersion: detailDict.project_version,
+    projectName: detailDict.project_name,
+    projectVersion: detailDict.project_version,
     expectedStartedAt: strStartedAt,
     expectedLogRootPath: strProjectLogRootPath,
     diagnosticOutput,
@@ -438,19 +440,21 @@ async function spawnAndTrackRun(
       unavailableKeys: [],
       reason: "Python did not publish a valid final snapshot.",
     };
+    let emailOutputContext: RunEmailOutputContext = null;
     let errorSummary: { type: string; message: string } | null = null;
 
     try {
       const dictFinalState = readExecutorRunState({
         filePath: strRunStatePath,
         expectedRunId: runId,
-        expectedPackageName: detailDict.project_name,
-        expectedPackageVersion: detailDict.project_version,
+        expectedProjectName: detailDict.project_name,
+        expectedProjectVersion: detailDict.project_version,
         expectedStartedAt: strStartedAt,
         expectedLogRootPath: strProjectLogRootPath,
         expectedLogPath: dictRunState.logPath,
       });
       outputs = dictFinalState.outputs ?? outputs;
+      emailOutputContext = dictFinalState.emailOutputContext ?? null;
       errorSummary = dictFinalState.errorSummary ?? null;
       if (dictFinalState.startedAt !== dictRunState.startedAt) {
         throw new Error(`Final Executor run state changed startedAt for Run ${runId}.`);
@@ -526,6 +530,7 @@ async function spawnAndTrackRun(
       status: runStatus,
       retryEligible: runStatus === RunStatus.Error && !boolUnexpectedProcessFailure,
       outputs,
+      emailOutputContext,
       errorSummary,
     };
     try {

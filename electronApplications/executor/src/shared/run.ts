@@ -24,6 +24,28 @@ export interface RunOutputs {
   reason: string;
 }
 
+export const INT_MAX_RUN_EMAIL_TEXT_BYTES = 64 * 1024;
+
+export interface RunEmailOutputKeys {
+  completed: string[];
+  error: string[];
+}
+
+export enum RunEmailOutputStatus {
+  Available = "available",
+  Missing = "missing",
+  Limit = "limit",
+  Unavailable = "unavailable",
+}
+
+export interface RunEmailOutputItem {
+  key: string;
+  status: RunEmailOutputStatus;
+  text: string;
+}
+
+export type RunEmailOutputContext = RunEmailOutputItem[] | null;
+
 export enum RunRecordingStatus {
   Recording = "recording",
   Processing = "processing",

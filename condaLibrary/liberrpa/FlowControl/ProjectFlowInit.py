@@ -6,13 +6,18 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 
 from liberrpa.Logging import Log, LogLevel
-from liberrpa.Common._RunContext import get_executor_run_context
+from liberrpa.Common._RunContext import (
+    EmailOutputKeys,
+    INT_MAX_CUSTOM_ARGS_BYTES,
+    serialize_bounded_json,
+    get_executor_run_context,
+)
 from liberrpa.Common._Utils import STR_PROJECT_ROOT, PATH_PROJECT_FLOW
 from liberrpa.FlowControl._ProjectDict import DictProject_Original
 
 import json
 import time
-from typing import Literal, Any, get_args
+from typing import Literal, Any, cast, get_args
 
 _timeStart = time.monotonic()
 
@@ -31,11 +36,14 @@ _SET_EXECUTOR_ARG_KEYS = {
     "stopShortcut",
     "highlightUi",
     "customPrjArgs",
+    "emailOutputKeys",
 }
 
 
-# The file budget includes the 64 KiB CustomArgs list and the fixed built-in options.
-_INT_MAX_EXECUTOR_ARGUMENT_BYTES = 64 * 1024 + 1024
+# Each reference list is a subset of CustomArgs keys and cannot exceed its JSON size.
+# Allow one CustomArgs payload, two key subsets, and the fixed argument fields.
+_INT_MAX_EXECUTOR_ARGUMENT_BYTES = 3 * INT_MAX_CUSTOM_ARGS_BYTES + 1024
+_executorEmailOutputKeys: EmailOutputKeys = {"completed": [], "error": []}
 
 _executorRunContext = get_executor_run_context()
 boolRunByExecutor = _executorRunContext is not None
@@ -64,6 +72,30 @@ if _executorRunContext is not None:
         for item in dictArgs["customPrjArgs"]
     ):
         raise TypeError("Executor CustomArgs must be a list of [string, value] pairs.")
+
+    serialize_bounded_json(dictArgs["customPrjArgs"])
+
+    dictEmailOutputKeys = dictArgs.pop("emailOutputKeys")
+    if not isinstance(dictEmailOutputKeys, dict) or dictEmailOutputKeys.keys() != {
+        "completed",
+        "error",
+    }:
+        raise ValueError(
+            "Executor email output keys must contain completed and error lists."
+        )
+    setCustomArgKey = {item[0] for item in dictArgs["customPrjArgs"]}
+    for listKey in dictEmailOutputKeys.values():
+        if not isinstance(listKey, list):
+            raise TypeError("Email output keys must be lists.")
+        if any(type(strKey) is not str or "\0" in strKey for strKey in listKey):
+            raise ValueError("Email output keys must be strings without NUL characters.")
+        if len(set(listKey)) != len(listKey):
+            raise ValueError("Email output keys must be unique within each list.")
+        for strKey in listKey:
+            strKey.encode("utf-8")
+            if strKey not in setCustomArgKey:
+                raise ValueError("Email output keys must name existing CustomArgs.")
+    _executorEmailOutputKeys = cast(EmailOutputKeys, dictEmailOutputKeys)
 
     dictFlowFile.update(dictArgs)
     Log.debug("Loaded run arguments from Executor.")

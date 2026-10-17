@@ -6,6 +6,8 @@ import { getErrorMessage } from "../../shared/error";
 
 import {
   ensureRecord,
+  ensureExactRecord,
+  ensureString,
   ensureNonEmptyString,
   ensurePythonEnvironmentName,
   ensureBoolean,
@@ -106,12 +108,36 @@ function parseAssignmentData(value: unknown): ConsoleAssignmentData {
 
 function parseRunAssignment(assignment: ConsoleAssignmentData): ConsoleAssignment {
   const snapshot = assignment.snapshot;
+  const arrCustomProjectArg = ensureCustomProjectArgs(
+    snapshot.custom_prj_args,
+    "Custom arguments",
+  );
+  const setCustomProjectArgKey = new Set(arrCustomProjectArg.map(([strKey]) => strKey));
+  const dictEmailOutputKeys = ensureExactRecord(
+    snapshot.email_output_keys,
+    ["completed", "error"],
+    "Run email output keys",
+  );
+  function parseOutputKeyList(value: unknown): string[] {
+    if (!Array.isArray(value)) throw new Error("Run email output keys must be an array.");
+    const arrKey = value.map((key: unknown) => ensureString(key, "Run email output key"));
+    if (new Set(arrKey).size !== arrKey.length)
+      throw new Error("Run email output keys must be unique.");
+    if (arrKey.some((strKey) => !setCustomProjectArgKey.has(strKey)))
+      throw new Error("Run email output keys must refer to custom arguments.");
+    return arrKey;
+  }
+
   return {
     ...assignment,
     snapshot: {
       project_name: ensureNonEmptyString(snapshot.project_name, "Project name"),
       project_version: ensureNonEmptyString(snapshot.project_version, "Project version"),
       sha256: ensureNonEmptyString(snapshot.sha256, "Package SHA256"),
+      email_output_keys: {
+        completed: parseOutputKeyList(dictEmailOutputKeys.completed),
+        error: parseOutputKeyList(dictEmailOutputKeys.error),
+      },
       schedule_name:
         typeof snapshot.schedule_name === "string" ? snapshot.schedule_name : null,
       python_environment_name: ensurePythonEnvironmentName(
@@ -124,10 +150,7 @@ function parseRunAssignment(assignment: ConsoleAssignmentData): ConsoleAssignmen
       builtin_record_video: ensureBoolean(snapshot.builtin_record_video, "Record video"),
       builtin_stop_shortcut: ensureBoolean(snapshot.builtin_stop_shortcut, "Stop shortcut"),
       builtin_highlight_ui: ensureBoolean(snapshot.builtin_highlight_ui, "Highlight UI"),
-      custom_prj_args: ensureCustomProjectArgs(
-        snapshot.custom_prj_args,
-        "Custom arguments",
-      ),
+      custom_prj_args: arrCustomProjectArg,
       run_conflict_policy: ensureRunConflictPolicy(
         snapshot.run_conflict_policy,
         "Conflict policy",
@@ -311,6 +334,7 @@ async function prepareAndStartRun(
       project_name: strProjectName,
       project_version: strProjectVersion,
       sha256: strSha256,
+      email_output_keys: emailOutputKeys,
       ...runSettings
     } = assignment.snapshot;
     const detail: RunConfig = {
@@ -340,6 +364,7 @@ async function prepareAndStartRun(
       runId: record.assignment.run_id,
       attemptNumber: record.assignment.attempt_number,
       packagePath: strPackagePath,
+      emailOutputKeys,
       beforeSpawn(boolOtherRunActive, startedAt) {
         ensureWorkMayStart(record, credential);
         validateStartPermitTime(permit, startedAt);
@@ -380,6 +405,7 @@ async function prepareAndStartRun(
             started_at: fact.startedAt,
             status: fact.status,
             outputs: fact.outputs,
+            email_output_context: fact.emailOutputContext,
             error_summary: fact.errorSummary,
           });
         })();

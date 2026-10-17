@@ -2,7 +2,7 @@
 
 import { createHash } from "crypto";
 
-import type { RunRecordingInfo } from "../../shared/run";
+import type { RunRecordingInfo, RunEmailOutputKeys } from "../../shared/run";
 import type {
   RunSettings,
   PythonEnvironmentSelection,
@@ -33,6 +33,7 @@ export interface ConsoleRunSnapshot extends RunSettings, PythonEnvironmentSelect
   sha256: string;
   schedule_name: string | null;
   run_conflict_policy: RunConflictPolicy;
+  email_output_keys: RunEmailOutputKeys;
 }
 
 export interface ConsoleAssignment {
