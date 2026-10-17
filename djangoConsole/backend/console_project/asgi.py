@@ -16,6 +16,9 @@ djangoApplication = get_asgi_application()
 
 from runs.transfers import RunFileRelay
 from runs.control import ExecutorControl
+from accounts.browser_socket import BrowserSocket
 
 # Django and asgiref use different type annotations for the same ASGI interface.
-application = ExecutorControl(RunFileRelay(cast(ASGI3Application, djangoApplication)))
+application = BrowserSocket(
+    ExecutorControl(RunFileRelay(cast(ASGI3Application, djangoApplication)))
+)

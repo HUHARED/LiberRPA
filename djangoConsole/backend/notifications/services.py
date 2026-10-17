@@ -10,8 +10,11 @@ from datetime import timedelta
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.utils import timezone
+from django.db import transaction
 
 from accounts.models import User
+from accounts.browser_events import notify_browser_user
+from accounts.contracts import BrowserMessageType
 from organizations.models import Membership, DepartmentRole, DepartmentMembership
 from organizations.permissions import (
     AccessChannel,
@@ -23,9 +26,10 @@ from runs.contracts import JobSource
 from .models import Notification
 
 
+@transaction.atomic
 def prune_notifications(userId: uuid.UUID) -> None:
     query = Notification.objects.filter(user_id=userId)
-    query.filter(
+    intDeleted, _ = query.filter(
         created_at__lt=timezone.now()
         - timedelta(days=settings.CONSOLE_LIMITS.notificationRetentionDays)
     ).delete()
@@ -35,9 +39,13 @@ def prune_notifications(userId: uuid.UUID) -> None:
         ]
     )
     if listOldId:
-        query.filter(pk__in=listOldId).delete()
+        intOlderDeleted, _ = query.filter(pk__in=listOldId).delete()
+        intDeleted += intOlderDeleted
+    if intDeleted:
+        notify_browser_user(userId, BrowserMessageType.NOTIFICATIONS_CHANGED)
 
 
+@transaction.atomic
 def notify_prestart_failure(
     *,
     organizationId: uuid.UUID,
@@ -91,7 +99,7 @@ def notify_prestart_failure(
         )
     strDetail = detail.encode("utf-8")[:8192].decode("utf-8", errors="ignore")
     for userId in listUserId:
-        Notification.objects.get_or_create(
+        _, boolCreated = Notification.objects.get_or_create(
             user_id=userId,
             event_key=eventKey,
             defaults={
@@ -101,3 +109,5 @@ def notify_prestart_failure(
             },
         )
         prune_notifications(userId)
+        if boolCreated:
+            notify_browser_user(userId, BrowserMessageType.NOTIFICATIONS_CHANGED)

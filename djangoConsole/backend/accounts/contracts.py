@@ -5,12 +5,23 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from datetime import datetime
+from enum import StrEnum
 from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import Field, SecretStr
 
 from console_project.contracts import JsonRequest, JsonResponsePayload
+
+
+class BrowserMessageType(StrEnum):
+    READY = "ready"
+    SESSION_CHANGED = "session_changed"
+    NOTIFICATIONS_CHANGED = "notifications_changed"
+
+
+class BrowserEventResponse(JsonResponsePayload):
+    type: BrowserMessageType
 
 
 class LoginRequest(JsonRequest):

@@ -20,6 +20,8 @@ from accounts.rate_limits import (
     _apply_sensitive_action_rate_limit,
 )
 from accounts.session_revocation import SessionInvalidatedError
+from accounts.browser_events import notify_browser_user
+from accounts.contracts import BrowserMessageType
 from console_project.http import (
     build_error_response,
     build_authentication_required_response,
@@ -123,6 +125,7 @@ def list_notifications(request: HttpRequest) -> JsonResponse:
 @never_cache
 @require_http_methods(["GET"])
 @_handle_errors
+@transaction.atomic
 def notification_details(request: HttpRequest, notificationId: uuid.UUID) -> JsonResponse:
     access = _get_access(request)
     if isinstance(access, JsonResponse):
@@ -133,6 +136,7 @@ def notification_details(request: HttpRequest, notificationId: uuid.UUID) -> Jso
     if notification.read_at is None:
         notification.read_at = timezone.now()
         notification.save(update_fields=["read_at"])
+        notify_browser_user(access.actor.pk, BrowserMessageType.NOTIFICATIONS_CHANGED)
     return JsonResponse({
         "notification": _notification_payload(notification, details=True)
     })
@@ -156,11 +160,13 @@ def change_notifications(
             user=access.actor, organization=access.organization
         )
         if action == "read":
-            query.filter(read_at__isnull=True).update(read_at=timezone.now())
+            intChanged = query.filter(read_at__isnull=True).update(read_at=timezone.now())
         elif action == "delete":
-            query.get(pk=notificationId).delete()
+            intChanged, _ = query.get(pk=notificationId).delete()
         else:
-            query.delete()
+            intChanged, _ = query.delete()
+        if intChanged:
+            notify_browser_user(access.actor.pk, BrowserMessageType.NOTIFICATIONS_CHANGED)
     return JsonResponse({"message": "Notifications updated."})
 
 

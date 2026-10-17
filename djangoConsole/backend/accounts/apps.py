@@ -9,3 +9,7 @@ from django.apps import AppConfig
 
 class AccountsConfig(AppConfig):
     name = "accounts"
+
+    def ready(self) -> None:
+        # Register browser invalidations after every application's models are loaded.
+        from . import browser_events  # noqa: F401

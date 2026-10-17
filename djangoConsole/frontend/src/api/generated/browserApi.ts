@@ -16,6 +16,7 @@ export type JsonValue =
   | boolean
   | null;
 export type AssetReferenceKind = "package" | "schedule";
+export type BrowserMessageType = "ready" | "session_changed" | "notifications_changed";
 export type ExecutorAssociationStatus = "unassociated" | "online" | "offline";
 export type FilePath = string;
 export type FileRequestUuid = string;
@@ -77,6 +78,7 @@ export interface BrowserApiContracts {
   AuditDetailsResponse: AuditDetailsResponse;
   AuditFilterOptionsResponse: AuditFilterOptionsResponse;
   AuditListResponse: AuditListResponse;
+  BrowserEventResponse: BrowserEventResponse;
   ClearLogsRequest: ClearLogsRequest;
   CsrfResponse: CsrfResponse;
   DepartmentCreationRequest: DepartmentCreationRequest;
@@ -394,6 +396,9 @@ export interface AuditRecordResponse {
   object_name: string;
   object_type: string;
   result: "succeeded" | "failed";
+}
+export interface BrowserEventResponse {
+  type: BrowserMessageType;
 }
 export interface ClearLogsRequest {
   /**

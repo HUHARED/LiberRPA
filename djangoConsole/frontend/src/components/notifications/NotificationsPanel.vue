@@ -117,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import { requestApi } from "@/api/client";
 import { isRecord, rejectInvalidResponse } from "@/api/responses";
@@ -143,29 +143,50 @@ const strError = ref("");
 const intUnread = ref(0);
 const arrNotification = ref<NotificationInfo[]>([]);
 const details = ref<(NotificationInfo & { detail: string }) | null>(null);
-let timer: ReturnType<typeof setInterval> | undefined;
+let boolMounted = false;
+let boolLoadRequested = false;
+let intRevision = 0;
+let loadTask: Promise<void> | null = null;
 
-async function load(): Promise<void> {
-  try {
-    const result = await requestApi("/notifications/");
-    if (
-      !isRecord(result) ||
-      !Array.isArray(result.notifications) ||
-      typeof result.unread_count !== "number"
-    )
-      return rejectInvalidResponse();
-    arrNotification.value = result.notifications as NotificationInfo[];
-    intUnread.value = result.unread_count;
-  } catch (e) {
-    strError.value = getApiError(e).message;
-  }
+function load(): Promise<void> {
+  if (!boolMounted || !sessionStore.access?.business_available) return Promise.resolve();
+  boolLoadRequested = true;
+  if (loadTask !== null) return loadTask;
+
+  loadTask = (async () => {
+    while (boolLoadRequested && boolMounted && sessionStore.access?.business_available) {
+      boolLoadRequested = false;
+      const intCurrentRevision = intRevision;
+      try {
+        const result = await requestApi("/notifications/");
+        if (!boolMounted || intCurrentRevision !== intRevision) continue;
+        if (
+          !isRecord(result) ||
+          !Array.isArray(result.notifications) ||
+          typeof result.unread_count !== "number"
+        )
+          return rejectInvalidResponse();
+        arrNotification.value = result.notifications as NotificationInfo[];
+        intUnread.value = result.unread_count;
+        strError.value = "";
+      } catch (e) {
+        if (boolMounted && intCurrentRevision === intRevision)
+          strError.value = getApiError(e).message;
+      }
+    }
+  })().finally(() => {
+    loadTask = null;
+  });
+  return loadTask;
 }
 
 async function openDetails(id: string): Promise<void> {
+  const intCurrentRevision = intRevision;
   boolBusy.value = true;
   strError.value = "";
   try {
     const result = await requestApi(`/notifications/${encodeURIComponent(id)}/`);
+    if (!boolMounted || intCurrentRevision !== intRevision) return;
     if (
       !isRecord(result) ||
       !isRecord(result.notification) ||
@@ -176,34 +197,63 @@ async function openDetails(id: string): Promise<void> {
     boolOpen.value = false;
     await load();
   } catch (e) {
-    strError.value = getApiError(e).message;
+    if (boolMounted && intCurrentRevision === intRevision)
+      strError.value = getApiError(e).message;
   } finally {
     boolBusy.value = false;
   }
 }
 
 async function act(action: string): Promise<void> {
+  const intCurrentRevision = intRevision;
   boolBusy.value = true;
   strError.value = "";
   try {
     await requestApi(`/notifications/${action}/`, { method: "POST", body: {} });
+    if (!boolMounted || intCurrentRevision !== intRevision) return;
     boolClear.value = false;
     await load();
   } catch (e) {
-    strError.value = getApiError(e).message;
+    if (boolMounted && intCurrentRevision === intRevision)
+      strError.value = getApiError(e).message;
   } finally {
     boolBusy.value = false;
   }
 }
 
-onMounted(() => {
+function handleNotificationChange(): void {
   void load();
-  timer = setInterval(() => {
-    if (!document.hidden) void load();
-  }, 30000);
+}
+
+watch(
+  () => sessionStore.access?.business_available,
+  (boolAvailable) => {
+    intRevision += 1;
+    if (boolAvailable) {
+      void load();
+    } else {
+      boolLoadRequested = false;
+      arrNotification.value = [];
+      intUnread.value = 0;
+      details.value = null;
+      boolOpen.value = false;
+      boolClear.value = false;
+      strError.value = "";
+    }
+  },
+);
+
+onMounted(() => {
+  boolMounted = true;
+  window.addEventListener("console-notifications-changed", handleNotificationChange);
+  void load();
 });
 
-onBeforeUnmount(() => clearInterval(timer));
+onBeforeUnmount(() => {
+  boolMounted = false;
+  intRevision += 1;
+  window.removeEventListener("console-notifications-changed", handleNotificationChange);
+});
 </script>
 
 <style scoped></style>

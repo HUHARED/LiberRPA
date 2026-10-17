@@ -35,12 +35,14 @@ from organizations.http import build_account_access_payload
 from organizations.permissions import AccessChannel
 
 from .contracts import (
+    BrowserMessageType,
     LoginRequest,
     SessionUserResponse,
     SessionResponse,
     SessionRevocationRequest,
 )
 from .models import User, UserManager
+from .browser_events import notify_browser_user
 from .rate_limits import apply_login_rate_limit, apply_session_revocation_rate_limit
 from .session_revocation import SessionInvalidatedError, revoke_other_sessions
 
@@ -112,6 +114,7 @@ def sign_in(request: HttpRequest) -> JsonResponse:
         with transaction.atomic():
             # Keep the same organization-before-account lock order as security writes.
             organization = _lock_session_audit_organization(user)
+            previousUserId = request.user.pk if request.user.is_authenticated else None
             login(request, user)
             sessionLifetime = (
                 _REMEMBERED_SESSION_LIFETIME
@@ -121,6 +124,9 @@ def sign_in(request: HttpRequest) -> JsonResponse:
             # Save the authorized session and audit together before reporting success.
             request.session.set_expiry(timezone.now() + sessionLifetime)
             request.session.save()
+            notify_browser_user(user.pk, BrowserMessageType.SESSION_CHANGED)
+            if previousUserId is not None and previousUserId != user.pk:
+                notify_browser_user(previousUserId, BrowserMessageType.SESSION_CHANGED)
             record_audit(
                 "account.login",
                 actor=user,
@@ -184,6 +190,7 @@ def sign_out(request: HttpRequest) -> JsonResponse:
                     organization=organization,
                     target=user,
                 )
+                notify_browser_user(user.pk, BrowserMessageType.SESSION_CHANGED)
             logout(request)
     except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()

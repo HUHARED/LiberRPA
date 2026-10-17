@@ -35,6 +35,7 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     # Shared responses.
     (commonContracts.MessageResponse, "serialization"),
     # Account sessions, profile, email and API keys.
+    (accountContracts.BrowserEventResponse, "serialization"),
     (accountContracts.LoginRequest, "validation"),
     (accountContracts.SessionResponse, "serialization"),
     (accountContracts.CsrfResponse, "serialization"),
