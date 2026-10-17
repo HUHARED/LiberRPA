@@ -11,10 +11,10 @@ from runs.contracts import JobSource
 from .models import (
     EmailType,
     EmailDelivery,
-    RunEmailRecipient,
     RunEmailEvent,
     RunEmailReference,
 )
+from .recipients import get_eligible_recipients
 from .services import notify_prestart_failure
 
 if TYPE_CHECKING:
@@ -34,10 +34,8 @@ def notify_run_event(run: "Run", event: str) -> None:
     if not dictConfig.get(strKey, {}).get("enabled", False):
         return
     organizationId = run.job.request.organization_id
-    for recipient in RunEmailRecipient.objects.filter(
-        pk__in=dictConfig.get("recipient_ids", []),
-        organization_id=organizationId,
-        verified_at__isnull=False,
+    for recipient in get_eligible_recipients(organizationId).filter(
+        pk__in=dictConfig.get("recipient_ids", [])
     ):
         if RunEmailReference.objects.filter(
             run_id=run.pk, event=emailEvent, recipient=recipient

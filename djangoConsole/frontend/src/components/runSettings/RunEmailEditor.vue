@@ -20,7 +20,7 @@
     :items="arrRecipient"
     item-title="email"
     item-value="id"
-    label="To (verified addresses, up to 5)"
+    label="To (up to 5)"
     :error-messages="getFieldErrors(fieldErrors, 'settings.run_email.recipient_ids')"
     multiple
     chips

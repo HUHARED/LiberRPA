@@ -90,6 +90,7 @@
     "runLogRetentionDays": 720,
     "maxRunLogBytesPerOrganization": 5368709120, // 5 GiB
     "maxRunLogGroupsPerOrganization": 10000,
+    // Non-member addresses only; current member emails are available automatically.
     "maxRunEmailAddressesPerOrganization": 100,
     "maxRunEmailRecipientsPerOrganizationHour": 100,
     "maxRunEmailRecipientsPerOrganizationDay": 500,

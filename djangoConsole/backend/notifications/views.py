@@ -41,9 +41,12 @@ from .contracts import (
     RecipientNotesRequest,
     EmptyRequest,
     RecipientTokenRequest,
+    RunEmailRecipientStatus,
 )
 from .models import Notification, RunEmailRecipient
 from .recipients import (
+    get_recipient_query,
+    get_eligible_recipients,
     create_recipient,
     resend_recipient_verification,
     get_recipient_references,
@@ -167,6 +170,7 @@ def _recipient_payload(recipient: RunEmailRecipient) -> dict:
         "email": recipient.email,
         "notes": recipient.notes,
         "created_at": recipient.created_at,
+        "status": recipient.status,
         "verified_at": recipient.verified_at,
     }
 
@@ -198,14 +202,18 @@ def list_or_create_recipients(request: HttpRequest) -> JsonResponse:
         organizationId=membership.organization_id,
         channel=AccessChannel.SESSION,
     )
-    query = RunEmailRecipient.objects.filter(organization=access.organization)
     strStatus = request.GET.get("status", "all")
-    if strStatus not in ("all", "pending", "verified"):
-        raise ValidationError("Use all, pending, or verified for the status filter.")
-    if not access.isOrgAdmin or strStatus == "verified":
-        query = query.filter(verified_at__isnull=False)
-    elif strStatus == "pending":
-        query = query.filter(verified_at__isnull=True)
+    if strStatus not in ("all", "eligible", *RunEmailRecipientStatus):
+        raise ValidationError(
+            "Use all, eligible, member, pending, or verified for the status filter."
+        )
+    query = (
+        get_eligible_recipients(access.organization.pk)
+        if not access.isOrgAdmin or strStatus == "eligible"
+        else get_recipient_query(access.organization.pk)
+    )
+    if strStatus in RunEmailRecipientStatus:
+        query = query.filter(status=strStatus)
     if request.GET.get("email"):
         query = query.filter(email__icontains=request.GET["email"][:254])
     return JsonResponse({
@@ -241,8 +249,10 @@ def change_recipient(
     with transaction.atomic():
         access = lock_request_write_access(request, membership)
         require_organization_admin(access)
-        recipient = RunEmailRecipient.objects.select_for_update().get(
-            pk=recipientId, organization=access.organization
+        recipient = (
+            get_recipient_query(access.organization.pk)
+            .select_for_update()
+            .get(pk=recipientId)
         )
         if isinstance(form, RecipientNotesRequest):
             if "\x00" in form.notes:

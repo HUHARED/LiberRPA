@@ -26,6 +26,7 @@ from django.views.decorators.debug import sensitive_variables
 from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
 from notifications.models import EmailDelivery, EmailType
+from notifications.recipients import register_member_recipient
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -322,6 +323,8 @@ def confirm_email_change(token: str) -> None:
         ):
             raise _build_email_unavailable_error() from None
         raise
+
+    register_member_recipient(access.organization.pk, user.email)
 
     confirmedAt = timezone.now()
     # A database uniqueness wait may have crossed expiry; roll back the account write too.

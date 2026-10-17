@@ -18,7 +18,8 @@ from django.core.mail import EmailMessage
 from console_project.contracts import JsonValue
 from packages.contracts import RunEmailSettings
 
-from .models import RunEmailRecipient, RunEmailEvent
+from .models import RunEmailEvent
+from .recipients import get_eligible_recipients
 
 if TYPE_CHECKING:
     from runs.models import Run
@@ -127,13 +128,13 @@ def validate_run_email(
     strRecipientField = "settings.run_email.recipient_ids"
     if len(set(listRecipientId)) != len(listRecipientId):
         dictFieldError[strRecipientField] = [
-            "Select at most five distinct verified Run email recipients."
+            "Select at most five distinct eligible Run email recipients."
         ]
-    elif listRecipientId and RunEmailRecipient.objects.filter(
-        organization_id=organizationId, pk__in=listRecipientId, verified_at__isnull=False
+    elif listRecipientId and get_eligible_recipients(organizationId).filter(
+        pk__in=listRecipientId
     ).count() != len(listRecipientId):
         dictFieldError[strRecipientField] = [
-            "Select currently verified Run email recipients in this organization."
+            "Select current member emails or independently verified addresses in this organization."
         ]
     setInputField = {
         f"Input_CustomArgs[{json.dumps(str(entry[0]), ensure_ascii=False)}]"

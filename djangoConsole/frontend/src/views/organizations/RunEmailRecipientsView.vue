@@ -20,6 +20,10 @@
     {{ strSuccess }}
   </v-alert>
 
+  <p class="text-body-2 text-medium-emphasis mb-4">
+    Current member emails are available automatically. Other addresses require verification.
+  </p>
+
   <v-row class="mb-4">
     <v-col cols="12" md="8">
       <v-text-field v-model="strSearch" variant="underlined" label="Email" hide-details />
@@ -43,7 +47,7 @@
     :items-per-page-options="[50]"
     :loading="boolLoading">
     <template #item.status="{ item }">
-      {{ item.verified_at ? "Verified" : "Pending" }}
+      {{ DICT_STATUS_LABEL[item.status] }}
     </template>
 
     <template #item.actions="{ item }">
@@ -57,7 +61,7 @@
           @click="openForm(item)" />
 
         <v-btn
-          v-if="!item.verified_at"
+          v-if="item.status === RunEmailRecipientStatus.Pending"
           v-tooltip:bottom="'Resend Verification Email'"
           size="small"
           variant="text"
@@ -67,6 +71,7 @@
           @click="resend(item.id)" />
 
         <v-btn
+          v-if="item.status !== RunEmailRecipientStatus.Member"
           v-tooltip:bottom="'Delete'"
           size="small"
           variant="text"
@@ -192,6 +197,8 @@ import {
   getRunEmailRecipients,
   saveRunEmailRecipient,
   actOnRunEmailRecipient,
+  RunEmailRecipientStatus,
+  type RunEmailRecipientFilter,
   type RunEmailRecipient,
 } from "@/api/runEmail";
 import { getApiError } from "@/api/errors";
@@ -204,10 +211,17 @@ interface RecipientReference {
   department: string;
 }
 
+const DICT_STATUS_LABEL: Record<RunEmailRecipientStatus, string> = {
+  [RunEmailRecipientStatus.Member]: "Member",
+  [RunEmailRecipientStatus.Verified]: "Verified",
+  [RunEmailRecipientStatus.Pending]: "Pending",
+};
 const ARR_STATUS = [
   { title: "All", value: "all" },
-  { title: "Pending", value: "pending" },
-  { title: "Verified", value: "verified" },
+  ...Object.values(RunEmailRecipientStatus).map((status) => ({
+    title: DICT_STATUS_LABEL[status],
+    value: status,
+  })),
 ];
 
 const ARR_HEADER = [
@@ -220,7 +234,7 @@ const ARR_HEADER = [
 const form = ref<InstanceType<typeof VForm> | null>(null);
 const arrRecipient = ref<RunEmailRecipient[]>([]);
 const strSearch = ref("");
-const strStatus = ref<"all" | "pending" | "verified">("all");
+const strStatus = ref<RunEmailRecipientFilter>("all");
 const boolLoading = ref(false);
 const boolBusy = ref(false);
 const boolForm = ref(false);

@@ -24,6 +24,7 @@ from django.views.decorators.debug import sensitive_variables
 from accounts.models import User, UserManager
 from console_project.config import LimitsConfig
 from notifications.models import EmailDelivery, EmailType
+from notifications.recipients import register_member_recipient
 from operations.audit import get_audit_snapshot, record_audit
 
 from .models import (
@@ -408,6 +409,7 @@ def complete_invitation_registration(
         is_org_admin=invitation.is_org_admin,
         notes=invitation.notes,
     )
+    register_member_recipient(organization.pk, user.email)
     DepartmentMembership.objects.bulk_create([
         DepartmentMembership(membership=membership, department_id=departmentId, role=role)
         for departmentId, role in _get_invitation_roles(invitation).items()

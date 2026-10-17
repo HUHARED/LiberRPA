@@ -13,16 +13,18 @@ from django.core import signing
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 from django.core.validators import validate_email
+from django.db.models import Case, CharField, Exists, OuterRef, QuerySet, Value, When
 from django.utils import timezone
 
 from operations.audit import record_audit
-from organizations.models import Organization
+from organizations.models import Organization, Membership
 from organizations.permissions import (
     OrganizationAccessContext,
     require_organization_admin,
     require_organization_business_available,
 )
 
+from .contracts import RunEmailRecipientStatus
 from .models import (
     EmailType,
     EmailStatus,
@@ -35,6 +37,38 @@ from .models import (
 
 _STR_TOKEN_SALT = "console.run-email-recipient"
 _INT_TOKEN_AGE_SECONDS = 86400
+
+
+def get_recipient_query(organizationId: uuid.UUID) -> QuerySet[RunEmailRecipient]:
+    """Derive eligibility from current membership without granting permanent verification."""
+    currentMembers = Membership.objects.filter(
+        organization_id=organizationId,
+        user__email=OuterRef("email"),
+        user__is_active=True,
+    )
+    return RunEmailRecipient.objects.filter(organization_id=organizationId).annotate(
+        status=Case(
+            When(Exists(currentMembers), then=Value(RunEmailRecipientStatus.MEMBER)),
+            When(
+                verified_at__isnull=False,
+                then=Value(RunEmailRecipientStatus.VERIFIED),
+            ),
+            default=Value(RunEmailRecipientStatus.PENDING),
+            output_field=CharField(),
+        )
+    )
+
+
+def get_eligible_recipients(organizationId: uuid.UUID) -> QuerySet[RunEmailRecipient]:
+    return get_recipient_query(organizationId).exclude(
+        status=RunEmailRecipientStatus.PENDING
+    )
+
+
+def register_member_recipient(organizationId: uuid.UUID, email: str) -> None:
+    """Register the current account address within its membership write transaction."""
+    # Keep an existing address ID, notes and independent verification when a member joins.
+    RunEmailRecipient.objects.get_or_create(organization_id=organizationId, email=email)
 
 
 def queue_recipient_verification(recipient: RunEmailRecipient) -> None:
@@ -61,7 +95,9 @@ def create_recipient(
             "This email address is already registered for this organization."
         )
     if (
-        RunEmailRecipient.objects.filter(organization=access.organization).count()
+        get_recipient_query(access.organization.pk)
+        .exclude(status=RunEmailRecipientStatus.MEMBER)
+        .count()
         >= settings.CONSOLE_LIMITS.maxRunEmailAddressesPerOrganization
     ):
         raise ValidationError(
@@ -70,7 +106,9 @@ def create_recipient(
     recipient = RunEmailRecipient.objects.create(
         organization=access.organization, email=strEmail, notes=notes
     )
-    queue_recipient_verification(recipient)
+    recipient = get_recipient_query(access.organization.pk).get(pk=recipient.pk)
+    if recipient.status == RunEmailRecipientStatus.PENDING:
+        queue_recipient_verification(recipient)
     record_audit(
         "run_email_recipient.create",
         actor=access.actor,
@@ -81,7 +119,9 @@ def create_recipient(
 
 
 def resend_recipient_verification(recipient: RunEmailRecipient) -> None:
-    if recipient.verified_at is not None:
+    if recipient.status == RunEmailRecipientStatus.MEMBER:
+        raise ValidationError("Member email addresses do not need verification.")
+    if recipient.status == RunEmailRecipientStatus.VERIFIED:
         raise ValidationError("This email address is already verified.")
     currentTime = timezone.now()
     if currentTime < recipient.verification_requested_at + timedelta(
@@ -148,6 +188,10 @@ def get_recipient_references(recipient: RunEmailRecipient) -> list[dict]:
 
 
 def delete_recipient(recipient: RunEmailRecipient) -> None:
+    if recipient.status == RunEmailRecipientStatus.MEMBER:
+        raise ValidationError(
+            "Current member email addresses are available automatically."
+        )
     EmailDelivery.objects.filter(
         runrecipientverification__recipient=recipient, status=EmailStatus.PENDING
     ).update(
@@ -202,7 +246,7 @@ def build_recipient_verification_email(delivery: EmailDelivery) -> EmailMessage 
     ):
         return None
     recipient = (
-        RunEmailRecipient.objects
+        get_recipient_query(reference.recipient.organization_id)
         .select_related("organization")
         .filter(pk=reference.recipient_id)
         .first()
@@ -210,7 +254,7 @@ def build_recipient_verification_email(delivery: EmailDelivery) -> EmailMessage 
     if recipient is None:
         return None
     if (
-        recipient.verified_at is not None
+        recipient.status != RunEmailRecipientStatus.PENDING
         or recipient.verification_id != reference.verification_id
     ):
         return None

@@ -56,6 +56,7 @@ export type QueueItemOrder = "oldest_first" | "newest_first";
 export type QueueItemFilterStatus = "all" | "unclaimed" | "claimed";
 export type QueueItemStatus = "unclaimed" | "claimed";
 export type RecordingStatus = "recording" | "processing" | "ready" | "unavailable";
+export type RunEmailRecipientStatus = "member" | "verified" | "pending";
 export type RunFileKind = "logs" | "video" | "subtitles";
 
 export interface BrowserApiContracts {
@@ -1385,6 +1386,7 @@ export interface RunEmailRecipientResponse {
   email: string;
   id: string;
   notes: string;
+  status: RunEmailRecipientStatus;
   verified_at: string | null;
 }
 export interface RunEmailVerificationResponse {

@@ -40,10 +40,10 @@ from .models import (
     EmailDispatchState,
     EmailDelivery,
     OrganizationDeletionNotice,
-    RunEmailRecipient,
     RunEmailEvent,
     RunEmailReference,
 )
+from .recipients import get_eligible_recipients
 from .smtp import send_smtp_once
 
 _EMAIL_BUDGET_WINDOW = timedelta(hours=24)
@@ -159,14 +159,15 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
             .first()
         )
         if reference is not None:
-            reference.recipient = RunEmailRecipient.objects.filter(
-                pk=reference.recipient_id
-            ).first()
+            reference.recipient = (
+                get_eligible_recipients(reference.organization_id)
+                .filter(pk=reference.recipient_id, email=delivery.recipient)
+                .first()
+            )
         if (
             reference is None
             or organization is None
             or reference.recipient is None
-            or reference.recipient.verified_at is None
             or not is_organization_business_available(organization)
         ):
             return _mark_email_not_sent(

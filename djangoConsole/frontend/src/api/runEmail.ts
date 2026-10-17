@@ -5,12 +5,21 @@ import { isRecord, rejectInvalidResponse } from "./responses";
 
 import type {
   RunEmailRecipientResponse,
+  RunEmailRecipientStatus as RunEmailRecipientStatusValue,
   RunEmailRecipientListResponse,
   RunEmailVerificationResponse,
   RunEmailSettingsResponse,
 } from "./generated/browserApi";
 
 export type RunEmailRecipient = RunEmailRecipientResponse;
+export type RunEmailRecipientStatus = RunEmailRecipientStatusValue;
+export const RunEmailRecipientStatus = {
+  Member: "member",
+  Verified: "verified",
+  Pending: "pending",
+} as const satisfies Record<string, RunEmailRecipientStatus>;
+export type RunEmailRecipientFilter = RunEmailRecipientStatus | "all" | "eligible";
+
 export type RunEmailEventKey = Exclude<keyof RunEmailSettingsResponse, "recipient_ids">;
 export type RunEmailTemplates = Record<
   RunEmailEventKey,
@@ -36,7 +45,7 @@ export async function getRunEmailTemplates(): Promise<RunEmailTemplates> {
 }
 
 export async function getRunEmailRecipients(
-  status: "all" | "pending" | "verified" = "verified",
+  status: RunEmailRecipientFilter = "eligible",
 ): Promise<RunEmailRecipientListResponse> {
   const response = await requestApi(
     `/run-email-recipients/?${new URLSearchParams({ status })}`,
@@ -46,13 +55,17 @@ export async function getRunEmailRecipients(
     !Array.isArray(response.recipients) ||
     !response.recipients.every(
       (value: unknown) =>
-        isRecord(value) && typeof value.id === "string" && typeof value.email === "string",
+        isRecord(value) &&
+        typeof value.id === "string" &&
+        typeof value.email === "string" &&
+        Object.values(RunEmailRecipientStatus).some((status) => status === value.status),
     ) ||
     typeof response.can_manage !== "boolean"
   )
     return rejectInvalidResponse();
   return response as unknown as RunEmailRecipientListResponse;
 }
+
 export async function saveRunEmailRecipient(
   id: string | null,
   email: string,
@@ -63,6 +76,7 @@ export async function saveRunEmailRecipient(
     body: id ? { notes } : { email, notes },
   });
 }
+
 export async function actOnRunEmailRecipient(
   id: string,
   action: "delete" | "resend",
@@ -72,6 +86,7 @@ export async function actOnRunEmailRecipient(
     body: {},
   });
 }
+
 export async function verifyRunEmail(
   token: string,
   confirm = false,

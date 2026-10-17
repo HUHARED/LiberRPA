@@ -13,6 +13,7 @@ from django.db import transaction
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User, UserManager
+from notifications.recipients import register_member_recipient
 from operations.audit import record_audit
 from operations.policies import require_organization_creation_allowed
 
@@ -70,6 +71,7 @@ def create_organization_records(
     organization.save(force_insert=True)
     membership = Membership(user=user, organization=organization, is_org_admin=True)
     membership.save(force_insert=True)
+    register_member_recipient(organization.pk, user.email)
 
     # The new organization is private to this transaction until it commits.
     # General follows the same validation and quota rules as any other department.

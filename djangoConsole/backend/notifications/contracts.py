@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import Field
@@ -29,10 +30,17 @@ class RecipientTokenRequest(JsonRequest):
     token: str = Field(min_length=1, max_length=1000)
 
 
+class RunEmailRecipientStatus(StrEnum):
+    MEMBER = "member"
+    VERIFIED = "verified"
+    PENDING = "pending"
+
+
 class RunEmailRecipientResponse(JsonResponsePayload):
     id: UUID
     email: str
     notes: str
+    status: RunEmailRecipientStatus
     verified_at: datetime | None
     created_at: datetime
 

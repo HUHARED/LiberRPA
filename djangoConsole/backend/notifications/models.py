@@ -10,6 +10,8 @@ from django.db import models
 from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
+from .contracts import RunEmailRecipientStatus
+
 
 class EmailType(models.TextChoices):
     RUN = "run", "Run"
@@ -278,8 +280,12 @@ class OrganizationDeletionNotice(models.Model):
 
 
 class RunEmailRecipient(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization_id: uuid.UUID
+
+    # NOTE: get_recipient_query derives status from current membership and independent verification.
+    status: RunEmailRecipientStatus
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
         "organizations.Organization", on_delete=models.CASCADE
     )
