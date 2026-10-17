@@ -58,6 +58,7 @@ import {
 import { cleanExecutorRunArguments } from "./Run/runState";
 import { startRunHousekeeping, stopRunHousekeeping } from "./Run/housekeeping";
 import { startConsoleWork, stopConsoleWork } from "./Console/consoleWork";
+import { stopConsoleEvents } from "./Console/consoleEvents";
 import { cleanConsolePackageStaging } from "./Console/packagePreparation";
 import { cleanConsoleLogArchives } from "./Console/consoleFileTransfers";
 import { getConsoleRunProcessId } from "./Console/workRepository";
@@ -310,8 +311,6 @@ async function shutdownExecutor(): Promise<void> {
   await stopConsoleWork();
   await promiseFileWorkers;
   await waitForPackageInstallation();
-  stopConsoleContextBridge();
-  await stopConsoleAccount();
   try {
     await stopSchedulerEngine();
   } catch (e: unknown) {
@@ -329,6 +328,10 @@ async function shutdownExecutor(): Promise<void> {
   } catch (e: unknown) {
     loggerMain.error(`Failed to stop active Runs: ${getErrorMessage(e)}`);
   }
+
+  await stopConsoleEvents();
+  stopConsoleContextBridge();
+  await stopConsoleAccount();
 
   try {
     closeDatabase();

@@ -2,6 +2,7 @@
 
 import { RunSource, type RunConfig } from "../../shared/run";
 import { RunConflictPolicy } from "../../shared/runSettings";
+import { ConsoleConnection } from "../../shared/consoleAccount";
 import { getErrorMessage } from "../../shared/error";
 
 import {
@@ -24,7 +25,7 @@ import { startRun, cancelRunById } from "../Run/packageRunner";
 import { PythonProcessNotStartedError } from "../Run/pythonProcess";
 
 import { getLocalWaitingCount } from "../Scheduler/schedulerEngine";
-import { getConsolePythonCredential } from "./consoleAccount";
+import { getConsoleAccountState, getConsolePythonCredential } from "./consoleAccount";
 import { ConsoleRequestError, requestConsole } from "./consoleApi";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 import {
@@ -51,11 +52,7 @@ import {
   onConsoleEventSaved,
   saveConsoleEvent,
 } from "./eventRepository";
-import {
-  requestConsoleEvents,
-  startConsoleEvents,
-  stopConsoleEvents,
-} from "./consoleEvents";
+import { requestConsoleEvents, startConsoleEvents } from "./consoleEvents";
 import { stopConsoleLogs, uploadConsoleLogs } from "./consoleLogs";
 import { stopConsoleFileTransfers, sendConsoleFile } from "./consoleFileTransfers";
 
@@ -171,6 +168,8 @@ function ensureWorkMayStart(
     getConsoleWorkSessionKey(currentCredential) !== getConsoleWorkSessionKey(credential)
   )
     throw new Error("The original Console account is no longer associated.");
+  if (getConsoleAccountState().connection === ConsoleConnection.AccessUnavailable)
+    throw new Error("Console access is unavailable. This Run cannot start.");
 }
 
 function validateStartPermitTime(permit: ConsoleStartPermit, startedAt: string): void {
@@ -693,7 +692,6 @@ export async function stopConsoleWork(): Promise<void> {
   for (const checkRetry of mapPermitWaiter.values()) checkRetry();
   stopWorkListener?.();
   stopEventListener?.();
-  const promiseStopEvents = stopConsoleEvents();
   stopPackagePreparation();
   stopConsoleLogs();
   stopConsoleFileTransfers();
@@ -701,7 +699,7 @@ export async function stopConsoleWork(): Promise<void> {
   clearInterval(timerLogs);
   timerRetry = undefined;
   boolWorkRequested = false;
-  await Promise.all([promiseSync, promiseStopEvents]);
+  await promiseSync;
   await Promise.allSettled([
     ...mapPreparingWork.values(),
     promisePreparation,

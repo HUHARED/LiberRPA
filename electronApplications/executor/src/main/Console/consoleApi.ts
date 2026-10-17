@@ -51,6 +51,7 @@ export async function requestConsole(
   route: string,
   token = "",
   body?: object,
+  timeoutMs = 10_000,
 ): Promise<Record<string, unknown>> {
   let response: Response;
   try {
@@ -64,7 +65,7 @@ export async function requestConsole(
       body: body === undefined ? undefined : JSON.stringify(body),
       redirect: "error",
       credentials: "omit",
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
     throw new Error(

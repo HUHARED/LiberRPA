@@ -100,6 +100,12 @@ function handleContactError(e: unknown): void {
     );
     return;
   }
+  // Keep a confirmed denial until Console accepts the session again.
+  if (
+    connection === ConsoleConnection.AccessUnavailable &&
+    !(e instanceof ConsoleRequestError && e.status === 403)
+  )
+    return;
   strMessage = getErrorMessage(e);
   connection =
     e instanceof ConsoleRequestError && e.status === 403

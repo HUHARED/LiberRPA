@@ -28,6 +28,7 @@ import {
 } from "./eventRepository";
 
 const INT_EVENT_MAINTENANCE_INTERVAL_MS = 60 * 60 * 1000;
+const INT_EVENT_SHUTDOWN_TIMEOUT_MS = 10_000;
 let timerEventRetry: NodeJS.Timeout | undefined;
 let promiseEvents: Promise<void> | undefined;
 let promiseEventMaintenance: Promise<void> | undefined;
@@ -45,6 +46,7 @@ let timerEventMaintenance: NodeJS.Timeout | undefined;
 async function sendPendingConsoleEvents(
   strSessionKey: string,
   credential: ConsoleCredentialSnapshot,
+  timeoutMs?: number,
 ): Promise<boolean> {
   const arrEvent = getPendingConsoleEvents(strSessionKey);
   if (!arrEvent.length) return false;
@@ -53,6 +55,7 @@ async function sendPendingConsoleEvents(
     "executor/work/events/",
     credential.token,
     { events: arrEvent },
+    timeoutMs,
   );
   if (
     !Array.isArray(response.accepted_event_ids) ||
@@ -219,6 +222,7 @@ export function startConsoleEvents(): void {
 }
 
 export async function stopConsoleEvents(): Promise<void> {
+  const floatDeadline = performance.now() + INT_EVENT_SHUTDOWN_TIMEOUT_MS;
   boolStopped = true;
   stopEventListener?.();
   stopEventListener = undefined;
@@ -228,4 +232,27 @@ export async function stopConsoleEvents(): Promise<void> {
   timerEventMaintenance = undefined;
   boolEventsRequested = false;
   await Promise.allSettled([promiseEvents, promiseEventMaintenance]);
+
+  const credential = getConsoleControlCredential();
+  if (!credential) return;
+  const strSessionKey = getConsoleWorkSessionKey(credential);
+  if (strEventRetrySessionKey === strSessionKey && performance.now() < floatEventRetryAt)
+    return;
+
+  try {
+    while (isCurrentConsoleControlCredential(credential)) {
+      const floatRemainingMs = floatDeadline - performance.now();
+      if (floatRemainingMs <= 0) return;
+      if (
+        !(await sendPendingConsoleEvents(
+          strSessionKey,
+          credential,
+          Math.ceil(floatRemainingMs),
+        ))
+      )
+        return;
+    }
+  } catch (e: unknown) {
+    loggerMain.warn(`Console Run events during shutdown: ${getErrorMessage(e)}`);
+  }
 }
