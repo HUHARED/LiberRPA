@@ -1,7 +1,7 @@
 // FileName: validation.ts
 
 import type { ConsoleSignInArgs } from "../../shared/consoleAccount";
-import type { ProjectSettingsUpdate } from "../../shared/project";
+import type { PackageSettingsUpdate } from "../../shared/package";
 import type { RunHistoryQueryOptions } from "../../shared/run";
 import type { ScheduleCreateData, ScheduleUpdateData } from "../../shared/schedule";
 import type { ExecutorInvokeCommand, RendererLogLevel } from "../../shared/ipc";
@@ -46,12 +46,12 @@ export function ensureInvokeCommand(value: unknown): ExecutorInvokeCommand {
     case "getPythonEnvironmentNames":
     case "getProjectNames":
     case "getProjectVersions":
-    case "getProjectDetail":
-    case "installProjectPackage":
-    case "saveProjectSettings":
-    case "runProject":
-    case "getProjectBoundSchedules":
-    case "deleteProject":
+    case "getPackageDetails":
+    case "installPackage":
+    case "savePackageSettings":
+    case "runPackage":
+    case "getPackageBoundSchedules":
+    case "deletePackage":
     case "getScheduleList":
     case "getScheduleDetail":
     case "createSchedule":
@@ -64,7 +64,7 @@ export function ensureInvokeCommand(value: unknown): ExecutorInvokeCommand {
     case "getRunDetails":
     case "openRunLogFolder":
     case "pythonCancel":
-    case "getLocalRerunProject":
+    case "getLocalRerunPackage":
     case "saveExecutorConfig":
     case "chooseProjectLogFolder":
     case "openProjectLogFolder":
@@ -95,15 +95,28 @@ export function ensurePositiveIntegerData(value: unknown, command: string): numb
   return ensurePositiveInteger(value, `${command} data`);
 }
 
-export function ensureProjectRef(value: unknown): { name: string; version: string } {
-  const dictValue = ensureExactRecord(value, ["name", "version"], "Project reference");
+export function ensurePackageRef(value: unknown): {
+  project_name: string;
+  project_version: string;
+} {
+  const dictValue = ensureExactRecord(
+    value,
+    ["project_name", "project_version"],
+    "Package reference",
+  );
   return {
-    name: ensureNonEmptyString(dictValue.name, "Project reference.name"),
-    version: ensureNonEmptyString(dictValue.version, "Project reference.version"),
+    project_name: ensureNonEmptyString(
+      dictValue.project_name,
+      "Package reference.project_name",
+    ),
+    project_version: ensureNonEmptyString(
+      dictValue.project_version,
+      "Package reference.project_version",
+    ),
   };
 }
 
-export function ensureProjectSettingsUpdate(value: unknown): ProjectSettingsUpdate {
+export function ensurePackageSettingsUpdate(value: unknown): PackageSettingsUpdate {
   const dictValue = ensureExactRecord(
     value,
     [
@@ -117,42 +130,42 @@ export function ensureProjectSettingsUpdate(value: unknown): ProjectSettingsUpda
       "builtin_highlight_ui",
       "custom_prj_args",
     ],
-    "Project settings update request",
+    "Package settings update request",
   );
 
   return {
-    id: ensurePositiveInteger(dictValue.id, "Project settings update request.id"),
+    id: ensurePositiveInteger(dictValue.id, "Package settings update request.id"),
     python_environment_name: ensurePythonEnvironmentName(
       dictValue.python_environment_name,
-      "Project settings update request.python_environment_name",
+      "Package settings update request.python_environment_name",
     ),
     max_retry_count: ensureMaxRetryCount(
       dictValue.max_retry_count,
-      "Project settings update request.max_retry_count",
+      "Package settings update request.max_retry_count",
     ),
     timeout_min: ensureRunTimeoutMinutes(
       dictValue.timeout_min,
-      "Project settings update request.timeout_min",
+      "Package settings update request.timeout_min",
     ),
     builtin_log_level: ensureLogLevel(
       dictValue.builtin_log_level,
-      "Project settings update request.builtin_log_level",
+      "Package settings update request.builtin_log_level",
     ),
     builtin_record_video: ensureBoolean(
       dictValue.builtin_record_video,
-      "Project settings update request.builtin_record_video",
+      "Package settings update request.builtin_record_video",
     ),
     builtin_stop_shortcut: ensureBoolean(
       dictValue.builtin_stop_shortcut,
-      "Project settings update request.builtin_stop_shortcut",
+      "Package settings update request.builtin_stop_shortcut",
     ),
     builtin_highlight_ui: ensureBoolean(
       dictValue.builtin_highlight_ui,
-      "Project settings update request.builtin_highlight_ui",
+      "Package settings update request.builtin_highlight_ui",
     ),
     custom_prj_args: ensureCustomProjectArgs(
       dictValue.custom_prj_args,
-      "Project settings update request.custom_prj_args",
+      "Package settings update request.custom_prj_args",
     ),
   };
 }
@@ -163,7 +176,7 @@ function ensureScheduleData(
 ): ScheduleCreateData | ScheduleUpdateData {
   const arrExpectedKey = [
     "name",
-    "project_id",
+    "local_package_id",
     "cron",
     "run_conflict_policy",
     "period_start_ms",
@@ -198,7 +211,10 @@ function ensureScheduleData(
   parseScheduleCron(strCron, dictConfigExecutor.timezone);
   const dictBase: ScheduleCreateData = {
     name: ensureTrimmedSingleLineString(dictValue.name, "Schedule request.name"),
-    project_id: ensurePositiveInteger(dictValue.project_id, "Schedule request.project_id"),
+    local_package_id: ensurePositiveInteger(
+      dictValue.local_package_id,
+      "Schedule request.local_package_id",
+    ),
     cron: strCron,
     run_conflict_policy: ensureRunConflictPolicy(
       dictValue.run_conflict_policy,

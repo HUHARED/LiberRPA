@@ -5,21 +5,24 @@ import fs from "fs";
 import path from "path";
 
 import { strDocumentsFolderPath } from "../Config/environment";
+import { getPackageFolderName } from "../Package/packageArchive";
 
-export const strExecutorPackageFolderPath = path.join(
+export const strPackageFolderPath = path.join(
   strDocumentsFolderPath,
   "LiberRPA",
-  "ExecutorPackage",
+  "Packages",
 );
+export const strLocalPackageFolderPath = path.join(strPackageFolderPath, "Local");
+export const strConsolePackageFolderPath = path.join(strPackageFolderPath, "Console");
 
-export function getExecutorPackageFolderPath(name: string, version: string): string {
-  const strFolderPath = path.join(strExecutorPackageFolderPath, `${name}_${version}`);
-  const strResolvedRoot = path.resolve(strExecutorPackageFolderPath);
-  const strResolvedFolder = path.resolve(strFolderPath);
-  if (!strResolvedFolder.startsWith(`${strResolvedRoot}${path.sep}`)) {
-    throw new Error("Generated Executor Package folder escapes the Package root.");
-  }
-  return strResolvedFolder;
+export function getLocalPackageFolderPath(
+  projectName: string,
+  projectVersion: string,
+): string {
+  return path.join(
+    strLocalPackageFolderPath,
+    getPackageFolderName(projectName, projectVersion),
+  );
 }
 
 export async function fileOpenFolder(strFolderPath: string): Promise<void> {

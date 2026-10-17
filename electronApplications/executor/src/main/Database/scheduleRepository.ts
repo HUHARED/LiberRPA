@@ -1,6 +1,6 @@
 // FileName: scheduleRepository.ts
 
-import type { ProjectRunConfig } from "../../shared/run";
+import type { RunConfig } from "../../shared/run";
 import type {
   ScheduleListItem,
   ScheduleDetails,
@@ -24,8 +24,8 @@ export function dbSelectScheduleList(): ScheduleListItem[] {
       SELECT
           s.id,
           s.name,
-          p.name AS project_name,
-          p.version AS project_version,
+          p.project_name,
+          p.project_version,
           s.cron,
           s.enabled,
           s.period_start_ms,
@@ -33,7 +33,7 @@ export function dbSelectScheduleList(): ScheduleListItem[] {
           s.run_conflict_policy
       FROM
           schedule s
-          INNER JOIN project p ON s.project_id = p.id
+          INNER JOIN local_package p ON s.local_package_id = p.id
       ORDER BY
           s.updated_at_ms DESC;
       `,
@@ -50,9 +50,9 @@ export function dbSelectScheduleDetail(name: string): ScheduleDetails | undefine
       SELECT
           s.id,
           s.name,
-          s.project_id,
-          p.name AS project_name,
-          p.version AS project_version,
+          s.local_package_id,
+          p.project_name,
+          p.project_version,
           p.python_environment_name,
           s.cron,
           s.run_conflict_policy,
@@ -70,7 +70,7 @@ export function dbSelectScheduleDetail(name: string): ScheduleDetails | undefine
           s.updated_at_ms
       FROM
           schedule s
-          INNER JOIN project p ON s.project_id = p.id
+          INNER JOIN local_package p ON s.local_package_id = p.id
       WHERE
           s.name = ?;
       `,
@@ -81,9 +81,7 @@ export function dbSelectScheduleDetail(name: string): ScheduleDetails | undefine
     : ensureScheduleDetailRow(row, "Schedule detail query result");
 }
 
-export function dbSelectScheduleRunDetail(
-  scheduleId: number,
-): ProjectRunConfig | undefined {
+export function dbSelectScheduleRunDetail(scheduleId: number): RunConfig | undefined {
   loggerMain.debug("--dbSelectScheduleRunDetail--");
   const row = getDatabase()
     .prepare(
@@ -91,9 +89,9 @@ export function dbSelectScheduleRunDetail(
       SELECT
           s.name AS schedule_name,
           s.run_conflict_policy,
-          s.project_id AS local_project_id,
-          p.name AS project_name,
-          p.version AS project_version,
+          s.local_package_id,
+          p.project_name,
+          p.project_version,
           p.python_environment_name,
           s.max_retry_count,
           s.timeout_min,
@@ -104,7 +102,7 @@ export function dbSelectScheduleRunDetail(
           s.custom_prj_args
       FROM
           schedule s
-          INNER JOIN project p ON s.project_id = p.id
+          INNER JOIN local_package p ON s.local_package_id = p.id
       WHERE
           s.id = ?;
       `,
@@ -124,7 +122,7 @@ export function dbInsertSchedule(detailDict: ScheduleCreateData): void {
       INSERT INTO
           schedule (
               name,
-              project_id,
+              local_package_id,
               cron,
               run_conflict_policy,
               period_start_ms,
@@ -146,7 +144,7 @@ export function dbInsertSchedule(detailDict: ScheduleCreateData): void {
     )
     .run(
       detailDict.name,
-      detailDict.project_id,
+      detailDict.local_package_id,
       detailDict.cron,
       detailDict.run_conflict_policy,
       detailDict.period_start_ms,
@@ -173,7 +171,7 @@ export function dbUpdateSchedule(detailDict: ScheduleUpdateData): void {
       UPDATE schedule
       SET
           name = ?,
-          project_id = ?,
+          local_package_id = ?,
           cron = ?,
           run_conflict_policy = ?,
           period_start_ms = ?,
@@ -193,7 +191,7 @@ export function dbUpdateSchedule(detailDict: ScheduleUpdateData): void {
     )
     .run(
       detailDict.name,
-      detailDict.project_id,
+      detailDict.local_package_id,
       detailDict.cron,
       detailDict.run_conflict_policy,
       detailDict.period_start_ms,
@@ -214,7 +212,16 @@ export function dbUpdateSchedule(detailDict: ScheduleUpdateData): void {
 
 export function dbDeleteSchedule(id: number): void {
   loggerMain.debug("--dbDeleteSchedule--");
-  const result = getDatabase().prepare("DELETE FROM schedule WHERE id = ?;").run(id);
+  const result = getDatabase()
+    .prepare(
+      `
+      DELETE FROM
+          schedule
+      WHERE
+          id = ?;
+      `,
+    )
+    .run(id);
   ensureSingleRowAffected(result, `Delete Schedule ID ${id}`);
 }
 

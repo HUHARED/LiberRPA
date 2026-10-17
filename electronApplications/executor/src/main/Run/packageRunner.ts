@@ -1,4 +1,4 @@
-// FileName: projectRunner.ts
+// FileName: packageRunner.ts
 
 import type { ChildProcessWithoutNullStreams } from "child_process";
 import { randomUUID } from "crypto";
@@ -10,7 +10,7 @@ import {
   RunSource,
   RunOutputsStatus,
   type RunOutputs,
-  type ProjectRunConfig,
+  type RunConfig,
   RunStatus,
   type RunEndedStatus,
   JobQueueState,
@@ -22,13 +22,13 @@ import { getPythonEnvironmentPath } from "../Config/environment";
 import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getDatabase } from "../Database/connection";
 import { validatePackageLiberrpaRequirement } from "../Package/packageMetadata";
-import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
+import { getLocalPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import { notifyRunEnded, notifyRunActivityChanged, notifyRunFinished } from "./lifecycle";
 import {
   PythonProcessNotStartedError,
   type PythonProcessDiagnosticOutput,
-  spawnProjectPythonProcess,
+  spawnPythonProcess,
   logPythonDiagnosticOutput,
   requestPythonTermination,
   waitForPythonProcessTermination,
@@ -47,7 +47,7 @@ import { RunTerminationReason, type RunEndedFact, type RunExecutionContext } fro
 
 import { hasRecoveredRun } from "./recoveredRuns";
 
-interface ActiveProjectRun {
+interface ActiveRun {
   processPy: ChildProcessWithoutNullStreams;
   runId: string;
   source: RunSource;
@@ -58,20 +58,20 @@ interface ActiveProjectRun {
   forceTerminationRequired: boolean;
 }
 
-const mapActiveRunByHistoryId = new Map<number, ActiveProjectRun>();
-const mapActiveRunByRunId = new Map<string, ActiveProjectRun>();
+const mapActiveRunByHistoryId = new Map<number, ActiveRun>();
+const mapActiveRunByRunId = new Map<string, ActiveRun>();
 const mapStartingJobQueueItem = new Map<string, JobQueueItem>();
 
 const mapStartingRun = new Map<
   string,
-  { localProjectId: number | null; source: RunSource }
+  { localPackageId: number | null; source: RunSource }
 >();
 const setStartingRunPromise = new Set<Promise<void>>();
-let boolProjectRunShutdownStarted = false;
+let boolRunShutdownStarted = false;
 let promiseConsoleAccountTransition: Promise<void> | undefined;
 let finishConsoleAccountTransition: (() => void) | undefined;
 
-export function hasActiveProjectRun(excludeCurrentStart = false): boolean {
+export function hasActiveRun(excludeCurrentStart = false): boolean {
   return (
     mapStartingRun.size > (excludeCurrentStart ? 1 : 0) ||
     mapActiveRunByRunId.size !== 0 ||
@@ -79,8 +79,8 @@ export function hasActiveProjectRun(excludeCurrentStart = false): boolean {
   );
 }
 
-export function isProjectRunStarting(projectId: number): boolean {
-  return [...mapStartingRun.values()].some((run) => run.localProjectId === projectId);
+export function isPackageRunStarting(packageId: number): boolean {
+  return [...mapStartingRun.values()].some((run) => run.localPackageId === packageId);
 }
 
 export function getActiveJobQueueItems(): JobQueueItem[] {
@@ -116,7 +116,7 @@ export function getLocalActiveRunCount(): number {
 }
 
 export function beginConsoleAccountTransition(): void {
-  if (hasActiveProjectRun()) {
+  if (hasActiveRun()) {
     throw new Error(
       "Wait for all actual Runs to finish or stop them before signing out or changing the Console address.",
     );
@@ -135,7 +135,7 @@ export function endConsoleAccountTransition(): void {
   promiseConsoleAccountTransition = undefined;
 }
 
-function trackActiveProjectRun(activeRun: ActiveProjectRun): void {
+function trackActiveRun(activeRun: ActiveRun): void {
   mapActiveRunByRunId.set(activeRun.runId, activeRun);
   activeRun.processPy.once("close", () => {
     if (mapActiveRunByRunId.get(activeRun.runId) === activeRun) {
@@ -157,8 +157,8 @@ function getRequestedRunStatus(
   return undefined;
 }
 
-function requestProjectRunTermination(
-  activeRun: ActiveProjectRun,
+function requestRunTermination(
+  activeRun: ActiveRun,
   reason: RunTerminationReason,
 ): Promise<void> {
   if (activeRun.terminationPromise !== undefined) {
@@ -249,14 +249,14 @@ async function createRunHistory({
   runId: string;
   runStatePath: string;
   runState: ExecutorRunState;
-  detail: ProjectRunConfig;
+  detail: RunConfig;
   context: RunExecutionContext;
   diagnosticOutput: PythonProcessDiagnosticOutput;
 }): Promise<number> {
   try {
     const intRunHistoryIdValue = dbInsertRunHistory({
       schedule_name: detail.schedule_name,
-      project_id: detail.local_project_id,
+      local_package_id: detail.local_package_id,
       source: context.source,
       run_id: runId,
       job_id: context.jobId,
@@ -290,33 +290,30 @@ async function createRunHistory({
   }
 }
 
-function ensureProjectRunMayStart(): void {
-  if (boolProjectRunShutdownStarted) {
-    throw new Error("Executor is shutting down and cannot start a new Project Run.");
+function ensureRunMayStart(): void {
+  if (boolRunShutdownStarted) {
+    throw new Error("Executor is shutting down and cannot start a new Run.");
   }
 }
 
-async function spawnAndTrackProjectRun(
-  detailDict: ProjectRunConfig,
+async function spawnAndTrackRun(
+  detailDict: RunConfig,
   context: RunExecutionContext,
   runId: string,
 ): Promise<void> {
-  const strExecutorPackagePath =
+  const strPackagePath =
     context.packagePath ??
-    getExecutorPackageFolderPath(detailDict.project_name, detailDict.project_version);
+    getLocalPackageFolderPath(detailDict.project_name, detailDict.project_version);
 
-  if (!fs.existsSync(strExecutorPackagePath)) {
-    throw new Error(`Installed Project folder does not exist: ${strExecutorPackagePath}`);
+  if (!fs.existsSync(strPackagePath)) {
+    throw new Error(`Installed Package folder does not exist: ${strPackagePath}`);
   }
 
   const strPythonEnvironmentPath = getPythonEnvironmentPath(
     detailDict.python_environment_name,
   );
-  await validatePackageLiberrpaRequirement(
-    strExecutorPackagePath,
-    strPythonEnvironmentPath,
-  );
-  ensureProjectRunMayStart();
+  await validatePackageLiberrpaRequirement(strPackagePath, strPythonEnvironmentPath);
+  ensureRunMayStart();
   loggerMain.info(
     `Use Python environment '${detailDict.python_environment_name}' for ${detailDict.project_name}-${detailDict.project_version}.`,
   );
@@ -326,23 +323,23 @@ async function spawnAndTrackProjectRun(
   const strStartedAt = new Date().toISOString();
   const floatStartedAt = performance.now();
   // This call already owns one starting slot; all other starts and actual Runs still count.
-  context.beforeSpawn?.(hasActiveProjectRun(true), strStartedAt);
-  const { processPy, diagnosticOutput, getProcessError } = spawnProjectPythonProcess({
+  context.beforeSpawn?.(hasActiveRun(true), strStartedAt);
+  const { processPy, diagnosticOutput, getProcessError } = spawnPythonProcess({
     detail: detailDict,
-    packagePath: strExecutorPackagePath,
+    packagePath: strPackagePath,
     pythonEnvironmentPath: strPythonEnvironmentPath,
     runId,
     startedAt: strStartedAt,
     runStatePath: strRunStatePath,
   });
-  const activeRun: ActiveProjectRun = {
+  const activeRun: ActiveRun = {
     processPy,
     runId,
     source: context.source,
     onStopping: context.onStopping,
     forceTerminationRequired: false,
   };
-  trackActiveProjectRun(activeRun);
+  trackActiveRun(activeRun);
 
   const dictRunState = await waitForInitialRunState({
     processPy,
@@ -403,7 +400,7 @@ async function spawnAndTrackProjectRun(
       loggerMain.info(
         `Timeout reached. Stop ${detailDict.project_name}-${detailDict.project_version}.`,
       );
-      void requestProjectRunTermination(activeRun, RunTerminationReason.Timeout);
+      void requestRunTermination(activeRun, RunTerminationReason.Timeout);
     };
     // Waiting for startup status and saving history both count toward this Run's timeout.
     const floatRemainingMs =
@@ -560,8 +557,8 @@ async function spawnAndTrackProjectRun(
   }
 }
 
-export async function startProjectRun(
-  detailDict: ProjectRunConfig,
+export async function startRun(
+  detailDict: RunConfig,
   context: RunExecutionContext = {
     source: RunSource.Local,
     jobId: randomUUID(),
@@ -573,7 +570,7 @@ export async function startProjectRun(
     await promiseConsoleAccountTransition;
   }
 
-  ensureProjectRunMayStart();
+  ensureRunMayStart();
 
   const strRunId = context.runId ?? randomUUID();
   if (context.source === RunSource.Local) {
@@ -590,11 +587,11 @@ export async function startProjectRun(
     });
   }
   mapStartingRun.set(strRunId, {
-    localProjectId: detailDict.local_project_id,
+    localPackageId: detailDict.local_package_id,
     source: context.source,
   });
   notifyRunActivityChanged();
-  const promiseStartingRun = spawnAndTrackProjectRun(
+  const promiseStartingRun = spawnAndTrackRun(
     structuredClone(detailDict),
     context,
     strRunId,
@@ -627,25 +624,25 @@ export function cancelRunByHistoryId(runHistoryId: number): void {
   }
 
   loggerMain.info(`Cancel Run History ${String(runHistoryId)}.`);
-  void requestProjectRunTermination(activeRun, RunTerminationReason.Cancel);
+  void requestRunTermination(activeRun, RunTerminationReason.Cancel);
 }
 
 export function cancelRunById(runId: string): void {
   const activeRun = mapActiveRunByRunId.get(runId);
-  if (activeRun) void requestProjectRunTermination(activeRun, RunTerminationReason.Cancel);
+  if (activeRun) void requestRunTermination(activeRun, RunTerminationReason.Cancel);
 }
 
-export function beginProjectRunShutdown(): void {
-  boolProjectRunShutdownStarted = true;
+export function beginRunShutdown(): void {
+  boolRunShutdownStarted = true;
 }
 
-export async function shutdownProjectRuns(): Promise<void> {
-  beginProjectRunShutdown();
+export async function shutdownRuns(): Promise<void> {
+  beginRunShutdown();
 
   const arrStartingRunPromise = [...setStartingRunPromise];
   if (arrStartingRunPromise.length !== 0) {
     loggerMain.info(
-      `Wait for ${String(arrStartingRunPromise.length)} starting Project Run(s) before Executor exits.`,
+      `Wait for ${String(arrStartingRunPromise.length)} starting Run(s) before Executor exits.`,
     );
     await Promise.allSettled(arrStartingRunPromise);
   }
@@ -653,11 +650,11 @@ export async function shutdownProjectRuns(): Promise<void> {
   const arrActiveRun = [...mapActiveRunByRunId.values()];
   if (arrActiveRun.length !== 0) {
     loggerMain.info(
-      `Stop ${String(arrActiveRun.length)} active Project Run(s) before Executor exits.`,
+      `Stop ${String(arrActiveRun.length)} active Run(s) before Executor exits.`,
     );
     await Promise.all(
       arrActiveRun.map((activeRun) =>
-        requestProjectRunTermination(activeRun, RunTerminationReason.Shutdown),
+        requestRunTermination(activeRun, RunTerminationReason.Shutdown),
       ),
     );
   }

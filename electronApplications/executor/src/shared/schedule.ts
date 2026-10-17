@@ -15,7 +15,7 @@ export interface ScheduleListItem {
 }
 
 export interface ScheduleDetails extends ScheduleListItem, RunSettings {
-  project_id: number;
+  local_package_id: number;
   python_environment_name: string;
   created_at_ms: number;
   updated_at_ms: number;

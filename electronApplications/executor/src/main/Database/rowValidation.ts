@@ -2,8 +2,8 @@
 
 import type Database from "better-sqlite3";
 
-import type { ProjectDetails } from "../../shared/project";
-import { type ProjectRunConfig, RunStatus, type RunHistoryItem } from "../../shared/run";
+import type { PackageDetails } from "../../shared/package";
+import { type RunConfig, RunStatus, type RunHistoryItem } from "../../shared/run";
 
 import type { ScheduleDetails, ScheduleListItem } from "../../shared/schedule";
 import type { CustomProjectArgs } from "../../shared/runSettings";
@@ -77,29 +77,35 @@ function ensureNameRow(value: unknown, sourceName: string): { name: string } {
   return { name: ensureNonEmptyString(row.name, `${sourceName}.name`) };
 }
 
-function ensureVersionRow(value: unknown, sourceName: string): { version: string } {
-  const row = ensureExactRecord(value, ["version"], sourceName);
-  return { version: ensureNonEmptyString(row.version, `${sourceName}.version`) };
-}
-
 export function ensureNameRows(rows: unknown[], sourceName: string): { name: string }[] {
   return ensureRows(rows, ensureNameRow, sourceName);
 }
 
-export function ensureVersionRows(
+export function ensureNonEmptyColumnRows(
   rows: unknown[],
+  columnName: string,
   sourceName: string,
-): { version: string }[] {
-  return ensureRows(rows, ensureVersionRow, sourceName);
+): string[] {
+  return ensureRows(
+    rows,
+    (value, source) => {
+      const row = ensureExactRecord(value, [columnName], source);
+      return ensureNonEmptyString(row[columnName], `${source}.${columnName}`);
+    },
+    sourceName,
+  );
 }
 
-export function ensureProjectDetailRow(value: unknown, sourceName: string): ProjectDetails {
+export function ensurePackageDetailsRow(
+  value: unknown,
+  sourceName: string,
+): PackageDetails {
   const row = ensureExactRecord(
     value,
     [
       "id",
-      "name",
-      "version",
+      "project_name",
+      "project_version",
       "description",
       "version_summary",
       "python_environment_name",
@@ -118,8 +124,11 @@ export function ensureProjectDetailRow(value: unknown, sourceName: string): Proj
 
   return {
     id: ensurePositiveInteger(row.id, `${sourceName}.id`),
-    name: ensureNonEmptyString(row.name, `${sourceName}.name`),
-    version: ensureNonEmptyString(row.version, `${sourceName}.version`),
+    project_name: ensureNonEmptyString(row.project_name, `${sourceName}.project_name`),
+    project_version: ensureNonEmptyString(
+      row.project_version,
+      `${sourceName}.project_version`,
+    ),
     description: ensurePackageDescription(row.description, `${sourceName}.description`),
     version_summary: ensureVersionSummary(
       row.version_summary,
@@ -231,7 +240,7 @@ export function ensureScheduleDetailRow(
     [
       "id",
       "name",
-      "project_id",
+      "local_package_id",
       "project_name",
       "project_version",
       "python_environment_name",
@@ -267,7 +276,10 @@ export function ensureScheduleDetailRow(
   return {
     id: ensurePositiveInteger(row.id, `${sourceName}.id`),
     name: ensureNonEmptyString(row.name, `${sourceName}.name`),
-    project_id: ensurePositiveInteger(row.project_id, `${sourceName}.project_id`),
+    local_package_id: ensurePositiveInteger(
+      row.local_package_id,
+      `${sourceName}.local_package_id`,
+    ),
     project_name: ensureNonEmptyString(row.project_name, `${sourceName}.project_name`),
     project_version: ensureNonEmptyString(
       row.project_version,
@@ -324,16 +336,13 @@ export function ensureScheduleDetailRow(
   };
 }
 
-export function ensureScheduleRunDetailRow(
-  value: unknown,
-  sourceName: string,
-): ProjectRunConfig {
+export function ensureScheduleRunDetailRow(value: unknown, sourceName: string): RunConfig {
   const row = ensureExactRecord(
     value,
     [
       "schedule_name",
       "run_conflict_policy",
-      "local_project_id",
+      "local_package_id",
       "project_name",
       "project_version",
       "python_environment_name",
@@ -354,9 +363,9 @@ export function ensureScheduleRunDetailRow(
       row.run_conflict_policy,
       `${sourceName}.run_conflict_policy`,
     ),
-    local_project_id: ensurePositiveInteger(
-      row.local_project_id,
-      `${sourceName}.local_project_id`,
+    local_package_id: ensurePositiveInteger(
+      row.local_package_id,
+      `${sourceName}.local_package_id`,
     ),
     project_name: ensureNonEmptyString(row.project_name, `${sourceName}.project_name`),
     project_version: ensureNonEmptyString(

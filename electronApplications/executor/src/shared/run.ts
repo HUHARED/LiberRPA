@@ -38,10 +38,10 @@ export interface RunRecordingInfo {
   reason?: string;
 }
 
-export interface ProjectRunConfig extends RunSettings, PythonEnvironmentSelection {
+export interface RunConfig extends RunSettings, PythonEnvironmentSelection {
   run_conflict_policy?: RunConflictPolicy;
   schedule_name: string | null;
-  local_project_id: number | null;
+  local_package_id: number | null;
   project_name: string;
   project_version: string;
 }
@@ -51,7 +51,7 @@ export interface RunDetails {
   run_id: string;
   job_id: string;
   attempt_number: number;
-  snapshot: ProjectRunConfig;
+  snapshot: RunConfig;
   outputs: RunOutputs;
   error_summary: { type: string; message: string } | null;
 }

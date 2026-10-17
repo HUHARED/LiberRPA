@@ -1,6 +1,6 @@
 // FileName: consoleWork.ts
 
-import { RunSource, type ProjectRunConfig } from "../../shared/run";
+import { RunSource, type RunConfig } from "../../shared/run";
 import { RunConflictPolicy } from "../../shared/runSettings";
 import { getErrorMessage } from "../../shared/error";
 
@@ -18,7 +18,7 @@ import {
 } from "../Common/validation";
 import { getDatabase } from "../Database/connection";
 import { loggerMain } from "../Logging/logger";
-import { startProjectRun, cancelRunById } from "../Run/projectRunner";
+import { startRun, cancelRunById } from "../Run/packageRunner";
 import { PythonProcessNotStartedError } from "../Run/pythonProcess";
 
 import { getLocalWaitingCount } from "../Scheduler/schedulerEngine";
@@ -109,8 +109,8 @@ function parseRunAssignment(assignment: ConsoleAssignmentData): ConsoleAssignmen
   return {
     ...assignment,
     snapshot: {
-      project_name: ensureNonEmptyString(snapshot.project_name, "Package name"),
-      project_version: ensureNonEmptyString(snapshot.project_version, "Package version"),
+      project_name: ensureNonEmptyString(snapshot.project_name, "Project name"),
+      project_version: ensureNonEmptyString(snapshot.project_version, "Project version"),
       sha256: ensureNonEmptyString(snapshot.sha256, "Package SHA256"),
       schedule_name:
         typeof snapshot.schedule_name === "string" ? snapshot.schedule_name : null,
@@ -313,17 +313,17 @@ async function prepareAndStartRun(
       sha256: strSha256,
       ...runSettings
     } = assignment.snapshot;
-    const detail: ProjectRunConfig = {
+    const detail: RunConfig = {
       ...runSettings,
-      local_project_id: null,
+      local_package_id: null,
       project_name: strProjectName,
       project_version: strProjectVersion,
     };
     const strPackagePath = await prepareConsolePackage(
       {
-        id: assignment.package_id,
-        name: detail.project_name,
-        version: detail.project_version,
+        packageId: assignment.package_id,
+        projectName: detail.project_name,
+        projectVersion: detail.project_version,
         sha256: strSha256,
       },
       detail.python_environment_name,
@@ -334,7 +334,7 @@ async function prepareAndStartRun(
     const permit = await requestStartPermit(record, credential);
     record.state = ConsoleWorkState.Permitted;
     saveConsoleWork(record);
-    await startProjectRun(detail, {
+    await startRun(detail, {
       source: RunSource.Console,
       jobId: record.assignment.job_id,
       runId: record.assignment.run_id,
@@ -437,9 +437,9 @@ async function prepareRequestedPackages(
     try {
       await prepareConsolePackage(
         {
-          id: ensureNonEmptyString(snapshot.package_id, "Package ID"),
-          name: ensureNonEmptyString(snapshot.project_name, "Package name"),
-          version: ensureNonEmptyString(snapshot.project_version, "Package version"),
+          packageId: ensureNonEmptyString(snapshot.package_id, "Package ID"),
+          projectName: ensureNonEmptyString(snapshot.project_name, "Project name"),
+          projectVersion: ensureNonEmptyString(snapshot.project_version, "Project version"),
           sha256: ensureNonEmptyString(snapshot.sha256, "Package SHA256"),
         },
         ensurePythonEnvironmentName(snapshot.python_environment_name, "Python environment"),

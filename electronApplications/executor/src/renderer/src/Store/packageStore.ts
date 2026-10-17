@@ -1,20 +1,20 @@
-// FileName: projectStore.ts
+// FileName: packageStore.ts
 
 import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
-import type { ProjectDetails, ProjectSettingsUpdate } from "../../../shared/project";
+import type { PackageDetails, PackageSettingsUpdate } from "../../../shared/package";
 
-export const useProjectStore = defineStore("project", {
+export const usePackageStore = defineStore("package", {
   state: () => {
     return {
-      arrName: [] as { title: string; value: string }[],
-      arrVersion: [] as { title: string; value: string }[],
+      arrProjectName: [] as { title: string; value: string }[],
+      arrProjectVersion: [] as { title: string; value: string }[],
       arrPythonEnvironmentName: [] as string[],
       intSelectionRevision: 0,
 
-      dictDetailEdit: undefined as ProjectDetails | undefined,
+      dictDetailEdit: undefined as PackageDetails | undefined,
       strDetailCacheEdit: undefined as string | undefined,
 
       // Delete dialog
@@ -28,31 +28,31 @@ export const useProjectStore = defineStore("project", {
     },
 
     async loadProjectNames(): Promise<void> {
-      if (this.arrName.length === 0) {
+      if (this.arrProjectName.length === 0) {
         this.resetVersionAndDetail();
 
         const arrRows = await invokeMain("getProjectNames");
-        this.arrName = arrRows.map((row) => ({
-          title: row.name,
-          value: row.name,
+        this.arrProjectName = arrRows.map((projectName) => ({
+          title: projectName,
+          value: projectName,
         }));
       }
     },
 
-    async loadProjectVersions(name: string): Promise<void> {
+    async loadProjectVersions(projectName: string): Promise<void> {
       const intRevision = ++this.intSelectionRevision;
-      this.arrVersion = [];
+      this.arrProjectVersion = [];
       this.strDetailCacheEdit = undefined;
       this.dictDetailEdit = undefined;
 
-      const arrRows = await invokeMain("getProjectVersions", name);
+      const arrRows = await invokeMain("getProjectVersions", projectName);
       if (intRevision !== this.intSelectionRevision) {
         return;
       }
 
-      this.arrVersion = arrRows.map((row) => ({
-        title: row.version,
-        value: row.version,
+      this.arrProjectVersion = arrRows.map((projectVersion) => ({
+        title: projectVersion,
+        value: projectVersion,
       }));
     },
 
@@ -64,12 +64,12 @@ export const useProjectStore = defineStore("project", {
 
     resetVersionAndDetail(): void {
       this.intSelectionRevision += 1;
-      this.arrVersion = [];
+      this.arrProjectVersion = [];
       this.strDetailCacheEdit = undefined;
       this.dictDetailEdit = undefined;
     },
 
-    async loadProjectDetail(name: string, version: string): Promise<void> {
+    async loadPackageDetails(projectName: string, projectVersion: string): Promise<void> {
       const intRevision = ++this.intSelectionRevision;
       this.strDetailCacheEdit = undefined;
       this.dictDetailEdit = undefined;
@@ -79,25 +79,28 @@ export const useProjectStore = defineStore("project", {
         return;
       }
 
-      const dictDetail = await invokeMain("getProjectDetail", { name, version });
+      const dictDetail = await invokeMain("getPackageDetails", {
+        project_name: projectName,
+        project_version: projectVersion,
+      });
       if (intRevision !== this.intSelectionRevision) {
         return;
       }
 
       if (dictDetail === undefined) {
-        throw new Error(`Project not found: ${name}-${version}`);
+        throw new Error(`Package not found: ${projectName}-${projectVersion}`);
       }
 
       this.dictDetailEdit = dictDetail;
       this.strDetailCacheEdit = JSON.stringify(dictDetail);
     },
 
-    async saveProjectSettings(): Promise<void> {
+    async savePackageSettings(): Promise<void> {
       if (this.dictDetailEdit === undefined) {
         return;
       }
 
-      const dictTemp: ProjectSettingsUpdate = {
+      const dictTemp: PackageSettingsUpdate = {
         id: this.dictDetailEdit.id,
         python_environment_name: this.dictDetailEdit.python_environment_name,
         max_retry_count: this.dictDetailEdit.max_retry_count,
@@ -108,7 +111,7 @@ export const useProjectStore = defineStore("project", {
         builtin_highlight_ui: this.dictDetailEdit.builtin_highlight_ui,
         custom_prj_args: this.dictDetailEdit.custom_prj_args,
       };
-      await invokeMain("saveProjectSettings", dictTemp);
+      await invokeMain("savePackageSettings", dictTemp);
     },
 
     async loadBoundSchedules(): Promise<void> {
@@ -117,21 +120,21 @@ export const useProjectStore = defineStore("project", {
         return;
       }
 
-      const arrRows = await invokeMain("getProjectBoundSchedules", currentDetail.id);
+      const arrRows = await invokeMain("getPackageBoundSchedules", currentDetail.id);
       if (this.dictDetailEdit !== currentDetail) {
         return;
       }
       this.arrBoundSchedule = arrRows.map((row) => ({ title: row.name }));
     },
 
-    async deleteProject(): Promise<void> {
+    async deletePackage(): Promise<void> {
       if (this.dictDetailEdit !== undefined) {
         loggerRenderer.info(
-          `Delete project: ${this.dictDetailEdit.id}-${this.dictDetailEdit.name}-${this.dictDetailEdit.version}`,
+          `Delete Package: ${this.dictDetailEdit.id}-${this.dictDetailEdit.project_name}-${this.dictDetailEdit.project_version}`,
         );
-        await invokeMain("deleteProject", this.dictDetailEdit.id);
+        await invokeMain("deletePackage", this.dictDetailEdit.id);
 
-        this.arrName = [];
+        this.arrProjectName = [];
         await this.loadProjectNames();
         this.showDeleteDialog = false;
         this.arrBoundSchedule = [];

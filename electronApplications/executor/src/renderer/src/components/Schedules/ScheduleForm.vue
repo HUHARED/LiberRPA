@@ -243,13 +243,16 @@ const ARR_RUN_CONFLICT_POLICY: { title: string; value: RunConflictPolicy }[] = [
   { title: "Run Concurrently", value: RunConflictPolicy.Concurrent },
 ];
 
-async function applyProjectDetailToSchedule(
+async function applyPackageDetailsToSchedule(
   currentDetail: ScheduleFormDraft,
   name: string,
   version: string,
   intRevision: number,
 ): Promise<void> {
-  const projectDetail = await invokeMain("getProjectDetail", { name, version });
+  const packageDetails = await invokeMain("getPackageDetails", {
+    project_name: name,
+    project_version: version,
+  });
   if (
     intRevision !== intProjectSelectionRevision ||
     detail.value !== currentDetail ||
@@ -258,19 +261,19 @@ async function applyProjectDetailToSchedule(
   ) {
     return;
   }
-  if (projectDetail === undefined) {
-    throw new Error(`Project not found: ${name}-${version}`);
+  if (packageDetails === undefined) {
+    throw new Error(`Package not found: ${name}-${version}`);
   }
 
-  currentDetail.project_id = projectDetail.id;
-  currentDetail.python_environment_name = projectDetail.python_environment_name;
-  currentDetail.max_retry_count = projectDetail.max_retry_count;
-  currentDetail.timeout_min = projectDetail.timeout_min;
-  currentDetail.builtin_log_level = projectDetail.builtin_log_level;
-  currentDetail.builtin_record_video = projectDetail.builtin_record_video;
-  currentDetail.builtin_stop_shortcut = projectDetail.builtin_stop_shortcut;
-  currentDetail.builtin_highlight_ui = projectDetail.builtin_highlight_ui;
-  currentDetail.custom_prj_args = cloneJsonSerializable(projectDetail.custom_prj_args);
+  currentDetail.local_package_id = packageDetails.id;
+  currentDetail.python_environment_name = packageDetails.python_environment_name;
+  currentDetail.max_retry_count = packageDetails.max_retry_count;
+  currentDetail.timeout_min = packageDetails.timeout_min;
+  currentDetail.builtin_log_level = packageDetails.builtin_log_level;
+  currentDetail.builtin_record_video = packageDetails.builtin_record_video;
+  currentDetail.builtin_stop_shortcut = packageDetails.builtin_stop_shortcut;
+  currentDetail.builtin_highlight_ui = packageDetails.builtin_highlight_ui;
+  currentDetail.custom_prj_args = cloneJsonSerializable(packageDetails.custom_prj_args);
 }
 
 async function whenProjectNameChanged(): Promise<void> {
@@ -285,7 +288,7 @@ async function whenProjectNameChanged(): Promise<void> {
   }
 
   const intRevision = ++intProjectSelectionRevision;
-  currentDetail.project_id = undefined;
+  currentDetail.local_package_id = undefined;
   currentDetail.project_version = undefined;
   currentDetail.python_environment_name = "";
   scheduleStore.resetProjectVersions();
@@ -307,7 +310,7 @@ async function whenProjectNameChanged(): Promise<void> {
   }
 
   currentDetail.project_version = firstVersion;
-  await applyProjectDetailToSchedule(currentDetail, name, firstVersion, intRevision);
+  await applyPackageDetailsToSchedule(currentDetail, name, firstVersion, intRevision);
 }
 
 async function whenProjectVersionChanged(): Promise<void> {
@@ -323,10 +326,10 @@ async function whenProjectVersionChanged(): Promise<void> {
   }
 
   const intRevision = ++intProjectSelectionRevision;
-  currentDetail.project_id = undefined;
+  currentDetail.local_package_id = undefined;
   currentDetail.python_environment_name = "";
   loggerRenderer.info(`Modified Project version: ${version}`);
-  await applyProjectDetailToSchedule(currentDetail, name, version, intRevision);
+  await applyPackageDetailsToSchedule(currentDetail, name, version, intRevision);
 }
 </script>
 

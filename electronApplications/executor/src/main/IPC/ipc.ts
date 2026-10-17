@@ -26,10 +26,10 @@ import {
 import {
   dbSelectProjectNames,
   dbSelectProjectVersions,
-  dbSelectProjectBoundSchedules,
-  dbSelectProjectDetail,
-  dbUpdateProjectSettings,
-} from "../Database/projectRepository";
+  dbSelectPackageBoundSchedules,
+  dbSelectPackageDetails,
+  dbUpdatePackageSettings,
+} from "../Database/packageRepository";
 import {
   dbSelectRunHistoryLogLocation,
   dbSelectRunHistoryPage,
@@ -45,11 +45,11 @@ import {
 } from "../Database/scheduleRepository";
 import { fileOpenFolder } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import { installProjectPackage } from "../Package/packageInstallation";
-import { deleteInstalledProject } from "../Package/projectDeletion";
-import { runInstalledProject, getLocalRerunProject } from "../Run/manualRun";
+import { installPackage } from "../Package/packageInstallation";
+import { deleteInstalledPackage } from "../Package/packageDeletion";
+import { runInstalledPackage, getLocalRerunPackage } from "../Run/manualRun";
 import { ensureExistingRunLogFolderPath } from "../Run/logPath";
-import { cancelRunByHistoryId } from "../Run/projectRunner";
+import { cancelRunByHistoryId } from "../Run/packageRunner";
 import {
   cancelQueuedRun,
   getJobQueueItems,
@@ -61,8 +61,8 @@ import {
   ensureNoData,
   ensureStringData,
   ensurePositiveIntegerData,
-  ensureProjectRef,
-  ensureProjectSettingsUpdate,
+  ensurePackageRef,
+  ensurePackageSettingsUpdate,
   ensureScheduleCreate,
   ensureScheduleUpdate,
   ensureScheduleEnabled,
@@ -97,19 +97,18 @@ type ExecutorInvokeHandlers = {
 };
 
 const INVOKE_VALIDATOR = {
-  // Projects.
+  // Packages.
   getPythonEnvironmentNames: (rawData: unknown) =>
     ensureNoData(rawData, "getPythonEnvironmentNames"),
   getProjectNames: (rawData: unknown) => ensureNoData(rawData, "getProjectNames"),
   getProjectVersions: (rawData: unknown) => ensureStringData(rawData, "getProjectVersions"),
-  getProjectDetail: ensureProjectRef,
-  installProjectPackage: (rawData: unknown) =>
-    ensureNoData(rawData, "installProjectPackage"),
-  saveProjectSettings: ensureProjectSettingsUpdate,
-  runProject: ensureProjectSettingsUpdate,
-  getProjectBoundSchedules: (rawData: unknown) =>
-    ensurePositiveIntegerData(rawData, "getProjectBoundSchedules"),
-  deleteProject: (rawData: unknown) => ensurePositiveIntegerData(rawData, "deleteProject"),
+  getPackageDetails: ensurePackageRef,
+  installPackage: (rawData: unknown) => ensureNoData(rawData, "installPackage"),
+  savePackageSettings: ensurePackageSettingsUpdate,
+  runPackage: ensurePackageSettingsUpdate,
+  getPackageBoundSchedules: (rawData: unknown) =>
+    ensurePositiveIntegerData(rawData, "getPackageBoundSchedules"),
+  deletePackage: (rawData: unknown) => ensurePositiveIntegerData(rawData, "deletePackage"),
 
   // Schedules.
   getScheduleList: (rawData: unknown) => ensureNoData(rawData, "getScheduleList"),
@@ -130,8 +129,8 @@ const INVOKE_VALIDATOR = {
   openRunLogFolder: (rawData: unknown) =>
     ensurePositiveIntegerData(rawData, "openRunLogFolder"),
   pythonCancel: (rawData: unknown) => ensurePositiveIntegerData(rawData, "pythonCancel"),
-  getLocalRerunProject: (rawData: unknown) =>
-    ensurePositiveIntegerData(rawData, "getLocalRerunProject"),
+  getLocalRerunPackage: (rawData: unknown) =>
+    ensurePositiveIntegerData(rawData, "getLocalRerunPackage"),
 
   // Settings.
   saveExecutorConfig: (rawData: unknown) => parseExecutorConfig(rawData),
@@ -151,7 +150,7 @@ const INVOKE_VALIDATOR = {
 
 function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvokeHandlers {
   return {
-    // Projects.
+    // Packages.
     getPythonEnvironmentNames() {
       return getPythonEnvironmentNames();
     },
@@ -164,29 +163,29 @@ function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvo
       return dbSelectProjectVersions(name);
     },
 
-    getProjectDetail(projectDict) {
-      return dbSelectProjectDetail(projectDict.name, projectDict.version);
+    getPackageDetails(packageRef) {
+      return dbSelectPackageDetails(packageRef.project_name, packageRef.project_version);
     },
 
-    async installProjectPackage() {
-      return await installProjectPackage(ensureExecutorRunning);
+    async installPackage() {
+      return await installPackage(ensureExecutorRunning);
     },
 
-    saveProjectSettings(detailDict) {
+    savePackageSettings(detailDict) {
       validatePythonEnvironmentName(detailDict.python_environment_name);
-      dbUpdateProjectSettings(detailDict);
+      dbUpdatePackageSettings(detailDict);
     },
 
-    async runProject(intProjectId) {
-      await runInstalledProject(intProjectId);
+    async runPackage(settings) {
+      await runInstalledPackage(settings);
     },
 
-    getProjectBoundSchedules(projectId) {
-      return dbSelectProjectBoundSchedules(projectId);
+    getPackageBoundSchedules(packageId) {
+      return dbSelectPackageBoundSchedules(packageId);
     },
 
-    deleteProject(projectId) {
-      deleteInstalledProject(projectId);
+    deletePackage(packageId) {
+      deleteInstalledPackage(packageId);
     },
 
     // Schedules.
@@ -244,7 +243,7 @@ function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvo
       cancelRunByHistoryId(runHistoryId);
     },
 
-    getLocalRerunProject,
+    getLocalRerunPackage,
 
     // Settings.
     saveExecutorConfig(dictConfig) {

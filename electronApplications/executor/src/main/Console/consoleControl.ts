@@ -4,7 +4,7 @@ import { getErrorMessage } from "../../shared/error";
 
 import { ensureRecord, ensureNonEmptyString } from "../Common/validation";
 import { loggerMain } from "../Logging/logger";
-import { getActiveConsoleRunIds, getLocalActiveRunCount } from "../Run/projectRunner";
+import { getActiveConsoleRunIds, getLocalActiveRunCount } from "../Run/packageRunner";
 import { onRunActivityChanged } from "../Run/lifecycle";
 import { getRecoveredConsoleRunIds, getOtherRecoveredRunCount } from "../Run/recoveredRuns";
 import { getConsoleWorkSessionKey } from "./workRepository";

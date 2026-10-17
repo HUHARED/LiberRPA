@@ -285,10 +285,14 @@ export function getUnfinishedConsoleWork(): ConsoleWorkRecord[] {
   const arrRow = getDatabase()
     .prepare(
       `
-      SELECT state, content
-      FROM console_work
-      WHERE state <> 'finished';
-    `,
+      SELECT
+          state,
+          content
+      FROM
+          console_work
+      WHERE
+          state <> 'finished';
+      `,
     )
     .all() as ConsoleWorkRow[];
   return arrRow.map(parseConsoleWorkRow);

@@ -2,12 +2,12 @@
 
 import { workerData } from "worker_threads";
 
-import { extractProjectPackageArchive } from "./packageArchive";
+import { extractPackageArchive } from "./packageArchive";
 
 export interface PackageArchiveArgs {
   packageFilePath: string;
-  stagedProjectPath: string;
+  stagedPackagePath: string;
 }
 
 const archiveArgs = workerData as PackageArchiveArgs;
-extractProjectPackageArchive(archiveArgs.packageFilePath, archiveArgs.stagedProjectPath);
+extractPackageArchive(archiveArgs.packageFilePath, archiveArgs.stagedPackagePath);

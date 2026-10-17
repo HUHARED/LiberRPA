@@ -9,7 +9,7 @@
     direction="vertical"
     class="clean-space fill-height"
     style="width: 55px">
-    <v-tab value="projects">
+    <v-tab value="packages">
       <v-icon size="x-large" icon="mdi-package-variant-closed"></v-icon>
       <v-tooltip activator="parent" location="bottom">Packages</v-tooltip>
     </v-tab>

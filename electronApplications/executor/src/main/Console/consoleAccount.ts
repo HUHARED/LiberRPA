@@ -16,10 +16,10 @@ import { getErrorMessage } from "../../shared/error";
 import { readJsonFile, writeJsonFileAtomic } from "../Common/jsonFile";
 import { ensureRecord, ensureString, ensureNonEmptyString } from "../Common/validation";
 import {
-  hasActiveProjectRun,
+  hasActiveRun,
   beginConsoleAccountTransition,
   endConsoleAccountTransition,
-} from "../Run/projectRunner";
+} from "../Run/packageRunner";
 import {
   ConsoleRequestError,
   normalizeConsoleUrl,
@@ -229,7 +229,7 @@ export function getConsoleAccountState(): ConsoleAccountState {
     sessionInfo,
     message: strMessage,
     hasCredential: strToken !== "",
-    hasActiveRun: hasActiveProjectRun(),
+    hasActiveRun: hasActiveRun(),
     busy: boolBusy,
   };
 }

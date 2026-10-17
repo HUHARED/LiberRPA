@@ -12,8 +12,8 @@ const INT_MAX_ZIP_ENTRY_COUNT = 20_000;
 const INT_MAX_ZIP_ENTRY_SIZE_BYTES = 512 * 1024 ** 2;
 const INT_MAX_UNCOMPRESSED_SIZE_BYTES = 2 * 1024 ** 3;
 
-export function getTargetFolderName(name: string, version: string): string {
-  const strFolderName = `${name}_${version}`;
+export function getPackageFolderName(projectName: string, projectVersion: string): string {
+  const strFolderName = `${projectName}_${projectVersion}`;
   const strError = getWindowsFolderNameError(strFolderName);
   if (strError !== undefined) {
     throw new Error(`Cannot create the Flow Package folder name: ${strError}`);
@@ -156,23 +156,23 @@ function validateExtractedTree(rootPath: string): void {
   }
 }
 
-export function extractProjectPackageArchive(
+export function extractPackageArchive(
   packageFilePath: string,
-  stagedProjectPath: string,
+  stagedPackagePath: string,
 ): void {
   const statObj = fs.statSync(packageFilePath);
   if (!statObj.isFile()) {
-    throw new Error(`Project Package is not a file: ${packageFilePath}`);
+    throw new Error(`Package is not a file: ${packageFilePath}`);
   }
   if (!Number.isSafeInteger(statObj.size) || statObj.size < 0) {
-    throw new Error(`Project Package has an invalid file size: ${packageFilePath}`);
+    throw new Error(`Package has an invalid file size: ${packageFilePath}`);
   }
   if (statObj.size > INT_MAX_PACKAGE_ARCHIVE_SIZE_BYTES) {
-    throw new Error("Project Package archive is larger than 512 MiB.");
+    throw new Error("Package archive is larger than 512 MiB.");
   }
 
   const zipObj = new AdmZip(packageFilePath);
   validateZipEntries(zipObj);
-  zipObj.extractAllTo(stagedProjectPath, false);
-  validateExtractedTree(stagedProjectPath);
+  zipObj.extractAllTo(stagedPackagePath, false);
+  validateExtractedTree(stagedPackagePath);
 }

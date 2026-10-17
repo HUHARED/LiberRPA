@@ -1,61 +1,61 @@
-// FileName: projectRepository.ts
+// FileName: packageRepository.ts
 
 import type {
-  ProjectCreateData,
-  ProjectDetails,
-  ProjectSettingsUpdate,
-} from "../../shared/project";
+  PackageCreateData,
+  PackageDetails,
+  PackageSettingsUpdate,
+} from "../../shared/package";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
   ensureSingleRowAffected,
   ensureNameRows,
-  ensureVersionRows,
-  ensureProjectDetailRow,
+  ensureNonEmptyColumnRows,
+  ensurePackageDetailsRow,
 } from "./rowValidation";
 
-export function dbSelectProjectNames(): { name: string }[] {
+export function dbSelectProjectNames(): string[] {
   loggerMain.debug("--dbSelectProjectNames--");
   const rows = getDatabase()
     .prepare(
       `
       SELECT
-          name
+          project_name
       FROM
-          project
+          local_package
       GROUP BY
-          name
+          project_name
       ORDER BY
           MAX(created_at_ms) DESC,
-          name COLLATE NOCASE ASC;
+          project_name COLLATE NOCASE ASC;
       `,
     )
     .all();
-  return ensureNameRows(rows, "Project name query result");
+  return ensureNonEmptyColumnRows(rows, "project_name", "Project name query result");
 }
 
-export function dbSelectProjectVersions(name: string): { version: string }[] {
+export function dbSelectProjectVersions(projectName: string): string[] {
   loggerMain.debug("--dbSelectProjectVersions--");
   const rows = getDatabase()
     .prepare(
       `
       SELECT
-          version
+          project_version
       FROM
-          project
+          local_package
       WHERE
-          name = ?
+          project_name = ?
       ORDER BY
           created_at_ms DESC,
-          version COLLATE NOCASE ASC;
+          project_version COLLATE NOCASE ASC;
       `,
     )
-    .all(name);
-  return ensureVersionRows(rows, "Project version query result");
+    .all(projectName);
+  return ensureNonEmptyColumnRows(rows, "project_version", "Project version query result");
 }
 
-export function dbSelectProjectBoundSchedules(id: number): { name: string }[] {
-  loggerMain.debug("--dbSelectProjectBoundSchedules--");
+export function dbSelectPackageBoundSchedules(id: number): { name: string }[] {
+  loggerMain.debug("--dbSelectPackageBoundSchedules--");
   const rows = getDatabase()
     .prepare(
       `
@@ -64,7 +64,7 @@ export function dbSelectProjectBoundSchedules(id: number): { name: string }[] {
       FROM
           schedule
       WHERE
-          project_id = ?
+          local_package_id = ?
       ORDER BY
           name ASC;
       `,
@@ -73,18 +73,18 @@ export function dbSelectProjectBoundSchedules(id: number): { name: string }[] {
   return ensureNameRows(rows, "Bound Schedule query result");
 }
 
-export function dbSelectProjectDetail(
-  name: string,
-  version: string,
-): ProjectDetails | undefined {
-  loggerMain.debug("--dbSelectProjectDetail--");
+export function dbSelectPackageDetails(
+  projectName: string,
+  projectVersion: string,
+): PackageDetails | undefined {
+  loggerMain.debug("--dbSelectPackageDetails--");
   const row = getDatabase()
     .prepare(
       `
       SELECT
           id,
-          name,
-          version,
+          project_name,
+          project_version,
           description,
           version_summary,
           python_environment_name,
@@ -98,27 +98,27 @@ export function dbSelectProjectDetail(
           created_at_ms,
           updated_at_ms
       FROM
-          project
+          local_package
       WHERE
-          name = ?
-          AND version = ?;
+          project_name = ?
+          AND project_version = ?;
       `,
     )
-    .get(name, version);
+    .get(projectName, projectVersion);
   return row === undefined
     ? undefined
-    : ensureProjectDetailRow(row, "Project detail query result");
+    : ensurePackageDetailsRow(row, "Package details query result");
 }
 
-export function dbSelectProjectDetailById(id: number): ProjectDetails | undefined {
-  loggerMain.debug("--dbSelectProjectDetailById--");
+export function dbSelectPackageDetailsById(id: number): PackageDetails | undefined {
+  loggerMain.debug("--dbSelectPackageDetailsById--");
   const row = getDatabase()
     .prepare(
       `
       SELECT
           id,
-          name,
-          version,
+          project_name,
+          project_version,
           description,
           version_summary,
           python_environment_name,
@@ -132,7 +132,7 @@ export function dbSelectProjectDetailById(id: number): ProjectDetails | undefine
           created_at_ms,
           updated_at_ms
       FROM
-          project
+          local_package
       WHERE
           id = ?;
       `,
@@ -140,19 +140,19 @@ export function dbSelectProjectDetailById(id: number): ProjectDetails | undefine
     .get(id);
   return row === undefined
     ? undefined
-    : ensureProjectDetailRow(row, "Project detail by ID query result");
+    : ensurePackageDetailsRow(row, "Package details by ID query result");
 }
 
-export function dbInsertProjectDetail(dictDetail: ProjectCreateData): void {
-  loggerMain.debug("--dbInsertProjectDetail--");
+export function dbInsertPackageDetails(dictDetail: PackageCreateData): void {
+  loggerMain.debug("--dbInsertPackageDetails--");
   const intNowMs = Date.now();
   const result = getDatabase()
     .prepare(
       `
       INSERT INTO
-          project (
-              name,
-              version,
+          local_package (
+              project_name,
+              project_version,
               description,
               version_summary,
               python_environment_name,
@@ -171,8 +171,8 @@ export function dbInsertProjectDetail(dictDetail: ProjectCreateData): void {
       `,
     )
     .run(
-      dictDetail.name,
-      dictDetail.version,
+      dictDetail.project_name,
+      dictDetail.project_version,
       dictDetail.description,
       dictDetail.version_summary ?? "",
       dictDetail.python_environment_name,
@@ -188,16 +188,16 @@ export function dbInsertProjectDetail(dictDetail: ProjectCreateData): void {
     );
   ensureSingleRowAffected(
     result,
-    `Insert Project ${dictDetail.name}-${dictDetail.version}`,
+    `Insert Package ${dictDetail.project_name}-${dictDetail.project_version}`,
   );
 }
 
-export function dbUpdateProjectSettings(dictDetail: ProjectSettingsUpdate): void {
-  loggerMain.debug("--dbUpdateProjectSettings--");
+export function dbUpdatePackageSettings(dictDetail: PackageSettingsUpdate): void {
+  loggerMain.debug("--dbUpdatePackageSettings--");
   const result = getDatabase()
     .prepare(
       `
-      UPDATE project
+      UPDATE local_package
       SET
           python_environment_name = ?,
           max_retry_count = ?,
@@ -224,36 +224,45 @@ export function dbUpdateProjectSettings(dictDetail: ProjectSettingsUpdate): void
       Date.now(),
       dictDetail.id,
     );
-  ensureSingleRowAffected(result, `Update Project settings for ID ${dictDetail.id}`);
+  ensureSingleRowAffected(result, `Update Package settings for ID ${dictDetail.id}`);
 }
 
-export function dbDeleteProject(id: number): void {
-  loggerMain.debug("--dbDeleteProject--");
+export function dbDeletePackage(id: number): void {
+  loggerMain.debug("--dbDeletePackage--");
 
-  const arrBoundSchedule = dbSelectProjectBoundSchedules(id);
+  const arrBoundSchedule = dbSelectPackageBoundSchedules(id);
   if (arrBoundSchedule.length !== 0) {
     throw new Error(
-      `Cannot delete Project ${id} because it is used by Schedule: ${arrBoundSchedule
+      `Cannot delete Package ${id} because it is used by Schedule: ${arrBoundSchedule
         .map((dictSchedule) => dictSchedule.name)
         .join(", ")}.`,
     );
   }
 
-  const result = getDatabase().prepare("DELETE FROM project WHERE id = ?;").run(id);
-  ensureSingleRowAffected(result, `Delete Project ID ${id}`);
+  const result = getDatabase()
+    .prepare(
+      `
+      DELETE FROM
+          local_package
+      WHERE
+          id = ?;
+      `,
+    )
+    .run(id);
+  ensureSingleRowAffected(result, `Delete Package ID ${id}`);
 }
 
-export function dbSelectProjectMostRecentlyInstalledDetail(
-  name: string,
-): ProjectDetails | undefined {
-  loggerMain.debug("--dbSelectProjectMostRecentlyInstalledDetail--");
+export function dbSelectMostRecentlyInstalledPackage(
+  projectName: string,
+): PackageDetails | undefined {
+  loggerMain.debug("--dbSelectMostRecentlyInstalledPackage--");
   const row = getDatabase()
     .prepare(
       `
       SELECT
           id,
-          name,
-          version,
+          project_name,
+          project_version,
           description,
           version_summary,
           python_environment_name,
@@ -267,17 +276,17 @@ export function dbSelectProjectMostRecentlyInstalledDetail(
           created_at_ms,
           updated_at_ms
       FROM
-          project
+          local_package
       WHERE
-          name = ?
+          project_name = ?
       ORDER BY
           created_at_ms DESC
       LIMIT
           1;
       `,
     )
-    .get(name);
+    .get(projectName);
   return row === undefined
     ? undefined
-    : ensureProjectDetailRow(row, "Most recently installed Project version query result");
+    : ensurePackageDetailsRow(row, "Most recently installed Package query result");
 }

@@ -1,54 +1,54 @@
 // FileName: manualRun.ts
 
-import type { ProjectDetails, ProjectSettingsUpdate } from "../../shared/project";
+import type { PackageDetails, PackageSettingsUpdate } from "../../shared/package";
 
-import type { ProjectRunConfig } from "../../shared/run";
+import type { RunConfig } from "../../shared/run";
 import {
-  dbSelectProjectDetailById,
-  dbSelectProjectMostRecentlyInstalledDetail,
-} from "../Database/projectRepository";
+  dbSelectPackageDetailsById,
+  dbSelectMostRecentlyInstalledPackage,
+} from "../Database/packageRepository";
 import { dbSelectFinishedLocalRunProjectName } from "../Database/runHistoryRepository";
-import { startProjectRun } from "./projectRunner";
+import { startRun } from "./packageRunner";
 
-function buildManualRunConfig(dictProject: ProjectDetails): ProjectRunConfig {
+function buildManualRunConfig(dictPackage: PackageDetails): RunConfig {
   return {
     schedule_name: null,
 
-    local_project_id: dictProject.id,
-    project_name: dictProject.name,
-    project_version: dictProject.version,
+    local_package_id: dictPackage.id,
+    project_name: dictPackage.project_name,
+    project_version: dictPackage.project_version,
 
-    python_environment_name: dictProject.python_environment_name,
+    python_environment_name: dictPackage.python_environment_name,
 
-    max_retry_count: dictProject.max_retry_count,
-    timeout_min: dictProject.timeout_min,
+    max_retry_count: dictPackage.max_retry_count,
+    timeout_min: dictPackage.timeout_min,
 
-    builtin_log_level: dictProject.builtin_log_level,
-    builtin_record_video: dictProject.builtin_record_video,
-    builtin_stop_shortcut: dictProject.builtin_stop_shortcut,
-    builtin_highlight_ui: dictProject.builtin_highlight_ui,
-    custom_prj_args: dictProject.custom_prj_args,
+    builtin_log_level: dictPackage.builtin_log_level,
+    builtin_record_video: dictPackage.builtin_record_video,
+    builtin_stop_shortcut: dictPackage.builtin_stop_shortcut,
+    builtin_highlight_ui: dictPackage.builtin_highlight_ui,
+    custom_prj_args: dictPackage.custom_prj_args,
   };
 }
 
-export async function runInstalledProject(settings: ProjectSettingsUpdate): Promise<void> {
-  const dictProject = dbSelectProjectDetailById(settings.id);
-  if (dictProject === undefined) {
-    throw new Error(`Project not found: ${settings.id}`);
+export async function runInstalledPackage(settings: PackageSettingsUpdate): Promise<void> {
+  const dictPackage = dbSelectPackageDetailsById(settings.id);
+  if (dictPackage === undefined) {
+    throw new Error(`Package not found: ${settings.id}`);
   }
 
-  await startProjectRun(buildManualRunConfig({ ...dictProject, ...settings }));
+  await startRun(buildManualRunConfig({ ...dictPackage, ...settings }));
 }
 
-export function getLocalRerunProject(runHistoryId: number): ProjectDetails {
+export function getLocalRerunPackage(runHistoryId: number): PackageDetails {
   const strProjectName = dbSelectFinishedLocalRunProjectName(runHistoryId);
   if (strProjectName === undefined) {
     throw new Error("Only a local Run with a confirmed end can be rerun.");
   }
-  const dictProject = dbSelectProjectMostRecentlyInstalledDetail(strProjectName);
-  if (dictProject === undefined) {
+  const dictPackage = dbSelectMostRecentlyInstalledPackage(strProjectName);
+  if (dictPackage === undefined) {
     throw new Error(`No installed Project version found: ${strProjectName}`);
   }
 
-  return dictProject;
+  return dictPackage;
 }

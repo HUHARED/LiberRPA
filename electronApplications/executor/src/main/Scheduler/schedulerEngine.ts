@@ -6,7 +6,7 @@ import { getErrorMessage } from "../../shared/error";
 import { nextScheduleDate, parseScheduleCron } from "../../shared/cron";
 import {
   RunSource,
-  type ProjectRunConfig,
+  type RunConfig,
   JobQueueState,
   type JobQueueItem,
 } from "../../shared/run";
@@ -18,11 +18,7 @@ import {
   dbSelectScheduleRunDetail,
 } from "../Database/scheduleRepository";
 import { loggerMain } from "../Logging/logger";
-import {
-  hasActiveProjectRun,
-  getActiveJobQueueItems,
-  startProjectRun,
-} from "../Run/projectRunner";
+import { hasActiveRun, getActiveJobQueueItems, startRun } from "../Run/packageRunner";
 import { onRunFinished } from "../Run/lifecycle";
 import type { RunExecutionContext } from "../Run/types";
 
@@ -40,7 +36,7 @@ interface PendingRun {
 
 interface QueuedRun {
   queueItem: Omit<LocalJobQueueItem, "state">;
-  runDetail: ProjectRunConfig;
+  runDetail: RunConfig;
   context: RunExecutionContext;
 }
 
@@ -112,8 +108,8 @@ export function onJobQueueChanged(listener: JobQueueChangedListener): () => void
   };
 }
 
-export function hasQueuedRunForProject(projectId: number): boolean {
-  return arrQueuedRun.some(({ runDetail }) => runDetail.local_project_id === projectId);
+export function hasQueuedRunForPackage(packageId: number): boolean {
+  return arrQueuedRun.some(({ runDetail }) => runDetail.local_package_id === packageId);
 }
 
 export function cancelQueuedRun(queueId: string): void {
@@ -195,8 +191,8 @@ async function startLocalRunWithConflictPolicy(queuedRun: QueuedRun): Promise<vo
   }
 
   try {
-    ensureLocalRunMayStart(hasActiveProjectRun());
-    await startProjectRun(queuedRun.runDetail, {
+    ensureLocalRunMayStart(hasActiveRun());
+    await startRun(queuedRun.runDetail, {
       ...queuedRun.context,
       beforeSpawn: ensureLocalRunMayStart,
     });
@@ -221,7 +217,7 @@ async function startLocalRunWithConflictPolicy(queuedRun: QueuedRun): Promise<vo
 }
 
 async function processSchedulerTick(): Promise<void> {
-  const boolOthersRunning = hasActiveProjectRun();
+  const boolOthersRunning = hasActiveRun();
   const intReadyAtMs = Date.now();
   const intReadyIndex = arrQueuedRun.findIndex(
     (queuedRun) =>

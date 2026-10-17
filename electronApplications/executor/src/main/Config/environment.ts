@@ -146,7 +146,7 @@ export function buildPythonProcessEnvironment({
     arrPathEntry.push(strParentPath);
   }
 
-  // Do not inherit PYTHONHOME or PYTHONPATH because they can redirect the selected environment or shadow modules from the installed Project Package.
+  // Do not inherit PYTHONHOME or PYTHONPATH because they can redirect the selected environment or shadow modules from the installed Package.
   return mergeProcessEnvironment({
     ...additionalVariables,
     PATH: arrPathEntry.join(path.delimiter),

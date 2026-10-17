@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 
 import { strDocumentsFolderPath } from "../Config/environment";
+import { strPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 
 const INT_DATABASE_SCHEMA_VERSION = 2;
@@ -94,9 +95,8 @@ function backupDatabaseFiles(): string {
     }
   }
 
-  const strPackagePath = path.join(strDocumentsFolderPath, "LiberRPA/ExecutorPackage");
-  if (fs.existsSync(strPackagePath)) {
-    fs.renameSync(strPackagePath, `${strPackagePath}.backup.${strTimestamp}`);
+  if (fs.existsSync(strPackageFolderPath)) {
+    fs.renameSync(strPackageFolderPath, `${strPackageFolderPath}.backup.${strTimestamp}`);
   }
   return strBackupPath;
 }

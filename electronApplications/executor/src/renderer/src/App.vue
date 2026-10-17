@@ -17,7 +17,7 @@
 import { computed } from "vue";
 import Alert from "./components/Common/Alert.vue";
 import NavigationBar from "./components/Layout/NavigationBar.vue";
-import PackagesView from "./components/Projects/PackagesView.vue";
+import PackagesView from "./components/Packages/PackagesView.vue";
 import SchedulesView from "./components/Schedules/SchedulesView.vue";
 import JobQueueView from "./components/Runs/JobQueueView.vue";
 import RunHistoryView from "./components/Runs/RunHistoryView.vue";
@@ -32,7 +32,7 @@ const informationStore = useInformationStore();
 const componentCurrent = computed(() => {
   loggerRenderer.info(`Switch to tab: ${informationStore.tab}`);
   switch (informationStore.tab) {
-    case "projects":
+    case "packages":
       return PackagesView;
     case "schedules":
       // Schedules refresh their data when opened.

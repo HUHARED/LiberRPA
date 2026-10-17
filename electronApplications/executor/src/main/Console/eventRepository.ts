@@ -107,30 +107,42 @@ const STR_REJECTED_EVENT_RETENTION_SELECT = `
         JSON_TYPE(work.content, '$.ended') AS ended_type,
         JSON_EXTRACT(work.content, '$.started.processId') AS process_id,
         JSON_EXTRACT(work.content, '$.logsFinished') AS logs_finished,
-        JSON_EXTRACT(work.content, '$.assignment.snapshot.builtin_record_video')
-            AS record_video,
+        JSON_EXTRACT(
+            work.content,
+            '$.assignment.snapshot.builtin_record_video'
+        ) AS record_video,
         JSON_EXTRACT(work.content, '$.recording.status') IN ('ready', 'unavailable')
             AS recording_finished,
         EXISTS (
-            SELECT 1 FROM console_work AS related_work
-            WHERE related_work.session_key = event.session_key
+            SELECT
+                1
+            FROM
+                console_work AS related_work
+            WHERE
+                related_work.session_key = event.session_key
                 AND JSON_EXTRACT(related_work.content, '$.assignment.job_id')
                     = JSON_EXTRACT(work.content, '$.assignment.job_id')
                 AND related_work.state <> 'finished'
         ) AS has_pending_work,
         EXISTS (
-            SELECT 1 FROM console_event AS pending
-            JOIN console_work AS pending_work
-                ON pending_work.id = JSON_EXTRACT(pending.payload, '$.assignment_id')
-                AND pending_work.session_key = pending.session_key
-            WHERE pending.session_key = event.session_key AND pending.rejected = 0
+            SELECT
+                1
+            FROM
+                console_event AS pending
+                JOIN console_work AS pending_work
+                    ON pending_work.id = JSON_EXTRACT(pending.payload, '$.assignment_id')
+                    AND pending_work.session_key = pending.session_key
+            WHERE
+                pending.session_key = event.session_key
+                AND pending.rejected = 0
                 AND JSON_EXTRACT(pending_work.content, '$.assignment.job_id')
                     = JSON_EXTRACT(work.content, '$.assignment.job_id')
         ) AS has_pending_events
-    FROM console_event AS event
-    LEFT JOIN console_work AS work
-        ON work.id = JSON_EXTRACT(event.payload, '$.assignment_id')
-        AND work.session_key = event.session_key
+    FROM
+        console_event AS event
+        LEFT JOIN console_work AS work
+            ON work.id = JSON_EXTRACT(event.payload, '$.assignment_id')
+            AND work.session_key = event.session_key
 `;
 
 const INT_MAX_EVENT_REQUEST_BYTES = 1024 * 1024;
@@ -142,12 +154,24 @@ export function resetConsoleEventRetention(record: ConsoleWorkRecord): void {
     .prepare(
       `
       UPDATE console_event
-      SET retention_started_at_ms = NULL, retention_checked_at_ms = NULL
-      WHERE rejected = 1 AND session_key = ?
-          AND (retention_started_at_ms IS NOT NULL OR retention_checked_at_ms IS NOT NULL)
+      SET
+          retention_started_at_ms = NULL,
+          retention_checked_at_ms = NULL
+      WHERE
+          rejected = 1
+          AND session_key = ?
+          AND (
+              retention_started_at_ms IS NOT NULL
+              OR retention_checked_at_ms IS NOT NULL
+          )
           AND JSON_EXTRACT(payload, '$.assignment_id') IN (
-              SELECT id FROM console_work
-              WHERE session_key = ? AND JSON_EXTRACT(content, '$.assignment.job_id') = ?
+              SELECT
+                  id
+              FROM
+                  console_work
+              WHERE
+                  session_key = ?
+                  AND JSON_EXTRACT(content, '$.assignment.job_id') = ?
           );
       `,
     )
@@ -299,17 +323,27 @@ export function getConsoleEventRetentionCandidates(
     const arrRow = getDatabase()
       .prepare(
         `${STR_REJECTED_EVENT_RETENTION_SELECT}
-        WHERE event.session_key = ? AND event.rejected = 1
+        WHERE
+            event.session_key = ?
+            AND event.rejected = 1
             AND event.retention_started_at_ms IS NULL
-        ORDER BY event.retention_checked_at_ms, event.id
-        LIMIT 50;
+        ORDER BY
+            event.retention_checked_at_ms,
+            event.id
+        LIMIT
+            50;
         `,
       )
       .all(sessionKey) as RejectedEventRetentionRow[];
     const checkEvent = getDatabase().prepare(
       `
-      UPDATE console_event SET retention_checked_at_ms = ?
-      WHERE id = ? AND session_key = ? AND rejected = 1
+      UPDATE console_event
+      SET
+          retention_checked_at_ms = ?
+      WHERE
+          id = ?
+          AND session_key = ?
+          AND rejected = 1
           AND retention_started_at_ms IS NULL;
       `,
     );
@@ -344,7 +378,9 @@ export function confirmConsoleEventRetention(
     const arrRow = getDatabase()
       .prepare(
         `${STR_REJECTED_EVENT_RETENTION_SELECT}
-        WHERE event.session_key = ? AND event.rejected = 1
+        WHERE
+            event.session_key = ?
+            AND event.rejected = 1
             AND event.retention_started_at_ms IS NULL
             AND event.id IN (${candidates.map(() => "?").join(", ")});
         `,
@@ -353,9 +389,15 @@ export function confirmConsoleEventRetention(
     const startRetentionPeriod = getDatabase().prepare(
       `
       UPDATE console_event
-      SET retention_started_at_ms = ?, retention_checked_at_ms = ?
-      WHERE id = ? AND session_key = ? AND rejected = 1
-          AND retention_started_at_ms IS NULL AND retention_checked_at_ms = ?;
+      SET
+          retention_started_at_ms = ?,
+          retention_checked_at_ms = ?
+      WHERE
+          id = ?
+          AND session_key = ?
+          AND rejected = 1
+          AND retention_started_at_ms IS NULL
+          AND retention_checked_at_ms = ?;
       `,
     );
     const intRetentionStartedAtMs = Date.now();
@@ -386,24 +428,39 @@ export function deleteExpiredConsoleEventDiagnostics(): number {
     const arrRow = getDatabase()
       .prepare(
         `${STR_REJECTED_EVENT_RETENTION_SELECT}
-        WHERE event.rejected = 1 AND event.retention_started_at_ms IS NOT NULL
+        WHERE
+            event.rejected = 1
+            AND event.retention_started_at_ms IS NOT NULL
             AND event.retention_started_at_ms <= ?
-        ORDER BY event.retention_started_at_ms, event.id
-        LIMIT 100;
+        ORDER BY
+            event.retention_started_at_ms,
+            event.id
+        LIMIT
+            100;
         `,
       )
       .all(Date.now() - INT_REJECTED_EVENT_RETENTION_MS) as RejectedEventRetentionRow[];
     const deleteEvent = getDatabase().prepare(
       `
-      DELETE FROM console_event WHERE id = ? AND session_key = ? AND rejected = 1
+      DELETE FROM
+          console_event
+      WHERE
+          id = ?
+          AND session_key = ?
+          AND rejected = 1
           AND retention_started_at_ms = ?;
       `,
     );
     const resetEvent = getDatabase().prepare(
       `
       UPDATE console_event
-      SET retention_started_at_ms = NULL, retention_checked_at_ms = NULL
-      WHERE id = ? AND session_key = ? AND rejected = 1;
+      SET
+          retention_started_at_ms = NULL,
+          retention_checked_at_ms = NULL
+      WHERE
+          id = ?
+          AND session_key = ?
+          AND rejected = 1;
       `,
     );
     let intDeleted = 0;

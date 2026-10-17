@@ -114,7 +114,7 @@ const debouncedUpdateSaveState = debounce(() => {
 
   if (
     detail.name === "" ||
-    detail.project_id === undefined ||
+    detail.local_package_id === undefined ||
     detail.period_start === "" ||
     detail.period_end === ""
   ) {

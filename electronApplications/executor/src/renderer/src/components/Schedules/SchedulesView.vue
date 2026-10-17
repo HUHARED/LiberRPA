@@ -125,7 +125,7 @@ function newSchedule(): void {
   const dictDefaultPeriod = getDefaultSchedulePeriod(settingStore.timezone);
   scheduleStore.dictDetailNew = {
     name: "",
-    project_id: undefined,
+    local_package_id: undefined,
     project_name: undefined,
     project_version: undefined,
     python_environment_name: "",

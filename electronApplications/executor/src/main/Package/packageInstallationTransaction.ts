@@ -7,10 +7,10 @@ import path from "path";
 import { getErrorMessage } from "../../shared/error";
 import { readJsonFile, writeJsonFileAtomic } from "../Common/jsonFile";
 import { ensureExactRecord, ensureNonEmptyString } from "../Common/validation";
-import { dbSelectProjectDetail } from "../Database/projectRepository";
-import { strExecutorPackageFolderPath } from "../FileSystem/executorFiles";
+import { dbSelectPackageDetails } from "../Database/packageRepository";
+import { strLocalPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import { getTargetFolderName } from "./packageArchive";
+import { getPackageFolderName } from "./packageArchive";
 
 interface PackageInstallationTransaction {
   schemaVersion: 1;
@@ -22,12 +22,12 @@ interface PackageInstallationTransaction {
 
 interface PackageInstallationStagingPaths {
   transactionFolderPath: string;
-  stagedProjectPath: string;
+  stagedPackagePath: string;
 }
 
 const STR_STAGING_FOLDER_NAME = ".staging";
 const STR_TRANSACTION_FILE_NAME = "transaction.json";
-const STR_STAGED_PROJECT_FOLDER_NAME = "project";
+const STR_STAGED_PACKAGE_FOLDER_NAME = "package";
 
 function readPackageInstallationTransaction(
   transactionPath: string,
@@ -53,7 +53,7 @@ function readPackageInstallationTransaction(
     dictTransaction.targetFolderName,
     "Package installation transaction.targetFolderName",
   );
-  if (getTargetFolderName(strProjectName, strProjectVersion) !== strTargetFolderName) {
+  if (getPackageFolderName(strProjectName, strProjectVersion) !== strTargetFolderName) {
     throw new Error(
       `Package installation transaction target is inconsistent: ${transactionPath}`,
     );
@@ -81,27 +81,27 @@ export async function removePackageInstallationFolderBestEffort(
   }
 }
 
-export function createProjectPackageInstallationStaging(): PackageInstallationStagingPaths {
-  fs.mkdirSync(strExecutorPackageFolderPath, { recursive: true });
+export function createPackageInstallationStaging(): PackageInstallationStagingPaths {
+  fs.mkdirSync(strLocalPackageFolderPath, { recursive: true });
 
   const strTransactionFolderPath = path.join(
-    strExecutorPackageFolderPath,
+    strLocalPackageFolderPath,
     STR_STAGING_FOLDER_NAME,
     randomUUID(),
   );
-  const strStagedProjectPath = path.join(
+  const strStagedPackagePath = path.join(
     strTransactionFolderPath,
-    STR_STAGED_PROJECT_FOLDER_NAME,
+    STR_STAGED_PACKAGE_FOLDER_NAME,
   );
-  fs.mkdirSync(strStagedProjectPath, { recursive: true });
+  fs.mkdirSync(strStagedPackagePath, { recursive: true });
 
   return {
     transactionFolderPath: strTransactionFolderPath,
-    stagedProjectPath: strStagedProjectPath,
+    stagedPackagePath: strStagedPackagePath,
   };
 }
 
-export function writeProjectPackageInstallationTransaction({
+export function writePackageInstallationTransaction({
   transactionFolderPath,
   projectName,
   projectVersion,
@@ -115,7 +115,7 @@ export function writeProjectPackageInstallationTransaction({
     state: "prepared",
     projectName,
     projectVersion,
-    targetFolderName: getTargetFolderName(projectName, projectVersion),
+    targetFolderName: getPackageFolderName(projectName, projectVersion),
   };
   writeJsonFileAtomic(
     path.join(transactionFolderPath, STR_TRANSACTION_FILE_NAME),
@@ -123,11 +123,8 @@ export function writeProjectPackageInstallationTransaction({
   );
 }
 
-export async function recoverProjectPackageInstallations(): Promise<void> {
-  const strStagingRootPath = path.join(
-    strExecutorPackageFolderPath,
-    STR_STAGING_FOLDER_NAME,
-  );
+export async function recoverPackageInstallations(): Promise<void> {
+  const strStagingRootPath = path.join(strLocalPackageFolderPath, STR_STAGING_FOLDER_NAME);
   if (!fs.existsSync(strStagingRootPath)) {
     return;
   }
@@ -158,24 +155,24 @@ export async function recoverProjectPackageInstallations(): Promise<void> {
     try {
       const dictTransaction = readPackageInstallationTransaction(strTransactionPath);
       const strTargetPath = path.join(
-        strExecutorPackageFolderPath,
+        strLocalPackageFolderPath,
         dictTransaction.targetFolderName,
       );
       const boolTargetExists = fs.existsSync(strTargetPath);
-      const projectRecord = dbSelectProjectDetail(
+      const packageRecord = dbSelectPackageDetails(
         dictTransaction.projectName,
         dictTransaction.projectVersion,
       );
 
-      if (boolTargetExists && projectRecord === undefined) {
-        const strStagedProjectPath = path.join(
+      if (boolTargetExists && packageRecord === undefined) {
+        const strStagedPackagePath = path.join(
           strTransactionFolderPath,
-          STR_STAGED_PROJECT_FOLDER_NAME,
+          STR_STAGED_PACKAGE_FOLDER_NAME,
         );
-        if (fs.existsSync(strStagedProjectPath)) {
+        if (fs.existsSync(strStagedPackagePath)) {
           // The atomic directory rename did not complete. Do not delete another target.
           loggerMain.warn(
-            "Discard an incomplete Package installation with its staged project still present; " +
+            "Discard an incomplete Package installation with its staged Package still present; " +
               `leave the existing target unchanged: ${strTargetPath}`,
           );
           boolRecovered = true;
@@ -189,7 +186,7 @@ export async function recoverProjectPackageInstallations(): Promise<void> {
             "Failed to roll back an incomplete Package installation",
           );
         }
-      } else if (!boolTargetExists && projectRecord !== undefined) {
+      } else if (!boolTargetExists && packageRecord !== undefined) {
         loggerMain.error(
           "Installed Package folder is missing for database record: " +
             `${dictTransaction.projectName}-${dictTransaction.projectVersion}`,

@@ -8,7 +8,7 @@ import {
   RunOutputsStatus,
   type RunOutputs,
   type RunDetails,
-  type ProjectRunConfig,
+  type RunConfig,
   RunStatus,
   type RunEndedStatus,
   type RunHistoryQueryOptions,
@@ -29,12 +29,12 @@ import { isRecoveredRunHistoryActive } from "../Run/recoveredRuns";
 
 interface RunHistoryInsertData {
   schedule_name: string | null;
-  project_id: number | null;
+  local_package_id: number | null;
   source: RunSource;
   run_id: string;
   job_id: string;
   attempt_number: number;
-  snapshot: ProjectRunConfig;
+  snapshot: RunConfig;
   project_name: string;
   project_version: string;
   python_environment_name: string;
@@ -78,7 +78,7 @@ export function dbInsertRunHistory(detailDict: RunHistoryInsertData): Database.R
               snapshot,
               outputs,
               schedule_name,
-              project_id,
+              local_package_id,
               project_name,
               project_version,
               python_environment_name,
@@ -105,7 +105,7 @@ export function dbInsertRunHistory(detailDict: RunHistoryInsertData): Database.R
         reason: "The Run has not produced an output snapshot.",
       }),
       detailDict.schedule_name,
-      detailDict.project_id,
+      detailDict.local_package_id,
       detailDict.project_name,
       detailDict.project_version,
       detailDict.python_environment_name,
@@ -195,8 +195,8 @@ export function dbHasEndedLocalRun(runId: string): boolean {
   );
 }
 
-export function dbHasRunningRunForProject(projectId: number): boolean {
-  loggerMain.debug("--dbHasRunningRunForProject--");
+export function dbHasRunningRunForPackage(packageId: number): boolean {
+  loggerMain.debug("--dbHasRunningRunForPackage--");
   const row = getDatabase()
     .prepare(
       `
@@ -206,12 +206,12 @@ export function dbHasRunningRunForProject(projectId: number): boolean {
           run_history
       WHERE
           status = ?
-          AND project_id = ?;
+          AND local_package_id = ?;
       `,
     )
-    .get(RunStatus.Running, projectId);
+    .get(RunStatus.Running, packageId);
   return (
-    ensureCountRow(row, "runningCount", "Running Run count for Project query result") > 0
+    ensureCountRow(row, "runningCount", "Running Run count for Package query result") > 0
   );
 }
 
@@ -501,7 +501,7 @@ export function dbSelectRunDetails(id: number): RunDetails {
   if (!row) throw new Error("Run History record not found.");
   return {
     ...row,
-    snapshot: JSON.parse(row.snapshot) as ProjectRunConfig,
+    snapshot: JSON.parse(row.snapshot) as RunConfig,
     outputs: JSON.parse(row.outputs) as RunOutputs,
     error_summary:
       row.error_summary === null

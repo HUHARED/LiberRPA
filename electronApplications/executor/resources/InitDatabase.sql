@@ -2,10 +2,10 @@
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE
-    project (
+    local_package (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL CHECK (LENGTH(TRIM(name)) > 0),
-        version TEXT NOT NULL CHECK (LENGTH(TRIM(version)) > 0),
+        project_name TEXT NOT NULL CHECK (LENGTH(TRIM(project_name)) > 0),
+        project_version TEXT NOT NULL CHECK (LENGTH(TRIM(project_version)) > 0),
         description TEXT NOT NULL DEFAULT '',
         version_summary TEXT NOT NULL DEFAULT '',
         python_environment_name TEXT NOT NULL DEFAULT 'default' CHECK (LENGTH(TRIM(python_environment_name)) > 0),
@@ -33,14 +33,14 @@ CREATE TABLE
         ),
         created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
         updated_at_ms INTEGER NOT NULL CHECK (updated_at_ms >= 0),
-        UNIQUE (name, version)
+        UNIQUE (project_name, project_version)
     ) STRICT;
 
 CREATE TABLE
     schedule (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE CHECK (LENGTH(TRIM(name)) > 0),
-        project_id INTEGER NOT NULL CHECK (project_id > 0),
+        local_package_id INTEGER NOT NULL CHECK (local_package_id > 0),
         cron TEXT NOT NULL CHECK (LENGTH(TRIM(cron)) > 0),
         run_conflict_policy TEXT NOT NULL DEFAULT 'skip' CHECK (
             run_conflict_policy IN ('skip', 'wait', 'concurrent')
@@ -71,7 +71,7 @@ CREATE TABLE
         ),
         created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
         updated_at_ms INTEGER NOT NULL CHECK (updated_at_ms >= 0),
-        FOREIGN KEY (project_id) REFERENCES project (id) ON DELETE RESTRICT
+        FOREIGN KEY (local_package_id) REFERENCES local_package (id) ON DELETE RESTRICT
     ) STRICT;
 
 CREATE TABLE
@@ -110,9 +110,9 @@ CREATE TABLE
         ),
         error_summary TEXT NULL,
         schedule_name TEXT NULL DEFAULT NULL,
-        project_id INTEGER NULL CHECK (
-            project_id IS NULL
-            OR project_id > 0
+        local_package_id INTEGER NULL CHECK (
+            local_package_id IS NULL
+            OR local_package_id > 0
         ),
         project_name TEXT NOT NULL CHECK (LENGTH(TRIM(project_name)) > 0),
         project_version TEXT NOT NULL CHECK (LENGTH(TRIM(project_version)) > 0),
@@ -159,9 +159,20 @@ CREATE TABLE
         )
     ) STRICT;
 
-CREATE INDEX idx_schedule_project_id ON schedule (project_id);
+CREATE INDEX idx_schedule_local_package_id ON schedule (local_package_id);
 
 CREATE INDEX idx_run_history_run_started_at_ms ON run_history (run_started_at_ms DESC);
+
+-- Prepared Console directories remain mutable working folders between Runs.
+CREATE TABLE
+    console_package (
+        folder_name TEXT PRIMARY KEY COLLATE NOCASE CHECK (
+            LENGTH(TRIM(folder_name)) > 0
+            AND INSTR(folder_name, '/') = 0
+            AND INSTR(folder_name, '\') = 0
+        ),
+        package_id TEXT NOT NULL UNIQUE CHECK (LENGTH(package_id) = 36)
+    ) STRICT;
 
 CREATE TABLE
     console_work (

@@ -23,8 +23,8 @@ import {
   buildPythonProcessEnvironment,
   getPythonEnvironmentPath,
 } from "../Config/environment";
-import { getTargetFolderName } from "./packageArchive";
-import type { ProjectCreateData } from "../../shared/project";
+import { getPackageFolderName } from "./packageArchive";
+import type { PackageCreateData } from "../../shared/package";
 import type { CustomProjectArgs, LogLevel } from "../../shared/runSettings";
 
 interface FlowManifest {
@@ -47,12 +47,6 @@ interface ProjectRuntimeSettings {
   stopShortcut: boolean;
   highlightUi: boolean;
   customPrjArgs: CustomProjectArgs;
-}
-
-interface ProjectPackageMetadata {
-  name: string;
-  version: string;
-  projectDetail: ProjectCreateData;
 }
 
 const execFileAsync = promisify(execFile);
@@ -199,22 +193,22 @@ function parseProjectFlowRuntimeSettings(value: unknown): ProjectRuntimeSettings
   };
 }
 
-function readRequiredRootJson(projectPath: string, fileName: string): unknown {
-  const strFilePath = path.join(projectPath, fileName);
+function readRequiredRootJson(packagePath: string, fileName: string): unknown {
+  const strFilePath = path.join(packagePath, fileName);
   if (!fs.existsSync(strFilePath) || !fs.statSync(strFilePath).isFile()) {
     throw new Error(`The Package does not contain ${fileName} at its root.`);
   }
   return readJsonFile(strFilePath, fileName);
 }
 
-function buildProjectDetail(
+function buildPackageDetails(
   flowManifest: FlowManifest,
   packageManifest: PackageManifest,
   runtimeSettings: ProjectRuntimeSettings,
-): ProjectCreateData {
+): PackageCreateData {
   return {
-    name: flowManifest.name,
-    version: flowManifest.version,
+    project_name: flowManifest.name,
+    project_version: flowManifest.version,
     description: flowManifest.description,
     version_summary: packageManifest.versionSummary,
     python_environment_name: STR_DEFAULT_PYTHON_ENVIRONMENT_NAME,
@@ -228,26 +222,20 @@ function buildProjectDetail(
   };
 }
 
-export async function readProjectPackageMetadata(
-  projectPath: string,
-): Promise<ProjectPackageMetadata> {
+export async function readPackageMetadata(packagePath: string): Promise<PackageCreateData> {
   const flowManifest = parseFlowManifest(
-    readRequiredRootJson(projectPath, STR_FLOW_MANIFEST_FILE_NAME),
+    readRequiredRootJson(packagePath, STR_FLOW_MANIFEST_FILE_NAME),
   );
   const packageManifest = parsePackageManifest(
-    readRequiredRootJson(projectPath, STR_PACKAGE_MANIFEST_FILE_NAME),
+    readRequiredRootJson(packagePath, STR_PACKAGE_MANIFEST_FILE_NAME),
   );
   const runtimeSettings = parseProjectFlowRuntimeSettings(
-    readRequiredRootJson(projectPath, STR_PROJECT_FLOW_FILE_NAME),
+    readRequiredRootJson(packagePath, STR_PROJECT_FLOW_FILE_NAME),
   );
 
   flowManifest.version = await validateAndNormalizeFlowVersionMetadata(flowManifest);
-  getTargetFolderName(flowManifest.name, flowManifest.version);
-  return {
-    name: flowManifest.name,
-    version: flowManifest.version,
-    projectDetail: buildProjectDetail(flowManifest, packageManifest, runtimeSettings),
-  };
+  getPackageFolderName(flowManifest.name, flowManifest.version);
+  return buildPackageDetails(flowManifest, packageManifest, runtimeSettings);
 }
 
 export async function validatePackageLiberrpaRequirement(

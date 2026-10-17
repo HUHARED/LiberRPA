@@ -7,21 +7,21 @@ import { setTimeout as delay } from "timers/promises";
 
 import { getErrorMessage } from "../../shared/error";
 import {
-  dbInsertProjectDetail,
-  dbSelectProjectDetail,
-} from "../Database/projectRepository";
+  dbInsertPackageDetails,
+  dbSelectPackageDetails,
+} from "../Database/packageRepository";
 import { runFileWorker } from "../FileSystem/fileWorker";
-import { getExecutorPackageFolderPath } from "../FileSystem/executorFiles";
+import { getLocalPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import type { ProjectPackageInstallResult } from "../../shared/project";
+import type { PackageInstallResult } from "../../shared/package";
 import strPackageArchiveWorkerPath from "./packageArchiveWorker?modulePath";
 import type { PackageArchiveArgs } from "./packageArchiveWorker";
 import {
-  createProjectPackageInstallationStaging,
+  createPackageInstallationStaging,
   removePackageInstallationFolderBestEffort,
-  writeProjectPackageInstallationTransaction,
+  writePackageInstallationTransaction,
 } from "./packageInstallationTransaction";
-import { readProjectPackageMetadata } from "./packageMetadata";
+import { readPackageMetadata } from "./packageMetadata";
 
 // Bound retries for potentially temporary Windows access/sharing failures (4 seconds total).
 const ARR_PACKAGE_RENAME_RETRY_DELAY_MS: readonly number[] = [
@@ -30,15 +30,14 @@ const ARR_PACKAGE_RENAME_RETRY_DELAY_MS: readonly number[] = [
 const SET_PACKAGE_RENAME_RETRY_ERROR_CODE = new Set(["EPERM", "EBUSY", "EACCES"]);
 
 let boolPackageSelectionOpen = false;
-let promisePackageInstallation: Promise<ProjectPackageInstallResult> | undefined;
+let promisePackageInstallation: Promise<PackageInstallResult> | undefined;
 let strLastPackageFolderPath: string | undefined;
 
-async function runProjectPackageInstallation(
+async function runPackageInstallation(
   packageFilePath: string,
   ensureExecutorRunning: () => void,
-): Promise<ProjectPackageInstallResult> {
-  const { transactionFolderPath, stagedProjectPath } =
-    createProjectPackageInstallationStaging();
+): Promise<PackageInstallResult> {
+  const { transactionFolderPath, stagedPackagePath } = createPackageInstallationStaging();
 
   let strTargetPath: string | undefined;
   let boolTransactionWritten = false;
@@ -47,39 +46,42 @@ async function runProjectPackageInstallation(
   try {
     await runFileWorker<PackageArchiveArgs>(strPackageArchiveWorkerPath, {
       packageFilePath,
-      stagedProjectPath,
+      stagedPackagePath,
     });
     ensureExecutorRunning();
-    const packageMetadata = await readProjectPackageMetadata(stagedProjectPath);
+    const packageMetadata = await readPackageMetadata(stagedPackagePath);
     ensureExecutorRunning();
 
     if (
-      dbSelectProjectDetail(packageMetadata.name, packageMetadata.version) !== undefined
+      dbSelectPackageDetails(
+        packageMetadata.project_name,
+        packageMetadata.project_version,
+      ) !== undefined
     ) {
       throw new Error(
-        `Project Package ${packageMetadata.name}-${packageMetadata.version} is already installed.`,
+        `Package ${packageMetadata.project_name}-${packageMetadata.project_version} is already installed.`,
       );
     }
 
-    strTargetPath = getExecutorPackageFolderPath(
-      packageMetadata.name,
-      packageMetadata.version,
+    strTargetPath = getLocalPackageFolderPath(
+      packageMetadata.project_name,
+      packageMetadata.project_version,
     );
     if (fs.existsSync(strTargetPath)) {
       throw new Error(`The target Package folder already exists: ${strTargetPath}`);
     }
 
-    writeProjectPackageInstallationTransaction({
+    writePackageInstallationTransaction({
       transactionFolderPath,
-      projectName: packageMetadata.name,
-      projectVersion: packageMetadata.version,
+      projectName: packageMetadata.project_name,
+      projectVersion: packageMetadata.project_version,
     });
     boolTransactionWritten = true;
 
     let intRenameRetryCount = 0;
     while (true) {
       try {
-        fs.renameSync(stagedProjectPath, strTargetPath);
+        fs.renameSync(stagedPackagePath, strTargetPath);
         boolTargetRenamed = true;
         break;
       } catch (e: unknown) {
@@ -98,7 +100,7 @@ async function runProjectPackageInstallation(
         const intRetryDelayMs = ARR_PACKAGE_RENAME_RETRY_DELAY_MS[intRenameRetryCount];
         if (intRetryDelayMs === undefined) {
           throw new Error(
-            `Could not move the staged Project Package after ${intRenameRetryCount + 1} attempts. ` +
+            `Could not move the staged Package after ${intRenameRetryCount + 1} attempts. ` +
               "The folder may still be in use or access may be denied. " +
               getErrorMessage(e),
             { cause: e },
@@ -109,7 +111,7 @@ async function runProjectPackageInstallation(
         loggerMain.warn(
           `Package folder rename failed with ${strErrorCode}; ` +
             `retry ${intRenameRetryCount}/${ARR_PACKAGE_RENAME_RETRY_DELAY_MS.length} ` +
-            `in ${intRetryDelayMs} ms: ${stagedProjectPath} -> ${strTargetPath}`,
+            `in ${intRetryDelayMs} ms: ${stagedPackagePath} -> ${strTargetPath}`,
         );
         // Wait without blocking Main. No target folder has been committed at this point.
         await delay(intRetryDelayMs);
@@ -121,7 +123,7 @@ async function runProjectPackageInstallation(
     }
 
     // Keep the successful rename and database commit in the same synchronous turn.
-    dbInsertProjectDetail(packageMetadata.projectDetail);
+    dbInsertPackageDetails(packageMetadata);
     boolDatabaseCommitted = true;
 
     if (intRenameRetryCount > 0) {
@@ -135,12 +137,12 @@ async function runProjectPackageInstallation(
       "Failed to clean the completed Package installation transaction",
     );
     loggerMain.info(
-      `Installed Flow Project Package: ${packageMetadata.name}-${packageMetadata.version}`,
+      `Installed Flow Package: ${packageMetadata.project_name}-${packageMetadata.project_version}`,
     );
     return {
-      status: "projectPackageInstalled",
-      name: packageMetadata.name,
-      version: packageMetadata.version,
+      status: "packageInstalled",
+      project_name: packageMetadata.project_name,
+      project_version: packageMetadata.project_version,
     };
   } catch (e: unknown) {
     let boolRollbackComplete = !boolTransactionWritten;
@@ -175,11 +177,11 @@ async function runProjectPackageInstallation(
   }
 }
 
-export async function installProjectPackage(
+export async function installPackage(
   ensureExecutorRunning: () => void,
-): Promise<ProjectPackageInstallResult> {
+): Promise<PackageInstallResult> {
   if (boolPackageSelectionOpen || promisePackageInstallation !== undefined) {
-    throw new Error("Another Project Package installation is already running.");
+    throw new Error("Another Package installation is already running.");
   }
 
   boolPackageSelectionOpen = true;
@@ -187,20 +189,20 @@ export async function installProjectPackage(
     const dialogResult = await dialog.showOpenDialog({
       defaultPath: strLastPackageFolderPath,
       properties: ["openFile"],
-      title: "Select a Flow Project Package",
-      filters: [{ name: "LiberRPA Flow Project Package", extensions: ["rpa.zip"] }],
+      title: "Select a Flow Package",
+      filters: [{ name: "LiberRPA Flow Package", extensions: ["rpa.zip"] }],
     });
     boolPackageSelectionOpen = false;
     if (dialogResult.canceled) return { status: "canceled" };
     // Shutdown may have started while the native file dialog was open.
     ensureExecutorRunning();
     if (dialogResult.filePaths.length !== 1) {
-      throw new Error("Exactly one Flow Project Package must be selected.");
+      throw new Error("Exactly one Flow Package must be selected.");
     }
 
     const strPackageFilePath = dialogResult.filePaths[0];
     strLastPackageFolderPath = path.dirname(strPackageFilePath);
-    promisePackageInstallation = runProjectPackageInstallation(
+    promisePackageInstallation = runPackageInstallation(
       strPackageFilePath,
       ensureExecutorRunning,
     );
@@ -211,6 +213,6 @@ export async function installProjectPackage(
   }
 }
 
-export async function waitForProjectPackageInstallation(): Promise<void> {
+export async function waitForPackageInstallation(): Promise<void> {
   await promisePackageInstallation?.catch(() => {});
 }

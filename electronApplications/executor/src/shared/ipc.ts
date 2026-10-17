@@ -7,10 +7,10 @@ import type {
 } from "./consoleAccount";
 import type { ExecutorConfig } from "./config";
 import type {
-  ProjectDetails,
-  ProjectPackageInstallResult,
-  ProjectSettingsUpdate,
-} from "./project";
+  PackageDetails,
+  PackageInstallResult,
+  PackageSettingsUpdate,
+} from "./package";
 import type {
   RunDetails,
   RunHistoryQueryOptions,
@@ -38,40 +38,40 @@ export type RendererLogLevel =
   | "silly";
 
 interface ExecutorInvokeContract {
-  // Projects.
+  // Packages.
   getPythonEnvironmentNames: {
     request: undefined;
     response: string[];
   };
   getProjectNames: {
     request: undefined;
-    response: { name: string }[];
+    response: string[];
   };
   getProjectVersions: {
     request: string;
-    response: { version: string }[];
+    response: string[];
   };
-  getProjectDetail: {
-    request: { name: string; version: string };
-    response: ProjectDetails | undefined;
+  getPackageDetails: {
+    request: { project_name: string; project_version: string };
+    response: PackageDetails | undefined;
   };
-  installProjectPackage: {
+  installPackage: {
     request: undefined;
-    response: ProjectPackageInstallResult;
+    response: PackageInstallResult;
   };
-  saveProjectSettings: {
-    request: ProjectSettingsUpdate;
+  savePackageSettings: {
+    request: PackageSettingsUpdate;
     response: void;
   };
-  runProject: {
-    request: ProjectSettingsUpdate;
+  runPackage: {
+    request: PackageSettingsUpdate;
     response: void;
   };
-  getProjectBoundSchedules: {
+  getPackageBoundSchedules: {
     request: number;
     response: { name: string }[];
   };
-  deleteProject: {
+  deletePackage: {
     request: number;
     response: void;
   };
@@ -123,9 +123,9 @@ interface ExecutorInvokeContract {
     request: number;
     response: void;
   };
-  getLocalRerunProject: {
+  getLocalRerunPackage: {
     request: number;
-    response: ProjectDetails;
+    response: PackageDetails;
   };
 
   // Settings.

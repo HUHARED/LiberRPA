@@ -58,13 +58,11 @@ export const useScheduleStore = defineStore("schedule", {
   },
   actions: {
     async loadProjectNames(): Promise<void> {
-      this.arrProjectName = (await invokeMain("getProjectNames")).map((row) => row.name);
+      this.arrProjectName = await invokeMain("getProjectNames");
     },
 
     async fetchProjectVersions(projectName: string): Promise<string[]> {
-      return (await invokeMain("getProjectVersions", projectName)).map(
-        (row) => row.version,
-      );
+      return await invokeMain("getProjectVersions", projectName);
     },
 
     setProjectVersions(arrVersion: string[]): void {
@@ -127,7 +125,10 @@ export const useScheduleStore = defineStore("schedule", {
     },
 
     async createSchedule(): Promise<void> {
-      if (this.dictDetailNew === undefined || this.dictDetailNew.project_id === undefined) {
+      if (
+        this.dictDetailNew === undefined ||
+        this.dictDetailNew.local_package_id === undefined
+      ) {
         return;
       }
 
@@ -139,7 +140,7 @@ export const useScheduleStore = defineStore("schedule", {
       });
       const dictTemp: ScheduleCreateData = {
         name: this.dictDetailNew.name,
-        project_id: this.dictDetailNew.project_id,
+        local_package_id: this.dictDetailNew.local_package_id,
         cron: this.dictDetailNew.cron,
         run_conflict_policy: this.dictDetailNew.run_conflict_policy,
         period_start_ms: intPeriodStartMs,
@@ -160,7 +161,7 @@ export const useScheduleStore = defineStore("schedule", {
     async saveSchedule(): Promise<void> {
       if (
         this.dictDetailEdit === undefined ||
-        this.dictDetailEdit.project_id === undefined
+        this.dictDetailEdit.local_package_id === undefined
       ) {
         return;
       }
@@ -174,7 +175,7 @@ export const useScheduleStore = defineStore("schedule", {
       const dictTemp: ScheduleUpdateData = {
         id: this.dictDetailEdit.id,
         name: this.dictDetailEdit.name,
-        project_id: this.dictDetailEdit.project_id,
+        local_package_id: this.dictDetailEdit.local_package_id,
         cron: this.dictDetailEdit.cron,
         run_conflict_policy: this.dictDetailEdit.run_conflict_policy,
         period_start_ms: intPeriodStartMs,

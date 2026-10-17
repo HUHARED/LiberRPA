@@ -181,9 +181,9 @@
     </v-data-table-server>
 
     <PackageRunDialog
-      v-if="rerunProject"
-      :project="rerunProject"
-      @close="rerunProject = undefined" />
+      v-if="rerunPackage"
+      :package-details="rerunPackage"
+      @close="rerunPackage = undefined" />
 
     <RunDetailsDialog
       v-if="runDetails"
@@ -198,10 +198,10 @@ import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { debounce } from "lodash";
 import type { DataTableHeader } from "vuetify";
 
-import PackageRunDialog from "../Projects/PackageRunDialog.vue";
+import PackageRunDialog from "../Packages/PackageRunDialog.vue";
 import RunDetailsDialog from "./RunDetailsDialog.vue";
 
-import type { ProjectDetails } from "../../../../shared/project";
+import type { PackageDetails } from "../../../../shared/package";
 
 import { getErrorMessage } from "../../../../shared/error";
 import {
@@ -255,7 +255,7 @@ const settingStore = useSettingStore();
 
 const runDetails = ref<RunDetails>();
 const setPendingRerun = ref(new Set<number>());
-const rerunProject = ref<ProjectDetails>();
+const rerunPackage = ref<PackageDetails>();
 
 async function showRunDetails(id: number): Promise<void> {
   runDetails.value = await invokeMain("getRunDetails", id);
@@ -379,7 +379,7 @@ async function openRerunDialog(runHistoryId: number): Promise<void> {
   if (setPendingRerun.value.has(runHistoryId)) return;
   setPendingRerun.value.add(runHistoryId);
   try {
-    rerunProject.value = await invokeMain("getLocalRerunProject", runHistoryId);
+    rerunPackage.value = await invokeMain("getLocalRerunPackage", runHistoryId);
   } catch (e: unknown) {
     loggerRenderer.error(`Failed to rerun Run ${runHistoryId}: ${getErrorMessage(e)}`);
   } finally {

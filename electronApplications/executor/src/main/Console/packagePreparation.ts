@@ -6,39 +6,41 @@ import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
 import { ensureNonEmptyString, ensureRecord } from "../Common/validation";
-import { getPythonEnvironmentPath, strDocumentsFolderPath } from "../Config/environment";
+import { getPythonEnvironmentPath } from "../Config/environment";
+import { strConsolePackageFolderPath } from "../FileSystem/executorFiles";
 import { runFileWorker } from "../FileSystem/fileWorker";
 import { loggerMain } from "../Logging/logger";
+import { getPackageFolderName } from "../Package/packageArchive";
 import strPackageArchiveWorkerPath from "../Package/packageArchiveWorker?modulePath";
 import type { PackageArchiveArgs } from "../Package/packageArchiveWorker";
 import {
-  readProjectPackageMetadata,
+  readPackageMetadata,
   validatePackageLiberrpaRequirement,
 } from "../Package/packageMetadata";
+import { dbSelectConsolePackageId, dbSaveConsolePackage } from "./packageRepository";
 import { requestConsole } from "./consoleApi";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
 
 export interface ConsolePackageInfo {
-  id: string;
-  name: string;
-  version: string;
+  packageId: string;
+  projectName: string;
+  projectVersion: string;
   sha256: string;
 }
 
 const INT_MAX_PACKAGE_BYTES = 512 * 1024 ** 2; // 512 MiB.
 const INT_PACKAGE_DOWNLOAD_IDLE_MS = 60_000;
 const INT_PACKAGE_DOWNLOAD_TIMEOUT_MS = 30 * 60 * 1000;
-const strConsolePackageFolderPath = path.join(
-  strDocumentsFolderPath,
-  "LiberRPA/ConsolePackage",
-);
 const abortPreparation = new AbortController();
-const mapPackageFilePreparation = new Map<string, Promise<void>>();
+const mapPackageFilePreparation = new Map<
+  string,
+  { packageId: string; promise: Promise<void> }
+>();
 
 export async function cleanConsolePackageStaging(): Promise<void> {
   async function readEntries(folderPath: string): Promise<fs.Dirent[]> {
     try {
-      // Do not traverse a linked cache root or a linked parent directory.
+      // Do not traverse a linked Package root.
       if (!(await fs.promises.lstat(folderPath)).isDirectory()) return [];
       return await fs.promises.readdir(folderPath, { withFileTypes: true });
     } catch (e: unknown) {
@@ -50,32 +52,22 @@ export async function cleanConsolePackageStaging(): Promise<void> {
     }
   }
 
-  // Called before any new preparation; final hash directories are never traversed.
+  // Called before any new preparation; ready Package directories are never traversed.
   let intRemoved = 0;
-  for (const originEntry of await readEntries(strConsolePackageFolderPath)) {
-    if (!originEntry.isDirectory() || !/^[a-f0-9]{64}$/.test(originEntry.name)) continue;
-    const strOriginPath = path.join(strConsolePackageFolderPath, originEntry.name);
-    for (const packageEntry of await readEntries(strOriginPath)) {
-      if (!packageEntry.isDirectory() || !/^[a-f0-9-]{36}$/i.test(packageEntry.name))
-        continue;
-      const strPackagePath = path.join(strOriginPath, packageEntry.name);
-      for (const stagingEntry of await readEntries(strPackagePath)) {
-        if (
-          (!stagingEntry.isDirectory() && !stagingEntry.isFile()) ||
-          !/^\.staging-[a-f0-9-]{36}(?:\.zip)?$/.test(stagingEntry.name)
-        )
-          continue;
-        const strStagingPath = path.join(strPackagePath, stagingEntry.name);
-        try {
-          await fs.promises.rm(strStagingPath, { recursive: true, force: true });
-          intRemoved += 1;
-        } catch (e: unknown) {
-          loggerMain.warn(
-            `Failed to remove Console package staging ${strStagingPath}: ` +
-              getErrorMessage(e),
-          );
-        }
-      }
+  for (const stagingEntry of await readEntries(strConsolePackageFolderPath)) {
+    if (
+      (!stagingEntry.isDirectory() && !stagingEntry.isFile()) ||
+      !/^\.staging-[a-f0-9-]{36}(?:\.zip)?$/.test(stagingEntry.name)
+    )
+      continue;
+    const strStagingPath = path.join(strConsolePackageFolderPath, stagingEntry.name);
+    try {
+      await fs.promises.rm(strStagingPath, { recursive: true, force: true });
+      intRemoved += 1;
+    } catch (e: unknown) {
+      loggerMain.warn(
+        `Failed to remove Console Package staging ${strStagingPath}: ${getErrorMessage(e)}`,
+      );
     }
   }
   if (intRemoved)
@@ -87,15 +79,25 @@ async function preparePackageFiles(
   credential: ConsoleCredentialSnapshot,
   packagePath: string,
 ): Promise<void> {
-  if (fs.existsSync(packagePath)) return;
-  const strCacheRoot = path.dirname(packagePath);
-  fs.mkdirSync(strCacheRoot, { recursive: true });
-  const strStaging = path.join(strCacheRoot, `.staging-${randomUUID()}`);
+  const strFolderName = path.basename(packagePath);
+  if (fs.existsSync(packagePath)) {
+    if (
+      dbSelectConsolePackageId(strFolderName) !== packageInfo.packageId ||
+      !fs.statSync(packagePath).isDirectory()
+    )
+      throw new Error(`The target Console Package folder already exists: ${packagePath}`);
+    // NOTE: A ready Package is a mutable working directory; do not hash or restore its files.
+    return;
+  }
+  if (!/^[a-f0-9]{64}$/.test(packageInfo.sha256))
+    throw new Error("Console Package SHA256 is invalid.");
+  fs.mkdirSync(strConsolePackageFolderPath, { recursive: true });
+  const strStaging = path.join(strConsolePackageFolderPath, `.staging-${randomUUID()}`);
   const strArchive = `${strStaging}.zip`;
   try {
     const response = await requestConsole(
       credential.consoleUrl,
-      `executor/packages/${packageInfo.id}/downloads/`,
+      `executor/packages/${packageInfo.packageId}/downloads/`,
       credential.token,
       {},
     );
@@ -164,18 +166,27 @@ async function preparePackageFiles(
     }
     await runFileWorker<PackageArchiveArgs>(
       strPackageArchiveWorkerPath,
-      { packageFilePath: strArchive, stagedProjectPath: strStaging },
+      { packageFilePath: strArchive, stagedPackagePath: strStaging },
       abortPreparation.signal,
     );
     abortPreparation.signal.throwIfAborted();
-    const packageMetadata = await readProjectPackageMetadata(strStaging);
+    const packageMetadata = await readPackageMetadata(strStaging);
     if (
-      packageMetadata.name !== packageInfo.name ||
-      packageMetadata.version !== packageInfo.version
+      packageMetadata.project_name !== packageInfo.projectName ||
+      packageMetadata.project_version !== packageInfo.projectVersion
     )
       throw new Error("Package identity does not match the requested version.");
     abortPreparation.signal.throwIfAborted();
+    if (fs.existsSync(packagePath))
+      throw new Error(`The target Console Package folder already exists: ${packagePath}`);
     fs.renameSync(strStaging, packagePath);
+    try {
+      // Keep the final rename and registration in the same synchronous turn.
+      dbSaveConsolePackage(strFolderName, packageInfo.packageId);
+    } catch (e: unknown) {
+      fs.rmSync(packagePath, { recursive: true, force: true });
+      throw e;
+    }
   } finally {
     try {
       await fs.promises.rm(strArchive, { force: true });
@@ -191,29 +202,29 @@ export async function prepareConsolePackage(
   credential: ConsoleCredentialSnapshot,
 ): Promise<string> {
   abortPreparation.signal.throwIfAborted();
-  if (
-    !/^[a-f0-9]{64}$/.test(packageInfo.sha256) ||
-    !/^[a-f0-9-]{36}$/i.test(packageInfo.id)
-  )
-    throw new Error("Console package identity is invalid.");
-  const strOriginHash = createHash("sha256").update(credential.consoleUrl).digest("hex");
+  if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(packageInfo.packageId))
+    throw new Error("Console Package ID is invalid.");
   const strPackagePath = path.join(
     strConsolePackageFolderPath,
-    strOriginHash,
-    packageInfo.id,
-    packageInfo.sha256,
+    getPackageFolderName(packageInfo.projectName, packageInfo.projectVersion),
   );
-  let promiseFiles = mapPackageFilePreparation.get(strPackagePath);
-  if (promiseFiles === undefined) {
-    // Share file work by its destination, not by the environment that will run it.
-    promiseFiles = preparePackageFiles(packageInfo, credential, strPackagePath).finally(
-      () => {
-        mapPackageFilePreparation.delete(strPackagePath);
-      },
+  const strPreparationKey = strPackagePath.toLowerCase();
+  let preparation = mapPackageFilePreparation.get(strPreparationKey);
+  if (preparation && preparation.packageId !== packageInfo.packageId)
+    throw new Error(
+      `Another Console Package is being prepared in this folder: ${strPackagePath}`,
     );
-    mapPackageFilePreparation.set(strPackagePath, promiseFiles);
+  if (preparation === undefined) {
+    // Share file work for the same Package, independently of its requested Python environment.
+    preparation = {
+      packageId: packageInfo.packageId,
+      promise: preparePackageFiles(packageInfo, credential, strPackagePath).finally(() => {
+        mapPackageFilePreparation.delete(strPreparationKey);
+      }),
+    };
+    mapPackageFilePreparation.set(strPreparationKey, preparation);
   }
-  await promiseFiles;
+  await preparation.promise;
   abortPreparation.signal.throwIfAborted();
   await validatePackageLiberrpaRequirement(
     strPackagePath,

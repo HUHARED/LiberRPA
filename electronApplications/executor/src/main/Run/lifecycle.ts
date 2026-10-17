@@ -1,14 +1,14 @@
 // FileName: lifecycle.ts
 
 import { getErrorMessage } from "../../shared/error";
-import type { ProjectRunConfig } from "../../shared/run";
+import type { RunConfig } from "../../shared/run";
 import { loggerMain } from "../Logging/logger";
 import type { RunEndedFact, RunExecutionContext } from "./types";
 
 type RunEndedListener = () => void;
 
 type RunFinishedListener = (
-  detail: ProjectRunConfig,
+  detail: RunConfig,
   context: RunExecutionContext,
   fact: RunEndedFact,
 ) => void;
@@ -55,7 +55,7 @@ export function onRunFinished(listener: RunFinishedListener): void {
 }
 
 export function notifyRunFinished(
-  detail: ProjectRunConfig,
+  detail: RunConfig,
   context: RunExecutionContext,
   fact: RunEndedFact,
 ): void {

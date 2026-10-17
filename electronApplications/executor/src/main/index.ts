@@ -39,14 +39,14 @@ import { loggerMain } from "./Logging/logger";
 import { strDefaultProjectLogFolderPath } from "./Config/basicConfig";
 import { dictConfigExecutor } from "./Config/executorConfig";
 import { stopFileWorkers } from "./FileSystem/fileWorker";
-import { waitForProjectPackageInstallation } from "./Package/packageInstallation";
+import { waitForPackageInstallation } from "./Package/packageInstallation";
 import { closeDatabase, initializeDatabase } from "./Database/connection";
 import {
   dbHasEndedLocalRun,
   dbMarkUnfinishedRunsAfterRestart,
 } from "./Database/runHistoryRepository";
-import { recoverProjectPackageInstallations } from "./Package/packageInstallationTransaction";
-import { recoverProjectPackageDeletions } from "./Package/projectDeletion";
+import { recoverPackageInstallations } from "./Package/packageInstallationTransaction";
+import { recoverPackageDeletions } from "./Package/packageDeletion";
 import { startRdpSessionManager, stopRdpSessionManager } from "./Rdp/rdpSession";
 import { registerExecutorIpc } from "./IPC/ipc";
 import { sendMainMessage } from "./IPC/mainMessage";
@@ -62,7 +62,7 @@ import { cleanConsolePackageStaging } from "./Console/packagePreparation";
 import { cleanConsoleLogArchives } from "./Console/consoleFileTransfers";
 import { getConsoleRunProcessId } from "./Console/workRepository";
 import { recoverConsoleWorkAfterRestart } from "./Console/workRecovery";
-import { beginProjectRunShutdown, shutdownProjectRuns } from "./Run/projectRunner";
+import { beginRunShutdown, shutdownRuns } from "./Run/packageRunner";
 import {
   getJobQueueItems,
   onJobQueueChanged,
@@ -186,13 +186,13 @@ void app
     if (boolShutdownStarted) return;
     initializeDatabase();
     promiseFileRecovery = (async () => {
-      await recoverProjectPackageInstallations();
+      await recoverPackageInstallations();
       if (boolShutdownStarted) return;
       await cleanConsolePackageStaging();
       if (boolShutdownStarted) return;
       await cleanConsoleLogArchives();
       if (boolShutdownStarted) return;
-      recoverProjectPackageDeletions();
+      recoverPackageDeletions();
       dbMarkUnfinishedRunsAfterRestart();
       recoverConsoleWorkAfterRestart();
       await cleanExecutorRunArguments((runId) => {
@@ -309,7 +309,7 @@ async function shutdownExecutor(): Promise<void> {
   await promiseFileRecovery?.catch(() => {});
   await stopConsoleWork();
   await promiseFileWorkers;
-  await waitForProjectPackageInstallation();
+  await waitForPackageInstallation();
   stopConsoleContextBridge();
   await stopConsoleAccount();
   try {
@@ -325,9 +325,9 @@ async function shutdownExecutor(): Promise<void> {
   }
 
   try {
-    await shutdownProjectRuns();
+    await shutdownRuns();
   } catch (e: unknown) {
-    loggerMain.error(`Failed to stop active Project Runs: ${getErrorMessage(e)}`);
+    loggerMain.error(`Failed to stop active Runs: ${getErrorMessage(e)}`);
   }
 
   try {
@@ -353,7 +353,7 @@ app.on("before-quit", (event) => {
   }
 
   boolShutdownStarted = true;
-  beginProjectRunShutdown();
+  beginRunShutdown();
   stopRunHousekeeping();
   void shutdownExecutor();
 });

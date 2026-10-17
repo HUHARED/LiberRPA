@@ -6,7 +6,7 @@ import fs from "fs";
 import path from "path";
 
 import { getErrorMessage } from "../../shared/error";
-import type { ProjectRunConfig } from "../../shared/run";
+import type { RunConfig } from "../../shared/run";
 import { isProcessRunning } from "../Common/process";
 import { buildPythonProcessEnvironment } from "../Config/environment";
 import { getConsoleContextEnvironment } from "../Console/consoleContextBridge";
@@ -20,13 +20,13 @@ export interface PythonProcessDiagnosticOutput {
   stderrTail: string;
 }
 
-interface StartedProjectPythonProcess {
+interface StartedPythonProcess {
   processPy: ChildProcessWithoutNullStreams;
   diagnosticOutput: PythonProcessDiagnosticOutput;
   getProcessError: () => Error | undefined;
 }
 
-const STR_PROJECT_RUN_TERMINATION_MESSAGE = "Executor-terminated";
+const STR_RUN_TERMINATION_MESSAGE = "Executor-terminated";
 const INT_PROCESS_OUTPUT_TAIL_MAX_LENGTH = 32 * 1024;
 const INT_PROCESS_TERMINATION_WAIT_MS = 3 * 1000;
 
@@ -72,7 +72,7 @@ function attachPythonDiagnosticStreams(
   return dictDiagnosticOutput;
 }
 
-export function spawnProjectPythonProcess({
+export function spawnPythonProcess({
   detail,
   packagePath,
   pythonEnvironmentPath,
@@ -80,13 +80,13 @@ export function spawnProjectPythonProcess({
   startedAt,
   runStatePath,
 }: {
-  detail: ProjectRunConfig;
+  detail: RunConfig;
   packagePath: string;
   pythonEnvironmentPath: string;
   runId: string;
   startedAt: string;
   runStatePath: string;
-}): StartedProjectPythonProcess {
+}): StartedPythonProcess {
   const strArgumentsPath = getExecutorRunArgumentsPath(runId);
   const strArguments = JSON.stringify({
     logLevel: detail.builtin_log_level,
@@ -196,7 +196,7 @@ export function requestPythonTermination(
   }
 
   try {
-    processPy.stdin.end(`${STR_PROJECT_RUN_TERMINATION_MESSAGE}\r\n`);
+    processPy.stdin.end(`${STR_RUN_TERMINATION_MESSAGE}\r\n`);
     return true;
   } catch (e: unknown) {
     loggerMain.error(

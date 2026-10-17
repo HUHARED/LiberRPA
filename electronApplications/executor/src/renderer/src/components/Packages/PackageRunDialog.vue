@@ -10,7 +10,7 @@
     <v-card title="Run">
       <v-card-text class="flex-column overflow-hidden">
         <p class="text-subtitle-1 mb-3 flex-shrink-0 text-break">
-          {{ project.name }} · {{ project.version }}
+          {{ packageDetails.project_name }} · {{ packageDetails.project_version }}
         </p>
 
         <h2 class="text-h6 mb-3 flex-shrink-0">Run Settings</h2>
@@ -30,7 +30,7 @@
                 <v-select
                   v-model="runSettings.python_environment_name"
                   v-tooltip:top="
-                    'The Python environment used to run this Project. Loaded from envs\\pyenv.'
+                    'The Python environment used to run this Package. Loaded from envs\\pyenv.'
                   "
                   label="Python Environment"
                   variant="underlined"
@@ -82,12 +82,12 @@ import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
 import { useRunHistoryStore } from "../../Store/runHistoryStore";
 import { getErrorMessage } from "../../../../shared/error";
-import type { ProjectDetails, ProjectSettingsUpdate } from "../../../../shared/project";
+import type { PackageDetails, PackageSettingsUpdate } from "../../../../shared/package";
 
-const props = defineProps<{ project: ProjectDetails }>();
+const props = defineProps<{ packageDetails: PackageDetails }>();
 const emit = defineEmits<{ close: [] }>();
 const runHistoryStore = useRunHistoryStore();
-const runSettings = ref<ProjectSettingsUpdate>(cloneJsonSerializable(props.project));
+const runSettings = ref<PackageSettingsUpdate>(cloneJsonSerializable(props.packageDetails));
 const arrPythonEnvironmentName = ref<string[]>([]);
 const boolLoading = ref(true);
 const boolStarting = ref(false);
@@ -97,7 +97,7 @@ async function submitRun(): Promise<void> {
   boolStarting.value = true;
   try {
     const settings = runSettings.value;
-    await invokeMain("runProject", {
+    await invokeMain("runPackage", {
       id: settings.id,
       python_environment_name: settings.python_environment_name,
       max_retry_count: settings.max_retry_count,
@@ -112,7 +112,7 @@ async function submitRun(): Promise<void> {
     await runHistoryStore.refreshRunHistory();
   } catch (e: unknown) {
     loggerRenderer.error(
-      `Failed to run Project ${props.project.id}: ${getErrorMessage(e)}`,
+      `Failed to run Package ${props.packageDetails.id}: ${getErrorMessage(e)}`,
     );
   } finally {
     boolStarting.value = false;
