@@ -10,7 +10,9 @@ import { useSettingStore } from "../Store/settingStore";
 
 export function registerMainMessageListener(): void {
   window.executor.onMainMessage(async (message) => {
-    loggerRenderer.debug(`[main-message] ${message.type}`);
+    if (message.type !== "consoleAccountChanged") {
+      loggerRenderer.debug(`[main-message] ${message.type}`);
+    }
 
     try {
       switch (message.type) {
