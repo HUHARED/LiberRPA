@@ -150,8 +150,7 @@ import PackageRunSettings from "./PackageRunSettings.vue";
 import CustomArgumentsEditor from "../RunSettings/CustomArgumentsEditor.vue";
 import PackageRunDialog from "./PackageRunDialog.vue";
 
-import { onBeforeMount, onBeforeUnmount, ref, watch } from "vue";
-import { debounce } from "lodash";
+import { computed, onBeforeMount, ref } from "vue";
 
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
@@ -163,7 +162,11 @@ const strProjectName = ref("");
 const strProjectVersion = ref("");
 const arrSelectedProjectName = ref<string[]>([]);
 const arrSelectedProjectVersion = ref<string[]>([]);
-const boolDetailChanged = ref(false);
+const boolDetailChanged = computed(
+  () =>
+    packageStore.dictDetailEdit !== undefined &&
+    JSON.stringify(packageStore.dictDetailEdit) !== packageStore.strDetailCacheEdit,
+);
 
 onBeforeMount(async () => {
   packageStore.resetVersionAndDetail();
@@ -175,7 +178,6 @@ function resetProjectSelection(): void {
   strProjectVersion.value = "";
   arrSelectedProjectName.value = [];
   arrSelectedProjectVersion.value = [];
-  boolDetailChanged.value = false;
 }
 
 async function installPackage(): Promise<void> {
@@ -198,33 +200,6 @@ async function installPackage(): Promise<void> {
 
   await packageStore.loadPackageDetails(result.project_name, result.project_version);
 }
-
-const debouncedSetButtonDisabled = debounce(() => {
-  // Changed name or version.
-  if (!packageStore.dictDetailEdit) {
-    boolDetailChanged.value = false;
-    return;
-  }
-
-  const strDetailCacheNew = JSON.stringify(packageStore.dictDetailEdit);
-  if (strDetailCacheNew === packageStore.strDetailCacheEdit) {
-    boolDetailChanged.value = false;
-  } else {
-    boolDetailChanged.value = true;
-  }
-}, 300);
-
-watch(
-  () => packageStore.dictDetailEdit,
-  () => {
-    debouncedSetButtonDisabled();
-  },
-  { deep: true },
-);
-
-onBeforeUnmount(() => {
-  debouncedSetButtonDisabled.cancel();
-});
 
 async function refreshDetail(): Promise<void> {
   packageStore.resetDetail();
@@ -276,7 +251,7 @@ async function openDeleteDialog(): Promise<void> {
 
 function runPackage(): void {
   loggerRenderer.debug("--runPackage--");
-  if (packageStore.dictDetailEdit) {
+  if (packageStore.dictDetailEdit && !boolDetailChanged.value) {
     boolShowRunDialog.value = true;
   }
 }

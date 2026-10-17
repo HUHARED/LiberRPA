@@ -1,4 +1,5 @@
 // FileName: checkFlowchart.ts
+
 import type {
   FlowNode,
   FlowEdge,
@@ -260,7 +261,7 @@ function isBaseEdgeRecord(value: unknown): value is BaseEdgeRecord {
 }
 
 function isCommonLineEdge(
-  value: unknown
+  value: unknown,
 ): value is Extract<FlowEdge, { type: "CommonLine" }> {
   if (!isBaseEdgeRecord(value)) {
     return false;
@@ -272,7 +273,7 @@ function isCommonLineEdge(
 }
 
 function isExceptionLineEdge(
-  value: unknown
+  value: unknown,
 ): value is Extract<FlowEdge, { type: "ExceptionLine" }> {
   if (!isBaseEdgeRecord(value)) {
     return false;
@@ -296,7 +297,7 @@ function isTrueLineEdge(value: unknown): value is Extract<FlowEdge, { type: "Tru
 }
 
 function isFalseLineEdge(
-  value: unknown
+  value: unknown,
 ): value is Extract<FlowEdge, { type: "FalseLine" }> {
   if (!isBaseEdgeRecord(value)) {
     return false;
@@ -335,8 +336,12 @@ function isFlowEdge(value: unknown): value is FlowEdge {
 /* Check other values */
 
 function isJsonValue(value: unknown): value is JsonValue {
-  if (value === null || isString(value) || isNumber(value) || isBoolean(value)) {
+  if (value === null || isString(value) || isBoolean(value)) {
     return true;
+  }
+
+  if (isNumber(value)) {
+    return !Number.isInteger(value) || Number.isSafeInteger(value);
   }
 
   if (Array.isArray(value)) {

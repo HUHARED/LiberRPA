@@ -66,7 +66,7 @@
                   style="white-space: pre-wrap; word-break: break-word"
                   v-text="stringifyValue(item[1])"></pre>
 
-                <div>The value must be JSON-deserializable.</div>
+                <div>The value must be valid JSON.</div>
                 <div>Press Enter or leave the input box to update.</div>
                 <div>Press Ctrl+S to apply this value and save project.flow.</div>
 
@@ -230,14 +230,27 @@ function updateValue(item: StoreCustomPrjArg, index: number, value: string): voi
   }
 
   try {
-    const parsedValue = JSON.parse(value) as JsonValue;
+    const parsedValue = JSON.parse(value, (_key, argumentValue: unknown) => {
+      if (typeof argumentValue === "number") {
+        if (!Number.isFinite(argumentValue)) {
+          throw new Error("Numbers must be finite.");
+        }
+        if (Number.isInteger(argumentValue) && !Number.isSafeInteger(argumentValue)) {
+          throw new Error(
+            "Integers must be between -9007199254740991 and 9007199254740991.",
+          );
+        }
+      }
+      return argumentValue;
+    }) as JsonValue;
     item[1] = parsedValue;
-  } catch {
-    showAlert(`It can't be deserialized: ${value}`);
-    // Reset inputbox.
-    arrValueCache.value = argsStore.customPrjArgs.map((item) =>
-      JSON.stringify(item[1], null, 0),
+  } catch (e: unknown) {
+    showAlert(
+      e instanceof Error && !(e instanceof SyntaxError)
+        ? e.message
+        : "Enter a valid JSON value.",
     );
+    arrValueCache.value[index] = JSON.stringify(item[1]);
   }
 }
 

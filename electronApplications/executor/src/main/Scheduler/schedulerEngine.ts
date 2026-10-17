@@ -126,15 +126,15 @@ export function cancelQueuedRun(queueId: string): void {
   publishJobQueueChanged();
 }
 
-function resetPendingRuns(): void {
-  // Invalidate due candidates held by a Tick that is waiting for Python startup.
-  intPendingRunRevision += 1;
+function addNextPendingRuns(scheduleIds?: ReadonlySet<number>): void {
   const intNowMs = Date.now();
   const arrSchedule = dbSelectScheduleList();
-  const arrNextPending: PendingRun[] = [];
 
   for (const dictSchedule of arrSchedule) {
-    if (!dictSchedule.enabled) {
+    if (
+      !dictSchedule.enabled ||
+      (scheduleIds !== undefined && !scheduleIds.has(dictSchedule.id))
+    ) {
       continue;
     }
 
@@ -150,7 +150,7 @@ function resetPendingRuns(): void {
       );
       const intDueAtMs = nextScheduleDate(intervalObj).toDate().getTime();
 
-      arrNextPending.push({
+      arrPendingRun.push({
         scheduleId: dictSchedule.id,
         queueItem: {
           queue_id: `pending-${dictSchedule.id}-${intDueAtMs}`,
@@ -170,10 +170,9 @@ function resetPendingRuns(): void {
     }
   }
 
-  arrNextPending.sort(
+  arrPendingRun.sort(
     (dictLeft, dictRight) => dictLeft.queueItem.due_at_ms - dictRight.queueItem.due_at_ms,
   );
-  arrPendingRun.splice(0, arrPendingRun.length, ...arrNextPending);
 }
 
 async function startLocalRunWithConflictPolicy(queuedRun: QueuedRun): Promise<void> {
@@ -274,7 +273,8 @@ async function processSchedulerTick(): Promise<void> {
   // The final startup await may also overlap a refresh or shutdown.
   if (!boolSchedulerStarted || intRevision !== intPendingRunRevision) return;
 
-  resetPendingRuns();
+  // Preserve other Schedules that became due while Python startup was in progress.
+  addNextPendingRuns(new Set(arrDueRun.map(({ scheduleId }) => scheduleId)));
   publishJobQueueChanged();
 }
 
@@ -303,7 +303,10 @@ function requestSchedulerTick(): void {
 }
 
 export function refreshSchedulerEngine(): void {
-  resetPendingRuns();
+  // Invalidate due candidates held by a Tick that is waiting for Python startup.
+  intPendingRunRevision += 1;
+  arrPendingRun.splice(0);
+  addNextPendingRuns();
   publishJobQueueChanged();
 }
 

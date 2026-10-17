@@ -89,7 +89,16 @@
         </v-col>
 
         <v-col cols="9" class="clean-space flex-column">
-          <cron-vuetify v-model="detail.cron" class="clean-space mb-2"></cron-vuetify>
+          <cron-vuetify
+            v-if="strVisualCron"
+            :key="intVisualRevision"
+            :model-value="strVisualCron"
+            class="clean-space mb-2"
+            @update:model-value="changeVisualCron"></cron-vuetify>
+
+          <p v-else class="text-body-2 text-medium-emphasis">
+            Edit this rule in the Cron Expression field; it cannot be shown visually.
+          </p>
         </v-col>
       </v-row>
 
@@ -174,7 +183,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 
 import BuiltInArguments from "../RunSettings/BuiltInArguments.vue";
 import CustomArgumentsEditor from "../RunSettings/CustomArgumentsEditor.vue";
@@ -214,6 +223,88 @@ const cronValidation = computed(() => {
     ? { valid: false as const, error: "Cron expression is unavailable." }
     : validateCronExpression(currentDetail.cron, settingStore.timezone);
 });
+
+const intVisualRevision = ref(0);
+let boolVisualSyncing = true;
+let boolVisualUpdating = false;
+
+const strVisualCron = computed(() => {
+  if (!detail.value || !cronValidation.value.valid) return "";
+  const arrField = detail.value.cron.trim().split(/\s+/);
+  if (arrField.length === 6 && arrField[0] === "0") arrField.shift();
+  if (arrField.length !== 5) return "";
+  const arrBound = [
+    [0, 59],
+    [0, 23],
+    [1, 31],
+    [1, 12],
+    [0, 6],
+  ] as const;
+  // Only pass syntax the visual editor can represent without changing its meaning.
+  for (const [intIndex, strField] of arrField.entries()) {
+    const [intMin, intMax] = arrBound[intIndex]!;
+    let intPreviousMax = intMin - 1;
+    for (const strPart of strField.split(",")) {
+      const match = /^(\*|\d+(?:-\d+)?)(?:\/([1-9]\d*))?$/.exec(strPart);
+      if (!match) return "";
+      const strRange = match[1]!;
+      const strStep = match[2];
+      if (
+        strStep !== undefined &&
+        (Number(strStep) > intMax - intMin + 1 ||
+          (strRange !== "*" && !strRange.includes("-")))
+      )
+        return "";
+      if (strRange === "*") {
+        if (strField !== strPart) return "";
+        continue;
+      }
+      const arrLimit = strRange.split("-").map(Number);
+      const intStart = arrLimit[0]!;
+      const intEnd = arrLimit[arrLimit.length - 1]!;
+      if (
+        intStart <= intPreviousMax ||
+        intEnd > intMax ||
+        intStart > intEnd ||
+        arrLimit.join("-") !== strRange
+      )
+        return "";
+      intPreviousMax = intEnd;
+    }
+  }
+  // Normalizing either day field to * can change their combined OR condition.
+  if (arrField[2] !== "*" && arrField[4] !== "*") return "";
+  return arrField.join(" ");
+});
+
+function changeVisualCron(value: string): void {
+  const currentDetail = detail.value;
+  if (!currentDetail || boolVisualSyncing || !strVisualCron.value) return;
+  const boolHasSeconds = currentDetail.cron.trim().split(/\s+/).length === 6;
+  boolVisualUpdating = true;
+  currentDetail.cron = boolHasSeconds ? `0 ${value}` : value;
+  boolVisualUpdating = false;
+}
+
+watch(
+  intVisualRevision,
+  async (intRevision) => {
+    await nextTick();
+    if (intRevision === intVisualRevision.value) boolVisualSyncing = false;
+  },
+  { flush: "post" },
+);
+
+watch(
+  [detail, () => detail.value?.cron],
+  () => {
+    if (boolVisualUpdating) return;
+    // Recreate the editor for loaded or typed rules and ignore its initial normalization.
+    boolVisualSyncing = true;
+    intVisualRevision.value++;
+  },
+  { immediate: true, flush: "sync" },
+);
 
 const arrPreview = computed(() => {
   const currentDetail = detail.value;

@@ -27,10 +27,29 @@ export function updateCustomProjectArgumentValue(
   value: string,
 ): void {
   try {
-    customProjectArgumentArr[index][1] = JSON.parse(value);
-  } catch {
+    customProjectArgumentArr[index][1] = JSON.parse(
+      value,
+      (_key, argumentValue: unknown) => {
+        if (typeof argumentValue === "number") {
+          if (!Number.isFinite(argumentValue)) {
+            throw new Error("Numbers must be finite.");
+          }
+          if (Number.isInteger(argumentValue) && !Number.isSafeInteger(argumentValue)) {
+            throw new Error(
+              "Integers must be between -9007199254740991 and 9007199254740991.",
+            );
+          }
+        }
+        return argumentValue;
+      },
+    );
+  } catch (e: unknown) {
     const informationStore = useInformationStore();
-    informationStore.showAlertMessage(`It can't be deserialized: ${value}`);
+    informationStore.showAlertMessage(
+      e instanceof Error && !(e instanceof SyntaxError)
+        ? e.message
+        : "Enter a valid JSON value.",
+    );
     valueCacheArr[index] = JSON.stringify(customProjectArgumentArr[index][1]);
   }
 }

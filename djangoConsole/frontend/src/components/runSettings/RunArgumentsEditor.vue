@@ -211,12 +211,16 @@ function publishValid(): void {
 
 function updateValue(index: number, text: string): void {
   try {
-    const value = JSON.parse(text) as JsonValue;
+    const value = JSON.parse(text, (_key, argumentValue: unknown) => {
+      if (typeof argumentValue === "number") validateJsonValue(argumentValue);
+      return argumentValue;
+    }) as JsonValue;
     const argument = settings.value.custom_prj_args[index];
     if (argument) argument[1] = value;
     arrError.value[index] = "";
-  } catch {
-    arrError.value[index] = "Enter valid JSON.";
+  } catch (e) {
+    arrError.value[index] =
+      e instanceof Error && !(e instanceof SyntaxError) ? e.message : "Enter valid JSON.";
   }
   publishValid();
 }
