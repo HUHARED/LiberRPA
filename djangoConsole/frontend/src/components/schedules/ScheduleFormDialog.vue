@@ -468,9 +468,10 @@ const strVisualCron = computed(() => {
     [1, 12],
     [0, 6],
   ] as const;
-  // Only pass bounded, supported fields to the visual parser, not partial text input.
+  // Only pass syntax the visual editor can represent without changing its meaning.
   for (const [intIndex, strField] of arrField.entries()) {
     const [intMin, intMax] = arrBound[intIndex]!;
+    let intPreviousMax = intMin - 1;
     for (const strPart of strField.split(",")) {
       const match = /^(\*|\d+(?:-\d+)?)(?:\/([1-9]\d*))?$/.exec(strPart);
       if (!match) return "";
@@ -487,12 +488,16 @@ const strVisualCron = computed(() => {
         continue;
       }
       const arrLimit = strRange.split("-").map(Number);
+      const intStart = arrLimit[0]!;
+      const intEnd = arrLimit[arrLimit.length - 1]!;
       if (
-        arrLimit.some((value) => value < intMin || value > intMax) ||
-        arrLimit[0]! > arrLimit[arrLimit.length - 1]! ||
+        intStart <= intPreviousMax ||
+        intEnd > intMax ||
+        intStart > intEnd ||
         arrLimit.join("-") !== strRange
       )
         return "";
+      intPreviousMax = intEnd;
     }
   }
   // Visual normalization can change the OR semantics when both day fields are restricted.
