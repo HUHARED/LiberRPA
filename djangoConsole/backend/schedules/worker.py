@@ -140,8 +140,7 @@ def _process_trigger(
                 status=TriggerStatus.REJECTED,
                 reason=strReason,
             )
-            if getattr(e, "code", None) != "target_paused":
-                notify_failure(schedule, strReason)
+            notify_failure(schedule, strReason)
         advance(schedule, scheduledAt)
 
 

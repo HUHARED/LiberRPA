@@ -233,9 +233,7 @@ def _get_filtered_work(
 ) -> QuerySet[Job | Run]:
     strPrefix = "job__" if runs else ""
     workQuery: QuerySet[Job | Run] = (
-        get_visible_runs(access)
-        if runs
-        else get_visible_jobs(access).exclude(state=JobState.FINISHED)
+        get_visible_runs(access) if runs else get_visible_jobs(access)
     )
     listDepartmentId = query.getlist("department_id")
     if listDepartmentId:
@@ -261,6 +259,13 @@ def _get_filtered_work(
             )
         })
     listStatus = query.getlist("status" if runs else "state")
+    boolFinished = not runs and JobState.FINISHED in listStatus
+    if boolFinished and any(state != JobState.FINISHED for state in listStatus):
+        raise ValidationError(
+            "Select Finished separately from active Job states.", code="invalid_filter"
+        )
+    if not runs and not boolFinished:
+        workQuery = workQuery.exclude(state=JobState.FINISHED)
     if listStatus:
         setAllowed = set(RunStatus.values if runs else JobState.values)
         if not set(listStatus).issubset(setAllowed):
@@ -278,11 +283,11 @@ def _get_filtered_work(
                 workQuery = workQuery.filter(**{
                     strLookup: parse_zoned_time(strTime, access.actor.time_zone)
                 })
-    return (
-        workQuery.order_by("-started_at", "-id")
-        if runs
-        else workQuery.order_by("priority_rank", "attempt_queued_at", "id")
-    )
+    if runs:
+        return workQuery.order_by("-started_at", "-id")
+    if boolFinished:
+        return workQuery.order_by("-ended_at", "-id")
+    return workQuery.order_by("priority_rank", "attempt_queued_at", "id")
 
 
 def get_matching_run_ids(

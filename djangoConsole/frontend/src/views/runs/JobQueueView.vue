@@ -12,11 +12,16 @@
     </v-btn>
   </div>
 
+  <v-tabs v-model="boolFinished" class="mb-4">
+    <v-tab :value="false">Active</v-tab>
+    <v-tab :value="true">Finished</v-tab>
+  </v-tabs>
+
   <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <form @submit.prevent="apply">
         <v-row>
-          <v-col cols="12" md="3">
+          <v-col cols="12" :md="boolFinished ? 4 : 3">
             <v-select
               v-model="filters.departmentIds"
               :items="sessionStore.access?.departments ?? []"
@@ -29,7 +34,7 @@
               hide-details />
           </v-col>
 
-          <v-col cols="12" md="3">
+          <v-col cols="12" :md="boolFinished ? 4 : 3">
             <v-text-field
               v-model="filters.scheduleName"
               label="Schedule"
@@ -37,7 +42,7 @@
               hide-details />
           </v-col>
 
-          <v-col cols="12" md="3">
+          <v-col cols="12" :md="boolFinished ? 4 : 3">
             <v-text-field
               v-model="filters.projectName"
               label="Project"
@@ -45,7 +50,7 @@
               hide-details />
           </v-col>
 
-          <v-col cols="12" md="3">
+          <v-col v-if="!boolFinished" cols="12" md="3">
             <v-select
               v-model="filters.states"
               :items="
@@ -80,13 +85,11 @@
     <p v-if="page">The displayed results may be out of date.</p>
   </v-alert>
 
-  <p class="text-body-2 text-medium-emphasis mb-3">
-    Active Jobs only · Time zone: {{ strTimeZone }}
-  </p>
+  <p class="text-body-2 text-medium-emphasis mb-3">Time zone: {{ strTimeZone }}</p>
 
   <v-card variant="outlined">
     <v-data-table-server
-      :headers="ARR_HEADER"
+      :headers="arrHeader"
       :items="page?.jobs ?? []"
       :items-length="page?.total_count ?? 0"
       :items-per-page="50"
@@ -132,6 +135,10 @@
         {{ formatDateTime(item.queued_at, strTimeZone) }}
       </template>
 
+      <template #item.ended_at="{ item }">
+        {{ formatDateTime(item.ended_at, strTimeZone) }}
+      </template>
+
       <template #item.state="{ item }">
         <v-chip
           :border="`${JOB_STATE_COLORS[item.state]} thin opacity-25`"
@@ -139,6 +146,10 @@
           :text="JOB_STATE_LABELS[item.state]"
           variant="text"
           size="x-small" />
+      </template>
+
+      <template #item.reason="{ item }">
+        <p class="text-pre-wrap text-break my-2">{{ item.reason || "—" }}</p>
       </template>
 
       <template #item.actions="{ item }">
@@ -155,7 +166,9 @@
         </div>
       </template>
 
-      <template #no-data>No active Jobs match the current filters.</template>
+      <template #no-data>
+        No {{ boolFinished ? "finished" : "active" }} Jobs match the current filters.
+      </template>
     </v-data-table-server>
 
     <v-divider />
@@ -174,12 +187,19 @@
 </template>
 
 <script setup lang="ts">
-import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
+import type { DataTableHeader } from "vuetify";
 
 import JobActions from "@/components/runs/JobActions.vue";
 
-import { ARR_JOB_STATE, getJobs, type JobPage, type JobFilters } from "@/api/runs";
+import {
+  JobState,
+  ARR_JOB_STATE,
+  getJobs,
+  type JobPage,
+  type JobFilters,
+} from "@/api/runs";
 import { getApiError } from "@/api/errors";
 
 import { PRIORITY_LABELS, JOB_STATE_LABELS, JOB_STATE_COLORS } from "@/app/runLabels";
@@ -187,20 +207,28 @@ import { formatDateTime } from "@/app/formatters";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
-const ARR_HEADER = [
+const sessionStore = useSessionStore();
+const route = useRoute();
+const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+const boolFinished = ref(route.query.state === JobState.Finished);
+
+const arrHeader = computed<DataTableHeader[]>(() => [
   { title: "Schedule", key: "schedule_name" },
   { title: "Project Name", key: "project_name" },
   { title: "Project Version", key: "project_version" },
   { title: "Target", key: "target_name" },
-  { title: "Priority", key: "priority" },
-  { title: "Queued At", key: "queued_at" },
+  ...(boolFinished.value
+    ? [{ title: "Ended At", key: "ended_at" }]
+    : [
+        { title: "Priority", key: "priority" },
+        { title: "Queued At", key: "queued_at" },
+      ]),
   { title: "Status", key: "state" },
+  ...(boolFinished.value
+    ? [{ title: "Reason", key: "reason", width: 320, maxWidth: 360 }]
+    : []),
   { title: "Actions", key: "actions" },
-];
-
-const sessionStore = useSessionStore();
-const route = useRoute();
-const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+]);
 
 function emptyFilters(): JobFilters {
   return {
@@ -234,7 +262,13 @@ async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
   boolLoading.value = true;
   strError.value = "";
   try {
-    const response = await getJobs(appliedFilters, pageNumber);
+    const response = await getJobs(
+      {
+        ...appliedFilters,
+        states: boolFinished.value ? [JobState.Finished] : appliedFilters.states,
+      },
+      pageNumber,
+    );
     if (intRevision === intLoadRevision) page.value = response;
   } catch (e) {
     if (intRevision === intLoadRevision) strError.value = getApiError(e).message;
@@ -256,6 +290,11 @@ function clearFilters(): void {
   filters.value = emptyFilters();
   apply();
 }
+
+watch(boolFinished, () => {
+  page.value = null;
+  void load(1);
+});
 
 onMounted(() => {
   void load();

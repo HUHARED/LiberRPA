@@ -1,7 +1,13 @@
 <!-- FileName: JobDetailsView.vue -->
 <template>
   <div class="d-flex align-center ga-2 mb-4">
-    <v-btn to="/jobs" variant="tonal" prepend-icon="mdi-arrow-left">
+    <v-btn
+      :to="{
+        name: 'job-queue',
+        query: job?.state === JobState.Finished ? { state: JobState.Finished } : {},
+      }"
+      variant="tonal"
+      prepend-icon="mdi-arrow-left">
       Back to Job Queue
     </v-btn>
     <v-spacer />
@@ -74,6 +80,11 @@
             <tr>
               <th scope="row" class="text-caption text-medium-emphasis">Retry At</th>
               <td>{{ formatDateTime(job.retry_at, strTimeZone) }}</td>
+            </tr>
+
+            <tr v-if="job.state === JobState.Finished">
+              <th scope="row" class="text-caption text-medium-emphasis">Ended At</th>
+              <td>{{ formatDateTime(job.ended_at, strTimeZone) }}</td>
             </tr>
 
             <tr>
