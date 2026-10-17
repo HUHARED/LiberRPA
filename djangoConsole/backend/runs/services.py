@@ -28,7 +28,7 @@ from .models import Job, ExecutorWorkState, Assignment, Run
 from .control_notifications import notify_executor_control
 
 STR_SOURCE_ACCESS_REVOKED_REASON = (
-    "The initiating account lost run permission; no further attempts will be scheduled."
+    "Permission to run this Job was revoked; no further attempts will be scheduled."
 )
 
 
@@ -38,10 +38,12 @@ def has_job_source_access(
     sourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]] | None = None,
 ) -> bool:
     """Reuse the initiating account's department access only within this dispatch batch while the organization is locked."""
+    if job.source_access_revoked_at is not None:
+        return False
     if job.request.source == JobSource.SCHEDULE:
         return True
     actorId = job.request.actor_id
-    if job.source_access_revoked_at is not None or actorId is None:
+    if actorId is None:
         return False
     if sourceDepartmentIdsByActor is not None and actorId in sourceDepartmentIdsByActor:
         return job.department_id in sourceDepartmentIdsByActor[actorId]
@@ -80,7 +82,7 @@ def finish_job(job: Job, reason: str, *, notify: bool = False) -> None:
 
 
 def revoke_job_source_access(job: Job, currentTime: datetime) -> None:
-    """Record that the initiating account lost access without claiming the Run stopped or assigning it a result."""
+    """Record lost run permission without claiming the Run stopped or assigning it a result."""
     if job.state == JobState.FINISHED or job.source_access_revoked_at is not None:
         return
     job.source_access_revoked_at = currentTime

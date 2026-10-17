@@ -17,6 +17,11 @@ from django.views.decorators.debug import sensitive_variables
 from accounts.models import User
 from accounts.session_revocation import SessionInvalidatedError
 from operations.audit import get_audit_snapshot, record_audit
+from runs.contracts import JobState
+from runs.models import Job
+from runs.services import revoke_job_source_access
+from schedules.cron import get_next_trigger
+from schedules.models import Schedule
 
 from .models import Organization
 from .permissions import (
@@ -81,6 +86,13 @@ def schedule_organization_deletion(
     organization.deletion_requested_at = requestedAt
     organization.deletion_due_at = requestedAt + _ORGANIZATION_DELETION_DELAY
     organization.save(update_fields=["deletion_requested_at", "deletion_due_at"])
+    for job in (
+        Job.objects
+        .filter(request__organization=organization)
+        .exclude(state=JobState.FINISHED)
+        .select_related("request")
+    ):
+        revoke_job_source_access(job, requestedAt)
     record_audit(
         "organization.schedule_deletion",
         actor=actor,
@@ -125,6 +137,22 @@ def cancel_organization_deletion(
     organization.deletion_requested_at = None
     organization.deletion_due_at = None
     organization.save(update_fields=["deletion_requested_at", "deletion_due_at"])
+    resumedAt = timezone.now()
+    # Skip frozen-period triggers even if the scheduler never observed the frozen state.
+    for schedule in Schedule.objects.filter(
+        department__organization=organization,
+        enabled=True,
+        deleted_at__isnull=True,
+        next_trigger_at__lte=resumedAt,
+    ).select_for_update(of=("self",)):
+        schedule.next_trigger_at = get_next_trigger(
+            schedule.cron,
+            schedule.time_zone,
+            schedule.active_from,
+            schedule.active_until,
+            resumedAt,
+        )
+        schedule.save(update_fields=["next_trigger_at"])
     record_audit(
         "organization.cancel_deletion",
         actor=actor,

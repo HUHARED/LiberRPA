@@ -154,7 +154,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                     if boolRunRetryable:
                         strReason = (
                             f"{strReason[:1800]}\n"
-                            "No retry was scheduled because the initiating account lost run permission."
+                            "No retry was scheduled because this Job no longer has run permission."
                         )
                     finish_job(job, strReason)
         elif event.kind == RunEventKind.STARTED and run.ended_at is None:
@@ -230,7 +230,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                 elif not has_job_source_access(job):
                     finish_job(
                         job,
-                        "The source account no longer has permission to run this Job.",
+                        "This Job no longer has run permission.",
                         notify=True,
                     )
                 elif strPolicy == RunConflictPolicy.SKIP:
