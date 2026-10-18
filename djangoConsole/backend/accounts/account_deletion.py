@@ -10,8 +10,6 @@ from typing import cast
 
 from django.contrib.auth.hashers import check_password
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
-from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
 from executors.session_state import revoke_user_executor_sessions
@@ -29,7 +27,6 @@ from organizations.permissions import (
 )
 
 from .models import User
-from .session_revocation import SessionInvalidatedError
 
 
 @dataclass(frozen=True)
@@ -44,33 +41,25 @@ class AccountDeletionInfo:
         return not self.isLastOrgAdmin
 
 
-def _resolve_account_deletion_access(
-    actorId: uuid.UUID,
-    channel: AccessChannel,
+def _get_account_deletion_membership(
+    access: OrganizationAccessContext,
     userId: uuid.UUID,
     *,
     forUpdate: bool,
-) -> tuple[OrganizationAccessContext, Membership]:
-    """Resolve the actor's organization before looking up the target account."""
-    if channel != AccessChannel.SESSION:
+) -> Membership:
+    """Use the current membership or find another member within the same organization."""
+    if access.channel != AccessChannel.SESSION:
         raise PermissionDenied("A signed-in account is required to delete an account.")
-    currentMembership = get_current_membership(actorId=actorId)
-    access = resolve_organization_access(
-        actorId=actorId,
-        organizationId=currentMembership.organization_id,
-        channel=channel,
-        forUpdate=forUpdate,
-    )
-    if userId != actorId:
-        require_organization_admin(access)
+    if userId == access.actorId:
+        return cast(Membership, getattr(access.actor, "membership"))  # noqa: B009
+    require_organization_admin(access)
 
     membershipQuery = Membership.objects.select_related("user").filter(
         organization=access.organization
     )
     if forUpdate:
         membershipQuery = membershipQuery.select_for_update(of=("self", "user"))
-    membership = membershipQuery.get(user_id=userId)
-    return access, membership
+    return membershipQuery.get(user_id=userId)
 
 
 def _build_account_deletion_info(membership: Membership) -> AccountDeletionInfo:
@@ -94,35 +83,31 @@ def get_account_deletion_info(
     *, actorId: uuid.UUID, channel: AccessChannel, userId: uuid.UUID
 ) -> AccountDeletionInfo:
     """Preview account deletion without authorizing a later write or checking a password."""
-    _, membership = _resolve_account_deletion_access(
-        actorId, channel, userId, forUpdate=False
+    if channel != AccessChannel.SESSION:
+        raise PermissionDenied("A signed-in account is required to delete an account.")
+    currentMembership = get_current_membership(actorId=actorId)
+    access = resolve_organization_access(
+        actorId=actorId,
+        organizationId=currentMembership.organization_id,
+        channel=channel,
     )
+    membership = _get_account_deletion_membership(access, userId, forUpdate=False)
     return _build_account_deletion_info(membership)
 
 
 @sensitive_variables()
-@transaction.atomic
 def delete_account(
     *,
-    actorId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     userId: uuid.UUID,
     currentPassword: str,
-    sessionAuthHash: str,
 ) -> None:
     """Delete the account after verifying current authority and the acting account's password.
 
-    actorId, channel, and sessionAuthHash come from verified server-side authentication.
-    The HTTP caller checks session expiry and logs out self-deletion in the same transaction.
+    The HTTP caller provides rechecked Session access and keeps deletion, the final expiry check, and self-deletion logout in the same transaction.
     """
-    access, membership = _resolve_account_deletion_access(
-        actorId, channel, userId, forUpdate=True
-    )
+    membership = _get_account_deletion_membership(access, userId, forUpdate=True)
     actor = access.actor
-    if not sessionAuthHash or not constant_time_compare(
-        sessionAuthHash, actor.get_session_auth_hash()
-    ):
-        raise SessionInvalidatedError("The current session is no longer valid.")
 
     # Verify without upgrading the actor's password hash or affecting their other sessions.
     if not check_password(currentPassword, actor.password):
@@ -145,7 +130,7 @@ def delete_account(
         actor=actor,
         organization=access.organization,
         target=target,
-        channel=channel,
+        channel=access.channel,
     )
     revoke_user_executor_sessions(userId)
     target.delete()

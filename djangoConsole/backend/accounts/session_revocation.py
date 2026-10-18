@@ -31,6 +31,27 @@ class SessionInvalidatedError(PermissionDenied):
 
 
 @sensitive_variables()
+def require_current_session(
+    actor: User,
+    sessionAuthHash: str,
+    sessionExpiresAt: datetime,
+    sessionKey: str | None,
+) -> None:
+    """Recheck the initiating browser session against the account already locked by the caller."""
+    currentTime = timezone.now()
+    if (
+        sessionExpiresAt <= currentTime
+        or not sessionAuthHash
+        or not constant_time_compare(sessionAuthHash, actor.get_session_auth_hash())
+        or not sessionKey
+        or not Session.objects.filter(
+            session_key=sessionKey, expire_date__gt=currentTime
+        ).exists()
+    ):
+        raise SessionInvalidatedError("The current session is no longer valid.")
+
+
+@sensitive_variables()
 def lock_session_write_access(
     actorId: uuid.UUID,
     organizationId: uuid.UUID,
@@ -45,18 +66,7 @@ def lock_session_write_access(
     access = resolve_organization_access(
         actorId=actorId, organizationId=organizationId, channel=channel, forUpdate=True
     )
-    actor = access.actor
-    currentTime = timezone.now()
-    if (
-        sessionExpiresAt <= currentTime
-        or not sessionAuthHash
-        or not constant_time_compare(sessionAuthHash, actor.get_session_auth_hash())
-        or not sessionKey
-        or not Session.objects.filter(
-            session_key=sessionKey, expire_date__gt=currentTime
-        ).exists()
-    ):
-        raise SessionInvalidatedError("The current session is no longer valid.")
+    require_current_session(access.actor, sessionAuthHash, sessionExpiresAt, sessionKey)
     return access
 
 

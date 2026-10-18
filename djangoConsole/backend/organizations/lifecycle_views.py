@@ -126,6 +126,8 @@ def _handle_organization_deletion(
                     organizationId=membership.organization_id,
                     channel=AccessChannel.SESSION,
                     sessionAuthHash=strSessionAuthHash,
+                    sessionExpiresAt=request.session.get_expiry_date(),
+                    sessionKey=request.session.session_key,
                 )
             else:
                 organization = schedule_organization_deletion(
@@ -134,6 +136,8 @@ def _handle_organization_deletion(
                     channel=AccessChannel.SESSION,
                     currentPassword=deletionRequest.current_password.get_secret_value(),
                     sessionAuthHash=strSessionAuthHash,
+                    sessionExpiresAt=request.session.get_expiry_date(),
+                    sessionKey=request.session.session_key,
                 )
             if request.session.get_expiry_date() <= timezone.now():
                 raise SessionInvalidatedError("The current session has expired.")

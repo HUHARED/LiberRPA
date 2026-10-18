@@ -8,7 +8,7 @@ import uuid
 from copy import deepcopy
 from typing import cast
 
-from django.contrib.auth import HASH_SESSION_KEY, logout
+from django.contrib.auth import logout
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.db import DatabaseError, transaction
 from django.http import HttpRequest, JsonResponse
@@ -24,6 +24,7 @@ from console_project.http import (
     build_rate_limited_response,
     parse_json_request,
 )
+from organizations.http import get_request_access
 from organizations.models import Membership
 from organizations.permissions import AccessChannel
 
@@ -104,16 +105,14 @@ def get_or_delete_account(
         if intRetryAfterSeconds:
             return build_rate_limited_response(intRetryAfterSeconds)
 
-        strSessionAuthHash = cast(str, request.session.get(HASH_SESSION_KEY, ""))
         previousSession = deepcopy(request.session) if boolOwnAccount else None
         try:
             with transaction.atomic():
+                access = get_request_access(request, forUpdate=True)
                 delete_account(
-                    actorId=user.id,
-                    channel=AccessChannel.SESSION,
+                    access=access,
                     userId=targetId,
                     currentPassword=deletionRequest.current_password.get_secret_value(),
-                    sessionAuthHash=strSessionAuthHash,
                 )
                 if request.session.get_expiry_date() <= timezone.now():
                     raise SessionInvalidatedError("The current session has expired.")
