@@ -33,7 +33,6 @@ from organizations.http import get_request_membership, lock_request_write_access
 from organizations.models import Organization
 from organizations.permissions import (
     AccessChannel,
-    OrganizationAccessContext,
     resolve_organization_access,
     require_organization_admin,
 )
@@ -82,17 +81,6 @@ def _handle_errors(view: Callable) -> Callable:
     return wrapped
 
 
-def _get_access(request: HttpRequest) -> OrganizationAccessContext | JsonResponse:
-    membership = get_request_membership(request)
-    if isinstance(membership, JsonResponse):
-        return membership
-    return resolve_organization_access(
-        actorId=membership.user_id,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-    )
-
-
 def _notification_payload(notification: Notification, *, details: bool = False) -> dict:
     dictPayload = {
         "id": notification.pk,
@@ -109,10 +97,12 @@ def _notification_payload(notification: Notification, *, details: bool = False) 
 @require_http_methods(["GET"])
 @_handle_errors
 def list_notifications(request: HttpRequest) -> JsonResponse:
-    access = _get_access(request)
-    if isinstance(access, JsonResponse):
-        return access
-    prune_notifications(access.actor.pk)
+    membership = get_request_membership(request)
+    if isinstance(membership, JsonResponse):
+        return membership
+    with transaction.atomic():
+        access = lock_request_write_access(request, membership)
+        prune_notifications(access.actor.pk)
     query = Notification.objects.filter(
         user=access.actor, organization=access.organization
     ).order_by("-created_at", "-id")
@@ -127,9 +117,10 @@ def list_notifications(request: HttpRequest) -> JsonResponse:
 @_handle_errors
 @transaction.atomic
 def notification_details(request: HttpRequest, notificationId: uuid.UUID) -> JsonResponse:
-    access = _get_access(request)
-    if isinstance(access, JsonResponse):
-        return access
+    membership = get_request_membership(request)
+    if isinstance(membership, JsonResponse):
+        return membership
+    access = lock_request_write_access(request, membership)
     notification = Notification.objects.get(
         pk=notificationId, user=access.actor, organization=access.organization
     )
@@ -340,7 +331,12 @@ def verify_recipient(request: HttpRequest) -> JsonResponse:
 @require_http_methods(["GET"])
 @_handle_errors
 def template_metadata(request: HttpRequest) -> JsonResponse:
-    access = _get_access(request)
-    if isinstance(access, JsonResponse):
-        return access
+    membership = get_request_membership(request)
+    if isinstance(membership, JsonResponse):
+        return membership
+    resolve_organization_access(
+        actorId=membership.user_id,
+        organizationId=membership.organization_id,
+        channel=AccessChannel.SESSION,
+    )
     return JsonResponse(get_template_metadata())
