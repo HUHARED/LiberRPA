@@ -28,6 +28,8 @@
       @click="stop">
       Stop Run
     </v-btn>
+
+    <span v-if="run?.stop_requested" class="text-body-2">Stop requested</span>
   </div>
 
   <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">

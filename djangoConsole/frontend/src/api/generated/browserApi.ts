@@ -844,6 +844,7 @@ export interface JobResponse {
   scheduled_at: string | null;
   source: JobSource;
   state: JobState;
+  stop_requested_at: string | null;
   target_id: string;
   target_name: string;
   target_type: "executor" | "group";
@@ -877,6 +878,7 @@ export interface JobDetailsEntryResponse {
   scheduled_at: string | null;
   source: JobSource;
   state: JobState;
+  stop_requested_at: string | null;
   target_id: string;
   target_name: string;
   target_type: "executor" | "group";
@@ -945,6 +947,7 @@ export interface RunResponse {
   schedule_name: string;
   started_at: string;
   status: RunStatus;
+  stop_requested: boolean;
 }
 export interface JobListResponse {
   jobs: JobResponse[];
@@ -1367,6 +1370,7 @@ export interface RunDetailsEntryResponse {
   schedule_name: string;
   started_at: string;
   status: RunStatus;
+  stop_requested: boolean;
 }
 export interface RunFilesResponse {
   logs: RunFileAvailabilityResponse;

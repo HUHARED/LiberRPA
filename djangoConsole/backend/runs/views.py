@@ -221,8 +221,7 @@ def update_job(
         access = _get_access(request, authentication, write=True)
         job = get_visible_jobs(access).select_for_update(of=("self",)).get(pk=workId)
         strPreviousState = job.state
-        control_job(job, payload.action)
-        if strPreviousState != job.state:
+        if control_job(job, payload.action):
             record_audit(
                 f"job.{payload.action}",
                 actor=access.actor,
@@ -287,15 +286,15 @@ def stop_run(
     with transaction.atomic():
         access = _get_access(request, authentication, write=True)
         run = get_visible_runs(access).select_for_update(of=("self",)).get(pk=workId)
-        control_job(run.job, JobControlAction.STOP, run=run)
-        record_audit(
-            "run.stop",
-            actor=access.actor,
-            organization=access.organization,
-            target=run,
-            channel=access.channel,
-            metadata={"job_id": str(run.job_id)},
-        )
+        if control_job(run.job, JobControlAction.STOP, run=run):
+            record_audit(
+                "run.stop",
+                actor=access.actor,
+                organization=access.organization,
+                target=run,
+                channel=access.channel,
+                metadata={"job_id": str(run.job_id)},
+            )
         return JsonResponse({"run": build_run_payload(run, details=True)})
 
 

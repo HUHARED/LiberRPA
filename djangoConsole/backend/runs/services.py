@@ -184,9 +184,10 @@ def update_jobs_for_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
         notify_executor_control(executorId)
 
 
-def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -> None:
+def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -> bool:
+    """Return whether a new control action was applied, for operation auditing."""
     if job.state == JobState.FINISHED:
-        return
+        return False
     currentTime = timezone.now()
     if action == JobControlAction.CLOSE:
         if job.state != JobState.NEEDS_REVIEW:
@@ -194,7 +195,7 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
                 "Only an unconfirmed Job can be closed.", code="job_not_unconfirmed"
             )
         job.closed_at = currentTime
-        job.stop_requested_at = currentTime
+        job.stop_requested_at = job.stop_requested_at or currentTime
         job.save(update_fields=["closed_at", "stop_requested_at"])
         finish_job(
             job,
@@ -207,7 +208,7 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
             .distinct()
         ):
             notify_executor_control(executorId)
-        return
+        return True
     if run is not None and run.ended_at is not None:
         raise ValidationError("This Run has already ended.", code="run_already_ended")
     assignmentQuery = Assignment.objects.filter(
@@ -220,7 +221,9 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
         raise ValidationError(
             "This Run no longer has an active execution.", code="run_already_ended"
         )
-    job.stop_requested_at = job.stop_requested_at or currentTime
+    if job.stop_requested_at is not None:
+        return False
+    job.stop_requested_at = currentTime
     job.save(update_fields=["stop_requested_at"])
     if assignment is None or assignment.state == AssignmentState.PREPARING:
         if assignment:
@@ -242,3 +245,4 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
         job.save(update_fields=["state", "reason"])
     if assignment is not None:
         notify_executor_control(assignment.executor_id)
+    return True

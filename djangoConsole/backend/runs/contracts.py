@@ -351,6 +351,7 @@ class JobResponse(JsonResponsePayload):
     reason: str
     queued_at: datetime
     retry_at: datetime | None
+    stop_requested_at: datetime | None
     closed_at: datetime | None
     ended_at: datetime | None
     can_cancel: bool
@@ -381,6 +382,7 @@ class RunResponse(JsonResponsePayload):
     status: RunStatus
     reason: str
     outputs_status: OutputsStatus
+    stop_requested: bool
     can_rerun: bool
     can_stop: bool
 

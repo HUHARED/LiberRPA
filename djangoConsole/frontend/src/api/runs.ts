@@ -148,6 +148,7 @@ function isJob(value: unknown): value is JobInfo {
     ARR_PRIORITY.some((priority) => value.priority === priority) &&
     typeof value.project_name === "string" &&
     typeof value.project_version === "string" &&
+    isNullableDateString(value.stop_requested_at) &&
     typeof value.can_stop === "boolean"
   );
 }
@@ -162,6 +163,7 @@ function isRun(value: unknown): value is RunInfo {
     isNonnegativeInteger(value.attempt_number) &&
     value.attempt_number > 0 &&
     typeof value.computer_name === "string" &&
+    typeof value.stop_requested === "boolean" &&
     typeof value.can_rerun === "boolean" &&
     typeof value.can_stop === "boolean"
   );

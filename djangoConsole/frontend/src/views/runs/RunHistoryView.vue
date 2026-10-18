@@ -212,6 +212,8 @@
             aria-label="Stop Run"
             icon="mdi-stop-circle-outline"
             @click="stop(item.id)" />
+
+          <span v-if="item.stop_requested" class="text-body-2">Stop requested</span>
         </div>
       </template>
 

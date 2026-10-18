@@ -123,6 +123,7 @@ def build_job_payload(
         "reason": job.reason,
         "queued_at": job.queued_at,
         "retry_at": job.retry_at,
+        "stop_requested_at": job.stop_requested_at,
         "closed_at": job.closed_at,
         "ended_at": job.ended_at,
         "can_cancel": job.stop_requested_at is None
@@ -173,6 +174,10 @@ def build_job_payloads(jobs: Iterable[Job]) -> list[dict[str, object]]:
 def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
     job = run.job
     assignment = run.assignment
+    boolActiveRun = run.ended_at is None and assignment.state in ACTIVE_ASSIGNMENT_STATES
+    boolStopRequested = boolActiveRun and (
+        job.stop_requested_at is not None or assignment.stop_requested_at is not None
+    )
     dictPayload: dict[str, object] = {
         "id": run.id,
         "job_id": run.job_id,
@@ -190,10 +195,11 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
         "status": run.status,
         "reason": run.reason,
         "outputs_status": run.outputs_status,
+        "stop_requested": boolStopRequested,
         "can_rerun": run.ended_at is not None and run.status != RunStatus.RUNNING,
-        "can_stop": run.ended_at is None
+        "can_stop": boolActiveRun
         and job.state != JobState.FINISHED
-        and assignment.stop_requested_at is None,
+        and not boolStopRequested,
     }
     if details:
         from .transfers import build_run_file_availability
