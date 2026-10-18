@@ -267,7 +267,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { useRoute } from "vue-router";
 
 import AssetFormDialog from "@/components/assets/AssetFormDialog.vue";
@@ -306,6 +306,13 @@ const sessionStore = useSessionStore();
 const route = useRoute();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 
+const arrRouteDepartmentId = computed(() => {
+  const value = route.query.department_id;
+  return (Array.isArray(value) ? value : [value]).filter(
+    (id): id is string => typeof id === "string" && id !== "",
+  );
+});
+
 const boolCanCreate = computed(() =>
   (sessionStore.access?.departments ?? []).some(
     (department) => sessionStore.access?.is_org_admin || department.role === "developer",
@@ -314,9 +321,7 @@ const boolCanCreate = computed(() =>
 
 const strName = ref<string | null>("");
 
-const arrDepartmentId = ref<string[]>(
-  typeof route.query.department_id === "string" ? [route.query.department_id] : [],
-);
+const arrDepartmentId = ref<string[]>([...arrRouteDepartmentId.value]);
 
 const arrAssetType = ref<AssetType[]>([]);
 const assetPage = shallowRef<AssetListResponse | null>(null);
@@ -428,6 +433,20 @@ async function copyPath(path: string): Promise<void> {
       strActionError.value = "The path could not be copied.";
   }
 }
+
+watch(arrRouteDepartmentId, (departmentIds, previousDepartmentIds) => {
+  if (
+    departmentIds.length === previousDepartmentIds.length &&
+    departmentIds.every((id, index) => id === previousDepartmentIds[index])
+  )
+    return;
+
+  arrDepartmentId.value = [...departmentIds];
+  appliedFilters = { ...appliedFilters, departmentIds: [...departmentIds] };
+  assetPage.value = null;
+  strUpdatedAt.value = null;
+  void loadAssets(1);
+});
 
 onMounted(() => void loadAssets());
 

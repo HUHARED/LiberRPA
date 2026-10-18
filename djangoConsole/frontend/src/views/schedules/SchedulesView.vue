@@ -215,7 +215,7 @@
 </template>
 
 <script setup lang="ts">
-import { shallowRef, computed, onMounted, ref, watch } from "vue";
+import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import cronstrue from "cronstrue";
 
@@ -263,6 +263,13 @@ const sessionStore = useSessionStore();
 const route = useRoute();
 const router = useRouter();
 
+const arrRouteDepartmentId = computed(() => {
+  const value = route.query.department_id;
+  return (Array.isArray(value) ? value : [value]).filter(
+    (id): id is string => typeof id === "string" && id !== "",
+  );
+});
+
 const boolCanCreate = computed(
   () =>
     sessionStore.access?.is_org_admin ||
@@ -276,8 +283,7 @@ function emptyFilters(): ScheduleFilters {
 const arrTarget = ref<{ id: string; title: string }[]>([]);
 const boolTargetsLoading = ref(false);
 const filters = ref(emptyFilters());
-if (typeof route.query.department_id === "string")
-  filters.value.departmentIds = [route.query.department_id];
+filters.value.departmentIds = [...arrRouteDepartmentId.value];
 let appliedFilters = { ...filters.value, departmentIds: [...filters.value.departmentIds] };
 const page = shallowRef<SchedulePage | null>(null);
 const boolNew = ref(false);
@@ -405,6 +411,19 @@ function handleDeleted(): void {
   void load(1);
 }
 
+watch(arrRouteDepartmentId, (departmentIds, previousDepartmentIds) => {
+  if (
+    departmentIds.length === previousDepartmentIds.length &&
+    departmentIds.every((id, index) => id === previousDepartmentIds[index])
+  )
+    return;
+
+  filters.value.departmentIds = [...departmentIds];
+  appliedFilters = { ...appliedFilters, departmentIds: [...departmentIds] };
+  page.value = null;
+  void load(1);
+});
+
 watch(
   () => props.scheduleId,
   () => {
@@ -416,6 +435,10 @@ watch(
 onMounted(() => {
   void load();
   void loadTargets();
+});
+
+onBeforeUnmount(() => {
+  intLoadRevision += 1;
 });
 </script>
 

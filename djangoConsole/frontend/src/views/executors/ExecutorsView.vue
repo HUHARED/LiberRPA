@@ -358,7 +358,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
@@ -401,9 +401,13 @@ const route = useRoute();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const strName = ref<string | null>("");
 
-const arrDepartmentId = ref<string[]>(
-  typeof route.query.department_id === "string" ? [route.query.department_id] : [],
-);
+const arrRouteDepartmentId = computed(() => {
+  const value = route.query.department_id;
+  return (Array.isArray(value) ? value : [value]).filter(
+    (id): id is string => typeof id === "string" && id !== "",
+  );
+});
+const arrDepartmentId = ref<string[]>([...arrRouteDepartmentId.value]);
 
 const arrDispatchState = ref<boolean[]>([]);
 const executorPage = shallowRef<ExecutorListResponse | null>(null);
@@ -429,6 +433,7 @@ const strNewName = ref<string | null>("");
 const strNewDepartmentId = ref<string | null>(null);
 const strNewNotes = ref<string | null>("");
 let boolUnmounted = false;
+let intListRevision = 0;
 
 let appliedFilters: ExecutorListFilters = {
   name: "",
@@ -439,17 +444,17 @@ let appliedFilters: ExecutorListFilters = {
 let intRequestedPage = 1;
 
 async function loadExecutors(pageNumber: number = intRequestedPage): Promise<void> {
-  if (boolLoading.value) return;
+  const intCurrentRevision = ++intListRevision;
   boolLoading.value = true;
   requestError.value = null;
   intRequestedPage = pageNumber;
   try {
     const response = await getExecutorList(appliedFilters, pageNumber);
-    if (boolUnmounted) return;
+    if (boolUnmounted || intCurrentRevision !== intListRevision) return;
     executorPage.value = response;
     strUpdatedAt.value = new Date().toISOString();
   } catch (e) {
-    if (boolUnmounted) return;
+    if (boolUnmounted || intCurrentRevision !== intListRevision) return;
     requestError.value = getApiError(e);
     if (requestError.value.statusCode === 401 || requestError.value.statusCode === 403) {
       // Confirmed access failures clear old results; temporary failures retain the last successful list.
@@ -458,7 +463,7 @@ async function loadExecutors(pageNumber: number = intRequestedPage): Promise<voi
       if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
-    boolLoading.value = false;
+    if (intCurrentRevision === intListRevision) boolLoading.value = false;
   }
 }
 
@@ -546,10 +551,25 @@ async function submitNewExecutor(event: SubmitEventPromise): Promise<void> {
   }
 }
 
+watch(arrRouteDepartmentId, (departmentIds, previousDepartmentIds) => {
+  if (
+    departmentIds.length === previousDepartmentIds.length &&
+    departmentIds.every((id, index) => id === previousDepartmentIds[index])
+  )
+    return;
+
+  arrDepartmentId.value = [...departmentIds];
+  appliedFilters = { ...appliedFilters, departmentIds: [...departmentIds] };
+  executorPage.value = null;
+  strUpdatedAt.value = null;
+  void loadExecutors(1);
+});
+
 onMounted(() => void loadExecutors());
 
 onBeforeUnmount(() => {
   boolUnmounted = true;
+  intListRevision += 1;
 });
 </script>
 

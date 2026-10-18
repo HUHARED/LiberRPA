@@ -267,9 +267,13 @@ const route = useRoute();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const strName = ref<string | null>("");
 
-const arrDepartmentId = ref<string[]>(
-  typeof route.query.department_id === "string" ? [route.query.department_id] : [],
-);
+const arrRouteDepartmentId = computed(() => {
+  const value = route.query.department_id;
+  return (Array.isArray(value) ? value : [value]).filter(
+    (id): id is string => typeof id === "string" && id !== "",
+  );
+});
+const arrDepartmentId = ref<string[]>([...arrRouteDepartmentId.value]);
 
 const groupPage = shallowRef<ExecutorGroupListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
@@ -372,6 +376,20 @@ function handleGroupDeleted(group: ExecutorGroupRecordResponse): void {
   strSuccessMessage.value = `Group "${group.name}" deleted.`;
   void loadGroups();
 }
+
+watch(arrRouteDepartmentId, (departmentIds, previousDepartmentIds) => {
+  if (
+    departmentIds.length === previousDepartmentIds.length &&
+    departmentIds.every((id, index) => id === previousDepartmentIds[index])
+  )
+    return;
+
+  arrDepartmentId.value = [...departmentIds];
+  appliedFilters = { ...appliedFilters, departmentIds: [...departmentIds] };
+  groupPage.value = null;
+  strUpdatedAt.value = null;
+  void loadGroups(1);
+});
 
 watch(
   () => route.params.groupId,
