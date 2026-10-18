@@ -102,9 +102,17 @@ def cleanup_run_data(limit: int = 200) -> tuple[int, int]:
                 intGroups -= int(run.log_bytes > 0)
             clear_run_logs(usage, listExpiredRun, currentTime)
             intLogsCleared += len(listExpiredRun)
+            # Keep the Run and its download reservation until the transfer ends or expires.
+            activeTransfers = RunFileTransfer.objects.filter(
+                run__job_id=OuterRef("pk"), expires_at__gt=timezone.now()
+            )
             finishedJobs = (
                 Job.objects
-                .filter(request__organization_id=organizationId, state=JobState.FINISHED)
+                .filter(
+                    ~Exists(activeTransfers),
+                    request__organization_id=organizationId,
+                    state=JobState.FINISHED,
+                )
                 .annotate(run_count=Count("runs"))
                 .filter(Q(run_count__gt=0) | Q(closed_at__isnull=False))
                 .order_by("ended_at", "id")
