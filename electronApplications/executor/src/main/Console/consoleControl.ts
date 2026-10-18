@@ -124,15 +124,22 @@ function connectConsoleControl(): void {
   let intRetryAfterMs = 0;
   let intLastResponseAt = Date.now();
 
-  function failConnection(e: unknown): void {
+  function failConnection(e: unknown, closeCode?: number): void {
     if (socket !== currentSocket) return;
     boolReady = false;
     if (!boolErrorReported) {
       boolErrorReported = true;
-      if (!boolUnavailableLogged) {
-        boolUnavailableLogged = true;
-        loggerMain.warn(`Console control connection unavailable: ${getErrorMessage(e)}`);
-      }
+      loggerMain.log(
+        closeCode === 1000 || closeCode === 1001
+          ? "info"
+          : boolUnavailableLogged
+            ? "debug"
+            : "warn",
+        `Console control connection unavailable: ${getErrorMessage(e)}${
+          closeCode === undefined ? "" : ` (close code=${closeCode})`
+        }`,
+      );
+      boolUnavailableLogged = true;
       reportError?.(e);
     }
     if (socket !== currentSocket || credential !== currentCredential) return;
@@ -228,8 +235,18 @@ function connectConsoleControl(): void {
   currentSocket.addEventListener("error", () => {
     failConnection(new Error("Cannot reach the Console control connection."));
   });
-  currentSocket.addEventListener("close", () => {
-    failConnection(new Error("The Console control connection closed. Reconnecting."));
+  currentSocket.addEventListener("close", (event) => {
+    if (socket !== currentSocket) {
+      loggerMain.log(
+        boolErrorReported ? "debug" : "info",
+        `Console control connection closed (close code=${event.code}).`,
+      );
+      return;
+    }
+    failConnection(
+      new Error("The Console control connection closed. Reconnecting."),
+      event.code,
+    );
   });
 }
 

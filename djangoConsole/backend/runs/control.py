@@ -86,7 +86,9 @@ async def _close_connection(send: ASGISendCallable, code: int) -> None:
     await send(event)
 
 
-async def _send_error(send: ASGISendCallable, response: JsonResponse) -> None:
+async def _send_error(
+    send: ASGISendCallable, response: JsonResponse, executorId: uuid.UUID | None
+) -> None:
     dictError = json.loads(response.content)["error"]
     dictPayload: dict[str, object] = {
         "type": ControlMessageType.ERROR,
@@ -96,10 +98,17 @@ async def _send_error(send: ASGISendCallable, response: JsonResponse) -> None:
     }
     if response.has_header("Retry-After"):
         dictPayload["retry_after"] = int(response["Retry-After"])
-    await _send_payload(send, dictPayload)
-    await _close_connection(
-        send, 1013 if response.status_code in (429, 503) else 4000 + response.status_code
+    intCloseCode = (
+        1013 if response.status_code in (429, 503) else 4000 + response.status_code
     )
+    _LOGGER.warning(
+        "Executor control ended: executor=%s, error=%s (requested close code=%s).",
+        executorId,
+        dictError["code"],
+        intCloseCode,
+    )
+    await _send_payload(send, dictPayload)
+    await _close_connection(send, intCloseCode)
 
 
 def _parse_message[Request: WorkPollRequest](
@@ -284,7 +293,7 @@ class ExecutorControl:
             if payload is None:
                 return
             if isinstance(payload, JsonResponse):
-                await _send_error(send, payload)
+                await _send_error(send, payload, executorId)
                 return
             client = scope.get("client")
             strClientAddress = client[0] if client is not None else ""
@@ -292,7 +301,7 @@ class ExecutorControl:
                 strClientAddress, payload.token, payload
             )
             if isinstance(result, JsonResponse):
-                await _send_error(send, result)
+                await _send_error(send, result, executorId)
                 return
             executorId, dictResponse = result
             self.connections.setdefault(executorId, set()).add(wakeupEvent)
@@ -312,13 +321,12 @@ class ExecutorControl:
                 if not setDone:
                     raise TimeoutError
                 if receiveTask in setDone:
-                    statePayload = _parse_message(
-                        receiveTask.result(), ControlStateRequest
-                    )
+                    event = receiveTask.result()
+                    statePayload = _parse_message(event, ControlStateRequest)
                     if statePayload is None:
                         return
                     if isinstance(statePayload, JsonResponse):
-                        await _send_error(send, statePayload)
+                        await _send_error(send, statePayload, executorId)
                         return
                     if statePayload.type == ControlMessageType.HEARTBEAT:
                         intHeartbeatCount += 1
@@ -335,7 +343,7 @@ class ExecutorControl:
                         refreshAccount=boolRefreshAccount,
                     )
                     if isinstance(result, JsonResponse):
-                        await _send_error(send, result)
+                        await _send_error(send, result, executorId)
                         return
                     if boolRefreshAccount:
                         intHeartbeatCount = 0
@@ -353,6 +361,7 @@ class ExecutorControl:
                 build_error_response(
                     "control_timeout", "The control connection timed out.", statusCode=408
                 ),
+                executorId,
             )
         finally:
             for pendingTask in (receiveTask, wakeupTask):
@@ -366,7 +375,14 @@ class ExecutorControl:
                     connections.discard(wakeupEvent)
                     if not connections:
                         self.connections.pop(executorId, None)
-                _LOGGER.info("Executor control disconnected: executor=%s", executorId)
+            if event["type"] == "websocket.disconnect":
+                intCloseCode = event["code"]
+                _LOGGER.log(
+                    logging.INFO if intCloseCode in (1000, 1001) else logging.WARNING,
+                    "Executor control disconnected: executor=%s (close code=%s).",
+                    executorId,
+                    intCloseCode,
+                )
 
     async def __call__(
         self, scope: Scope, receive: ASGIReceiveCallable, send: ASGISendCallable
@@ -378,6 +394,6 @@ class ExecutorControl:
                 await self._handle_connection(scope, receive, send)
             except OSError:
                 # A transport may close before the application receives its disconnect event.
-                pass
+                _LOGGER.warning("Executor control connection was interrupted.")
         else:
             await self.application(scope, receive, send)
