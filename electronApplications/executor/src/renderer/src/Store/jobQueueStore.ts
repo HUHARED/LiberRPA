@@ -32,7 +32,7 @@ export const useJobQueueStore = defineStore("jobQueue", {
     },
 
     async stopCurrentRun(historyId: number): Promise<void> {
-      await invokeMain("pythonCancel", historyId);
+      await invokeMain("stopRun", historyId);
       await this.refreshJobQueue();
     },
   },

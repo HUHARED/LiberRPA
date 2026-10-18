@@ -17,7 +17,7 @@ export const useRunHistoryStore = defineStore("runHistory", {
   state: () => {
     return {
       arrListItem: [] as RunHistoryItem[],
-      itemLength: 0 as number,
+      totalCount: 0 as number,
       dictOptionsCache: undefined as RunHistoryQueryOptions | undefined,
       intLoadRevision: 0 as number,
 
@@ -55,7 +55,7 @@ export const useRunHistoryStore = defineStore("runHistory", {
         }
 
         this.arrListItem = result.rows;
-        this.itemLength = result.total;
+        this.totalCount = result.total;
       } catch (e: unknown) {
         if (intRevision !== this.intLoadRevision) {
           return;

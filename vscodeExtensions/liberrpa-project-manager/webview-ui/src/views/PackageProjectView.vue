@@ -89,20 +89,28 @@
 
         <v-card-text>
           <div class="d-flex flex-wrap ga-2 mb-3">
-            <v-chip size="small" :color="getStateColor(projectDependencyState.lockState)">
-              Lock: {{ projectDependencyState.lockState }}
+            <v-chip
+              size="small"
+              :color="COMPONENT_STATE_DISPLAY[projectDependencyState.lockState].color">
+              Lock: {{ COMPONENT_STATE_DISPLAY[projectDependencyState.lockState].label }}
             </v-chip>
 
             <v-chip
               size="small"
-              :color="getStateColor(projectDependencyState.componentsState)">
-              _Components: {{ projectDependencyState.componentsState }}
+              :color="
+                COMPONENT_STATE_DISPLAY[projectDependencyState.componentsState].color
+              ">
+              _Components:
+              {{ COMPONENT_STATE_DISPLAY[projectDependencyState.componentsState].label }}
             </v-chip>
 
             <v-chip
               size="small"
-              :color="getStateColor(projectDependencyState.environmentState)">
-              Environment: {{ projectDependencyState.environmentState }}
+              :color="
+                COMPONENT_STATE_DISPLAY[projectDependencyState.environmentState].color
+              ">
+              Environment:
+              {{ COMPONENT_STATE_DISPLAY[projectDependencyState.environmentState].label }}
             </v-chip>
           </div>
 
@@ -388,6 +396,7 @@
 import { computed } from "vue";
 
 import { postMessage } from "../Adapter/Extension/vscodeApi";
+import { COMPONENT_STATE_DISPLAY } from "../Application/ComponentManagement/componentStateDisplay";
 import { usePackageProjectStore } from "../Application/PackageProject/packageProjectStore";
 import { useProjectManagerStore } from "../Application/projectManagerStore";
 import { getVersionSummaryError } from "../Domain/Project/projectValidation";
@@ -438,29 +447,19 @@ const canPackage = computed(
       )),
 );
 
-function getStateColor(state: string): string | undefined {
-  if (state === "valid" || state === "compatible" || state === "notRequired") {
-    return "success";
-  }
-  if (state === "unknown" || state === "unverified") {
-    return "warning";
-  }
-  return "error";
-}
-
 function formatBytes(value: number): string {
   if (value < 1024) {
     return `${String(value)} B`;
   }
 
-  const arrUnit = ["KB", "MB", "GB", "TB"];
+  const ARR_UNIT = ["KiB", "MiB", "GiB", "TiB"];
   let floatValue = value / 1024;
   let intUnitIndex = 0;
-  while (floatValue >= 1024 && intUnitIndex < arrUnit.length - 1) {
+  while (floatValue >= 1024 && intUnitIndex < ARR_UNIT.length - 1) {
     floatValue /= 1024;
     intUnitIndex += 1;
   }
-  return `${floatValue.toFixed(floatValue >= 10 ? 1 : 2)} ${arrUnit[intUnitIndex]}`;
+  return `${floatValue.toFixed(floatValue >= 10 ? 1 : 2)} ${ARR_UNIT[intUnitIndex]}`;
 }
 
 function selectOutputFolder(): void {

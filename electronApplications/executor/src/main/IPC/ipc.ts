@@ -46,7 +46,7 @@ import { installPackage } from "../Package/packageInstallation";
 import { deleteInstalledPackage } from "../Package/packageDeletion";
 import { runInstalledPackage, getLocalRerunPackage } from "../Run/manualRun";
 import { ensureExistingRunLogFolderPath } from "../Run/logPath";
-import { cancelRunByHistoryId } from "../Run/packageRunner";
+import { stopRunByHistoryId } from "../Run/packageRunner";
 import {
   cancelQueuedRun,
   getJobQueueItems,
@@ -122,7 +122,7 @@ const INVOKE_VALIDATOR = {
   getRunHistoryPage: ensureRunHistoryOptions,
   getRunDetails: (rawData: unknown) => ensurePositiveInteger(rawData, "Run History ID"),
   openRunLogFolder: (rawData: unknown) => ensurePositiveInteger(rawData, "Run History ID"),
-  pythonCancel: (rawData: unknown) => ensurePositiveInteger(rawData, "Run History ID"),
+  stopRun: (rawData: unknown) => ensurePositiveInteger(rawData, "Run History ID"),
   getLocalRerunPackage: (rawData: unknown) =>
     ensurePositiveInteger(rawData, "Run History ID"),
 
@@ -232,8 +232,8 @@ function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvo
       await fileOpenFolder(ensureExistingRunLogFolderPath(logLocation.log_path));
     },
 
-    pythonCancel(runHistoryId) {
-      cancelRunByHistoryId(runHistoryId);
+    stopRun(runHistoryId) {
+      stopRunByHistoryId(runHistoryId);
     },
 
     getLocalRerunPackage,

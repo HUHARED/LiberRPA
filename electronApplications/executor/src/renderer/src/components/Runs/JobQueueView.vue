@@ -7,8 +7,8 @@
     <v-label class="align-self-start text-subtitle-2 my-2">Current Jobs</v-label>
 
     <v-data-table
-      :headers="arrCurrentHeader"
-      :items="arrCurrentRun"
+      :headers="ARR_CURRENT_HEADER"
+      :items="arrCurrentJob"
       item-value="queue_id"
       class="clean-space flex-column-grow-1 w-100"
       fixed-header
@@ -19,7 +19,7 @@
       density="compact"
       hover>
       <template #item.source="{ item }">
-        {{ dictSourceLabel[item.source] }}
+        {{ DICT_SOURCE_LABEL[item.source] }}
       </template>
 
       <template #item.schedule_name="{ value }">
@@ -36,9 +36,9 @@
 
       <template #item.state="{ item }">
         <v-chip
-          :border="`${dictQueueState[item.state].color} thin opacity-25`"
-          :color="dictQueueState[item.state].color"
-          :text="dictQueueState[item.state].label"
+          :border="`${DICT_QUEUE_STATE[item.state].color} thin opacity-25`"
+          :color="DICT_QUEUE_STATE[item.state].color"
+          :text="DICT_QUEUE_STATE[item.state].label"
           variant="text"
           size="x-small"></v-chip>
       </template>
@@ -63,7 +63,7 @@
               "
               variant="text"
               size="x-small"
-              @click="controlRun(item)"></v-btn>
+              @click="controlJob(item)"></v-btn>
           </template>
         </v-tooltip>
       </template>
@@ -72,7 +72,7 @@
     <v-label class="align-self-start text-subtitle-2 my-2">Upcoming Triggers</v-label>
 
     <v-data-table
-      :headers="arrUpcomingHeader"
+      :headers="ARR_UPCOMING_HEADER"
       :items="arrUpcomingTrigger"
       item-value="queue_id"
       class="clean-space flex-column-grow-1 w-100"
@@ -105,7 +105,7 @@ const jobQueueStore = useJobQueueStore();
 const settingStore = useSettingStore();
 const setPendingAction = ref(new Set<string>());
 
-const arrCurrentRun = computed(() =>
+const arrCurrentJob = computed(() =>
   jobQueueStore.arrListItem.filter((item) => item.state !== JobQueueState.Pending),
 );
 
@@ -113,12 +113,12 @@ const arrUpcomingTrigger = computed(() =>
   jobQueueStore.arrListItem.filter((item) => item.state === JobQueueState.Pending),
 );
 
-const dictSourceLabel: Record<RunSource, string> = {
+const DICT_SOURCE_LABEL: Record<RunSource, string> = {
   [RunSource.Local]: "Local",
   [RunSource.Console]: "Console",
 };
 
-const dictQueueState: Record<JobQueueState, { label: string; color: string }> = {
+const DICT_QUEUE_STATE: Record<JobQueueState, { label: string; color: string }> = {
   [JobQueueState.Pending]: { label: "Pending", color: "inactive" },
   [JobQueueState.WaitingRetry]: { label: "Waiting for Retry", color: "info" },
   [JobQueueState.Waiting]: { label: "Waiting", color: "warning" },
@@ -127,15 +127,15 @@ const dictQueueState: Record<JobQueueState, { label: string; color: string }> = 
   [JobQueueState.Stopping]: { label: "Stopping", color: "warning" },
 };
 
-const arrProjectHeader: DataTableHeader<JobQueueItem>[] = [
+const ARR_PROJECT_HEADER: DataTableHeader<JobQueueItem>[] = [
   { title: "Name", value: "project_name", align: "start", sortable: false },
   { title: "Version", value: "project_version", align: "start", sortable: false },
 ];
 
-const arrCurrentHeader: DataTableHeader<JobQueueItem>[] = [
+const ARR_CURRENT_HEADER: DataTableHeader<JobQueueItem>[] = [
   { title: "Source", value: "source", align: "start", sortable: false },
   { title: "Schedule", value: "schedule_name", align: "start", sortable: false },
-  { title: "Project", align: "center", children: arrProjectHeader },
+  { title: "Project", align: "center", children: ARR_PROJECT_HEADER },
   {
     title: "Due At",
     value: "due_at_ms",
@@ -147,9 +147,9 @@ const arrCurrentHeader: DataTableHeader<JobQueueItem>[] = [
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
 
-const arrUpcomingHeader: DataTableHeader<JobQueueItem>[] = [
+const ARR_UPCOMING_HEADER: DataTableHeader<JobQueueItem>[] = [
   { title: "Schedule", value: "schedule_name", align: "start", sortable: false },
-  { title: "Project", align: "center", children: arrProjectHeader },
+  { title: "Project", align: "center", children: ARR_PROJECT_HEADER },
   {
     title: "Due At",
     value: "due_at_ms",
@@ -167,7 +167,7 @@ function getControlLabel(item: JobQueueItem): string {
   return "";
 }
 
-async function controlRun(item: JobQueueItem): Promise<void> {
+async function controlJob(item: JobQueueItem): Promise<void> {
   if (setPendingAction.value.has(item.queue_id) || !getControlLabel(item)) return;
   setPendingAction.value.add(item.queue_id);
   try {
@@ -177,7 +177,7 @@ async function controlRun(item: JobQueueItem): Promise<void> {
       await jobQueueStore.cancelQueuedRun(item.queue_id);
     }
   } catch (e: unknown) {
-    loggerRenderer.error(`Failed to control Run: ${getErrorMessage(e)}`);
+    loggerRenderer.error(`Failed to control Job: ${getErrorMessage(e)}`);
   } finally {
     setPendingAction.value.delete(item.queue_id);
   }

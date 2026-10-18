@@ -5,11 +5,11 @@
 
     <!-- Bug: The hover attribute only works when the window is on the primary screen. -->
     <v-data-table-server
-      :headers="arrHeader"
+      :headers="ARR_HEADER"
       :items="runHistoryStore.arrListItem"
-      :items-length="runHistoryStore.itemLength"
+      :items-length="runHistoryStore.totalCount"
       :items-per-page="itemPerPage"
-      :items-per-page-options="arrItemsPerPageOptions"
+      :items-per-page-options="ARR_ITEMS_PER_PAGE_OPTION"
       :search="search"
       class="clean-space flex-column-grow-1"
       fixed-header
@@ -290,7 +290,7 @@ async function showRunDetails(id: number): Promise<void> {
 
 const itemPerPage: Ref<15 | 50 | 100> = ref(15);
 
-const arrItemsPerPageOptions = [
+const ARR_ITEMS_PER_PAGE_OPTION = [
   { value: 15, title: "15" },
   { value: 50, title: "50" },
   { value: 100, title: "100" },
@@ -335,7 +335,7 @@ async function handleTableOptionsUpdate(
   });
 }
 
-const arrHeader: DataTableHeader<RunHistoryItem>[] = [
+const ARR_HEADER: DataTableHeader<RunHistoryItem>[] = [
   { title: "Schedule", value: "schedule_name", align: "start", sortable: true },
   {
     title: "Project",

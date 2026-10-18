@@ -97,6 +97,7 @@
           </v-col>
 
           <v-col style="min-width: 0">
+            <!-- NOTE: Use the short label due to container's width-->
             <v-select
               v-if="settings.custom_arg_assets[index]"
               :variant="readonly ? 'plain' : 'underlined'"

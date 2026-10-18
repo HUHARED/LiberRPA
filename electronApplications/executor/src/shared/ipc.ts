@@ -115,7 +115,7 @@ interface ExecutorInvokeContract {
     request: number;
     response: void;
   };
-  pythonCancel: {
+  stopRun: {
     request: number;
     response: void;
   };

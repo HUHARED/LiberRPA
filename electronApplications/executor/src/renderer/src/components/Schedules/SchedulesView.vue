@@ -20,7 +20,7 @@
     </v-alert>
 
     <v-data-table
-      :headers="arrHeader"
+      :headers="ARR_HEADER"
       :items="scheduleStore.arrListItem"
       class="clean-space flex-column-grow-1"
       fixed-header
@@ -157,7 +157,7 @@ const DICT_RUN_CONFLICT_POLICY_LABEL: Record<RunConflictPolicy, string> = {
   [RunConflictPolicy.Concurrent]: "Run Concurrently",
 };
 
-const arrHeader: DataTableHeader<ScheduleListItem>[] = [
+const ARR_HEADER: DataTableHeader<ScheduleListItem>[] = [
   { title: "Name", value: "name", align: "start", sortable: true },
   {
     title: "Project",

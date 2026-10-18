@@ -33,8 +33,10 @@
           <v-card variant="tonal" class="pa-3 h-100">
             <div class="text-caption mb-1">Lock</div>
 
-            <v-chip size="small" :color="getStateColor(projectState.lockState)">
-              {{ projectState.lockState }}
+            <v-chip
+              size="small"
+              :color="COMPONENT_STATE_DISPLAY[projectState.lockState].color">
+              {{ COMPONENT_STATE_DISPLAY[projectState.lockState].label }}
             </v-chip>
           </v-card>
         </v-col>
@@ -43,8 +45,10 @@
           <v-card variant="tonal" class="pa-3 h-100">
             <div class="text-caption mb-1">_Components</div>
 
-            <v-chip size="small" :color="getStateColor(projectState.componentsState)">
-              {{ projectState.componentsState }}
+            <v-chip
+              size="small"
+              :color="COMPONENT_STATE_DISPLAY[projectState.componentsState].color">
+              {{ COMPONENT_STATE_DISPLAY[projectState.componentsState].label }}
             </v-chip>
           </v-card>
         </v-col>
@@ -53,8 +57,10 @@
           <v-card variant="tonal" class="pa-3 h-100">
             <div class="text-caption mb-1">Environment</div>
 
-            <v-chip size="small" :color="getStateColor(projectState.environmentState)">
-              {{ projectState.environmentState }}
+            <v-chip
+              size="small"
+              :color="COMPONENT_STATE_DISPLAY[projectState.environmentState].color">
+              {{ COMPONENT_STATE_DISPLAY[projectState.environmentState].label }}
             </v-chip>
           </v-card>
         </v-col>
@@ -63,8 +69,10 @@
           <v-card variant="tonal" class="pa-3 h-100">
             <div class="text-caption mb-1">Repair</div>
 
-            <v-chip size="small" :color="getStateColor(projectState.repairState)">
-              {{ projectState.repairState }}
+            <v-chip
+              size="small"
+              :color="COMPONENT_STATE_DISPLAY[projectState.repairState].color">
+              {{ COMPONENT_STATE_DISPLAY[projectState.repairState].label }}
             </v-chip>
           </v-card>
         </v-col>
@@ -187,6 +195,7 @@
 import { computed, toRaw } from "vue";
 
 import { postMessage } from "../Adapter/Extension/vscodeApi";
+import { COMPONENT_STATE_DISPLAY } from "../Application/ComponentManagement/componentStateDisplay";
 import { useComponentManagementStore } from "../Application/ComponentManagement/componentManagementStore";
 import { useProjectManagerStore } from "../Application/projectManagerStore";
 
@@ -265,19 +274,6 @@ const directDependencyRows = computed<DictDirectDependencyRow[]>(() =>
     })
     .sort((left, right) => left.packageName.localeCompare(right.packageName)),
 );
-
-function getStateColor(state: string): string | undefined {
-  if (state === "valid" || state === "compatible" || state === "notRequired") {
-    return "success";
-  }
-  if (state === "available" || state === "unknown" || state === "unverified") {
-    return "warning";
-  }
-  if (state === "notApplicable") {
-    return undefined;
-  }
-  return "error";
-}
 
 function previewPlan(dependencyOperation: DictProtocolDependencyOperation): void {
   if (projectManagerStore.busy) {

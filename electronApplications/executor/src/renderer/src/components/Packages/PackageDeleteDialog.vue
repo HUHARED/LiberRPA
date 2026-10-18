@@ -50,8 +50,7 @@
           </v-container>
 
           <v-container v-else fluid class="border-thin flex-column-grow-1 flex-column">
-            No Schedule uses this Package. A Package with a starting, running, or waiting
-            Run still cannot be deleted.
+            Delete this Package?
           </v-container>
         </v-container>
       </template>

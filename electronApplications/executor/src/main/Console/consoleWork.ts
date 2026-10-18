@@ -21,7 +21,7 @@ import {
 } from "../Common/validation";
 import { getDatabase } from "../Database/connection";
 import { loggerMain } from "../Logging/logger";
-import { startRun, cancelRunById } from "../Run/packageRunner";
+import { startRun, stopRunById } from "../Run/packageRunner";
 import { PythonProcessNotStartedError } from "../Run/pythonProcess";
 
 import { getLocalWaitingCount } from "../Scheduler/schedulerEngine";
@@ -525,7 +525,7 @@ async function syncConsoleWork(
       setStoppedAssignment.add(strAssignmentId);
       mapPermitWaiter.get(strAssignmentId)?.();
     }
-    cancelRunById(strRunId);
+    stopRunById(strRunId);
   }
   if (Array.isArray(response.assignments))
     for (const value of response.assignments) {

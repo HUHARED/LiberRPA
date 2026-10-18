@@ -562,7 +562,7 @@ export async function startRun(
   }
 }
 
-export function cancelRunByHistoryId(runHistoryId: number): void {
+export function stopRunByHistoryId(runHistoryId: number): void {
   const activeRun = mapActiveRunByHistoryId.get(runHistoryId);
   if (activeRun === undefined) {
     loggerMain.debug(
@@ -578,11 +578,11 @@ export function cancelRunByHistoryId(runHistoryId: number): void {
     return;
   }
 
-  loggerMain.info(`Cancel Run History ${String(runHistoryId)}.`);
+  loggerMain.info(`Stop Run with history ID ${String(runHistoryId)}.`);
   void requestRunTermination(activeRun, RunTerminationReason.Cancel);
 }
 
-export function cancelRunById(runId: string): void {
+export function stopRunById(runId: string): void {
   const activeRun = mapActiveRunByRunId.get(runId);
   if (activeRun) void requestRunTermination(activeRun, RunTerminationReason.Cancel);
 }
