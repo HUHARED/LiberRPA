@@ -84,7 +84,11 @@ def _handle_errors(view: Callable) -> Callable:
                 statusCode=400,
                 fields=e.message_dict if hasattr(e, "message_dict") else None,
             )
-        except (ValueError, InvalidPage):
+        except InvalidPage:
+            return build_error_response(
+                "invalid_page", "The requested page is unavailable.", statusCode=400
+            )
+        except ValueError:
             return build_error_response(
                 "invalid_request", "The filter or request is invalid.", statusCode=400
             )

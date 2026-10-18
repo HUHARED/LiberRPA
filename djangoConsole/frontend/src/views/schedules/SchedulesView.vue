@@ -6,8 +6,9 @@
     <v-btn
       variant="tonal"
       prepend-icon="mdi-refresh"
-      :loading="boolLoading"
-      @click="load()">
+      :loading="boolLoading || boolTargetsLoading"
+      :disabled="boolLoading || boolTargetsLoading"
+      @click="refresh">
       Refresh
     </v-btn>
 
@@ -93,8 +94,19 @@
     </v-card-text>
   </v-card>
 
-  <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
-    {{ strError }}
+  <v-alert v-if="strTargetError" type="error" variant="tonal" class="mb-4" role="alert">
+    Target options could not be loaded. {{ strTargetError }}
+  </v-alert>
+
+  <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+    The schedule list could not be loaded. {{ requestError.message }}
+    <p v-if="page" class="mt-2">
+      Previously loaded results are shown. Refresh to try again.
+    </p>
+  </v-alert>
+
+  <v-alert v-if="strActionError" type="error" variant="tonal" class="mb-4" role="alert">
+    {{ strActionError }}
   </v-alert>
 
   <v-card variant="outlined">
@@ -232,7 +244,7 @@ import {
   getSchedules,
   setScheduleEnabled,
 } from "@/api/schedules";
-import { getApiError } from "@/api/errors";
+import { type ApiError, getApiError } from "@/api/errors";
 
 import { CONFLICT_POLICY_LABELS } from "@/app/runLabels";
 
@@ -291,9 +303,14 @@ const strEditId = ref<string | null>(null);
 const scheduleDelete = shallowRef<ScheduleListEntry | null>(null);
 const setChangingId = ref(new Set<string>());
 const boolLoading = ref(false);
-const strError = ref("");
+const requestError = shallowRef<ApiError | null>(null);
+const strTargetError = ref("");
+const strActionError = ref("");
 
 let intLoadRevision = 0;
+let intTargetRevision = 0;
+let intRequestedPage = 1;
+let boolUnmounted = false;
 
 function describeCron(value: string): string {
   try {
@@ -304,13 +321,16 @@ function describeCron(value: string): string {
 }
 
 async function loadTargets(): Promise<void> {
+  const intRevision = ++intTargetRevision;
   boolTargetsLoading.value = true;
+  strTargetError.value = "";
   try {
     const arrResult: { id: string; title: string }[] = [];
     const arrPages = await Promise.all([
       getExecutorList({ name: "", departmentIds: [], dispatchStates: [] }, 1),
       getExecutorGroupList({ name: "", departmentIds: [] }, 1),
     ]);
+    if (intRevision !== intTargetRevision) return;
     const executorPage = arrPages[0];
     const groupPage = arrPages[1];
     arrResult.push(
@@ -330,6 +350,7 @@ async function loadTargets(): Promise<void> {
         { name: "", departmentIds: [], dispatchStates: [] },
         intPage,
       );
+      if (intRevision !== intTargetRevision) return;
       arrResult.push(
         ...result.executors.map((entry) => ({
           id: entry.id,
@@ -339,6 +360,7 @@ async function loadTargets(): Promise<void> {
     }
     for (let intPage = 2; intPage <= groupPage.total_pages; intPage++) {
       const result = await getExecutorGroupList({ name: "", departmentIds: [] }, intPage);
+      if (intRevision !== intTargetRevision) return;
       arrResult.push(
         ...result.executor_groups.map((entry) => ({
           id: entry.id,
@@ -348,24 +370,34 @@ async function loadTargets(): Promise<void> {
     }
     arrTarget.value = arrResult;
   } catch (e) {
-    strError.value = getApiError(e).message;
+    if (intRevision === intTargetRevision) strTargetError.value = getApiError(e).message;
   } finally {
-    boolTargetsLoading.value = false;
+    if (intRevision === intTargetRevision) boolTargetsLoading.value = false;
   }
 }
 
-async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
+async function load(pageNumber = intRequestedPage): Promise<void> {
   const intRevision = ++intLoadRevision;
+  intRequestedPage = pageNumber;
   boolLoading.value = true;
-  strError.value = "";
+  requestError.value = null;
   try {
     const response = await getSchedules(appliedFilters, pageNumber);
     if (intRevision === intLoadRevision) page.value = response;
   } catch (e) {
-    if (intRevision === intLoadRevision) strError.value = getApiError(e).message;
+    if (intRevision !== intLoadRevision) return;
+    requestError.value = getApiError(e);
+    if (requestError.value.code === "invalid_page" && pageNumber > 1) {
+      await load(1);
+      return;
+    }
   } finally {
     if (intRevision === intLoadRevision) boolLoading.value = false;
   }
+}
+
+async function refresh(): Promise<void> {
+  await Promise.all([load(), loadTargets()]);
 }
 
 function apply(): void {
@@ -381,18 +413,22 @@ function clearFilters(): void {
 async function toggle(schedule: ScheduleListEntry, enabled: boolean): Promise<void> {
   if (setChangingId.value.has(schedule.id)) return;
 
-  const boolOriginalEnabled = schedule.enabled;
-  schedule.enabled = enabled;
   setChangingId.value.add(schedule.id);
-  strError.value = "";
+  strActionError.value = "";
   try {
     await setScheduleEnabled(schedule.id, enabled);
   } catch (e) {
-    schedule.enabled = boolOriginalEnabled;
-    strError.value = getApiError(e).message;
+    if (!boolUnmounted)
+      strActionError.value = `Schedule "${schedule.name}" could not be updated. ${getApiError(e).message}`;
+    return;
   } finally {
-    setChangingId.value.delete(schedule.id);
+    if (!boolUnmounted) setChangingId.value.delete(schedule.id);
   }
+
+  if (boolUnmounted) return;
+  const currentSchedule = page.value?.schedules.find((item) => item.id === schedule.id);
+  if (currentSchedule) currentSchedule.enabled = enabled;
+  await load();
 }
 
 function closeForm(): void {
@@ -432,13 +468,12 @@ watch(
   },
 );
 
-onMounted(() => {
-  void load();
-  void loadTargets();
-});
+onMounted(() => void refresh());
 
 onBeforeUnmount(() => {
+  boolUnmounted = true;
   intLoadRevision += 1;
+  intTargetRevision += 1;
 });
 </script>
 
