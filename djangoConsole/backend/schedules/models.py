@@ -9,6 +9,7 @@ import uuid
 from django.conf import settings as djangoSettings
 from django.db import models
 from django.db.models.functions import Lower
+from django.db.models.lookups import Exact
 from django.utils import timezone
 
 from console_project.constants import RunLogLevel
@@ -127,6 +128,17 @@ class Schedule(models.Model):
                     | (models.Q(group_id__isnull=True) & ~models.Q(executor_ids=[]))
                 ),
                 name="schedule_target_valid",
+            ),
+            models.CheckConstraint(
+                condition=Exact(
+                    models.Func(
+                        models.F("executor_ids"),
+                        function="jsonb_typeof",
+                        output_field=models.CharField(),
+                    ),
+                    models.Value("array"),
+                ),
+                name="schedule_executor_ids_array",
             ),
         ]
 
