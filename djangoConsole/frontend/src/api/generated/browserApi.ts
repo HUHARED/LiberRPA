@@ -18,6 +18,7 @@ export type JsonValue =
 export type AssetReferenceKind = "package" | "schedule";
 export type BrowserMessageType = "ready" | "session_changed" | "notifications_changed";
 export type ExecutorAssociationStatus = "unassociated" | "online" | "offline";
+export type PackagePreparationState = "pending" | "preparing" | "ready" | "failed";
 export type FilePath = string;
 export type FileRequestUuid = string;
 export type JobControlAction = "cancel" | "stop" | "close";
@@ -39,7 +40,6 @@ export type RunConflictPolicy = "skip" | "wait" | "concurrent";
 export type OutputsStatus = "waiting" | "complete" | "partial" | "unavailable";
 export type RunStatus =
   "running" | "completed" | "error" | "canceled" | "timed_out" | "interrupted";
-export type PackagePreparationState = "pending" | "preparing" | "ready" | "failed";
 export type PackageReferenceKind = "schedule" | "job" | "preparation" | "download";
 export type RunLogLevel1 = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 export type RunPriority1 = "high" | "normal" | "low";
@@ -527,6 +527,7 @@ export interface ExecutorDetailsEntryResponse {
   name: string;
   notes: string;
   other_active_run_count: number | null;
+  preparation: ExecutorPreparationPageResponse;
   referencing_schedules: ExecutorScheduleReferenceResponse[];
   session_id: string | null;
 }
@@ -538,6 +539,24 @@ export interface ExecutorDepartmentResponse {
 export interface ExecutorGroupReferenceResponse {
   id: string;
   name: string;
+}
+export interface ExecutorPreparationPageResponse {
+  items: ExecutorPreparationEntryResponse[];
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
+}
+export interface ExecutorPreparationEntryResponse {
+  from_previous_association: boolean;
+  id: string;
+  package_id: string;
+  project_name: string;
+  project_version: string;
+  python_environment_name: string;
+  reason: string;
+  state: PackagePreparationState;
+  updated_at: string;
 }
 export interface ExecutorScheduleReferenceResponse {
   enabled: boolean;
@@ -1088,6 +1107,7 @@ export interface RunSettingsResponse {
 export interface PackagePreparationResponse {
   executor_id: string;
   executor_name: string;
+  from_previous_association: boolean;
   reason: string;
   state: PackagePreparationState;
 }

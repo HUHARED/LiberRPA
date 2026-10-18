@@ -22,8 +22,14 @@ from organizations.permissions import (
     resolve_organization_access,
     get_authorized_departments,
 )
+from packages.contracts import PackagePreparationState
+from packages.models import PackagePreparation
 
-from .contracts import ExecutorAssociationStatus
+from .contracts import (
+    ExecutorAssociationStatus,
+    ExecutorPreparationEntryResponse,
+    ExecutorPreparationPageResponse,
+)
 from .models import Executor, ExecutorSession
 from .session_state import (
     get_executor_association_status,
@@ -31,6 +37,7 @@ from .session_state import (
 )
 
 _INT_EXECUTORS_PER_PAGE = 50
+_INT_PREPARATIONS_PER_PAGE = 50
 
 
 @dataclass(frozen=True)
@@ -187,3 +194,60 @@ def get_executor_details(
     if not details:
         raise Executor.DoesNotExist
     return details[0]
+
+
+def get_executor_preparation_page(
+    executorInfo: ExecutorInfo, *, pageNumber: int = 1
+) -> ExecutorPreparationPageResponse:
+    preparationQuery = (
+        PackagePreparation.objects
+        .filter(
+            executor=executorInfo.executor,
+            package__department_id=executorInfo.executor.department_id,
+        )
+        .select_related("package")
+        .only(
+            "id",
+            "package_id",
+            "session_id",
+            "python_environment_name",
+            "state",
+            "reason",
+            "updated_at",
+            "package__project_name",
+            "package__project_version",
+        )
+        .order_by(
+            "package__project_name_key",
+            "-package__uploaded_at",
+            "package_id",
+            "python_environment_name",
+            "id",
+        )
+    )
+    paginator = Paginator(preparationQuery, _INT_PREPARATIONS_PER_PAGE)
+    preparationPage = paginator.get_page(pageNumber)
+    return ExecutorPreparationPageResponse(
+        items=[
+            ExecutorPreparationEntryResponse(
+                id=preparation.pk,
+                package_id=preparation.package_id,
+                project_name=preparation.package.project_name,
+                project_version=preparation.package.project_version,
+                python_environment_name=preparation.python_environment_name,
+                state=PackagePreparationState(preparation.state),
+                reason=preparation.reason,
+                updated_at=preparation.updated_at,
+                from_previous_association=preparation.session_id is not None
+                and (
+                    executorInfo.session is None
+                    or preparation.session_id != executorInfo.session.pk
+                ),
+            )
+            for preparation in preparationPage.object_list
+        ],
+        page=preparationPage.number,
+        page_size=_INT_PREPARATIONS_PER_PAGE,
+        total_count=paginator.count,
+        total_pages=paginator.num_pages,
+    )

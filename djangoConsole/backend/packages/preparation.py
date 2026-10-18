@@ -14,6 +14,7 @@ from django.utils import timezone
 from accounts.resource_authentication import NativeResourceAuthenticationContext
 from operations.audit import record_audit
 from executors.models import Executor, ExecutorSession, ExecutorGroupMember
+from executors.session_state import get_current_executor_sessions
 from organizations.permissions import OrganizationAccessContext
 from runs.control_notifications import notify_executor_control
 
@@ -193,14 +194,8 @@ def complete_preparation(
 
 
 def get_package_preparation(package: Package) -> list[dict]:
-    return [
-        {
-            "executor_id": str(preparation.executor_id),
-            "executor_name": preparation.executor.name,
-            "state": preparation.state,
-            "reason": preparation.reason,
-        }
-        for preparation in PackagePreparation.objects
+    listPreparation = list(
+        PackagePreparation.objects
         .filter(
             package=package,
             python_environment_name=package.python_environment_name,
@@ -208,6 +203,28 @@ def get_package_preparation(package: Package) -> list[dict]:
         )
         .select_related("executor")
         .order_by("executor__name", "executor_id")
+    )
+    if not listPreparation:
+        return []
+    dictSessionByExecutorId = get_current_executor_sessions(
+        package.department.organization_id,
+        executorIds=[preparation.executor_id for preparation in listPreparation],
+        currentTime=timezone.now(),
+    )
+    return [
+        {
+            "executor_id": str(preparation.executor_id),
+            "executor_name": preparation.executor.name,
+            "state": preparation.state,
+            "reason": preparation.reason,
+            "from_previous_association": preparation.session_id is not None
+            and (
+                preparation.executor_id not in dictSessionByExecutorId
+                or preparation.session_id
+                != dictSessionByExecutorId[preparation.executor_id].pk
+            ),
+        }
+        for preparation in listPreparation
     ]
 
 

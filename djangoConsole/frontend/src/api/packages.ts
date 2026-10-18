@@ -106,7 +106,8 @@ function parsePackageDetails(value: unknown): PackageDetails {
         Object.values(PackagePreparationState).some(
           (state) => state === preparation.state,
         ) &&
-        typeof preparation.reason === "string",
+        typeof preparation.reason === "string" &&
+        typeof preparation.from_previous_association === "boolean",
     ) ||
     !Array.isArray(value.references) ||
     !value.references.every(
@@ -228,7 +229,7 @@ export async function savePackageSettings(
   environment: string,
   settings: RunSettings,
   apiInputKeys: string[],
-): Promise<PackageInfo> {
+): Promise<PackageDetails> {
   const response = await requestApi(`/packages/${encodeURIComponent(id)}/settings/`, {
     method: "POST",
     body: {
@@ -237,9 +238,7 @@ export async function savePackageSettings(
       api_input_keys: [...apiInputKeys],
     },
   });
-  if (!isRecord(response) || !isPackageInfo(response.package))
-    return rejectInvalidResponse();
-  return response.package;
+  return parsePackageDetails(response);
 }
 export async function cancelPackagePreparation(id: string): Promise<number> {
   const response = await requestApi(

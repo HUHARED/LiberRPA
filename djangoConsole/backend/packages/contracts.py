@@ -266,6 +266,7 @@ class PackagePreparationResponse(JsonResponsePayload):
     executor_name: str
     state: PackagePreparationState
     reason: str
+    from_previous_association: bool
 
 
 class PackageDetailsResponse(JsonResponsePayload):

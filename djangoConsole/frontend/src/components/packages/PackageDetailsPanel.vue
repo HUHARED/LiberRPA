@@ -218,8 +218,25 @@
                         {{ preparation.executor_name }}
                       </RouterLink>
                     </td>
-                    <td>{{ PACKAGE_PREPARATION_LABELS[preparation.state] }}</td>
-                    <td>{{ preparation.reason || "—" }}</td>
+                    <td>
+                      <span
+                        v-if="preparation.from_previous_association"
+                        v-tooltip:bottom="
+                          'The current client has not reported a preparation result.'
+                        ">
+                        Not confirmed
+                      </span>
+                      <span v-else>
+                        {{ PACKAGE_PREPARATION_LABELS[preparation.state] }}
+                      </span>
+                    </td>
+                    <td>
+                      {{
+                        preparation.from_previous_association
+                          ? "—"
+                          : preparation.reason || "—"
+                      }}
+                    </td>
                   </tr>
 
                   <tr v-if="!details.preparation.length">
@@ -380,6 +397,7 @@ import PackageRunDialog from "./PackageRunDialog.vue";
 
 import {
   PackageReferenceKind,
+  PackagePreparationState,
   PACKAGE_REFERENCE_LABELS,
   type PackageReference,
   type PackageDetails,
@@ -504,7 +522,7 @@ async function save(): Promise<void> {
       return;
     }
 
-    const packageInfo = await savePackageSettings(
+    const packageDetails = await savePackageSettings(
       props.details.package.id,
       strEnvironment.value,
       draft.value,
@@ -512,7 +530,8 @@ async function save(): Promise<void> {
     );
     if (!boolActive) return;
 
-    emit("updated", { ...props.details, package: packageInfo });
+    emit("updated", packageDetails);
+    strError.value = "";
     strSuccess.value = "Settings saved.";
   } catch (e) {
     const error = getApiError(e);
@@ -534,16 +553,35 @@ async function cancelPreparation(): Promise<void> {
 
   boolBusy.value = true;
   strPreparationError.value = "";
+  strError.value = "";
+  strSuccess.value = "";
   try {
     const intCanceledCount = await cancelPackagePreparation(props.details.package.id);
-    const refreshed = await getPackageDetails(props.details.package.id);
     if (!boolActive) return;
 
-    emit("updated", { ...refreshed, package: props.details.package });
     boolCancelPreparation.value = false;
     strSuccess.value = `${intCanceledCount} preparation request(s) canceled.`;
+    emit("updated", {
+      ...props.details,
+      preparation: props.details.preparation.filter(
+        (preparation) =>
+          preparation.state !== PackagePreparationState.Pending &&
+          preparation.state !== PackagePreparationState.Preparing,
+      ),
+      references: props.details.references.filter(
+        (reference) => reference.kind !== PackageReferenceKind.Preparation,
+      ),
+    });
+
+    try {
+      const refreshed = await getPackageDetails(props.details.package.id);
+      if (boolActive) emit("updated", refreshed);
+    } catch (e) {
+      if (boolActive)
+        strError.value = `Package details could not be refreshed. ${getApiError(e).message}`;
+    }
   } catch (e) {
-    strPreparationError.value = getApiError(e).message;
+    if (boolActive) strPreparationError.value = getApiError(e).message;
   } finally {
     boolBusy.value = false;
   }

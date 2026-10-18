@@ -23,6 +23,7 @@ from console_project.http import (
     build_authentication_required_response,
     build_service_unavailable_response,
     parse_json_request,
+    parse_page_number,
 )
 from organizations.http import (
     DepartmentResourceListParameters,
@@ -51,7 +52,11 @@ from .http import (
     build_executor_work_payload,
 )
 from .models import Executor
-from .queries import get_executor_list, get_executor_details
+from .queries import (
+    get_executor_list,
+    get_executor_details,
+    get_executor_preparation_page,
+)
 from .services import (
     create_executor,
     update_executor,
@@ -252,10 +257,19 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
             channel=AccessChannel.SESSION,
             executorId=executorId,
         )
+        try:
+            intPageNumber = parse_page_number(request.GET)
+        except ValueError:
+            return build_error_response(
+                "invalid_page", "Send one positive integer page number.", statusCode=400
+            )
         dictDetailsPayload = {
             "executor": {
                 **build_executor_info_payload(details),
                 **build_executor_work_payload(details),
+                "preparation": get_executor_preparation_page(
+                    details, pageNumber=intPageNumber
+                ),
                 "executor_groups": [
                     {"id": group.id, "name": group.name}
                     for group in get_executor_group_references(details.executor)

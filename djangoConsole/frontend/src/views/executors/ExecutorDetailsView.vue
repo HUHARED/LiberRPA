@@ -20,7 +20,7 @@
         prepend-icon="mdi-refresh"
         :loading="boolLoading"
         :disabled="boolActionBlocked"
-        @click="loadExecutorDetails">
+        @click="loadExecutorDetails()">
         Refresh
       </v-btn>
 
@@ -232,6 +232,87 @@
           </tbody>
         </v-table>
       </v-card-text>
+    </v-card>
+
+    <v-card variant="outlined" class="mb-4">
+      <v-card-title>Package Preparation</v-card-title>
+
+      <v-card-text>
+        <p v-if="!executorInfo.preparation.items.length">No package preparation records.</p>
+
+        <v-table v-else>
+          <thead>
+            <tr>
+              <th>Project</th>
+              <th>Version</th>
+              <th>Python Environment</th>
+              <th>Status</th>
+              <th>Reason</th>
+              <th>Updated At</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr v-for="preparation in executorInfo.preparation.items" :key="preparation.id">
+              <td class="text-anywhere">
+                <RouterLink
+                  :to="{
+                    name: 'package-details',
+                    params: { packageId: preparation.package_id },
+                  }"
+                  class="text-primary text-decoration-none"
+                  target="_blank"
+                  rel="noopener">
+                  {{ preparation.project_name }}
+                </RouterLink>
+              </td>
+              <td>{{ preparation.project_version }}</td>
+              <td class="text-anywhere">{{ preparation.python_environment_name }}</td>
+              <td>
+                <span
+                  v-if="preparation.from_previous_association"
+                  v-tooltip:bottom="
+                    'The current client has not reported a preparation result.'
+                  ">
+                  Not confirmed
+                </span>
+                <span v-else>{{ PACKAGE_PREPARATION_LABELS[preparation.state] }}</span>
+              </td>
+              <td class="text-pre-wrap text-anywhere">
+                {{
+                  preparation.from_previous_association ? "—" : preparation.reason || "—"
+                }}
+              </td>
+              <td>
+                {{
+                  preparation.from_previous_association
+                    ? "—"
+                    : formatDateTime(preparation.updated_at, strTimeZone)
+                }}
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card-text>
+
+      <v-divider />
+
+      <div class="d-flex flex-wrap align-center justify-space-between ga-2 pa-3">
+        <p class="text-body-2 text-medium-emphasis" aria-live="polite">
+          {{ executorInfo.preparation.total_count }} records · Page
+          {{ executorInfo.preparation.page }} of {{ executorInfo.preparation.total_pages }}
+        </p>
+
+        <v-pagination
+          v-if="executorInfo.preparation.total_pages > 1"
+          :model-value="executorInfo.preparation.page"
+          :length="executorInfo.preparation.total_pages"
+          :total-visible="5"
+          :disabled="boolActionBlocked"
+          density="comfortable"
+          aria-label="Package preparation pages"
+          @update:model-value="loadExecutorDetails" />
+      </div>
     </v-card>
 
     <v-card variant="outlined" class="mb-4">
@@ -566,6 +647,7 @@ import {
 import type { ExecutorDetailsEntryResponse } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
+import { PACKAGE_PREPARATION_LABELS } from "@/app/runLabels";
 
 const props = defineProps<{ executorId: string }>();
 const sessionStore = useSessionStore();
@@ -625,14 +707,15 @@ function closeDelete(): void {
   deleteError.value = null;
 }
 
-// TODO: Add job occupancy, preparation, and schedule references when their APIs are available.
-async function loadExecutorDetails(): Promise<void> {
+async function loadExecutorDetails(
+  pageNumber = executorInfo.value?.preparation.page ?? 1,
+): Promise<void> {
   if (boolDeleted.value) return;
   const intCurrentRevision = intViewRevision;
   boolLoading.value = true;
   requestError.value = null;
   try {
-    const response = await getExecutorDetails(props.executorId);
+    const response = await getExecutorDetails(props.executorId, pageNumber);
     if (intCurrentRevision !== intViewRevision) return;
     executorInfo.value = response.executor;
     strUpdatedAt.value = new Date().toISOString();
@@ -757,21 +840,14 @@ async function submitUnassociate(): Promise<void> {
   strPendingAction.value = "unassociate";
   unassociateError.value = null;
   try {
-    const response = await unassociateExecutor(target.id, target.session_id);
+    const intPreparationPage = executorInfo.value.preparation.page;
+    await unassociateExecutor(target.id, target.session_id);
     if (intCurrentRevision !== intViewRevision) return;
-    executorInfo.value = {
-      ...executorInfo.value,
-      ...response.executor,
-      association_status: "unassociated",
-      session_id: null,
-      account: null,
-      computer_name: null,
-      client_version: null,
-      last_seen_at: null,
-    };
+    executorInfo.value = null;
+    strUpdatedAt.value = null;
     closeUnassociate();
     strSuccessMessage.value = "The selected client association was removed.";
-    await loadExecutorDetails();
+    await loadExecutorDetails(intPreparationPage);
   } catch (e) {
     if (intCurrentRevision !== intViewRevision) return;
     unassociateError.value = getApiError(e);

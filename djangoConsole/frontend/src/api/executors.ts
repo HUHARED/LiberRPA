@@ -1,10 +1,12 @@
 // FileName: executors.ts
 
 import { requestApi } from "./client";
+import { PackagePreparationState } from "./packages";
 import {
   isRecord,
   isNonnegativeInteger,
   isNullableString,
+  isDateString,
   isNullableDateString,
   rejectInvalidResponse,
   parsePaginationResponse,
@@ -14,6 +16,7 @@ import type {
   ExecutorCreationRequest,
   ExecutorDeletionRequest,
   ExecutorDetailsResponse,
+  ExecutorPreparationEntryResponse,
   ExecutorGroupReferenceResponse,
   ExecutorScheduleReferenceResponse,
   ExecutorDispatchRequest,
@@ -106,6 +109,23 @@ export function parseExecutorDetailsResponse(payload: unknown): ExecutorDetailsR
       payload.executor.local_waiting_count,
     ].every((value) => value === null || isNonnegativeInteger(value)) ||
     !isNullableDateString(payload.executor.last_work_reported_at) ||
+    !isRecord(payload.executor.preparation) ||
+    !Array.isArray(payload.executor.preparation.items) ||
+    !payload.executor.preparation.items.every(
+      (preparation: unknown): preparation is ExecutorPreparationEntryResponse =>
+        isRecord(preparation) &&
+        typeof preparation.id === "string" &&
+        typeof preparation.package_id === "string" &&
+        typeof preparation.project_name === "string" &&
+        typeof preparation.project_version === "string" &&
+        typeof preparation.python_environment_name === "string" &&
+        Object.values(PackagePreparationState).some(
+          (state) => state === preparation.state,
+        ) &&
+        typeof preparation.reason === "string" &&
+        isDateString(preparation.updated_at) &&
+        typeof preparation.from_previous_association === "boolean",
+    ) ||
     !Array.isArray(payload.executor.executor_groups) ||
     !payload.executor.executor_groups.every(
       (group: unknown): group is ExecutorGroupReferenceResponse =>
@@ -122,6 +142,10 @@ export function parseExecutorDetailsResponse(payload: unknown): ExecutorDetailsR
       central_running_count: payload.executor.central_running_count as number | null,
       local_waiting_count: payload.executor.local_waiting_count as number | null,
       last_work_reported_at: payload.executor.last_work_reported_at,
+      preparation: {
+        items: payload.executor.preparation.items,
+        ...parsePaginationResponse(payload.executor.preparation),
+      },
     },
   };
 }
@@ -147,9 +171,11 @@ export async function getExecutorList(
 
 export async function getExecutorDetails(
   executorId: string,
+  pageNumber = 1,
 ): Promise<ExecutorDetailsResponse> {
+  const queryParameters = new URLSearchParams({ page: String(pageNumber) });
   return parseExecutorDetailsResponse(
-    await requestApi(`/executors/${encodeURIComponent(executorId)}/`),
+    await requestApi(`/executors/${encodeURIComponent(executorId)}/?${queryParameters}`),
   );
 }
 

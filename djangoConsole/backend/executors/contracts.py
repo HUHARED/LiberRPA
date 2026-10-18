@@ -13,6 +13,8 @@ from pydantic import Field
 
 from accounts.contracts import UserResponse
 from console_project.contracts import JsonRequest, JsonResponsePayload
+from organizations.contracts import PaginationResponse
+from packages.contracts import PackagePreparationState
 
 
 class ExecutorAssociationStatus(StrEnum):
@@ -93,6 +95,22 @@ class ExecutorScheduleReferenceResponse(JsonResponsePayload):
     enabled: bool
 
 
+class ExecutorPreparationEntryResponse(JsonResponsePayload):
+    id: UUID
+    package_id: UUID
+    project_name: str
+    project_version: str
+    python_environment_name: str
+    state: PackagePreparationState
+    reason: str
+    updated_at: datetime
+    from_previous_association: bool
+
+
+class ExecutorPreparationPageResponse(PaginationResponse):
+    items: list[ExecutorPreparationEntryResponse]
+
+
 class ExecutorDetailsEntryResponse(ExecutorListEntryResponse):
     executor_groups: list[ExecutorGroupReferenceResponse]
     referencing_schedules: list[ExecutorScheduleReferenceResponse]
@@ -100,6 +118,7 @@ class ExecutorDetailsEntryResponse(ExecutorListEntryResponse):
     central_running_count: int | None
     local_waiting_count: int | None
     last_work_reported_at: datetime | None
+    preparation: ExecutorPreparationPageResponse
 
 
 class ExecutorDetailsResponse(JsonResponsePayload):
