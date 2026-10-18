@@ -950,11 +950,42 @@ export interface RunResponse {
   stop_requested: boolean;
 }
 export interface JobListResponse {
-  jobs: JobResponse[];
+  jobs: JobListEntryResponse[];
   page: number;
   page_size: number;
   total_count: number;
   total_pages: number;
+}
+export interface JobListEntryResponse {
+  can_cancel: boolean;
+  can_close: boolean;
+  can_stop: boolean;
+  can_view_executor: boolean;
+  can_view_schedule: boolean;
+  can_view_target: boolean;
+  closed_at: string | null;
+  department_id: string;
+  ended_at: string | null;
+  executor_id: string | null;
+  executor_name: string | null;
+  id: string;
+  job_request_id: string;
+  package_id: string | null;
+  priority: RunPriority;
+  project_name: string;
+  project_version: string;
+  queued_at: string;
+  reason: string;
+  retry_at: string | null;
+  schedule_id: string | null;
+  schedule_name: string;
+  scheduled_at: string | null;
+  source: JobSource;
+  state: JobState;
+  stop_requested_at: string | null;
+  target_id: string;
+  target_name: string;
+  target_type: "executor" | "group";
 }
 export interface LoginRequest {
   email: string;

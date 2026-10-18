@@ -54,7 +54,10 @@
             <v-select
               v-model="filters.states"
               :items="
-                ARR_JOB_STATE.map((value) => ({ value, title: JOB_STATE_LABELS[value] }))
+                ARR_ACTIVE_JOB_STATE.map((value) => ({
+                  value,
+                  title: JOB_STATE_LABELS[value],
+                }))
               "
               label="Status"
               variant="underlined"
@@ -98,16 +101,17 @@
       hide-default-footer>
       <template #item.schedule_name="{ item }">
         <RouterLink
-          v-if="item.schedule_id"
+          v-if="item.can_view_schedule"
           :to="{ name: 'schedule', params: { scheduleId: item.schedule_id } }"
           class="text-primary text-decoration-none">
           {{ item.schedule_name }}
         </RouterLink>
-        <span v-else>—</span>
+        <span v-else>{{ item.schedule_name || "—" }}</span>
       </template>
 
       <template #item.target_name="{ item }">
         <RouterLink
+          v-if="item.can_view_target"
           :to="{
             name:
               item.target_type === 'group' ? 'executor-group-details' : 'executor-details',
@@ -119,13 +123,16 @@
           class="text-primary text-decoration-none">
           {{ item.target_name }}
         </RouterLink>
+        <span v-else>{{ item.target_name }}</span>
         <template v-if="item.target_type === 'group' && item.executor_id">
           →
           <RouterLink
+            v-if="item.can_view_executor"
             :to="{ name: 'executor-details', params: { executorId: item.executor_id } }"
             class="text-primary text-decoration-none">
             {{ item.executor_name }}
           </RouterLink>
+          <span v-else>{{ item.executor_name }}</span>
         </template>
       </template>
 
@@ -199,7 +206,7 @@ import JobActions from "@/components/runs/JobActions.vue";
 
 import {
   JobState,
-  ARR_JOB_STATE,
+  ARR_ACTIVE_JOB_STATE,
   getJobs,
   type JobPage,
   type JobFilters,
@@ -256,7 +263,9 @@ const appliedFilters = computed<JobFilters>(() => ({
   projectName: typeof route.query.project_name === "string" ? route.query.project_name : "",
   scheduleName:
     typeof route.query.schedule_name === "string" ? route.query.schedule_name : "",
-  states: ARR_JOB_STATE.filter((state) => [route.query.state].flat().includes(state)),
+  states: ARR_ACTIVE_JOB_STATE.filter((state) =>
+    [route.query.state].flat().includes(state),
+  ),
 }));
 
 const page = shallowRef<JobPage | null>(null);

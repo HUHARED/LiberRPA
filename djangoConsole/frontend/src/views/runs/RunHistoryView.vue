@@ -283,7 +283,7 @@
     :group-id="rerunInfo.group_id"
     :original-job-active="rerunInfo.original_job_active"
     @close="rerunInfo = null"
-    @saved="runCreated" />
+    @view-job-queue="viewJobQueue" />
 </template>
 
 <script setup lang="ts">
@@ -502,7 +502,7 @@ async function stop(id: string): Promise<void> {
   }
 }
 
-function runCreated(): void {
+function viewJobQueue(): void {
   rerunInfo.value = null;
   void router.push({ name: "job-queue" });
 }

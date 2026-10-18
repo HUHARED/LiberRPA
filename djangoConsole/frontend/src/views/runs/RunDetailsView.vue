@@ -361,7 +361,7 @@
     :group-id="rerunInfo.group_id"
     :original-job-active="rerunInfo.original_job_active"
     @close="rerunInfo = null"
-    @saved="created" />
+    @view-job-queue="viewJobQueue" />
 </template>
 
 <script setup lang="ts">
@@ -480,7 +480,7 @@ async function download(kind: RunFileKind): Promise<void> {
   }
 }
 
-function created(): void {
+function viewJobQueue(): void {
   rerunInfo.value = null;
   void router.push({ name: "job-queue" });
 }

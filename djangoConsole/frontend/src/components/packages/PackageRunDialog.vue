@@ -87,7 +87,7 @@
             <span class="font-weight-bold">
               {{ strGroupId ? 1 : arrExecutorId.length }}
             </span>
-            Jobs will be created.
+            {{ strGroupId || arrExecutorId.length === 1 ? "Job" : "Jobs" }} will be created.
           </p>
         </v-form>
       </v-card-text>
@@ -106,7 +106,7 @@
           variant="tonal"
           prepend-icon="mdi-queue-first-in-last-out"
           color="primary"
-          @click="emit('saved')">
+          @click="emit('view-job-queue')">
           View Job Queue
         </v-btn>
 
@@ -146,7 +146,7 @@ const props = defineProps<{
   originalJobActive?: boolean;
 }>();
 
-const emit = defineEmits<{ close: []; saved: [] }>();
+const emit = defineEmits<{ close: []; "view-job-queue": [] }>();
 const form = ref<InstanceType<typeof VForm> | null>(null);
 const packageInfo = shallowRef<PackageInfo | null>(null);
 const settings: Ref<RunSettings | null> = ref(null);

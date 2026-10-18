@@ -397,8 +397,14 @@ class JobDetailsResponse(JsonResponsePayload):
     job: JobDetailsEntryResponse
 
 
+class JobListEntryResponse(JobResponse):
+    can_view_schedule: bool
+    can_view_target: bool
+    can_view_executor: bool
+
+
 class JobListResponse(PaginationResponse):
-    jobs: list[JobResponse]
+    jobs: list[JobListEntryResponse]
 
 
 class JobCreationResponse(JsonResponsePayload):

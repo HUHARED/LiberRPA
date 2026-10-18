@@ -19,6 +19,7 @@ import type {
   RunEventKind as RunEventKindValue,
   RunFileKind as RunFileKindValue,
   JobResponse,
+  JobListEntryResponse,
   JobDetailsEntryResponse,
   JobListResponse,
   JobCreationResponse,
@@ -59,7 +60,7 @@ export const JobState = {
   NeedsReview: "needs_review",
   Finished: "finished",
 } as const satisfies Record<string, JobState>;
-export const ARR_JOB_STATE = Object.values(JobState).filter(
+export const ARR_ACTIVE_JOB_STATE = Object.values(JobState).filter(
   (state) => state !== JobState.Finished,
 );
 export type RunStatus = RunStatusValue;
@@ -170,7 +171,18 @@ function isRun(value: unknown): value is RunInfo {
 }
 export async function getJobs(filters: JobFilters, page = 1): Promise<JobPage> {
   const result = await requestApi(`/jobs/?${buildQuery(filters, page)}`);
-  if (!isRecord(result) || !Array.isArray(result.jobs) || !result.jobs.every(isJob))
+  if (
+    !isRecord(result) ||
+    !Array.isArray(result.jobs) ||
+    !result.jobs.every(
+      (job: unknown): job is JobListEntryResponse =>
+        isRecord(job) &&
+        isJob(job) &&
+        typeof job.can_view_schedule === "boolean" &&
+        typeof job.can_view_target === "boolean" &&
+        typeof job.can_view_executor === "boolean",
+    )
+  )
     return rejectInvalidResponse();
   return { jobs: result.jobs, ...parsePaginationResponse(result) };
 }

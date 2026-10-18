@@ -141,10 +141,6 @@ def _create_request(
     scheduledAt: datetime | None = None,
 ) -> JobRequest:
     """Create a new request under the caller's organization lock after receipt and access checks."""
-    if bool(executorIds) == (groupId is not None) or len(set(executorIds)) != len(
-        executorIds
-    ):
-        raise ValidationError({"executor_ids": "Select unique Executors or one group."})
     department = package.department
     currentTime = timezone.now()
     require_control_service(currentTime)
@@ -337,6 +333,12 @@ def accept_schedule_trigger(
     organization: Organization, schedule: "Schedule", scheduledAt: datetime
 ) -> JobRequest:
     """Accept a new trigger after the worker has locked and checked its unique Schedule point."""
+    listExecutorId = [uuid.UUID(strValue) for strValue in schedule.executor_ids]
+    if bool(listExecutorId) == (schedule.group_id is not None) or len(
+        set(listExecutorId)
+    ) != len(listExecutorId):
+        raise ValidationError({"executor_ids": "Select unique Executors or one group."})
+
     package = Package.objects.select_related("department").get(
         pk=schedule.package_id,
         department_id=schedule.department_id,
@@ -353,7 +355,7 @@ def accept_schedule_trigger(
         organization,
         package,
         runSettings,
-        executorIds=[uuid.UUID(strValue) for strValue in schedule.executor_ids],
+        executorIds=listExecutorId,
         groupId=schedule.group_id,
         source=JobSource.SCHEDULE,
         actorId=schedule.created_by_id,

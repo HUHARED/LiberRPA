@@ -366,7 +366,7 @@
     v-if="boolRun"
     :package-id="details.package.id"
     @close="boolRun = false"
-    @saved="handleRun" />
+    @view-job-queue="viewJobQueue" />
 </template>
 
 <script setup lang="ts">
@@ -565,7 +565,7 @@ async function remove(): Promise<void> {
   }
 }
 
-function handleRun(): void {
+function viewJobQueue(): void {
   boolRun.value = false;
   void router.push({ name: "job-queue" });
 }

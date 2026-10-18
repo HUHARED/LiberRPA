@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 from collections.abc import Iterable, Mapping
+from typing import cast
 
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
@@ -20,7 +21,9 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
+from executors.models import Executor, ExecutorGroup
 from packages.contracts import RUN_PRIORITY_ORDER
+from schedules.models import Schedule
 
 from .contracts import JobState, ACTIVE_ASSIGNMENT_STATES, RunStatus
 from .models import Assignment, Job, Run
@@ -318,19 +321,70 @@ def list_work(access: OrganizationAccessContext, query: QueryDict, *, runs: bool
     intPage = int(query.get("page", "1"))
     paginator: Paginator[Job | Run] = Paginator(workQuery, _INT_PAGE_SIZE)
     page = paginator.page(intPage)
-    listWork = list(page.object_list)
-    dictAssignmentByJobId = (
-        _get_active_assignments([entry.id for entry in listWork]) if not runs else {}
-    )
+    if runs:
+        listPayload = [
+            build_run_payload(run) for run in cast(Iterable[Run], page.object_list)
+        ]
+    else:
+        listJob = list(cast(Iterable[Job], page.object_list))
+        dictAssignmentByJobId = _get_active_assignments([job.id for job in listJob])
+        setScheduleId = {
+            job.request.schedule_id
+            for job in listJob
+            if job.request.schedule_id is not None
+        }
+        setGroupId = {
+            job.target_group_id for job in listJob if job.target_group_id is not None
+        }
+        setExecutorId = {
+            job.target_executor_id
+            for job in listJob
+            if job.target_executor_id is not None
+        }
+        setExecutorId.update(
+            assignment.executor_id for assignment in dictAssignmentByJobId.values()
+        )
+        departmentQuery = get_authorized_departments(
+            access, requiredRole=DepartmentRole.OPERATOR
+        )
+        # Historical identities remain intact; only current, accessible resources get links.
+        setVisibleScheduleId = set(
+            Schedule.objects.filter(
+                pk__in=setScheduleId,
+                department__in=departmentQuery,
+                deleted_at__isnull=True,
+            ).values_list("id", flat=True)
+        )
+        setVisibleGroupId = set(
+            ExecutorGroup.objects.filter(
+                pk__in=setGroupId,
+                department__in=departmentQuery,
+                deleted_at__isnull=True,
+            ).values_list("id", flat=True)
+        )
+        setVisibleExecutorId = set(
+            Executor.objects.filter(
+                pk__in=setExecutorId,
+                department__in=departmentQuery,
+                deleted_at__isnull=True,
+            ).values_list("id", flat=True)
+        )
+        listPayload = []
+        for job in listJob:
+            assignment = dictAssignmentByJobId.get(job.id)
+            listPayload.append({
+                **build_job_payload(job, assignmentsByJobId=dictAssignmentByJobId),
+                "can_view_schedule": job.request.schedule_id in setVisibleScheduleId,
+                "can_view_target": (
+                    job.target_group_id in setVisibleGroupId
+                    if job.target_group_id is not None
+                    else job.target_executor_id in setVisibleExecutorId
+                ),
+                "can_view_executor": assignment is not None
+                and assignment.executor_id in setVisibleExecutorId,
+            })
     return {
-        "runs" if runs else "jobs": [
-            (
-                build_run_payload(entry)
-                if isinstance(entry, Run)
-                else build_job_payload(entry, assignmentsByJobId=dictAssignmentByJobId)
-            )
-            for entry in listWork
-        ],
+        "runs" if runs else "jobs": listPayload,
         "page": page.number,
         "page_size": _INT_PAGE_SIZE,
         "total_count": paginator.count,
