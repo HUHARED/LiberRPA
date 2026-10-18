@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import hashlib
+import uuid
 
 from django.http import HttpRequest
 
@@ -39,6 +40,10 @@ def get_file_access(authentication: FileAuthentication) -> OrganizationAccessCon
         organizationId=authentication.organization_id,
         channel=AccessChannel.SESSION,
     )
+
+
+def get_file_api_key_id(authentication: FileAuthentication) -> uuid.UUID | None:
+    return None if isinstance(authentication, Membership) else authentication.apiKeyId
 
 
 def lock_file_access(

@@ -162,7 +162,9 @@ def set_asset_value(
     with transaction.atomic():
         access = lock_resource_write_access(authentication)
         return _build_asset_response(
-            set_runtime_asset_value(access, assetPathParts, payload.value)
+            set_runtime_asset_value(
+                access, assetPathParts, payload.value, apiKeyId=authentication.apiKeyId
+            )
         )
 
 

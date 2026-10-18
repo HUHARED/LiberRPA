@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
+import uuid
 from typing import cast
 
 from cryptography.fernet import InvalidToken, MultiFernet
@@ -61,10 +62,12 @@ def set_runtime_asset_value(
     access: OrganizationAccessContext,
     assetPathParts: tuple[str, ...],
     value: JsonValue,
+    *,
+    apiKeyId: uuid.UUID | None = None,
 ) -> AssetRuntimeValueResponse:
     asset = _resolve_asset_path(access, assetPathParts)
     _validate_ordinary_asset_type(asset)
-    save_asset_value(access, asset, value=value)
+    save_asset_value(access, asset, value=value, apiKeyId=apiKeyId)
     return AssetRuntimeValueResponse(value=value)
 
 

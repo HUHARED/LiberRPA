@@ -206,7 +206,11 @@ def update_asset(
 
 @sensitive_variables()
 def save_asset_value(
-    access: OrganizationAccessContext, asset: Asset, *, value: JsonValue
+    access: OrganizationAccessContext,
+    asset: Asset,
+    *,
+    value: JsonValue,
+    apiKeyId: uuid.UUID | None = None,
 ) -> Asset:
     """Save an asset already authorized for this write under the organization lock."""
     _set_asset_value(asset, value)
@@ -219,6 +223,7 @@ def save_asset_value(
         organization=access.organization,
         target=asset,
         channel=access.channel,
+        metadata={"api_key_id": str(apiKeyId)} if apiKeyId is not None else None,
     )
     return asset
 

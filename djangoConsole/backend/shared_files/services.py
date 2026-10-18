@@ -247,7 +247,10 @@ def cancel_upload(upload: UploadSession) -> UploadSession:
 
 
 def complete_upload(
-    access: OrganizationAccessContext, upload: UploadSession
+    access: OrganizationAccessContext,
+    upload: UploadSession,
+    *,
+    apiKeyId: uuid.UUID | None = None,
 ) -> FileUploadResponse | FileOperationError:
     state = get_upload_state(upload)
     if state == UploadState.COMPLETED:
@@ -323,13 +326,19 @@ def complete_upload(
     upload.state = UploadState.COMPLETED
     upload.result = filePayload.model_dump(mode="json")
     upload.save(update_fields=["state", "result"])
+    dictMetadata: dict[str, object] = {
+        "path": filePayload.path,
+        "size_bytes": upload.size_bytes,
+    }
+    if apiKeyId is not None:
+        dictMetadata["api_key_id"] = str(apiKeyId)
     record_audit(
         "shared_files.overwrite" if existingFile is not None else "shared_files.upload",
         actor=access.actor,
         organization=access.organization,
         target=file,
         channel=access.channel,
-        metadata={"path": filePayload.path, "size_bytes": upload.size_bytes},
+        metadata=dictMetadata,
     )
     return build_upload_payload(upload, filePayload=filePayload)
 
@@ -338,6 +347,8 @@ def delete_files(
     access: OrganizationAccessContext,
     payload: FileDeleteRequest,
     paths: list[tuple[str, ...]],
+    *,
+    apiKeyId: uuid.UUID | None = None,
 ) -> FileDeleteResponse:
     pathPartsByNormalizedPath = {
         tuple(get_path_name_key(strPart) for strPart in parts): parts for parts in paths
@@ -385,13 +396,16 @@ def delete_files(
             missingPaths.append(f"{strDepartmentPath}/{strName}")
             continue
         strPath = f"{strDepartmentPath}/{file.name}"
+        dictMetadata: dict[str, object] = {"path": strPath}
+        if apiKeyId is not None:
+            dictMetadata["api_key_id"] = str(apiKeyId)
         record_audit(
             "shared_files.delete",
             actor=access.actor,
             organization=access.organization,
             target=file,
             channel=access.channel,
-            metadata={"path": strPath},
+            metadata=dictMetadata,
         )
         blobId = file.blob_id
         file.delete()
@@ -442,7 +456,10 @@ def prepare_download(
 
 
 def open_download(
-    access: OrganizationAccessContext, transferId: uuid.UUID
+    access: OrganizationAccessContext,
+    transferId: uuid.UUID,
+    *,
+    apiKeyId: uuid.UUID | None = None,
 ) -> tuple[DownloadSession, BinaryIO]:
     transfer = DownloadSession.objects.select_related("blob").get(
         pk=transferId, organization=access.organization, actor_id=access.actorId
@@ -472,13 +489,16 @@ def open_download(
         transfer.started = True
         transfer.expires_at = get_download_expiry()
         transfer.save(update_fields=["started", "expires_at"])
+        dictMetadata: dict[str, object] = {"path": transfer.resource_path}
+        if apiKeyId is not None:
+            dictMetadata["api_key_id"] = str(apiKeyId)
         record_audit(
             "shared_files.download",
             actor=access.actor,
             organization=access.organization,
             target=transfer,
             channel=access.channel,
-            metadata={"path": transfer.resource_path},
+            metadata=dictMetadata,
         )
     except Exception:
         handle.close()

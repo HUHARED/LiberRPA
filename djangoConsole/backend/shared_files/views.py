@@ -14,6 +14,7 @@ from django.views.decorators.http import require_http_methods, require_GET, requ
 from file_storage.http import (
     FileAuthentication,
     get_file_access,
+    get_file_api_key_id,
     lock_file_access,
     require_no_query_parameters,
     parse_upload_chunk,
@@ -127,7 +128,11 @@ def complete_file_upload(
         return payload
     with transaction.atomic():
         access = lock_file_access(request, authentication)
-        result = complete_upload(access, get_upload(access, uploadId))
+        result = complete_upload(
+            access,
+            get_upload(access, uploadId),
+            apiKeyId=get_file_api_key_id(authentication),
+        )
         if isinstance(result, FileOperationError):
             return build_file_error_response(result)
         return build_file_response(result)
@@ -156,7 +161,11 @@ def delete_shared_files(
     paths = [parse_resource_path(strPath) for strPath in payload.paths]
     with transaction.atomic():
         access = lock_file_access(request, authentication)
-        return build_file_response(delete_files(access, payload, paths))
+        return build_file_response(
+            delete_files(
+                access, payload, paths, apiKeyId=get_file_api_key_id(authentication)
+            )
+        )
 
 
 @require_POST
@@ -201,7 +210,9 @@ def download_file_content(
     try:
         with transaction.atomic():
             access = lock_file_access(request, authentication)
-            transfer, handle = open_download(access, transferId)
+            transfer, handle = open_download(
+                access, transferId, apiKeyId=get_file_api_key_id(authentication)
+            )
             stream = (AsyncFileStream if hasattr(request, "scope") else SyncFileStream)(
                 transfer, handle
             )
