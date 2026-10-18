@@ -17,7 +17,9 @@
       <v-card-title>Notifications</v-card-title>
 
       <v-card-text>
-        <v-alert v-if="strError" type="error" variant="tonal">{{ strError }}</v-alert>
+        <v-alert v-if="strDetailsError || strError" type="error" variant="tonal">
+          {{ strDetailsError || strError }}
+        </v-alert>
 
         <div class="d-flex justify-end ga-2">
           <v-btn
@@ -34,7 +36,7 @@
             variant="tonal"
             prepend-icon="mdi-delete-outline"
             :disabled="boolBusy || !arrNotification.length"
-            @click="boolClear = true">
+            @click="openClear">
             Clear All
           </v-btn>
         </div>
@@ -67,7 +69,7 @@
   <v-dialog
     :model-value="!!details"
     max-width="700"
-    @update:model-value="!$event && (details = null)">
+    @update:model-value="!$event && closeDetails()">
     <v-card v-if="details">
       <v-card-title>{{ details.title }}</v-card-title>
 
@@ -80,9 +82,7 @@
       </v-card-text>
 
       <v-card-actions>
-        <v-btn variant="tonal" prepend-icon="mdi-close" @click="details = null">
-          Close
-        </v-btn>
+        <v-btn variant="tonal" prepend-icon="mdi-close" @click="closeDetails">Close</v-btn>
         <v-spacer />
       </v-card-actions>
     </v-card>
@@ -92,7 +92,13 @@
     <v-card>
       <v-card-title>Clear All Notifications</v-card-title>
 
-      <v-card-text>Clear all your notifications?</v-card-text>
+      <v-card-text>
+        <p>Clear all your notifications?</p>
+
+        <v-alert v-if="strClearError" type="error" variant="tonal" class="mt-4">
+          {{ strClearError }}
+        </v-alert>
+      </v-card-text>
 
       <v-card-actions>
         <v-btn
@@ -138,14 +144,19 @@ const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const boolOpen = ref(false);
 const boolClear = ref(false);
-const boolBusy = ref(false);
+const boolActing = ref(false);
+const boolDetailsLoading = ref(false);
+const boolBusy = computed(() => boolActing.value || boolDetailsLoading.value);
 const strError = ref("");
+const strDetailsError = ref("");
+const strClearError = ref("");
 const intUnread = ref(0);
 const arrNotification = ref<NotificationInfo[]>([]);
 const details = ref<(NotificationInfo & { detail: string }) | null>(null);
 let boolMounted = false;
 let boolLoadRequested = false;
 let intRevision = 0;
+let intDetailsRequest = 0;
 let loadTask: Promise<void> | null = null;
 
 function load(): Promise<void> {
@@ -180,13 +191,25 @@ function load(): Promise<void> {
   return loadTask;
 }
 
+function closeDetails(): void {
+  intDetailsRequest += 1;
+  details.value = null;
+  boolDetailsLoading.value = false;
+}
+
 async function openDetails(id: string): Promise<void> {
   const intCurrentRevision = intRevision;
-  boolBusy.value = true;
-  strError.value = "";
+  const intCurrentRequest = ++intDetailsRequest;
+  boolDetailsLoading.value = true;
+  strDetailsError.value = "";
   try {
     const result = await requestApi(`/notifications/${encodeURIComponent(id)}/`);
-    if (!boolMounted || intCurrentRevision !== intRevision) return;
+    if (
+      !boolMounted ||
+      intCurrentRevision !== intRevision ||
+      intCurrentRequest !== intDetailsRequest
+    )
+      return;
     if (
       !isRecord(result) ||
       !isRecord(result.notification) ||
@@ -197,27 +220,46 @@ async function openDetails(id: string): Promise<void> {
     boolOpen.value = false;
     await load();
   } catch (e) {
-    if (boolMounted && intCurrentRevision === intRevision)
-      strError.value = getApiError(e).message;
+    if (
+      boolMounted &&
+      intCurrentRevision === intRevision &&
+      intCurrentRequest === intDetailsRequest
+    )
+      strDetailsError.value = getApiError(e).message;
   } finally {
-    boolBusy.value = false;
+    if (
+      boolMounted &&
+      intCurrentRevision === intRevision &&
+      intCurrentRequest === intDetailsRequest
+    )
+      boolDetailsLoading.value = false;
   }
 }
 
+function openClear(): void {
+  strClearError.value = "";
+  boolClear.value = true;
+}
+
 async function act(action: string): Promise<void> {
+  if (boolBusy.value) return;
   const intCurrentRevision = intRevision;
-  boolBusy.value = true;
+  boolActing.value = true;
   strError.value = "";
+  strDetailsError.value = "";
+  strClearError.value = "";
   try {
     await requestApi(`/notifications/${action}/`, { method: "POST", body: {} });
     if (!boolMounted || intCurrentRevision !== intRevision) return;
     boolClear.value = false;
     await load();
   } catch (e) {
-    if (boolMounted && intCurrentRevision === intRevision)
-      strError.value = getApiError(e).message;
+    if (boolMounted && intCurrentRevision === intRevision) {
+      if (action === "clear") strClearError.value = getApiError(e).message;
+      else strError.value = getApiError(e).message;
+    }
   } finally {
-    boolBusy.value = false;
+    if (boolMounted && intCurrentRevision === intRevision) boolActing.value = false;
   }
 }
 
@@ -229,16 +271,19 @@ watch(
   () => sessionStore.access?.business_available,
   (boolAvailable) => {
     intRevision += 1;
+    closeDetails();
+    boolActing.value = false;
     if (boolAvailable) {
       void load();
     } else {
       boolLoadRequested = false;
       arrNotification.value = [];
       intUnread.value = 0;
-      details.value = null;
       boolOpen.value = false;
       boolClear.value = false;
       strError.value = "";
+      strDetailsError.value = "";
+      strClearError.value = "";
     }
   },
 );

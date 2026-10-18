@@ -189,7 +189,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type { RouteLocationRaw } from "vue-router";
 import type { VForm } from "vuetify/components";
 
@@ -247,6 +247,7 @@ const strFormError = ref("");
 const strDeleteError = ref("");
 const strSuccess = ref("");
 const arrReference = ref<RecipientReference[]>([]);
+let intLoadRequest = 0;
 
 const arrFiltered = computed(() =>
   arrRecipient.value.filter((recipient) =>
@@ -263,14 +264,17 @@ function getReferenceLocation(reference: RecipientReference): RouteLocationRaw |
 }
 
 async function load(): Promise<void> {
+  const intCurrentRequest = ++intLoadRequest;
   boolLoading.value = true;
   strError.value = "";
   try {
-    arrRecipient.value = (await getRunEmailRecipients(strStatus.value)).recipients;
+    const result = await getRunEmailRecipients(strStatus.value);
+    if (intCurrentRequest !== intLoadRequest) return;
+    arrRecipient.value = result.recipients;
   } catch (e) {
-    strError.value = getApiError(e).message;
+    if (intCurrentRequest === intLoadRequest) strError.value = getApiError(e).message;
   } finally {
-    boolLoading.value = false;
+    if (intCurrentRequest === intLoadRequest) boolLoading.value = false;
   }
 }
 
@@ -347,6 +351,10 @@ async function remove(): Promise<void> {
 }
 
 onMounted(() => void load());
+
+onBeforeUnmount(() => {
+  intLoadRequest += 1;
+});
 </script>
 
 <style scoped></style>
