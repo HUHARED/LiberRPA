@@ -456,7 +456,7 @@ function clearFilters(): void {
 
 function handleUploaded(result: QueueMutationResponse): void {
   boolUploadOpen.value = false;
-  strMessage.value = `${result.item_ids.length} items uploaded${result.deduplicated ? " (original request confirmed)" : ""}.`;
+  strMessage.value = `${result.item_ids.length} items uploaded.`;
   void load();
 }
 
@@ -478,7 +478,7 @@ async function submitMutation(): Promise<void> {
       { item_ids: [...selectedItemIds.value] },
     );
     if (intCurrentRevision !== intRevision) return;
-    strMessage.value = `${result.item_ids.length} items ${strConfirm.value === "reset" ? "reset" : "deleted"}; ${result.missing_ids.length} no longer present; ${result.skipped_ids.length} unchanged${result.deduplicated ? " (original request confirmed)" : ""}.`;
+    strMessage.value = `${result.item_ids.length} items ${strConfirm.value === "reset" ? "reset" : "deleted"}; ${result.missing_ids.length} no longer present; ${result.skipped_ids.length} unchanged.`;
     closeConfirm();
     await load();
   } catch (e) {

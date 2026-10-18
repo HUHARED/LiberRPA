@@ -61,7 +61,7 @@
               :rules="[validateTimeZone]"
               :error-messages="saveError?.fields.default_time_zone ?? []"
               :disabled="boolActionBlocked"
-              hint="Initial time zone for new members and schedules; existing choices stay unchanged."
+              hint="Used for email timestamps and new members' initial time zone. New schedules use your personal time zone."
               persistent-hint
               required />
           </v-col>

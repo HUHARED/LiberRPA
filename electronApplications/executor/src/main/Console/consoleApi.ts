@@ -68,9 +68,7 @@ export async function requestConsole(
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
-    throw new Error(
-      "Cannot reach Console. Check the address and connection, then retry. Redirects are not accepted.",
-    );
+    throw new Error("Cannot reach Console. Check the address and connection, then retry.");
   }
   let dictResponse: Record<string, unknown> = {};
   let strErrorMessage = `Console request failed (HTTP ${response.status}).`;
