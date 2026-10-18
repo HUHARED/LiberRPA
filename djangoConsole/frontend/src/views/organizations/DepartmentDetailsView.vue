@@ -1,12 +1,21 @@
 <!-- FileName: DepartmentDetailsView.vue -->
 <template>
-  <v-btn
-    :to="{ name: 'departments' }"
-    variant="tonal"
-    prepend-icon="mdi-arrow-left"
-    class="mb-4">
-    Back to Departments
-  </v-btn>
+  <div class="d-flex align-center flex-wrap ga-3 mb-4">
+    <v-btn :to="{ name: 'departments' }" variant="tonal" prepend-icon="mdi-arrow-left">
+      Back to Departments
+    </v-btn>
+
+    <v-spacer />
+
+    <v-btn
+      variant="tonal"
+      prepend-icon="mdi-refresh"
+      :loading="boolLoading"
+      :disabled="boolLoading"
+      @click="loadDepartmentDetails">
+      Refresh
+    </v-btn>
+  </div>
 
   <h2 class="text-h5 mb-2 text-anywhere">
     {{ detailsInfo?.department.name ?? "Department Details" }}
@@ -137,6 +146,16 @@
         <div class="d-flex flex-wrap ga-2">
           <v-btn
             :to="{
+              name: 'packages',
+              query: { department_id: detailsInfo.department.id },
+            }"
+            variant="tonal"
+            prepend-icon="mdi-package-variant-closed">
+            Packages
+          </v-btn>
+
+          <v-btn
+            :to="{
               name: 'executors',
               query: { department_id: detailsInfo.department.id },
             }"
@@ -153,6 +172,16 @@
             variant="tonal"
             prepend-icon="mdi-group">
             Executor Groups
+          </v-btn>
+
+          <v-btn
+            :to="{
+              name: 'schedules',
+              query: { department_id: detailsInfo.department.id },
+            }"
+            variant="tonal"
+            prepend-icon="mdi-calendar-clock-outline">
+            Schedules
           </v-btn>
 
           <v-btn
@@ -233,7 +262,6 @@ async function handleReadError(error: unknown): Promise<void> {
   }
 }
 
-// TODO: Add remaining resource links when their list pages are available.
 async function loadDepartmentDetails(): Promise<void> {
   const intCurrentRevision = ++intRequestRevision;
   boolLoading.value = true;
