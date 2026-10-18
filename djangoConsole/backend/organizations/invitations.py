@@ -159,6 +159,7 @@ def _queue_invitation_email(invitation: MemberInvitation) -> None:
     # NOTE: Never lock old deliveries while holding the organization lock.
     # Workers lock delivery and dispatch before organization; stale requests are skipped.
     EmailDelivery.objects.create(
+        organization_id=invitation.organization_id,
         email_type=EmailType.MEMBER_INVITATION,
         recipient=invitation.email,
         invitation=invitation,

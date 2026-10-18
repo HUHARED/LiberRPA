@@ -102,6 +102,8 @@ class EmailDelivery(models.Model):
     """One delivery request and its outcome, without message bodies or usable tokens."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # NOTE: Keep the historical organization scope after the organization is deleted.
+    organization_id = models.UUIDField(null=True, blank=True, editable=False)
     email_type = models.CharField(
         max_length=max(len(value) for value in EmailType.values),
         choices=EmailType.choices,
@@ -138,6 +140,10 @@ class EmailDelivery(models.Model):
                 fields=["status", "created_at"], name="email_delivery_pending_idx"
             ),
             models.Index(fields=["attempted_at"], name="email_delivery_attempt_idx"),
+            models.Index(
+                fields=["organization_id", "-finished_at", "-id"],
+                name="email_delivery_history_idx",
+            ),
             models.Index(
                 fields=["email_type", "recipient", "-created_at"],
                 name="email_delivery_recipient_idx",

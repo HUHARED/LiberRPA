@@ -140,6 +140,13 @@
     "inactiveApiKeyRetentionDays": 30,
     "maxInactiveApiKeysPerAccount": 100,
 
+    // Run "python backend/manage.py prune_email_deliveries" regularly in deployment.
+    // Completed history is limited separately for each organization and mail without an organization.
+    // Pending, sending, recent budget/cooldown records, and today's outcomes remain protected.
+    "emailDeliveryRetentionDays": 30,
+    "maxEmailDeliveriesPerOrganization": 10000,
+    "maxEmailDeliveriesWithoutOrganization": 10000,
+
     // SMTP delivery budget and rate.
     // All SMTP attempts count toward this rolling budget, including failed attempts.
     // A budget of 0 prevents new attempts.

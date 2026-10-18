@@ -46,7 +46,7 @@ from .models import (
 from .recipients import get_eligible_recipients
 from .smtp import send_smtp_once
 
-_EMAIL_BUDGET_WINDOW = timedelta(hours=24)
+EMAIL_BUDGET_WINDOW = timedelta(hours=24)
 
 
 @dataclass(frozen=True)
@@ -122,7 +122,7 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
     )
     currentTime = timezone.now()
     intUsedUnits = EmailDelivery.objects.filter(
-        attempted_at__gt=currentTime - _EMAIL_BUDGET_WINDOW
+        attempted_at__gt=currentTime - EMAIL_BUDGET_WINDOW
     ).count()
     if intUsedUnits >= limits.maxEmailRecipientsPer24Hours:
         return _mark_email_not_sent(
@@ -196,7 +196,7 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
         )
         if (
             attemptedRunEmails.filter(
-                attempted_at__gt=currentTime - timedelta(hours=24)
+                attempted_at__gt=currentTime - EMAIL_BUDGET_WINDOW
             ).count()
             >= limits.maxRunEmailRecipientsPer24Hours
             or organizationEmails.filter(

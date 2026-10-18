@@ -207,6 +207,7 @@ def complete_organization_deletion(
     completedAt = timezone.now()
     listDelivery = EmailDelivery.objects.bulk_create([
         EmailDelivery(
+            organization_id=organizationId,
             email_type=EmailType.ORGANIZATION_DELETION_NOTICE,
             recipient=strEmail,
             created_at=completedAt,

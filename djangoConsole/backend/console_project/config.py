@@ -111,6 +111,11 @@ class LimitsConfig(_BaseConfig):
     inactiveApiKeyRetentionDays: int = Field(default=30, ge=0, le=3650)
     maxInactiveApiKeysPerAccount: int = Field(default=100, ge=0)
 
+    # Completed email history; active accounting and unprocessed deliveries remain protected.
+    emailDeliveryRetentionDays: int = Field(default=30, ge=1, le=30)
+    maxEmailDeliveriesPerOrganization: int = Field(default=10000, ge=0)
+    maxEmailDeliveriesWithoutOrganization: int = Field(default=10000, ge=0)
+
     # SMTP delivery budget and rate.
     maxEmailRecipientsPer24Hours: int = Field(default=2500, ge=0)
     emailBurstRecipients: int = Field(default=100, ge=1)

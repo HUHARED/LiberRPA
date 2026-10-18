@@ -42,7 +42,9 @@ def notify_run_event(run: "Run", event: str) -> None:
         ).exists():
             continue
         delivery = EmailDelivery.objects.create(
-            email_type=EmailType.RUN, recipient=recipient.email
+            organization_id=organizationId,
+            email_type=EmailType.RUN,
+            recipient=recipient.email,
         )
         RunEmailReference.objects.create(
             delivery=delivery,

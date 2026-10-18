@@ -73,7 +73,9 @@ def register_member_recipient(organizationId: uuid.UUID, email: str) -> None:
 
 def queue_recipient_verification(recipient: RunEmailRecipient) -> None:
     delivery = EmailDelivery.objects.create(
-        email_type=EmailType.RUN_RECIPIENT_VERIFICATION, recipient=recipient.email
+        organization_id=recipient.organization_id,
+        email_type=EmailType.RUN_RECIPIENT_VERIFICATION,
+        recipient=recipient.email,
     )
     RunRecipientVerification.objects.create(
         delivery=delivery, recipient=recipient, verification_id=recipient.verification_id
