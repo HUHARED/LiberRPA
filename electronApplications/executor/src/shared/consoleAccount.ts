@@ -33,7 +33,6 @@ export interface ConsoleSessionInfo {
     dispatch_enabled: boolean;
   } | null;
   last_seen_at: string | null;
-  heartbeat_interval_seconds: number;
 }
 
 export interface ConsoleExecutorChoice {

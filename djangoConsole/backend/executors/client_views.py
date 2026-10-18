@@ -149,7 +149,6 @@ def build_client_session_payload(
         "computer_name": session.computer_name,
         "client_version": session.client_version,
         "last_seen_at": session.last_seen_at,
-        "heartbeat_interval_seconds": 15,
     }
 
 

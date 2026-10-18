@@ -230,15 +230,6 @@ export function dbUpdatePackageSettings(dictDetail: PackageSettings): void {
 export function dbDeletePackage(id: number): void {
   loggerMain.debug("--dbDeletePackage--");
 
-  const arrBoundSchedule = dbSelectPackageBoundSchedules(id);
-  if (arrBoundSchedule.length !== 0) {
-    throw new Error(
-      `Cannot delete Package ${id} because it is used by Schedule: ${arrBoundSchedule
-        .map((dictSchedule) => dictSchedule.name)
-        .join(", ")}.`,
-    );
-  }
-
   const result = getDatabase()
     .prepare(
       `

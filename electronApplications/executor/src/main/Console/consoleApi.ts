@@ -180,10 +180,6 @@ export function parseConsoleSession(response: Record<string, unknown>): ConsoleS
       response.last_seen_at === null
         ? null
         : ensureString(response.last_seen_at, "Console last_seen_at"),
-    heartbeat_interval_seconds: ensurePositiveInteger(
-      response.heartbeat_interval_seconds,
-      "Console heartbeat_interval_seconds",
-    ),
   };
 }
 

@@ -10,9 +10,6 @@ from django.db import transaction
 
 from operations.audit import get_audit_snapshot, record_audit
 
-from .creation import OrganizationCreationResult, create_organization_records
-from .department_services import create_department, update_department
-from .member_services import update_membership
 from .models import Organization
 from .permissions import (
     AccessChannel,
@@ -20,17 +17,6 @@ from .permissions import (
     require_organization_admin,
     lock_organization_admin_access,
 )
-
-# Preserve existing Python entry points; each implementation belongs to its domain module.
-__all__ = [
-    "OrganizationCreationResult",
-    "create_organization_records",
-    "create_department",
-    "update_department",
-    "update_membership",
-    "get_organization_settings",
-    "update_organization_settings",
-]
 
 
 def get_organization_settings(

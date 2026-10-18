@@ -39,8 +39,6 @@ class InvalidEditorSessionError(Exception):
 
 class EditorClientAction(StrEnum):
     SESSION = "session"
-    # NOTE: Editor dosn't need to be managed by Console, so Heartbeat is unnecessary.
-    # HEARTBEAT = "heartbeat"
     LOGOUT = "logout"
 
 
