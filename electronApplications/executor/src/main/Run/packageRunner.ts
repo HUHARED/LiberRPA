@@ -25,7 +25,11 @@ import { getDatabase } from "../Database/connection";
 import { validatePackageLiberrpaRequirement } from "../Package/packageMetadata";
 import { getLocalPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import { notifyRunEnded, notifyRunActivityChanged, notifyRunFinished } from "./lifecycle";
+import {
+  notifyRunHistoryChanged,
+  notifyRunActivityChanged,
+  notifyRunFinished,
+} from "./lifecycle";
 import {
   PythonProcessNotStartedError,
   type PythonProcessDiagnosticOutput,
@@ -381,6 +385,7 @@ async function spawnAndTrackRun(
     state: JobQueueState.Running,
   };
   mapStartingJobQueueItem.delete(runId);
+  notifyRunHistoryChanged(intRunHistoryId);
   const startedFact = {
     runId,
     historyId: intRunHistoryId,
@@ -544,13 +549,13 @@ async function spawnAndTrackRun(
         });
         context.onEnded?.(endedFact);
       })();
+      notifyRunHistoryChanged(intRunHistoryId);
       removeExecutorRunStateFile(strRunStatePath);
       notifyRunFinished(detailDict, context, endedFact);
     } catch (e: unknown) {
       loggerMain.error(`Failed to persist the actual Run result: ${getErrorMessage(e)}`);
     } finally {
       mapActiveRunByHistoryId.delete(intRunHistoryId);
-      notifyRunEnded();
     }
   };
 

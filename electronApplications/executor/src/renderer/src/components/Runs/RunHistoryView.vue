@@ -42,9 +42,13 @@
           class="clean-space"></v-chip>
       </template>
 
-      <template #item.run_ended_at_ms="{ value }">
+      <template #item.run_ended_at_ms="{ item }">
         <v-chip
-          :text="formatTimestamp(value, settingStore.timezone)"
+          :text="
+            item.run_ended_at_ms === null && item.status === RunStatus.Running
+              ? '—'
+              : formatTimestamp(item.run_ended_at_ms, settingStore.timezone)
+          "
           variant="text"
           size="small"
           class="clean-space"></v-chip>
@@ -64,7 +68,7 @@
       </template>
 
       <template #item.actions="{ item }">
-        <div class="d-flex ga-2 justify-start">
+        <div class="d-flex align-center ga-2 justify-start">
           <v-tooltip text="View Run Details" location="bottom" :open-on-focus="false">
             <template #activator="{ props }">
               <v-icon
@@ -87,8 +91,14 @@
             </template>
           </v-tooltip>
 
+          <span
+            v-if="item.status === RunStatus.Running && setStoppingRunId.has(item.id)"
+            class="text-body-2">
+            Stop requested
+          </span>
+
           <v-tooltip
-            v-if="item.status === RunStatus.Running"
+            v-else-if="item.status === RunStatus.Running"
             text="Stop Run"
             location="bottom"
             :open-on-focus="false">
@@ -98,7 +108,9 @@
                 color="medium-emphasis"
                 icon="mdi-stop-circle-outline"
                 size="small"
-                @click="cancelProcess(item.id)"></v-icon>
+                aria-label="Stop Run"
+                :disabled="setPendingStop.has(item.id)"
+                @click="stopRun(item.id)"></v-icon>
             </template>
           </v-tooltip>
 
@@ -186,15 +198,15 @@
       @close="rerunPackage = undefined" />
 
     <RunDetailsDialog
-      v-if="runDetails"
-      :details="runDetails"
-      :source-label="DICT_RUN_SOURCE_LABEL[runDetails.source]"
-      @close="runDetails = undefined" />
+      v-if="runHistoryStore.runDetails"
+      :details="runHistoryStore.runDetails"
+      :source-label="DICT_RUN_SOURCE_LABEL[runHistoryStore.runDetails.source]"
+      @close="runHistoryStore.closeRunDetails()" />
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
+import { computed, onBeforeMount, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { debounce } from "lodash";
 import type { DataTableHeader } from "vuetify";
 
@@ -206,17 +218,18 @@ import type { PackageDetails } from "../../../../shared/package";
 import { getErrorMessage } from "../../../../shared/error";
 import {
   RunSource,
-  type RunDetails,
   RunStatus,
   type RunHistoryItem,
   type RunHistoryFilters,
   type RunHistoryQueryOptions,
+  JobQueueState,
 } from "../../../../shared/run";
 
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
 import { cloneJsonSerializable } from "../../Common/json";
 import { useRunHistoryStore } from "../../Store/runHistoryStore";
+import { useJobQueueStore } from "../../Store/jobQueueStore";
 import { useSettingStore } from "../../Store/settingStore";
 import { formatTimestamp } from "../../Common/time";
 
@@ -251,14 +264,29 @@ const ARR_RUN_STATUS_OPTION = Object.values(RunStatus).map((status) => ({
 }));
 
 const runHistoryStore = useRunHistoryStore();
+const jobQueueStore = useJobQueueStore();
 const settingStore = useSettingStore();
 
-const runDetails = ref<RunDetails>();
+const setPendingStop = ref(new Set<number>());
 const setPendingRerun = ref(new Set<number>());
 const rerunPackage = ref<PackageDetails>();
 
+const setStoppingRunId = computed(() => {
+  const setRunId = new Set<number>();
+  for (const item of jobQueueStore.arrListItem) {
+    if (item.state === JobQueueState.Stopping && item.history_id !== null) {
+      setRunId.add(item.history_id);
+    }
+  }
+  return setRunId;
+});
+
 async function showRunDetails(id: number): Promise<void> {
-  runDetails.value = await invokeMain("getRunDetails", id);
+  try {
+    await runHistoryStore.loadRunDetails(id);
+  } catch (e: unknown) {
+    loggerRenderer.error(`Failed to load Run Details: ${getErrorMessage(e)}`);
+  }
 }
 
 const itemPerPage: Ref<15 | 50 | 100> = ref(15);
@@ -292,10 +320,6 @@ watch(
   },
   { deep: true },
 );
-
-onBeforeUnmount(() => {
-  debouncedUpdateSearch.cancel();
-});
 
 type RunHistoryTableOptions = Omit<RunHistoryQueryOptions, "search"> & {
   search: string;
@@ -370,9 +394,16 @@ async function openLogFolder(runHistoryId: number): Promise<void> {
   }
 }
 
-async function cancelProcess(id: number): Promise<void> {
-  loggerRenderer.info(`Cancel process: ${id}`);
-  await invokeMain("pythonCancel", id);
+async function stopRun(historyId: number): Promise<void> {
+  if (setPendingStop.value.has(historyId) || setStoppingRunId.value.has(historyId)) return;
+  setPendingStop.value.add(historyId);
+  try {
+    await jobQueueStore.stopCurrentRun(historyId);
+  } catch (e: unknown) {
+    loggerRenderer.error(`Failed to stop Run ${historyId}: ${getErrorMessage(e)}`);
+  } finally {
+    setPendingStop.value.delete(historyId);
+  }
 }
 
 async function openRerunDialog(runHistoryId: number): Promise<void> {
@@ -386,6 +417,17 @@ async function openRerunDialog(runHistoryId: number): Promise<void> {
     setPendingRerun.value.delete(runHistoryId);
   }
 }
+
+onBeforeMount(() => {
+  void jobQueueStore.refreshJobQueue().catch((e: unknown) => {
+    loggerRenderer.error(`Failed to load Job Queue: ${getErrorMessage(e)}`);
+  });
+});
+
+onBeforeUnmount(() => {
+  debouncedUpdateSearch.cancel();
+  runHistoryStore.closeRunDetails();
+});
 </script>
 
 <style scoped></style>

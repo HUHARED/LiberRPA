@@ -10,6 +10,7 @@ import type {
   RunStatus,
   RunHistoryItem,
   RunHistoryQueryOptions,
+  RunDetails,
 } from "../../../shared/run";
 
 export const useRunHistoryStore = defineStore("runHistory", {
@@ -19,6 +20,10 @@ export const useRunHistoryStore = defineStore("runHistory", {
       itemLength: 0 as number,
       dictOptionsCache: undefined as RunHistoryQueryOptions | undefined,
       intLoadRevision: 0 as number,
+
+      selectedRunId: undefined as number | undefined,
+      runDetails: undefined as RunDetails | undefined,
+      intDetailsLoadRevision: 0 as number,
 
       filterScheduleName: "" as string,
       filterProjectName: "" as string,
@@ -59,8 +64,36 @@ export const useRunHistoryStore = defineStore("runHistory", {
       }
     },
 
-    async refreshRunHistory(): Promise<void> {
-      await this.loadRunHistoryPage(null);
+    async loadRunDetails(historyId: number): Promise<void> {
+      if (this.selectedRunId !== historyId) {
+        this.selectedRunId = historyId;
+        this.runDetails = undefined;
+      }
+
+      const intRevision = ++this.intDetailsLoadRevision;
+      try {
+        const details = await invokeMain("getRunDetails", historyId);
+        if (intRevision !== this.intDetailsLoadRevision) return;
+
+        this.runDetails = details;
+      } catch (e: unknown) {
+        if (intRevision !== this.intDetailsLoadRevision) return;
+        throw e;
+      }
+    },
+
+    closeRunDetails(): void {
+      this.intDetailsLoadRevision += 1;
+      this.selectedRunId = undefined;
+      this.runDetails = undefined;
+    },
+
+    async refreshRunHistory(historyId: number): Promise<void> {
+      const arrRefresh = [this.loadRunHistoryPage(null)];
+      if (this.selectedRunId === historyId) {
+        arrRefresh.push(this.loadRunDetails(historyId));
+      }
+      await Promise.all(arrRefresh);
     },
   },
 });

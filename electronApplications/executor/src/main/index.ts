@@ -50,7 +50,7 @@ import { recoverPackageDeletions } from "./Package/packageDeletion";
 import { startRdpSessionManager, stopRdpSessionManager } from "./Rdp/rdpSession";
 import { registerExecutorIpc } from "./IPC/ipc";
 import { sendMainMessage } from "./IPC/mainMessage";
-import { onRunEnded, onRunActivityChanged } from "./Run/lifecycle";
+import { onRunHistoryChanged, onRunActivityChanged } from "./Run/lifecycle";
 import {
   isRecoveredProcessPresent,
   stopRecoveredRunObservation,
@@ -284,8 +284,8 @@ void app
         data: { items: getJobQueueItems() },
       });
     });
-    onRunEnded(() => {
-      sendMessageToRenderer({ type: "runEnded" });
+    onRunHistoryChanged((historyId) => {
+      sendMessageToRenderer({ type: "runHistoryChanged", data: { historyId } });
     });
     onJobQueueChanged((arrItem) => {
       sendMessageToRenderer({

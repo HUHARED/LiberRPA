@@ -5,7 +5,7 @@ import type { RunConfig } from "../../shared/run";
 import { loggerMain } from "../Logging/logger";
 import type { RunEndedFact, RunExecutionContext } from "./types";
 
-type RunEndedListener = () => void;
+type RunHistoryChangedListener = (historyId: number) => void;
 
 type RunFinishedListener = (
   detail: RunConfig,
@@ -13,25 +13,25 @@ type RunFinishedListener = (
   fact: RunEndedFact,
 ) => void;
 
-const setRunEndedListener = new Set<RunEndedListener>();
+const setRunHistoryChangedListener = new Set<RunHistoryChangedListener>();
 
 const setRunActivityListener = new Set<() => void>();
 
 const setRunFinishedListener = new Set<RunFinishedListener>();
 
-export function onRunEnded(listener: RunEndedListener): () => void {
-  setRunEndedListener.add(listener);
+export function onRunHistoryChanged(listener: RunHistoryChangedListener): () => void {
+  setRunHistoryChangedListener.add(listener);
   return () => {
-    setRunEndedListener.delete(listener);
+    setRunHistoryChangedListener.delete(listener);
   };
 }
 
-export function notifyRunEnded(): void {
-  for (const listener of setRunEndedListener) {
+export function notifyRunHistoryChanged(historyId: number): void {
+  for (const listener of setRunHistoryChangedListener) {
     try {
-      listener();
+      listener(historyId);
     } catch (e: unknown) {
-      loggerMain.error(`Run-ended listener failed: ${getErrorMessage(e)}`);
+      loggerMain.error(`Run History listener failed: ${getErrorMessage(e)}`);
     }
   }
 }

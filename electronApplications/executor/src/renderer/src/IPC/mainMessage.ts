@@ -30,9 +30,9 @@ export function registerMainMessageListener(): void {
           break;
         }
 
-        case "runEnded": {
+        case "runHistoryChanged": {
           const runHistoryStore = useRunHistoryStore();
-          await runHistoryStore.refreshRunHistory();
+          await runHistoryStore.refreshRunHistory(message.data.historyId);
           break;
         }
 

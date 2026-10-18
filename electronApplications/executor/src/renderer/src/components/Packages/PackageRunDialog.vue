@@ -80,13 +80,11 @@ import CustomArgumentsEditor from "../RunSettings/CustomArgumentsEditor.vue";
 import { cloneJsonSerializable } from "../../Common/json";
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
-import { useRunHistoryStore } from "../../Store/runHistoryStore";
 import { getErrorMessage } from "../../../../shared/error";
 import type { PackageDetails, PackageSettingsUpdate } from "../../../../shared/package";
 
 const props = defineProps<{ packageDetails: PackageDetails }>();
 const emit = defineEmits<{ close: [] }>();
-const runHistoryStore = useRunHistoryStore();
 const runSettings = ref<PackageSettingsUpdate>(cloneJsonSerializable(props.packageDetails));
 const arrPythonEnvironmentName = ref<string[]>([]);
 const boolLoading = ref(true);
@@ -109,7 +107,6 @@ async function submitRun(): Promise<void> {
       custom_prj_args: cloneJsonSerializable(settings.custom_prj_args),
     });
     emit("close");
-    await runHistoryStore.refreshRunHistory();
   } catch (e: unknown) {
     loggerRenderer.error(
       `Failed to run Package ${props.packageDetails.id}: ${getErrorMessage(e)}`,

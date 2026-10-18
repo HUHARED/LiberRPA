@@ -7,6 +7,7 @@ import { ensureNonEmptyString } from "../Common/validation";
 import { getDatabase } from "../Database/connection";
 import { dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { RunTerminationReason } from "../Run/types";
+import { notifyRunHistoryChanged } from "../Run/lifecycle";
 import {
   ExecutorRunStateStatus,
   type ExecutorRunState,
@@ -95,6 +96,7 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
       error_summary: state.errorSummary ?? null,
     });
   })();
+  notifyRunHistoryChanged(started.historyId);
   removeExecutorRunStateFile(strStatePath);
   return true;
 }

@@ -2,7 +2,7 @@
 
 import { getErrorMessage } from "../../shared/error";
 import { loggerMain } from "../Logging/logger";
-import { notifyRunActivityChanged, notifyRunEnded } from "./lifecycle";
+import { notifyRunActivityChanged } from "./lifecycle";
 
 interface RecoveredRunObserver {
   runId: string;
@@ -57,7 +57,6 @@ function observeRecoveredRuns(): void {
     }
     mapRecoveredRun.delete(observer.runId);
     notifyRunActivityChanged();
-    notifyRunEnded();
   }
   if (!mapRecoveredRun.size) {
     clearInterval(timerObservation);

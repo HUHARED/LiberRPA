@@ -180,7 +180,8 @@ export type MainMessage =
     }
   | { type: "consoleAccountChanged"; data: ConsoleAccountState }
   | {
-      type: "runEnded";
+      type: "runHistoryChanged";
+      data: { historyId: number };
     }
   | {
       type: "jobQueueChanged";
