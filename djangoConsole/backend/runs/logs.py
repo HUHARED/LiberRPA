@@ -19,9 +19,11 @@ from django.views.decorators.http import require_GET, require_POST
 from pydantic import Field, model_validator
 
 from accounts.resource_authentication import (
+    InvalidResourceCredentialError,
     NativeResourceAuthenticationContext,
-    authenticate_resource_request,
     lock_resource_write_access,
+    build_resource_authentication_required_response,
+    authenticate_resource_request,
 )
 from console_project.constants import RunLogLevel
 from console_project.contracts import JsonRequest, JsonValue
@@ -295,6 +297,8 @@ def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
                     for intIndex, strReason in sorted(dictRejected.items())
                 ],
             })
+    except InvalidResourceCredentialError:
+        return build_resource_authentication_required_response()
     except (PermissionDenied, ObjectDoesNotExist):
         return build_error_response(
             "run_unavailable",

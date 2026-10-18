@@ -45,6 +45,7 @@ from accounts.resource_authentication import (
     NativeResourceAuthenticationContext,
     authenticate_resource,
     lock_resource_write_access,
+    build_resource_authentication_required_response,
     authenticate_resource_request,
 )
 from console_project.contracts import JsonRequest
@@ -453,6 +454,8 @@ def set_file_ready(request: HttpRequest, transferId: uuid.UUID) -> HttpResponse:
         if ticket.error:
             _discard_ticket(ticket)
         return response
+    except InvalidResourceCredentialError:
+        return build_resource_authentication_required_response()
     except (PermissionDenied, ObjectDoesNotExist):
         return build_error_response(
             "transfer_unavailable",
