@@ -41,6 +41,10 @@
           size="small"></v-chip>
       </template>
 
+      <template #item.run_conflict_policy="{ item }">
+        {{ DICT_RUN_CONFLICT_POLICY_LABEL[item.run_conflict_policy] }}
+      </template>
+
       <template #item.enabled="{ item }">
         <v-switch
           :model-value="item.enabled"
@@ -147,6 +151,12 @@ function newSchedule(): void {
   scheduleStore.showFormDialog = true;
 }
 
+const DICT_RUN_CONFLICT_POLICY_LABEL: Record<RunConflictPolicy, string> = {
+  [RunConflictPolicy.Skip]: "Skip This Run",
+  [RunConflictPolicy.Wait]: "Wait",
+  [RunConflictPolicy.Concurrent]: "Run Concurrently",
+};
+
 const arrHeader: DataTableHeader<ScheduleListItem>[] = [
   { title: "Name", value: "name", align: "start", sortable: true },
   {
@@ -163,6 +173,12 @@ const arrHeader: DataTableHeader<ScheduleListItem>[] = [
     ],
   },
   { title: "Schedule", value: "cron", align: "start", sortable: true },
+  {
+    title: "Conflict Policy",
+    value: "run_conflict_policy",
+    align: "start",
+    sortable: true,
+  },
   { title: "Enabled", value: "enabled", align: "start", sortable: true },
   { title: "Actions", key: "actions", align: "start", sortable: false },
 ];
