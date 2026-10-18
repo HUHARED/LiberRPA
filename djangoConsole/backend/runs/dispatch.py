@@ -103,7 +103,8 @@ def _update_assignment_state(
         control.recovery_until is not None and currentTime < control.recovery_until
     )
     boolGroupMemberValid = (
-        not job.target_group_id
+        assignment.state != AssignmentState.PREPARING
+        or not job.target_group_id
         or ExecutorGroupMember.objects.filter(
             group_id=job.target_group_id,
             executor_id=assignment.executor_id,
@@ -186,6 +187,7 @@ def _is_busy(
     work: ExecutorWorkState | None,
     *,
     excludeAssignmentId: uuid.UUID | None = None,
+    busyExecutorSessions: set[tuple[uuid.UUID, uuid.UUID]] | None = None,
 ) -> bool:
     if (
         work is None
@@ -194,6 +196,8 @@ def _is_busy(
         or work.other_active_run_count
     ):
         return True
+    if busyExecutorSessions is not None and excludeAssignmentId is None:
+        return (executorId, work.session_id) in busyExecutorSessions
     assignmentQuery = Assignment.objects.filter(
         executor_id=executorId,
         session_id=work.session_id,
@@ -215,6 +219,8 @@ def _advance_job(
         tuple[uuid.UUID, uuid.UUID | None, uuid.UUID | None], list[Executor]
     ],
     sessionsByExecutor: dict[uuid.UUID, ExecutorSession | None],
+    workByExecutor: dict[uuid.UUID, ExecutorWorkState | None],
+    busyExecutorSessions: set[tuple[uuid.UUID, uuid.UUID]],
 ) -> None:
     if job.state not in (JobState.WAITING, JobState.WAITING_RETRY):
         return
@@ -255,15 +261,24 @@ def _advance_job(
         if get_executor_association_status(dictSession[entry.id], currentTime=currentTime)
         == ExecutorAssociationStatus.ONLINE
     ]
-    # Work reports and last_assigned_at can change during this batch; read them again for each Job.
-    dictWork: dict[uuid.UUID, ExecutorWorkState] = {}
-    if listOnline:
-        dictWork = {
+    # Work reports stay stable under the organization lock; remember missing reports too.
+    setUnreadExecutorId = {
+        executor.id for executor in listOnline if executor.id not in workByExecutor
+    }
+    if setUnreadExecutorId:
+        dictNewWork = {
             entry.executor_id: entry
             for entry in ExecutorWorkState.objects.filter(
-                executor_id__in=[executor.id for executor in listOnline]
+                executor_id__in=setUnreadExecutorId
             )
         }
+        for executorId in setUnreadExecutorId:
+            workByExecutor[executorId] = dictNewWork.get(executorId)
+    dictWork = {
+        executor.id: work
+        for executor in listOnline
+        if (work := workByExecutor[executor.id]) is not None
+    }
     listReady = [
         entry
         for entry in listOnline
@@ -296,7 +311,11 @@ def _advance_job(
         )
         return
     listIdle = [
-        entry for entry in listReady if not _is_busy(entry.id, dictWork[entry.id])
+        entry
+        for entry in listReady
+        if not _is_busy(
+            entry.id, dictWork[entry.id], busyExecutorSessions=busyExecutorSessions
+        )
     ]
     strPolicy = job.run_snapshot["run_conflict_policy"]
     if not listIdle and strPolicy == RunConflictPolicy.SKIP:
@@ -341,6 +360,10 @@ def _advance_job(
         attempt_number=job.attempt_count + 1,
     )
     ExecutorWorkState.objects.filter(pk=executor.id).update(last_assigned_at=currentTime)
+    # Later Jobs in this batch must see the new occupancy and assignment time.
+    if job.closed_at is None:
+        busyExecutorSessions.add((executor.id, session.id))
+    dictWork[executor.id].last_assigned_at = currentTime
     job.state = JobState.PREPARING
     job.reason = ""
     job.retry_at = None
@@ -379,11 +402,8 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
             sourceDepartmentIdsByActor=dictSourceDepartmentIdsByActor,
             session=dictAssignmentSession.get(assignment.executor_id),
         )
-    dictCandidateByTarget: dict[
-        tuple[uuid.UUID, uuid.UUID | None, uuid.UUID | None], list[Executor]
-    ] = {}
     # Updating assignments can return Jobs to Waiting; read the queue after those updates.
-    for job in (
+    listJob = list(
         Job.objects
         .filter(
             request__organization=organization,
@@ -391,7 +411,23 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
         )
         .select_related("request")
         .order_by("priority_rank", "attempt_queued_at", "id")
-    ):
+    )
+    if not listJob:
+        return
+
+    dictCandidateByTarget: dict[
+        tuple[uuid.UUID, uuid.UUID | None, uuid.UUID | None], list[Executor]
+    ] = {}
+    dictWorkByExecutor: dict[uuid.UUID, ExecutorWorkState | None] = {}
+    # Services can update separate Assignment instances; read their saved state after those updates.
+    setBusyExecutorSession: set[tuple[uuid.UUID, uuid.UUID]] = set(
+        Assignment.objects.filter(
+            job__request__organization=organization,
+            job__closed_at__isnull=True,
+            state__in=ACTIVE_ASSIGNMENT_STATES,
+        ).values_list("executor_id", "session_id")
+    )
+    for job in listJob:
         _advance_job(
             job,
             currentTime,
@@ -399,6 +435,8 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
             sourceDepartmentIdsByActor=dictSourceDepartmentIdsByActor,
             candidatesByTarget=dictCandidateByTarget,
             sessionsByExecutor=dictSessionByExecutor,
+            workByExecutor=dictWorkByExecutor,
+            busyExecutorSessions=setBusyExecutorSession,
         )
 
 
