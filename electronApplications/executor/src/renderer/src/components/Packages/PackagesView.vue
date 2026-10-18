@@ -8,6 +8,7 @@
       <v-btn
         variant="tonal"
         prepend-icon="mdi-package-variant-plus"
+        :disabled="boolSaving"
         @click="installPackage()">
         Install Package
       </v-btn>
@@ -26,6 +27,7 @@
           v-if="packageStore.arrProjectName.length !== 0"
           v-model:activated="arrSelectedProjectName"
           :items="packageStore.arrProjectName"
+          :disabled="boolSaving"
           item-value="value"
           class="clean-space w-100"
           style="width: max-content; flex: 1; min-width: 0px"
@@ -49,6 +51,7 @@
           v-if="packageStore.arrProjectVersion.length !== 0"
           v-model:activated="arrSelectedProjectVersion"
           :items="packageStore.arrProjectVersion"
+          :disabled="boolSaving"
           item-value="value"
           class="clean-space w-100 flex-column-grow-1"
           style="width: max-content"
@@ -71,7 +74,8 @@
         <v-container
           v-if="packageStore.dictDetailEdit"
           fluid
-          class="clean-space flex-column flex-column-grow-1">
+          class="clean-space flex-column flex-column-grow-1"
+          :inert="boolSaving">
           <PackageDetails />
 
           <!-- The data can be modified. -->
@@ -103,7 +107,7 @@
           <v-btn
             variant="tonal"
             prepend-icon="mdi-close"
-            :disabled="!boolDetailChanged"
+            :disabled="boolSaving || !boolDetailChanged"
             @click="refreshDetail()">
             Cancel
           </v-btn>
@@ -111,6 +115,7 @@
           <v-btn
             variant="tonal"
             prepend-icon="mdi-delete-outline"
+            :disabled="boolSaving"
             @click="openDeleteDialog()">
             Delete
           </v-btn>
@@ -118,7 +123,8 @@
           <v-btn
             variant="tonal"
             prepend-icon="mdi-content-save-outline"
-            :disabled="!boolDetailChanged"
+            :loading="boolSaving"
+            :disabled="boolSaving || !boolDetailChanged"
             @click="savePackageSettings()">
             Save
           </v-btn>
@@ -126,7 +132,7 @@
           <v-btn
             variant="tonal"
             prepend-icon="mdi-play-outline"
-            :disabled="boolDetailChanged"
+            :disabled="boolSaving || boolDetailChanged"
             @click="runPackage()">
             Run
           </v-btn>
@@ -155,9 +161,11 @@ import { computed, onBeforeMount, ref } from "vue";
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
 import { usePackageStore } from "../../Store/packageStore";
+import { getErrorMessage } from "../../../../shared/error";
 
 const packageStore = usePackageStore();
 const boolShowRunDialog = ref(false);
+const boolSaving = ref(false);
 const strProjectName = ref("");
 const strProjectVersion = ref("");
 const arrSelectedProjectName = ref<string[]>([]);
@@ -181,6 +189,8 @@ function resetProjectSelection(): void {
 }
 
 async function installPackage(): Promise<void> {
+  if (boolSaving.value) return;
+
   loggerRenderer.debug("--installPackage--");
 
   const result = await invokeMain("installPackage");
@@ -202,6 +212,8 @@ async function installPackage(): Promise<void> {
 }
 
 async function refreshDetail(): Promise<void> {
+  if (boolSaving.value) return;
+
   packageStore.resetDetail();
   await packageStore.loadPackageDetails(strProjectName.value, strProjectVersion.value);
 }
@@ -209,6 +221,8 @@ async function refreshDetail(): Promise<void> {
 /* Click triggers */
 
 async function clickNewProjectItem(arrName: string[]): Promise<void> {
+  if (boolSaving.value) return;
+
   const strSelectedName = arrName[0];
   if (strSelectedName === undefined) {
     return;
@@ -221,6 +235,8 @@ async function clickNewProjectItem(arrName: string[]): Promise<void> {
 }
 
 async function clickNewProjectVersionItem(arrVersion: string[]): Promise<void> {
+  if (boolSaving.value) return;
+
   const strSelectedVersion = arrVersion[0];
   if (strSelectedVersion === undefined) {
     return;
@@ -231,25 +247,44 @@ async function clickNewProjectVersionItem(arrVersion: string[]): Promise<void> {
 }
 
 async function savePackageSettings(): Promise<void> {
-  loggerRenderer.debug("--savePackageSettings--");
-  await packageStore.savePackageSettings();
-  await refreshDetail();
+  const currentDetail = packageStore.dictDetailEdit;
+  if (boolSaving.value || !boolDetailChanged.value || currentDetail === undefined) return;
+
+  boolSaving.value = true;
+  try {
+    loggerRenderer.debug("--savePackageSettings--");
+    await packageStore.savePackageSettings();
+    if (packageStore.dictDetailEdit === currentDetail) {
+      await packageStore.loadPackageDetails(
+        currentDetail.project_name,
+        currentDetail.project_version,
+      );
+    }
+  } catch (e: unknown) {
+    loggerRenderer.error(`Failed to save Package settings: ${getErrorMessage(e)}`);
+  } finally {
+    boolSaving.value = false;
+  }
 }
 
 async function openDeleteDialog(): Promise<void> {
+  if (boolSaving.value) return;
+
   const currentDetail = packageStore.dictDetailEdit;
   if (currentDetail !== undefined) {
     loggerRenderer.info(
       `Open delete dialog for Package: ${currentDetail.id}-${currentDetail.project_name}-${currentDetail.project_version}`,
     );
     await packageStore.loadBoundSchedules();
-    if (packageStore.dictDetailEdit === currentDetail) {
+    if (!boolSaving.value && packageStore.dictDetailEdit === currentDetail) {
       packageStore.showDeleteDialog = true;
     }
   }
 }
 
 function runPackage(): void {
+  if (boolSaving.value) return;
+
   loggerRenderer.debug("--runPackage--");
   if (packageStore.dictDetailEdit && !boolDetailChanged.value) {
     boolShowRunDialog.value = true;

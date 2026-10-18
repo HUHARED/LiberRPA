@@ -118,6 +118,7 @@
             :active="strTab === 'logs'"
             :download-enabled="run.files.logs.available"
             :download-reason="run.files.logs.reason"
+            :downloading="boolDownloading"
             @refresh="load"
             @download="download(RunFileKind.Logs)" />
         </div>
@@ -303,9 +304,9 @@
                   <td>
                     <v-btn
                       v-tooltip:bottom="
-                        `Download Video. Please use your browser's built-in downloader.`
+                        `Download Video. If an external download manager fails, use your browser's built-in downloader.`
                       "
-                      :disabled="!run.files.video.available"
+                      :disabled="boolDownloading || !run.files.video.available"
                       :loading="boolDownloading"
                       variant="text"
                       size="small"
@@ -325,9 +326,9 @@
                   <td>
                     <v-btn
                       v-tooltip:bottom="
-                        `Download Subtitles. Please use your browser's built-in downloader.`
+                        `Download Subtitles. If an external download manager fails, use your browser's built-in downloader.`
                       "
-                      :disabled="!run.files.subtitles.available"
+                      :disabled="boolDownloading || !run.files.subtitles.available"
                       :loading="boolDownloading"
                       variant="text"
                       size="small"
@@ -448,6 +449,7 @@ async function rerun(): Promise<void> {
 }
 
 async function download(kind: RunFileKind): Promise<void> {
+  if (boolDownloading.value) return;
   boolDownloading.value = true;
   strError.value = "";
   try {

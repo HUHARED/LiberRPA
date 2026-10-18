@@ -194,7 +194,9 @@
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
           <v-btn
-            v-tooltip:bottom="'Download'"
+            v-tooltip:bottom="
+              `Download. If an external download manager fails, use your browser's built-in downloader.`
+            "
             variant="text"
             size="small"
             :loading="setDownloadingFilePath.has(item.path)"

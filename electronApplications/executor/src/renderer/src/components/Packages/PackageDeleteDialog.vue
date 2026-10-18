@@ -1,6 +1,10 @@
 <!-- FileName: PackageDeleteDialog.vue -->
 <template>
-  <v-dialog v-model="packageStore.showDeleteDialog" width="800px" height="400px">
+  <v-dialog
+    v-model="packageStore.showDeleteDialog"
+    width="800px"
+    height="400px"
+    :persistent="boolDeleting">
     <v-card title="Delete Package">
       <template #text>
         <v-container
@@ -58,6 +62,7 @@
         <v-btn
           variant="tonal"
           prepend-icon="mdi-close"
+          :disabled="boolDeleting"
           @click="packageStore.showDeleteDialog = false">
           Cancel
         </v-btn>
@@ -67,7 +72,8 @@
         <v-btn
           variant="tonal"
           prepend-icon="mdi-delete-outline"
-          :disabled="packageStore.arrBoundSchedule.length !== 0"
+          :loading="boolDeleting"
+          :disabled="boolDeleting || packageStore.arrBoundSchedule.length !== 0"
           @click="deletePackage()">
           Delete
         </v-btn>
@@ -77,14 +83,33 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
+
+import { loggerRenderer } from "../../Logging/logger";
 import { usePackageStore } from "../../Store/packageStore";
+import { getErrorMessage } from "../../../../shared/error";
 
 const emit = defineEmits<{ deleted: [] }>();
 const packageStore = usePackageStore();
+const boolDeleting = ref(false);
 
 async function deletePackage(): Promise<void> {
-  await packageStore.deletePackage();
-  emit("deleted");
+  if (
+    boolDeleting.value ||
+    packageStore.dictDetailEdit === undefined ||
+    packageStore.arrBoundSchedule.length !== 0
+  )
+    return;
+
+  boolDeleting.value = true;
+  try {
+    await packageStore.deletePackage();
+    emit("deleted");
+  } catch (e: unknown) {
+    loggerRenderer.error(`Failed to delete Package: ${getErrorMessage(e)}`);
+  } finally {
+    boolDeleting.value = false;
+  }
 }
 </script>
 

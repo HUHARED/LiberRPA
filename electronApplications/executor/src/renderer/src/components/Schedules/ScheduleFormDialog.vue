@@ -1,9 +1,13 @@
 <!-- FileName: ScheduleFormDialog.vue -->
 <template>
-  <v-dialog v-model="scheduleStore.showFormDialog" width="800px" height="800px">
+  <v-dialog
+    v-model="scheduleStore.showFormDialog"
+    width="800px"
+    height="800px"
+    :persistent="boolSaving">
     <v-card v-if="currentDetail" :title="dialogTitle">
       <template #text>
-        <v-container fluid class="clean-space fill-height flex-column">
+        <v-container fluid class="clean-space fill-height flex-column" :inert="boolSaving">
           <v-container
             v-if="scheduleStore.formMode === 'edit' && scheduleStore.dictDetailEdit"
             fluid
@@ -53,6 +57,7 @@
         <v-btn
           variant="tonal"
           prepend-icon="mdi-close"
+          :disabled="boolSaving"
           @click="scheduleStore.showFormDialog = false">
           Cancel
         </v-btn>
@@ -62,7 +67,8 @@
         <v-btn
           variant="tonal"
           prepend-icon="mdi-content-save-outline"
-          :disabled="!boolCanSave"
+          :loading="boolSaving"
+          :disabled="boolSaving || !boolCanSave"
           @click="saveSchedule()">
           Save
         </v-btn>
@@ -78,15 +84,18 @@ import { debounce } from "lodash";
 import ScheduleForm from "./ScheduleForm.vue";
 
 import { formatTimestamp, parseDateTimeLocalToTimestamp } from "../../Common/time";
+import { loggerRenderer } from "../../Logging/logger";
 import { validateCronExpression } from "../../Schedule/cron";
 import type { ScheduleFormDraft } from "../../Schedule/types";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
+import { getErrorMessage } from "../../../../shared/error";
 
 const scheduleStore = useScheduleStore();
 const settingStore = useSettingStore();
 
 const boolCanSave = ref(false);
+const boolSaving = ref(false);
 
 const currentDetail = computed<ScheduleFormDraft | undefined>(() => {
   if (scheduleStore.formMode === "new") {
@@ -160,13 +169,21 @@ onBeforeUnmount(() => {
 });
 
 async function saveSchedule(): Promise<void> {
-  if (scheduleStore.formMode === "new") {
-    await scheduleStore.createSchedule();
-    return;
-  }
+  if (boolSaving.value) return;
+  debouncedUpdateSaveState.flush();
+  if (!boolCanSave.value) return;
 
-  if (scheduleStore.formMode === "edit") {
-    await scheduleStore.saveSchedule();
+  boolSaving.value = true;
+  try {
+    if (scheduleStore.formMode === "new") {
+      await scheduleStore.createSchedule();
+    } else if (scheduleStore.formMode === "edit") {
+      await scheduleStore.saveSchedule();
+    }
+  } catch (e: unknown) {
+    loggerRenderer.error(`Failed to save Schedule: ${getErrorMessage(e)}`);
+  } finally {
+    boolSaving.value = false;
   }
 }
 </script>

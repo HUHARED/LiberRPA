@@ -16,6 +16,9 @@
 
       <div class="d-flex flex-wrap ga-2 mb-4">
         <v-btn
+          v-tooltip:bottom="
+            `If an external download manager fails, use your browser's built-in downloader.`
+          "
           variant="tonal"
           prepend-icon="mdi-download"
           :loading="boolDownload"

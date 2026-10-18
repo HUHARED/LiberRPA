@@ -1,6 +1,9 @@
 <!-- FileName: ScheduleDeleteDialog.vue -->
 <template>
-  <v-dialog v-model="scheduleStore.showDeleteDialog" width="400px">
+  <v-dialog
+    v-model="scheduleStore.showDeleteDialog"
+    width="400px"
+    :persistent="boolDeleting">
     <v-card title="Delete Schedule">
       <template #text>
         <v-container
@@ -56,6 +59,7 @@
         <v-btn
           variant="tonal"
           prepend-icon="mdi-close"
+          :disabled="boolDeleting"
           @click="scheduleStore.showDeleteDialog = false">
           Cancel
         </v-btn>
@@ -65,7 +69,9 @@
         <v-btn
           variant="tonal"
           prepend-icon="mdi-delete-outline"
-          @click="scheduleStore.deleteSchedule()">
+          :loading="boolDeleting"
+          :disabled="boolDeleting"
+          @click="deleteSchedule()">
           Delete
         </v-btn>
       </v-card-actions>
@@ -74,9 +80,27 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
+
+import { loggerRenderer } from "../../Logging/logger";
 import { useScheduleStore } from "../../Store/scheduleStore";
+import { getErrorMessage } from "../../../../shared/error";
 
 const scheduleStore = useScheduleStore();
+const boolDeleting = ref(false);
+
+async function deleteSchedule(): Promise<void> {
+  if (boolDeleting.value || scheduleStore.dictDetailEdit === undefined) return;
+
+  boolDeleting.value = true;
+  try {
+    await scheduleStore.deleteSchedule();
+  } catch (e: unknown) {
+    loggerRenderer.error(`Failed to delete Schedule: ${getErrorMessage(e)}`);
+  } finally {
+    boolDeleting.value = false;
+  }
+}
 </script>
 
 <style scoped></style>

@@ -18,10 +18,13 @@
     </v-btn>
 
     <v-btn
-      v-tooltip:bottom="`Please use your browser's built-in downloader.`"
+      v-tooltip:bottom="
+        `If an external download manager fails, use your browser's built-in downloader.`
+      "
       variant="tonal"
       prepend-icon="mdi-download"
-      :disabled="!downloadEnabled"
+      :loading="downloading"
+      :disabled="!downloadEnabled || downloading"
       @click="emit('download')">
       Download Logs
     </v-btn>
@@ -197,6 +200,7 @@ const props = defineProps<{
   active: boolean;
   downloadEnabled: boolean;
   downloadReason: string;
+  downloading: boolean;
 }>();
 
 const emit = defineEmits<{ download: []; refresh: [] }>();
