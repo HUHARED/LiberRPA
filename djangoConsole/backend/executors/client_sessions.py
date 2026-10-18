@@ -17,6 +17,7 @@ from typing import cast
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Exists, OuterRef
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
@@ -153,17 +154,32 @@ def get_executor_session_identity(authorizationHeader: str) -> ExecutorSessionId
 def get_locked_executor_session(
     access: OrganizationAccessContext, sessionId: uuid.UUID
 ) -> ExecutorSession:
-    """Apply the same account and association rules after acquiring business locks."""
+    """Reuse the locked account while checking the current session and association."""
+    departmentQuery = get_authorized_departments(
+        access, requiredRole=DepartmentRole.OPERATOR
+    )
     try:
         session = (
-            get_executor_sessions(access.organization.pk)
+            ExecutorSession.objects
+            .annotate(
+                can_use_department=Exists(
+                    departmentQuery.filter(pk=OuterRef("executor__department_id"))
+                )
+            )
+            .select_related("executor")
+            .defer("token_hash")
             .select_for_update(of=("self",))
-            .get(pk=sessionId, user_id=access.actorId)
+            .get(
+                pk=sessionId,
+                user_id=access.actorId,
+                organization_id=access.organization.pk,
+            )
         )
     except ExecutorSession.DoesNotExist:
         raise InvalidExecutorSessionError(
             "A valid Executor session is required."
         ) from None
+    session.user = access.actor
     if not is_executor_session_current(session, currentTime=timezone.now()):
         raise InvalidExecutorSessionError("A valid Executor session is required.")
     return session
