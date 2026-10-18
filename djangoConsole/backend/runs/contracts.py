@@ -479,7 +479,6 @@ class RunLogEntryResponse(JsonResponsePayload):
     line_no: str
     project_name: str
     message_text: str
-    message_omitted: bool
     custom_fields: dict[str, str]
 
 

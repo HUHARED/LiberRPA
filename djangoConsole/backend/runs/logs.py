@@ -45,7 +45,8 @@ from .log_storage import (
 
 _INT_UPLOAD_BYTES = 1024 * 1024
 _INT_ENTRY_BYTES = 256 * 1024
-_INT_PREVIEW_BYTES = 512 * 1024
+# NOTE: A preview must fit one accepted entry, including JSON escaping and response metadata.
+_INT_PREVIEW_BYTES = 1024 * 1024
 _SET_BUILTIN_LOG_KEYS = {
     "logId",
     "timestamp",
@@ -370,7 +371,6 @@ def list_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
                     allow_nan=False,
                     separators=(",", ":"),
                 ),
-                "message_omitted": False,
                 "custom_fields": log.custom_fields,
             }
             intBytes = len(
@@ -391,18 +391,8 @@ def list_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
             )
             intContentBytes = intTotalBytes + intBytes + (1 if listLog else 0)
             if intHeaderBytes + intContentBytes > _INT_PREVIEW_BYTES:
-                if listLog:
-                    boolMore = True
-                    break
-                # Double encoding a structured message can exceed the preview budget even for a valid source entry.
-                # Preserve the stored message and advance this cursor with an explicit preview placeholder.
-                dictLog["message_text"] = ""
-                dictLog["message_omitted"] = True
-                intContentBytes = len(
-                    json.dumps(
-                        dictLog, ensure_ascii=False, separators=(",", ":")
-                    ).encode()
-                )
+                boolMore = True
+                break
             listLog.append(dictLog)
             intTotalBytes = intContentBytes
             dictResponse = dictHeader

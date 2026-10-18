@@ -336,7 +336,6 @@ function isLogEntry(value: unknown): value is LogEntry {
     /^(0|[1-9]\d*)$/.test(value.line_no) &&
     typeof value.project_name === "string" &&
     typeof value.message_text === "string" &&
-    typeof value.message_omitted === "boolean" &&
     isRecord(value.custom_fields) &&
     Object.values(value.custom_fields).every((field) => typeof field === "string")
   );

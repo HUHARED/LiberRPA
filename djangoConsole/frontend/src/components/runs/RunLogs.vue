@@ -106,11 +106,7 @@
     <template #item.process="{ item }">{{ item.process_name || "—" }}</template>
 
     <template #item.message_text="{ item }">
-      <span v-if="item.message_omitted" class="text-medium-emphasis">
-        Message exceeds the preview size limit.
-      </span>
-
-      <RunLogMessage v-else :message="item.message_text" class="d-block text-truncate" />
+      <RunLogMessage :message="item.message_text" class="d-block text-truncate" />
     </template>
 
     <template #expanded-row="{ item, columns }">
@@ -118,12 +114,7 @@
         <td :colspan="columns.length">
           <h3 class="text-subtitle-1 my-2">Message</h3>
 
-          <v-alert v-if="item.message_omitted" type="info" variant="tonal" class="mb-4">
-            This message exceeds the preview size limit. Download the original logs to read
-            it.
-          </v-alert>
-
-          <pre v-else class="text-pre-wrap text-break mb-4"><RunLogMessage
+          <pre class="text-pre-wrap text-break mb-4"><RunLogMessage
             :message="item.message_text" /></pre>
 
           <h3 class="text-subtitle-1 my-2">Fields</h3>
@@ -301,10 +292,20 @@ async function load(mode: "initial" | "older" | "newer"): Promise<void> {
     if (result.cleared) {
       boolLatestFinished = true;
       arrLog.value = [];
+      arrExpanded.value = [];
       intLoadedBytes.value = 0;
       boolHasMore.value = false;
+      boolLimit.value = false;
       return;
     }
+    intAfter = Math.max(intAfter, result.after_cursor);
+    if (mode !== "newer") {
+      intBefore = result.before_cursor;
+      boolHasMore.value = result.has_more;
+    }
+    if (mode === "initial") intPage.value = 1;
+    else if (result.logs.length === 0) return;
+
     const mapLog = new Map(
       (mode === "initial" ? [] : arrLog.value).map((log) => [log.log_id, log]),
     );
@@ -325,12 +326,6 @@ async function load(mode: "initial" | "older" | "newer"): Promise<void> {
     }
     arrLog.value = arrBounded;
     intLoadedBytes.value = intBytes;
-    intAfter = Math.max(intAfter, result.after_cursor);
-    if (mode !== "newer") {
-      intBefore = result.before_cursor;
-      boolHasMore.value = result.has_more;
-    }
-    if (mode === "initial") intPage.value = 1;
   } catch (e) {
     strError.value = getApiError(e).message;
   } finally {
