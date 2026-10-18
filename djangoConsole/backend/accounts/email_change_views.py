@@ -6,7 +6,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from typing import cast
 
-from django.contrib.auth import HASH_SESSION_KEY
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.db import DatabaseError, transaction
 from django.http import HttpRequest, JsonResponse
@@ -22,7 +21,7 @@ from console_project.http import (
     build_rate_limited_response,
     parse_json_request,
 )
-from organizations.permissions import AccessChannel
+from organizations.http import get_request_access
 
 from .contracts import (
     EmailChangeEmailRequest,
@@ -81,12 +80,11 @@ def queue_email_change_verification(request: HttpRequest) -> JsonResponse:
             return build_rate_limited_response(intRetryAfterSeconds)
 
         with transaction.atomic():
+            access = get_request_access(request, forUpdate=True)
             request_email_change(
-                actorId=user.id,
-                channel=AccessChannel.SESSION,
+                access=access,
                 currentPassword=changeRequest.current_password.get_secret_value(),
                 newEmail=changeRequest.new_email,
-                sessionAuthHash=cast(str, request.session.get(HASH_SESSION_KEY, "")),
             )
             if request.session.get_expiry_date() <= timezone.now():
                 raise SessionInvalidatedError("The current session has expired.")

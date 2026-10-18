@@ -31,8 +31,7 @@ from console_project.http import (
 from operations.audit import record_audit
 from organizations.models import Organization, Membership
 from organizations.access import get_account_access_info
-from organizations.http import build_account_access_payload
-from organizations.permissions import AccessChannel
+from organizations.http import get_request_access, build_account_access_payload
 
 from .contracts import (
     BrowserMessageType,
@@ -221,11 +220,10 @@ def sign_out_other_sessions(request: HttpRequest) -> JsonResponse:
         boolSessionWasModified = request.session.modified
         try:
             with transaction.atomic():
+                access = get_request_access(request, forUpdate=True)
                 user = revoke_other_sessions(
-                    actorId=user.id,
-                    channel=AccessChannel.SESSION,
+                    access=access,
                     currentPassword=revocationRequest.current_password.get_secret_value(),
-                    sessionAuthHash=strSessionAuthHash,
                 )
                 if request.session.get_expiry_date() <= timezone.now():
                     raise SessionInvalidatedError("The current session has expired.")

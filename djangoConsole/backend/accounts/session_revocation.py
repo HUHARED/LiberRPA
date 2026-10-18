@@ -10,7 +10,6 @@ from datetime import datetime
 from django.contrib.auth.hashers import check_password
 from django.contrib.sessions.models import Session
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
@@ -20,7 +19,6 @@ from operations.audit import record_audit
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
-    get_current_membership,
     resolve_organization_access,
 )
 
@@ -63,35 +61,19 @@ def lock_session_write_access(
 
 
 @sensitive_variables()
-@transaction.atomic
 def revoke_other_sessions(
     *,
-    actorId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     currentPassword: str,
-    sessionAuthHash: str,
 ) -> User:
     """Advance the account's session version after verifying the initiating session.
 
-    actorId, channel, and sessionAuthHash come from verified server-side authentication.
-    The caller must save the kept session's new hash in the same outer transaction.
+    The caller supplies rechecked access and saves the kept session's new hash in the same transaction.
     """
-    if channel != AccessChannel.SESSION:
+    if access.channel != AccessChannel.SESSION:
         raise PermissionDenied("A signed-in account is required to revoke sessions.")
 
-    membership = get_current_membership(actorId=actorId)
-    access = resolve_organization_access(
-        actorId=actorId,
-        organizationId=membership.organization_id,
-        channel=channel,
-        forUpdate=True,
-    )
     user = access.actor
-    # NOTE: A request authenticated before a concurrent revocation must not revive its old session.
-    if not sessionAuthHash or not constant_time_compare(
-        sessionAuthHash, user.get_session_auth_hash()
-    ):
-        raise SessionInvalidatedError("The current session is no longer valid.")
     # Verify without a hash-upgrade setter; this action must leave password-based proofs valid.
     if not check_password(currentPassword, user.password):
         raise ValidationError({
@@ -109,7 +91,7 @@ def revoke_other_sessions(
         actor=user,
         organization=access.organization,
         target=user,
-        channel=channel,
+        channel=access.channel,
     )
     # NOTE: Independent API keys and email-change proofs must not depend on this version.
     return user

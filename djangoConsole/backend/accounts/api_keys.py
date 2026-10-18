@@ -16,7 +16,6 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Case, F, Q, QuerySet, When
 from django.utils import timezone
-from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
@@ -31,7 +30,6 @@ from organizations.permissions import (
 )
 
 from .models import ApiKey, ApiKeyStatus, User
-from .session_revocation import SessionInvalidatedError
 
 
 @dataclass(frozen=True)
@@ -48,58 +46,25 @@ def get_api_key_status(apiKey: ApiKey, *, currentTime: datetime) -> ApiKeyStatus
     return ApiKeyStatus.ACTIVE
 
 
-def _resolve_management_access(
-    actorId: uuid.UUID,
-    channel: AccessChannel,
+def _require_management_access(
+    access: OrganizationAccessContext,
     userId: uuid.UUID,
     *,
     forUpdate: bool,
     asAdministrator: bool = False,
-) -> OrganizationAccessContext:
-    """Resolve the actor's access and verify that the target belongs to the same organization."""
-    if channel != AccessChannel.SESSION:
+) -> None:
+    """Verify management permissions and lock another member's account for writes."""
+    if access.channel != AccessChannel.SESSION:
         raise PermissionDenied("A signed-in account is required to manage API keys.")
-    membership = get_current_membership(actorId=actorId)
-    access = resolve_organization_access(
-        actorId=actorId,
-        organizationId=membership.organization_id,
-        channel=channel,
-        forUpdate=forUpdate,
-    )
-    if asAdministrator or userId != actorId:
+    if asAdministrator or userId != access.actorId:
         require_organization_admin(access)
-    if userId != actorId:
+    if userId != access.actorId:
         membershipQuery = Membership.objects.filter(organization=access.organization)
         if forUpdate:
             membershipQuery = membershipQuery.select_related("user").select_for_update(
                 of=("self", "user")
             )
         membershipQuery.get(user_id=userId)
-    return access
-
-
-@sensitive_variables()
-def _lock_management_access(
-    actorId: uuid.UUID,
-    channel: AccessChannel,
-    userId: uuid.UUID,
-    sessionAuthHash: str,
-    sessionExpiresAt: datetime,
-    *,
-    asAdministrator: bool = False,
-) -> OrganizationAccessContext:
-    access = _resolve_management_access(
-        actorId, channel, userId, forUpdate=True, asAdministrator=asAdministrator
-    )
-    actor = access.actor
-    # A request waiting behind password/session revocation must not issue a new credential.
-    if (
-        sessionExpiresAt <= timezone.now()
-        or not sessionAuthHash
-        or not constant_time_compare(sessionAuthHash, actor.get_session_auth_hash())
-    ):
-        raise SessionInvalidatedError("The current session is no longer valid.")
-    return access
 
 
 def _get_inactive_api_keys(userId: uuid.UUID, currentTime: datetime) -> QuerySet[ApiKey]:
@@ -156,8 +121,16 @@ def get_api_key_list(
     asAdministrator: bool = False,
 ) -> tuple[ApiKey, ...]:
     """Read current owner/admin metadata; filtering happens after applying retention."""
-    _resolve_management_access(
-        actorId, channel, userId, forUpdate=False, asAdministrator=asAdministrator
+    if channel != AccessChannel.SESSION:
+        raise PermissionDenied("A signed-in account is required to manage API keys.")
+    membership = get_current_membership(actorId=actorId)
+    access = resolve_organization_access(
+        actorId=actorId,
+        organizationId=membership.organization_id,
+        channel=channel,
+    )
+    _require_management_access(
+        access, userId, forUpdate=False, asAdministrator=asAdministrator
     )
     currentTime = timezone.now()
     apiKeys = (
@@ -172,28 +145,23 @@ def get_api_key_list(
     )
 
 
+# NOTE: Management writes require rechecked Session access and the caller's transaction.
 @sensitive_variables()
-@transaction.atomic
 def create_api_key(
     *,
-    actorId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     name: str,
     expiresAt: datetime,
     notes: str,
-    sessionAuthHash: str,
-    sessionExpiresAt: datetime,
 ) -> ApiKeyCreationResult:
     """Issue a 256-bit secret for the authenticated owner, returning its plaintext once."""
-    access = _lock_management_access(
-        actorId, channel, actorId, sessionAuthHash, sessionExpiresAt
-    )
+    _require_management_access(access, access.actorId, forUpdate=True)
     currentTime = timezone.now()
     if timezone.is_naive(expiresAt) or expiresAt <= currentTime:
         raise ValidationError({"expires_at": "Choose a future time with a UTC offset."})
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     intActiveCount = ApiKey.objects.filter(
-        user_id=actorId, revoked_at__isnull=True, expires_at__gt=currentTime
+        user_id=access.actorId, revoked_at__isnull=True, expires_at__gt=currentTime
     ).count()
     if intActiveCount >= limits.maxActiveApiKeysPerAccount:
         raise ValidationError(
@@ -202,7 +170,7 @@ def create_api_key(
 
     strSecretValue = f"lrpa_{secrets.token_urlsafe(32)}"
     apiKey = ApiKey(
-        user_id=actorId,
+        user_id=access.actorId,
         name=name.strip(),
         notes=notes,
         token_hash=hashlib.sha256(strSecretValue.encode("ascii")).hexdigest(),
@@ -219,29 +187,23 @@ def create_api_key(
         actor=access.actor,
         organization=access.organization,
         target=apiKey,
-        channel=channel,
+        channel=access.channel,
         before={},
     )
-    _prune_inactive_api_keys(actorId, currentTime)
+    _prune_inactive_api_keys(access.actorId, currentTime)
     return ApiKeyCreationResult(apiKey=apiKey, secret=strSecretValue)
 
 
 @sensitive_variables()
-@transaction.atomic
 def update_api_key_notes(
     *,
-    actorId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     apiKeyId: uuid.UUID,
     notes: str,
-    sessionAuthHash: str,
-    sessionExpiresAt: datetime,
 ) -> ApiKey:
     """Edit only the owner's Notes without changing credential state or retention."""
-    access = _lock_management_access(
-        actorId, channel, actorId, sessionAuthHash, sessionExpiresAt
-    )
-    apiKey = _get_retained_api_keys(actorId, timezone.now()).get(pk=apiKeyId)
+    _require_management_access(access, access.actorId, forUpdate=True)
+    apiKey = _get_retained_api_keys(access.actorId, timezone.now()).get(pk=apiKeyId)
     dictAuditBefore = get_audit_snapshot(apiKey)
     apiKey.notes = notes
     apiKey.full_clean(validate_unique=False, validate_constraints=False)
@@ -251,31 +213,25 @@ def update_api_key_notes(
         actor=access.actor,
         organization=access.organization,
         target=apiKey,
-        channel=channel,
+        channel=access.channel,
         before=dictAuditBefore,
     )
     return apiKey
 
 
 @sensitive_variables()
-@transaction.atomic
 def revoke_api_key(
     *,
-    actorId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     userId: uuid.UUID,
     apiKeyId: uuid.UUID,
-    sessionAuthHash: str,
-    sessionExpiresAt: datetime,
     asAdministrator: bool = False,
 ) -> ApiKey:
     """Permanently revoke an active owner/member key; repeats preserve the first timestamp."""
-    access = _lock_management_access(
-        actorId,
-        channel,
+    _require_management_access(
+        access,
         userId,
-        sessionAuthHash,
-        sessionExpiresAt,
+        forUpdate=True,
         asAdministrator=asAdministrator,
     )
     currentTime = timezone.now()
@@ -293,7 +249,7 @@ def revoke_api_key(
         actor=access.actor,
         organization=access.organization,
         target=apiKey,
-        channel=channel,
+        channel=access.channel,
     )
     _prune_inactive_api_keys(userId, currentTime)
     return apiKey

@@ -35,7 +35,6 @@ from organizations.permissions import (
 )
 
 from .models import EmailChangeRequest, User, UserManager
-from .session_revocation import SessionInvalidatedError
 
 _EMAIL_CHANGE_TOKEN_LIFETIME = timedelta(hours=1)
 _EMAIL_CHANGE_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_-]{43}")
@@ -143,28 +142,19 @@ def _get_email_change_request(token: str) -> EmailChangeRequest:
 
 
 @sensitive_variables()
-@transaction.atomic
 def request_email_change(
     *,
-    actorId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     currentPassword: str,
     newEmail: str,
-    sessionAuthHash: str,
 ) -> None:
     """Authorize and queue a new address while leaving the account's current email intact.
 
-    actorId, channel, and sessionAuthHash come from verified server-side authentication.
-    The HTTP caller also checks the initiating session's expiry before committing.
+    The caller supplies rechecked access and owns the write transaction.
     """
-    if channel != AccessChannel.SESSION:
+    if access.channel != AccessChannel.SESSION:
         raise PermissionDenied("A signed-in account is required to change its email.")
-    access = _resolve_email_change_access(actorId, forUpdate=True)
     user = access.actor
-    if not sessionAuthHash or not constant_time_compare(
-        sessionAuthHash, user.get_session_auth_hash()
-    ):
-        raise SessionInvalidatedError("The current session is no longer valid.")
     # A hash upgrade here would invalidate existing sessions, contrary to email-change semantics.
     if not check_password(currentPassword, user.password):
         raise ValidationError({"current_password": "The current password is incorrect."})
@@ -218,7 +208,7 @@ def request_email_change(
         actor=user,
         organization=access.organization,
         target=user,
-        channel=channel,
+        channel=access.channel,
     )
 
 

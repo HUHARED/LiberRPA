@@ -10,9 +10,8 @@ from typing import cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.conf import settings
-from django.contrib.auth import HASH_SESSION_KEY
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
 from django.forms import DateTimeField
 from django.http import HttpRequest, JsonResponse
 from django.utils import timezone
@@ -30,6 +29,7 @@ from console_project.http import (
     build_rate_limited_response,
     parse_json_request,
 )
+from organizations.http import get_request_access
 from organizations.models import Membership
 from organizations.permissions import AccessChannel
 
@@ -156,15 +156,14 @@ def list_or_create_api_keys(
             if intRetryAfterSeconds:
                 return build_rate_limited_response(intRetryAfterSeconds)
             expiresAt = _parse_api_key_expiry(keyRequest.expires_at, keyRequest.time_zone)
-            result = create_api_key(
-                actorId=user.id,
-                channel=AccessChannel.SESSION,
-                name=keyRequest.name,
-                expiresAt=expiresAt,
-                notes=keyRequest.notes,
-                sessionAuthHash=request.session.get(HASH_SESSION_KEY, ""),
-                sessionExpiresAt=request.session.get_expiry_date(),
-            )
+            with transaction.atomic():
+                access = get_request_access(request, forUpdate=True)
+                result = create_api_key(
+                    access=access,
+                    name=keyRequest.name,
+                    expiresAt=expiresAt,
+                    notes=keyRequest.notes,
+                )
             return JsonResponse(
                 ApiKeyCreationResponse.model_validate({
                     "api_key": _build_api_key_payload(result.apiKey),
@@ -225,14 +224,11 @@ def edit_api_key_notes(request: HttpRequest, apiKeyId: uuid.UUID) -> JsonRespons
         )
         if isinstance(keyRequest, JsonResponse):
             return keyRequest
-        apiKey = update_api_key_notes(
-            actorId=cast(User, request.user).id,
-            channel=AccessChannel.SESSION,
-            apiKeyId=apiKeyId,
-            notes=keyRequest.notes,
-            sessionAuthHash=request.session.get(HASH_SESSION_KEY, ""),
-            sessionExpiresAt=request.session.get_expiry_date(),
-        )
+        with transaction.atomic():
+            access = get_request_access(request, forUpdate=True)
+            apiKey = update_api_key_notes(
+                access=access, apiKeyId=apiKeyId, notes=keyRequest.notes
+            )
         return JsonResponse(
             ApiKeyWriteResponse.model_validate({
                 "api_key": _build_api_key_payload(apiKey)
@@ -261,16 +257,14 @@ def revoke_account_api_key(
         emptyRequest = parse_json_request(request, JsonRequest)
         if isinstance(emptyRequest, JsonResponse):
             return emptyRequest
-        user = cast(User, request.user)
-        apiKey = revoke_api_key(
-            actorId=user.id,
-            channel=AccessChannel.SESSION,
-            userId=user.id if userId is None else userId,
-            apiKeyId=apiKeyId,
-            sessionAuthHash=request.session.get(HASH_SESSION_KEY, ""),
-            sessionExpiresAt=request.session.get_expiry_date(),
-            asAdministrator=userId is not None,
-        )
+        with transaction.atomic():
+            access = get_request_access(request, forUpdate=True)
+            apiKey = revoke_api_key(
+                access=access,
+                userId=access.actorId if userId is None else userId,
+                apiKeyId=apiKeyId,
+                asAdministrator=userId is not None,
+            )
         return JsonResponse(
             ApiKeyWriteResponse.model_validate({
                 "api_key": _build_api_key_payload(apiKey)
