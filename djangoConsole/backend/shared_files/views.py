@@ -30,6 +30,7 @@ from .contracts import (
     FileDeleteRequest,
     EmptyFileRequest,
 )
+from .models import UploadState
 from .queries import (
     build_file_payload,
     resolve_file,
@@ -41,6 +42,8 @@ from .services import (
     create_upload,
     append_chunk,
     cancel_upload,
+    prepare_upload_validation,
+    validate_upload_content,
     complete_upload,
     delete_files,
     prepare_download,
@@ -128,9 +131,17 @@ def complete_file_upload(
         return payload
     with transaction.atomic():
         access = lock_file_access(request, authentication)
+        upload = get_upload(access, uploadId)
+        if upload.state == UploadState.COMPLETED:
+            return build_file_response(build_upload_payload(upload))
+        prepare_upload_validation(upload)
+    validationResult = validate_upload_content(upload)
+    with transaction.atomic():
+        access = lock_file_access(request, authentication)
         result = complete_upload(
             access,
             get_upload(access, uploadId),
+            validationResult,
             apiKeyId=get_file_api_key_id(authentication),
         )
         if isinstance(result, FileOperationError):

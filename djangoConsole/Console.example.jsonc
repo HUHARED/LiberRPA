@@ -118,6 +118,9 @@
     // Packages and shared files share this organization storage pool.
     // Garbage remains charged until cleanup succeeds; overwrites reserve the full new size.
     "maxStoredBytesPerOrganization": 5368709120, // 5 GiB
+    // Counts current shared files; overwriting an existing file does not increase the count.
+    // 0 blocks new filenames but permits replacing existing files.
+    "maxSharedFilesPerOrganization": 5000,
     "maxSharedFileBytes": 20971520, // 20 MiB
     "minStorageFreeBytes": 5368709120, // 5 GiB
     // Separate organization-wide limits; 0 blocks new transfers in that direction.

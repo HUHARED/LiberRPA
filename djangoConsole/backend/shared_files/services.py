@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import uuid
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import BinaryIO
 
@@ -72,6 +73,17 @@ from .cleanup import expire_uploads
 _UPLOAD_LIFETIME_HOURS = 24
 
 
+@dataclass(frozen=True)
+class FileUploadValidationResult:
+    """Identify the verified content; current access and upload state are checked at commit."""
+
+    uploadId: uuid.UUID
+    blobId: uuid.UUID
+    sizeBytes: int
+    sha256: str
+    fileSignature: tuple[int, int, int, int]
+
+
 def _get_request_digest(payload: object) -> str:
     return hashlib.sha256(
         json.dumps(
@@ -99,6 +111,19 @@ def _prune_receipts_and_require_capacity(access: OrganizationAccessContext) -> N
         raise FileOperationError(
             "file_receipt_limit",
             "The file request history is full. Please try again later.",
+        )
+
+
+def _require_file_capacity(
+    organizationId: uuid.UUID, existingFile: SharedFile | None
+) -> None:
+    if (
+        existingFile is None
+        and SharedFile.objects.filter(department__organization_id=organizationId).count()
+        >= settings.CONSOLE_LIMITS.maxSharedFilesPerOrganization
+    ):
+        raise FileOperationError(
+            "shared_file_limit", "The organization has reached its shared file limit."
         )
 
 
@@ -134,16 +159,15 @@ def create_upload(
         raise FileOperationError(
             "file_too_large", "The file exceeds the single-file size limit.", 413
         )
-    if (
-        not payload.overwrite
-        and SharedFile.objects.filter(
-            department=department, name_key=get_path_name_key(pathParts[-1])
-        ).exists()
-    ):
+    existingFile = SharedFile.objects.filter(
+        department=department, name_key=get_path_name_key(pathParts[-1])
+    ).first()
+    if existingFile is not None and not payload.overwrite:
         raise FileOperationError(
             "file_exists",
             "A file with this name already exists. Enable Overwrite Existing File to replace it.",
         )
+    _require_file_capacity(access.organization.pk, existingFile)
     expire_uploads(access.organization.pk)
     _prune_receipts_and_require_capacity(access)
     require_upload_slot(access.organization.pk)
@@ -246,16 +270,8 @@ def cancel_upload(upload: UploadSession) -> UploadSession:
     return upload
 
 
-def complete_upload(
-    access: OrganizationAccessContext,
-    upload: UploadSession,
-    *,
-    apiKeyId: uuid.UUID | None = None,
-) -> FileUploadResponse | FileOperationError:
-    state = get_upload_state(upload)
-    if state == UploadState.COMPLETED:
-        return build_upload_payload(upload)
-    if state != UploadState.RECEIVING:
+def _require_uploaded_blob(upload: UploadSession) -> uuid.UUID:
+    if get_upload_state(upload) != UploadState.RECEIVING:
         raise FileOperationError(
             "upload_unavailable", "This upload is no longer available.", 410
         )
@@ -267,42 +283,138 @@ def complete_upload(
         raise FileOperationError(
             "upload_data_missing", "The upload storage is unavailable.", 503
         )
-    # Verification and publication share one transaction; there is no committed intermediate state.
-    path, handle = open_blob_for_write(upload.blob_id)
-    with handle:
-        if os.fstat(handle.fileno()).st_size < upload.offset:
+    return upload.blob_id
+
+
+def prepare_upload_validation(upload: UploadSession) -> None:
+    """Check completeness and create an empty file under the organization lock, without syncing it."""
+    blobId = _require_uploaded_blob(upload)
+    if upload.size_bytes == 0:
+        path = get_blob_path(blobId)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            with path.open("xb"):
+                pass
+
+
+def _get_file_signature(fileStat: os.stat_result) -> tuple[int, int, int, int]:
+    return (
+        fileStat.st_dev,
+        fileStat.st_ino,
+        fileStat.st_size,
+        fileStat.st_mtime_ns,
+    )
+
+
+def validate_upload_content(
+    upload: UploadSession,
+) -> FileUploadValidationResult | FileOperationError:
+    """Verify complete content outside the organization transaction without creating or truncating files."""
+    blobId = _require_uploaded_blob(upload)
+    path = get_blob_path(blobId)
+    try:
+        # Chunks are already durable; only a newly created empty file still needs syncing.
+        with path.open("r+b") if upload.size_bytes == 0 else path.open("rb") as handle:
+            fileStat = os.fstat(handle.fileno())
+            if fileStat.st_size < upload.size_bytes:
+                return FileOperationError(
+                    "upload_data_missing",
+                    "Previously confirmed upload data is unavailable.",
+                    503,
+                )
+            if (
+                fileStat.st_size != upload.size_bytes
+                or hashlib.file_digest(handle, "sha256").hexdigest() != upload.sha256
+            ):
+                return FileOperationError(
+                    "file_checksum_mismatch",
+                    "The file checksum does not match. Select the source file and start a new upload.",
+                )
+            if upload.size_bytes == 0:
+                os.fsync(handle.fileno())
+            fileSignature = _get_file_signature(fileStat)
+            if _get_file_signature(os.fstat(handle.fileno())) != fileSignature:
+                return FileOperationError(
+                    "upload_content_changed",
+                    "The uploaded content changed during validation. Upload the file again.",
+                )
+        if upload.size_bytes == 0:
+            sync_directory(path.parent.parent)
+            sync_directory(path.parent)
+    except FileNotFoundError:
+        return FileOperationError(
+            "upload_data_missing", "The upload storage is unavailable.", 503
+        )
+    return FileUploadValidationResult(
+        uploadId=upload.pk,
+        blobId=blobId,
+        sizeBytes=upload.size_bytes,
+        sha256=upload.sha256,
+        fileSignature=fileSignature,
+    )
+
+
+def complete_upload(
+    access: OrganizationAccessContext,
+    upload: UploadSession,
+    validationResult: FileUploadValidationResult | FileOperationError,
+    *,
+    apiKeyId: uuid.UUID | None = None,
+) -> FileUploadResponse | FileOperationError:
+    """Publish verified content after the caller locks and rechecks current access."""
+    if get_upload_state(upload) == UploadState.COMPLETED:
+        return build_upload_payload(upload)
+    blobId = _require_uploaded_blob(upload)
+    if isinstance(validationResult, FileUploadValidationResult) and (
+        validationResult.uploadId != upload.pk
+        or validationResult.blobId != blobId
+        or validationResult.sizeBytes != upload.size_bytes
+        or validationResult.sha256 != upload.sha256
+    ):
+        raise FileOperationError(
+            "upload_changed", "The upload changed. Check its status and try again."
+        )
+    if not StoredBlob.objects.filter(
+        pk=blobId,
+        organization=access.organization,
+        purpose=StoredBlobPurpose.SHARED_FILE,
+        state=StoredBlobState.RECEIVING,
+        size_bytes=upload.size_bytes,
+        written_bytes=upload.size_bytes,
+        sha256=upload.sha256,
+    ).exists():
+        raise FileOperationError(
+            "upload_data_missing", "The upload storage is unavailable.", 503
+        )
+    try:
+        if isinstance(validationResult, FileOperationError):
+            raise validationResult
+        # Fully received uploads cannot grow; duplicate chunks never rewrite confirmed content.
+        if (
+            _get_file_signature(get_blob_path(blobId).stat())
+            != validationResult.fileSignature
+        ):
             raise FileOperationError(
-                "upload_data_missing",
-                "Previously confirmed upload data is unavailable.",
-                503,
+                "upload_content_changed",
+                "The uploaded content changed during validation. Upload the file again.",
             )
-        handle.truncate(upload.offset)
-        handle.flush()
-        os.fsync(handle.fileno())
-        handle.seek(0)
-        strDigest = hashlib.file_digest(handle, "sha256").hexdigest()
-        intActualSize = os.fstat(handle.fileno()).st_size
-    sync_directory(path.parent)
-    existingFile = SharedFile.objects.filter(
-        department_id=upload.department_id, name_key=get_path_name_key(upload.name)
-    ).first()
-    failure = None
-    if intActualSize != upload.size_bytes or strDigest != upload.sha256:
-        failure = FileOperationError(
-            "file_checksum_mismatch",
-            "The file checksum does not match. Select the source file and start a new upload.",
-        )
-    elif existingFile is not None and not upload.overwrite:
-        failure = FileOperationError(
-            "file_exists",
-            "A file with this name was created during this upload. Enable Overwrite Existing File to replace it.",
-        )
-    if failure is not None:
+        existingFile = SharedFile.objects.filter(
+            department_id=upload.department_id, name_key=get_path_name_key(upload.name)
+        ).first()
+        if existingFile is not None and not upload.overwrite:
+            raise FileOperationError(
+                "file_exists",
+                "A file with this name was created during this upload. Enable Overwrite Existing File to replace it.",
+            )
+        _require_file_capacity(access.organization.pk, existingFile)
+    except FileOperationError as e:
+        if e.status >= 500:
+            raise
         upload.state = UploadState.FAILED
         upload.save(update_fields=["state"])
-        StoredBlob.objects.filter(pk=upload.blob_id).update(state=StoredBlobState.GARBAGE)
+        StoredBlob.objects.filter(pk=blobId).update(state=StoredBlobState.GARBAGE)
         # Return the expected failure so the view can commit its terminal state before replying.
-        return failure
+        return e
     if existingFile is not None:
         oldBlobId = existingFile.blob_id
         existingFile.delete()
