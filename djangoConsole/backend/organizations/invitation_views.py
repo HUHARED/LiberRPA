@@ -13,13 +13,13 @@ from typing import cast
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage, Paginator
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
-from accounts.models import User
+from accounts.session_revocation import SessionInvalidatedError
 from accounts.rate_limits import (
     apply_invitation_email_rate_limit,
     apply_registration_token_rate_limit,
@@ -55,10 +55,16 @@ from .contracts import (
     InvitationListResponse,
 )
 from .department_queries import get_department_path
-from .models import Department, DepartmentRole, MemberInvitation, InvitationDepartmentRole
+from .models import (
+    Membership,
+    Department,
+    DepartmentRole,
+    MemberInvitation,
+    InvitationDepartmentRole,
+)
+from .http import get_request_membership, lock_request_write_access
 from .permissions import (
     AccessChannel,
-    get_current_membership,
     resolve_organization_access,
     require_organization_admin,
 )
@@ -96,6 +102,10 @@ def _handle_invitation_errors[**Params](
                 "Invitation not found or unavailable.",
                 statusCode=404,
             )
+        except SessionInvalidatedError:
+            return build_authentication_required_response(
+                "The current session is no longer valid. Sign in again."
+            )
         except PermissionDenied:
             return build_error_response(
                 "invitation_access_required",
@@ -108,18 +118,17 @@ def _handle_invitation_errors[**Params](
     return wrapped
 
 
-def _get_invitation_actor(request: HttpRequest) -> tuple[User, uuid.UUID] | JsonResponse:
-    if not request.user.is_authenticated:
-        return build_authentication_required_response()
-    user = cast(User, request.user)
-    membership = get_current_membership(actorId=user.id)
+def _get_invitation_membership(request: HttpRequest) -> Membership | JsonResponse:
+    membership = get_request_membership(request)
+    if isinstance(membership, JsonResponse):
+        return membership
     access = resolve_organization_access(
-        actorId=user.id,
+        actorId=membership.user_id,
         organizationId=membership.organization_id,
         channel=AccessChannel.SESSION,
     )
     require_organization_admin(access)
-    return user, membership.organization_id
+    return membership
 
 
 def _build_invitation_payloads(
@@ -209,10 +218,9 @@ def _build_invitation_response(
 @require_http_methods(["GET", "POST"])
 @_handle_invitation_errors
 def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
-    actorInfo = _get_invitation_actor(request)
-    if isinstance(actorInfo, JsonResponse):
-        return actorInfo
-    user, organizationId = actorInfo
+    membership = _get_invitation_membership(request)
+    if isinstance(membership, JsonResponse):
+        return membership
     if request.method == "POST":
         invitationRequest = parse_json_request(
             request, InvitationCreateRequest, maxBodyBytes=_INT_MAX_INVITATION_BODY_BYTES
@@ -220,22 +228,22 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
         if isinstance(invitationRequest, JsonResponse):
             return invitationRequest
         intRetryAfterSeconds = apply_invitation_email_rate_limit(
-            request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
+            request.META.get("REMOTE_ADDR", ""), actorId=str(membership.user_id)
         )
         if intRetryAfterSeconds:
             return build_rate_limited_response(intRetryAfterSeconds)
-        invitation = create_member_invitation(
-            actorId=user.id,
-            organizationId=organizationId,
-            channel=AccessChannel.SESSION,
-            email=invitationRequest.email,
-            isOrgAdmin=invitationRequest.is_org_admin,
-            departmentRoles={
-                roleRequest.department_id: DepartmentRole(roleRequest.role)
-                for roleRequest in invitationRequest.department_roles
-            },
-            notes=invitationRequest.notes,
-        )
+        with transaction.atomic():
+            access = lock_request_write_access(request, membership)
+            invitation = create_member_invitation(
+                access,
+                email=invitationRequest.email,
+                isOrgAdmin=invitationRequest.is_org_admin,
+                departmentRoles={
+                    roleRequest.department_id: DepartmentRole(roleRequest.role)
+                    for roleRequest in invitationRequest.department_roles
+                },
+                notes=invitationRequest.notes,
+            )
         return _build_invitation_response(invitation, statusCode=201)
     try:
         intPageNumber = parse_page_number(request.GET)
@@ -245,7 +253,7 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
         )
     # NOTE: Accepted and revoked records remain addressable but leave the open invitation list.
     invitationQuery = MemberInvitation.objects.filter(
-        organization_id=organizationId,
+        organization_id=membership.organization_id,
         accepted_at__isnull=True,
         revoked_at__isnull=True,
     ).order_by("-created_at", "-id")
@@ -268,12 +276,11 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
 @require_GET
 @_handle_invitation_errors
 def get_invitation_details(request: HttpRequest, invitationId: uuid.UUID) -> JsonResponse:
-    actorInfo = _get_invitation_actor(request)
-    if isinstance(actorInfo, JsonResponse):
-        return actorInfo
-    _, organizationId = actorInfo
+    membership = _get_invitation_membership(request)
+    if isinstance(membership, JsonResponse):
+        return membership
     invitation = MemberInvitation.objects.get(
-        pk=invitationId, organization_id=organizationId
+        pk=invitationId, organization_id=membership.organization_id
     )
     return _build_invitation_response(invitation)
 
@@ -284,26 +291,22 @@ def get_invitation_details(request: HttpRequest, invitationId: uuid.UUID) -> Jso
 def resend_or_revoke_invitation(
     request: HttpRequest, invitationId: uuid.UUID, *, resend: bool
 ) -> JsonResponse:
-    actorInfo = _get_invitation_actor(request)
-    if isinstance(actorInfo, JsonResponse):
-        return actorInfo
-    user, organizationId = actorInfo
+    membership = _get_invitation_membership(request)
+    if isinstance(membership, JsonResponse):
+        return membership
     emptyRequest = parse_json_request(request, JsonRequest)
     if isinstance(emptyRequest, JsonResponse):
         return emptyRequest
     if resend:
         intRetryAfterSeconds = apply_invitation_email_rate_limit(
-            request.META.get("REMOTE_ADDR", ""), actorId=str(user.id)
+            request.META.get("REMOTE_ADDR", ""), actorId=str(membership.user_id)
         )
         if intRetryAfterSeconds:
             return build_rate_limited_response(intRetryAfterSeconds)
     operation = resend_member_invitation if resend else revoke_member_invitation
-    invitation = operation(
-        actorId=user.id,
-        organizationId=organizationId,
-        channel=AccessChannel.SESSION,
-        invitationId=invitationId,
-    )
+    with transaction.atomic():
+        access = lock_request_write_access(request, membership)
+        invitation = operation(access, invitationId=invitationId)
     return _build_invitation_response(invitation)
 
 

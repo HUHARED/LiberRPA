@@ -66,25 +66,13 @@ class DepartmentDeletionBlockedError(Exception):
         super().__init__("The department has remaining dependencies.")
 
 
-def _resolve_department_deletion_access(
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
-    departmentId: uuid.UUID,
-    *,
-    forUpdate: bool,
-) -> tuple[OrganizationAccessContext, Department]:
-    access = resolve_organization_access(
-        actorId=actorId,
-        organizationId=organizationId,
-        channel=channel,
-        forUpdate=forUpdate,
-    )
+def _get_department_for_deletion(
+    access: OrganizationAccessContext, departmentId: uuid.UUID
+) -> Department:
     require_organization_admin(access)
-    department = Department.objects.get(
+    return Department.objects.get(
         pk=departmentId, organization=access.organization, deleted_at__isnull=True
     )
-    return access, department
 
 
 def _build_department_deletion_info(department: Department) -> DepartmentDeletionInfo:
@@ -179,27 +167,24 @@ def get_department_deletion_info(
     departmentId: uuid.UUID,
 ) -> DepartmentDeletionInfo:
     """Describe current blockers without reserving the department or changing any rows."""
-    _, department = _resolve_department_deletion_access(
-        actorId, organizationId, channel, departmentId, forUpdate=False
+    access = resolve_organization_access(
+        actorId=actorId, organizationId=organizationId, channel=channel
     )
+    department = _get_department_for_deletion(access, departmentId)
     return _build_department_deletion_info(department)
 
 
 def delete_department(
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     departmentId: uuid.UUID,
 ) -> Department:
     """Delete an empty department while preserving its identity and historical links.
 
-    The caller owns the transaction through response construction.
+    The caller supplies rechecked access and owns the transaction through response construction.
     Recheck current permission and dependencies under the organization lock; a previous preview grants no deletion rights.
     """
-    access, department = _resolve_department_deletion_access(
-        actorId, organizationId, channel, departmentId, forUpdate=True
-    )
+    department = _get_department_for_deletion(access, departmentId)
     deletionInfo = _build_department_deletion_info(department)
     if not deletionInfo.canDelete:
         raise DepartmentDeletionBlockedError(deletionInfo)
@@ -211,6 +196,6 @@ def delete_department(
         actor=access.actor,
         organization=access.organization,
         target=department,
-        channel=channel,
+        channel=access.channel,
     )
     return department

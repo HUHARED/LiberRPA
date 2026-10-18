@@ -8,7 +8,6 @@ import uuid
 from collections.abc import Mapping
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
 
 from executors.session_state import revoke_unqualified_executor_sessions
 from operations.audit import get_audit_snapshot, record_audit
@@ -16,8 +15,8 @@ from runs.services import recheck_job_source_access
 
 from .models import Membership, Department, DepartmentRole, DepartmentMembership
 from .permissions import (
-    AccessChannel,
-    lock_organization_admin_access,
+    OrganizationAccessContext,
+    require_organization_admin,
     has_other_active_organization_admin,
 )
 
@@ -84,25 +83,22 @@ def _save_department_memberships(
     DepartmentMembership.objects.bulk_create(listNewDepartmentMembership)
 
 
-@transaction.atomic
 def update_membership(
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     userId: uuid.UUID,
     isOrgAdmin: bool,
     departmentRoles: Mapping[uuid.UUID, DepartmentRole],
     notes: str,
 ) -> Membership:
-    """Save the complete member edit form using the acting administrator's current session permissions.
+    """Save member settings using rechecked access in the caller's write transaction.
 
-    userId identifies the member being edited; actorId identifies the acting administrator.
+    userId identifies the member being edited; access identifies the acting administrator.
     departmentRoles contains the complete explicit role mapping, including roles hidden by OrgAdmin.
     An empty mapping explicitly removes every department role.
     A missing or foreign membership raises Membership.DoesNotExist.
     """
-    access = lock_organization_admin_access(actorId, organizationId, channel)
+    require_organization_admin(access)
     organization = access.organization
     membership = (
         Membership.objects
@@ -148,7 +144,7 @@ def update_membership(
         actor=access.actor,
         organization=organization,
         target=membership,
-        channel=channel,
+        channel=access.channel,
         before=dictAuditBefore,
     )
     return membership

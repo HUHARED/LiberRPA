@@ -38,9 +38,9 @@ from .models import (
     InvitationDepartmentRole,
 )
 from .permissions import (
-    AccessChannel,
+    OrganizationAccessContext,
     require_organization_business_available,
-    lock_organization_admin_access,
+    require_organization_admin,
 )
 
 _INVITATION_LIFETIME = timedelta(hours=12)
@@ -166,18 +166,15 @@ def _queue_invitation_email(invitation: MemberInvitation) -> None:
     )
 
 
-@transaction.atomic
 def create_member_invitation(
+    access: OrganizationAccessContext,
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
     email: str,
     isOrgAdmin: bool,
     departmentRoles: Mapping[uuid.UUID, DepartmentRole],
     notes: str,
 ) -> MemberInvitation:
-    access = lock_organization_admin_access(actorId, organizationId, channel)
+    require_organization_admin(access)
     organization = access.organization
     requestedAt = timezone.now()
     invitation = MemberInvitation(
@@ -213,21 +210,18 @@ def create_member_invitation(
         actor=access.actor,
         organization=organization,
         target=invitation,
-        channel=channel,
+        channel=access.channel,
         before={},
     )
     return invitation
 
 
-@transaction.atomic
 def resend_member_invitation(
+    access: OrganizationAccessContext,
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
     invitationId: uuid.UUID,
 ) -> MemberInvitation:
-    access = lock_organization_admin_access(actorId, organizationId, channel)
+    require_organization_admin(access)
     organization = access.organization
     invitation = MemberInvitation.objects.select_for_update().get(
         pk=invitationId, organization=organization
@@ -264,21 +258,18 @@ def resend_member_invitation(
         actor=access.actor,
         organization=organization,
         target=invitation,
-        channel=channel,
+        channel=access.channel,
         before=dictAuditBefore,
     )
     return invitation
 
 
-@transaction.atomic
 def revoke_member_invitation(
+    access: OrganizationAccessContext,
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
     invitationId: uuid.UUID,
 ) -> MemberInvitation:
-    access = lock_organization_admin_access(actorId, organizationId, channel)
+    require_organization_admin(access)
     organization = access.organization
     invitation = MemberInvitation.objects.select_for_update().get(
         pk=invitationId, organization=organization
@@ -296,7 +287,7 @@ def revoke_member_invitation(
             actor=access.actor,
             organization=organization,
             target=invitation,
-            channel=channel,
+            channel=access.channel,
         )
     return invitation
 

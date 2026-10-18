@@ -6,16 +6,14 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 
-from django.db import transaction
-
 from operations.audit import get_audit_snapshot, record_audit
 
 from .models import Organization
 from .permissions import (
     AccessChannel,
+    OrganizationAccessContext,
     resolve_organization_access,
     require_organization_admin,
-    lock_organization_admin_access,
 )
 
 
@@ -30,18 +28,15 @@ def get_organization_settings(
     return access.organization
 
 
-@transaction.atomic
 def update_organization_settings(
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     name: str,
     defaultTimeZone: str,
     notes: str,
 ) -> Organization:
-    """Save the complete General form without changing members or service state."""
-    access = lock_organization_admin_access(actorId, organizationId, channel)
+    """Save General settings using rechecked access in the caller's write transaction."""
+    require_organization_admin(access)
     organization = access.organization
     dictAuditBefore = get_audit_snapshot(organization)
     organization.name = name.strip()
@@ -64,7 +59,7 @@ def update_organization_settings(
         actor=access.actor,
         organization=organization,
         target=organization,
-        channel=channel,
+        channel=access.channel,
         before=dictAuditBefore,
     )
     return organization

@@ -10,12 +10,13 @@ from typing import cast
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
 
 from accounts.models import User
+from accounts.session_revocation import SessionInvalidatedError
 from console_project.http import (
     build_error_response,
     build_authentication_required_response,
@@ -32,6 +33,7 @@ from .contracts import (
 )
 from .member_queries import MemberInfo, get_member_details, get_member_list
 from .models import DepartmentRole, Membership
+from .http import lock_request_write_access
 from .permissions import AccessChannel, get_current_membership
 from .member_services import update_membership
 
@@ -179,15 +181,15 @@ def get_or_update_member(request: HttpRequest, userId: uuid.UUID) -> JsonRespons
                 roleRequest.department_id: DepartmentRole(roleRequest.role)
                 for roleRequest in membershipRequest.department_roles
             }
-            membership = update_membership(
-                actorId=user.id,
-                organizationId=currentMembership.organization_id,
-                channel=AccessChannel.SESSION,
-                userId=userId,
-                isOrgAdmin=membershipRequest.is_org_admin,
-                departmentRoles=dictDepartmentRole,
-                notes=membershipRequest.notes,
-            )
+            with transaction.atomic():
+                access = lock_request_write_access(request, currentMembership)
+                membership = update_membership(
+                    access=access,
+                    userId=userId,
+                    isOrgAdmin=membershipRequest.is_org_admin,
+                    departmentRoles=dictDepartmentRole,
+                    notes=membershipRequest.notes,
+                )
             return _build_saved_member_response(membership, dictDepartmentRole)
 
         memberInfo = get_member_details(
@@ -201,6 +203,10 @@ def get_or_update_member(request: HttpRequest, userId: uuid.UUID) -> JsonRespons
             MemberDetailsResponse.model_validate({
                 "member": _build_member_payload(memberInfo)
             }).model_dump(mode="python")
+        )
+    except SessionInvalidatedError:
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
         )
     except ValidationError as e:
         return _build_membership_validation_response(e)

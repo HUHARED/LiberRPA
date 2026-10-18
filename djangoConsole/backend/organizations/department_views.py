@@ -17,6 +17,7 @@ from pydantic import ValidationError as ContractValidationError
 from pydantic_core import PydanticSerializationError
 
 from accounts.models import User
+from accounts.session_revocation import SessionInvalidatedError
 from console_project.http import (
     build_error_response,
     build_authentication_required_response,
@@ -35,6 +36,7 @@ from .contracts import (
     DepartmentDeletionResponse,
 )
 from .models import Department
+from .http import lock_request_write_access
 from .permissions import AccessChannel, get_current_membership
 from .department_queries import (
     DepartmentInfo,
@@ -144,10 +146,9 @@ def list_or_create_departments(request: HttpRequest) -> JsonResponse:
             if isinstance(departmentRequest, JsonResponse):
                 return departmentRequest
             with transaction.atomic():
+                access = lock_request_write_access(request, membership)
                 department = create_department(
-                    actorId=user.id,
-                    organizationId=membership.organization_id,
-                    channel=AccessChannel.SESSION,
+                    access=access,
                     name=departmentRequest.name,
                     parentId=departmentRequest.parent_id,
                     notes=departmentRequest.notes,
@@ -172,6 +173,10 @@ def list_or_create_departments(request: HttpRequest) -> JsonResponse:
         )
     except ValidationError as e:
         return _build_department_validation_response(e)
+    except SessionInvalidatedError:
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
+        )
     except PermissionDenied:
         return build_error_response(
             "department_access_required",
@@ -204,10 +209,9 @@ def get_or_update_department(
             if isinstance(departmentRequest, JsonResponse):
                 return departmentRequest
             with transaction.atomic():
+                access = lock_request_write_access(request, membership)
                 department = update_department(
-                    actorId=user.id,
-                    organizationId=membership.organization_id,
-                    channel=AccessChannel.SESSION,
+                    access=access,
                     departmentId=departmentId,
                     name=departmentRequest.name,
                     parentId=departmentRequest.parent_id,
@@ -245,6 +249,10 @@ def get_or_update_department(
     except Department.DoesNotExist:
         return build_error_response(
             "department_not_found", "Department not found or unavailable.", statusCode=404
+        )
+    except SessionInvalidatedError:
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
         )
     except PermissionDenied:
         return build_error_response(
@@ -291,10 +299,9 @@ def get_or_delete_department(
                 return deletionRequest
             try:
                 with transaction.atomic():
+                    access = lock_request_write_access(request, membership)
                     department = delete_department(
-                        actorId=user.id,
-                        organizationId=membership.organization_id,
-                        channel=AccessChannel.SESSION,
+                        access=access,
                         departmentId=departmentId,
                     )
                     return JsonResponse(
@@ -331,6 +338,10 @@ def get_or_delete_department(
     except Department.DoesNotExist:
         return build_error_response(
             "department_not_found", "Department not found or unavailable.", statusCode=404
+        )
+    except SessionInvalidatedError:
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
         )
     except PermissionDenied:
         return build_error_response(

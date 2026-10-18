@@ -7,12 +7,13 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from typing import cast
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
 from accounts.models import User
+from accounts.session_revocation import SessionInvalidatedError
 from console_project.http import (
     build_error_response,
     build_authentication_required_response,
@@ -26,6 +27,7 @@ from .contracts import (
     OrganizationSettingsResponse,
 )
 from .models import Organization
+from .http import lock_request_write_access
 from .permissions import AccessChannel, get_current_membership
 from .services import get_organization_settings, update_organization_settings
 
@@ -62,14 +64,14 @@ def get_or_update_organization_settings(request: HttpRequest) -> JsonResponse:
             )
             if isinstance(settingsRequest, JsonResponse):
                 return settingsRequest
-            organization = update_organization_settings(
-                actorId=user.id,
-                organizationId=membership.organization_id,
-                channel=AccessChannel.SESSION,
-                name=settingsRequest.name,
-                defaultTimeZone=settingsRequest.default_time_zone,
-                notes=settingsRequest.notes,
-            )
+            with transaction.atomic():
+                access = lock_request_write_access(request, membership)
+                organization = update_organization_settings(
+                    access=access,
+                    name=settingsRequest.name,
+                    defaultTimeZone=settingsRequest.default_time_zone,
+                    notes=settingsRequest.notes,
+                )
         else:
             organization = get_organization_settings(
                 actorId=user.id,
@@ -77,6 +79,10 @@ def get_or_update_organization_settings(request: HttpRequest) -> JsonResponse:
                 channel=AccessChannel.SESSION,
             )
         return _build_organization_settings_response(organization)
+    except SessionInvalidatedError:
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
+        )
     except ValidationError as e:
         return build_error_response(
             "invalid_organization_settings",

@@ -15,7 +15,7 @@ from operations.audit import get_audit_snapshot, record_audit
 
 from .models import Organization, Department
 from .validators import get_path_name_key, normalize_path_name
-from .permissions import AccessChannel, lock_organization_admin_access
+from .permissions import OrganizationAccessContext, require_organization_admin
 
 # NOTE: Department writes require the caller's transaction through response construction.
 
@@ -133,19 +133,13 @@ def _create_department_record(
 
 def create_department(
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     name: str,
     parentId: uuid.UUID | None = None,
     notes: str = "",
 ) -> Department:
-    """Create a department using the account and channel supplied by authentication.
-
-    actorId and channel come from verified credentials, never from the request body.
-    Operator-scoped API Keys cannot use this operation.
-    """
-    access = lock_organization_admin_access(actorId, organizationId, channel)
+    """Create a department using rechecked access in the caller's write transaction."""
+    require_organization_admin(access)
     organization = access.organization
     department = _create_department_record(
         organization, name=name, parentId=parentId, notes=notes
@@ -155,7 +149,7 @@ def create_department(
         actor=access.actor,
         organization=organization,
         target=department,
-        channel=channel,
+        channel=access.channel,
         before={},
     )
     return department
@@ -163,9 +157,7 @@ def create_department(
 
 def update_department(
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     departmentId: uuid.UUID,
     name: str,
     parentId: uuid.UUID | None,
@@ -176,7 +168,7 @@ def update_department(
     All editable values are required; parentId=None explicitly selects the root level.
     A missing, deleted, or foreign department raises Department.DoesNotExist.
     """
-    access = lock_organization_admin_access(actorId, organizationId, channel)
+    require_organization_admin(access)
     organization = access.organization
     department = Department.objects.get(
         pk=departmentId, organization=organization, deleted_at__isnull=True
@@ -207,7 +199,7 @@ def update_department(
         actor=access.actor,
         organization=organization,
         target=department,
-        channel=channel,
+        channel=access.channel,
         before=dictAuditBefore,
     )
     return department
