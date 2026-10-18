@@ -4,7 +4,7 @@ import { defineStore } from "pinia";
 
 import { invokeMain } from "../IPC/ipc";
 import { loggerRenderer } from "../Logging/logger";
-import type { PackageDetails, PackageSettingsUpdate } from "../../../shared/package";
+import type { PackageDetails, PackageSettings } from "../../../shared/package";
 
 export const usePackageStore = defineStore("package", {
   state: () => {
@@ -100,7 +100,7 @@ export const usePackageStore = defineStore("package", {
         return;
       }
 
-      const dictTemp: PackageSettingsUpdate = {
+      const dictTemp: PackageSettings = {
         id: this.dictDetailEdit.id,
         python_environment_name: this.dictDetailEdit.python_environment_name,
         max_retry_count: this.dictDetailEdit.max_retry_count,

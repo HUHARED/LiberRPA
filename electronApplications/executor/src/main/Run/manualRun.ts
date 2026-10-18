@@ -1,6 +1,6 @@
 // FileName: manualRun.ts
 
-import type { PackageDetails, PackageSettingsUpdate } from "../../shared/package";
+import type { PackageDetails, PackageSettings } from "../../shared/package";
 
 import type { RunConfig } from "../../shared/run";
 import {
@@ -31,7 +31,7 @@ function buildManualRunConfig(dictPackage: PackageDetails): RunConfig {
   };
 }
 
-export async function runInstalledPackage(settings: PackageSettingsUpdate): Promise<void> {
+export async function runInstalledPackage(settings: PackageSettings): Promise<void> {
   const dictPackage = dbSelectPackageDetailsById(settings.id);
   if (dictPackage === undefined) {
     throw new Error(`Package not found: ${settings.id}`);

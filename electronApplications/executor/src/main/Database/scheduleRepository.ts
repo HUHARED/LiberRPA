@@ -11,9 +11,9 @@ import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
   ensureSingleRowAffected,
-  ensureScheduleListRows,
-  ensureScheduleDetailRow,
-  ensureScheduleRunDetailRow,
+  parseScheduleListRows,
+  parseScheduleDetailsRow,
+  parseScheduleRunConfigRow,
 } from "./rowValidation";
 
 export function dbSelectScheduleList(): ScheduleListItem[] {
@@ -39,7 +39,7 @@ export function dbSelectScheduleList(): ScheduleListItem[] {
       `,
     )
     .all();
-  return ensureScheduleListRows(rows, "Schedule list query result");
+  return parseScheduleListRows(rows, "Schedule list query result");
 }
 
 export function dbSelectScheduleDetail(name: string): ScheduleDetails | undefined {
@@ -78,7 +78,7 @@ export function dbSelectScheduleDetail(name: string): ScheduleDetails | undefine
     .get(name);
   return row === undefined
     ? undefined
-    : ensureScheduleDetailRow(row, "Schedule detail query result");
+    : parseScheduleDetailsRow(row, "Schedule detail query result");
 }
 
 export function dbSelectScheduleRunDetail(scheduleId: number): RunConfig | undefined {
@@ -110,7 +110,7 @@ export function dbSelectScheduleRunDetail(scheduleId: number): RunConfig | undef
     .get(scheduleId);
   return row === undefined
     ? undefined
-    : ensureScheduleRunDetailRow(row, "Schedule Run detail query result");
+    : parseScheduleRunConfigRow(row, "Schedule Run detail query result");
 }
 
 export function dbInsertSchedule(detailDict: ScheduleCreateData): void {

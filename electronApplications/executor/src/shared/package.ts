@@ -18,7 +18,7 @@ export type PackageCreateData = Omit<
   "id" | "created_at_ms" | "updated_at_ms"
 >;
 
-export interface PackageSettingsUpdate extends RunSettings, PythonEnvironmentSelection {
+export interface PackageSettings extends RunSettings, PythonEnvironmentSelection {
   id: number;
 }
 

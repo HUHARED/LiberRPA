@@ -1,10 +1,10 @@
 // FileName: validation.ts
 
 import type { ConsoleSignInArgs } from "../../shared/consoleAccount";
-import type { PackageSettingsUpdate } from "../../shared/package";
+import type { PackageSettings } from "../../shared/package";
 import type { RunHistoryQueryOptions } from "../../shared/run";
 import type { ScheduleCreateData, ScheduleUpdateData } from "../../shared/schedule";
-import type { ExecutorInvokeCommand, RendererLogLevel } from "../../shared/ipc";
+import type { RendererLogLevel } from "../../shared/ipc";
 import { parseScheduleCron } from "../../shared/cron";
 import { dictConfigExecutor } from "../Config/executorConfig";
 import {
@@ -40,59 +40,11 @@ export function ensureRendererLogLevel(value: unknown): RendererLogLevel {
   }
 }
 
-export function ensureInvokeCommand(value: unknown): ExecutorInvokeCommand {
-  // Keep command order aligned with ExecutorInvokeContract.
-  switch (value) {
-    case "getPythonEnvironmentNames":
-    case "getProjectNames":
-    case "getProjectVersions":
-    case "getPackageDetails":
-    case "installPackage":
-    case "savePackageSettings":
-    case "runPackage":
-    case "getPackageBoundSchedules":
-    case "deletePackage":
-    case "getScheduleList":
-    case "getScheduleDetail":
-    case "createSchedule":
-    case "saveSchedule":
-    case "setScheduleEnabled":
-    case "deleteSchedule":
-    case "getJobQueue":
-    case "cancelQueuedRun":
-    case "getRunHistoryPage":
-    case "getRunDetails":
-    case "openRunLogFolder":
-    case "pythonCancel":
-    case "getLocalRerunPackage":
-    case "saveExecutorConfig":
-    case "chooseProjectLogFolder":
-    case "openProjectLogFolder":
-    case "getConsoleAccount":
-    case "saveConsoleAddress":
-    case "signInConsole":
-    case "getConsoleExecutorChoices":
-    case "associateConsoleExecutor":
-    case "signOutConsole":
-      return value;
-    default:
-      throw new Error(`Unknown Renderer invoke command: ${String(value)}`);
-  }
-}
-
 export function ensureNoData(value: unknown, command: string): undefined {
   if (value !== undefined) {
     throw new Error(`${command} does not accept request data.`);
   }
   return undefined;
-}
-
-export function ensureStringData(value: unknown, command: string): string {
-  return ensureString(value, `${command} data`);
-}
-
-export function ensurePositiveIntegerData(value: unknown, command: string): number {
-  return ensurePositiveInteger(value, `${command} data`);
 }
 
 export function ensurePackageRef(value: unknown): {
@@ -116,7 +68,7 @@ export function ensurePackageRef(value: unknown): {
   };
 }
 
-export function ensurePackageSettingsUpdate(value: unknown): PackageSettingsUpdate {
+export function ensurePackageSettings(value: unknown, sourceName: string): PackageSettings {
   const dictValue = ensureExactRecord(
     value,
     [
@@ -130,42 +82,42 @@ export function ensurePackageSettingsUpdate(value: unknown): PackageSettingsUpda
       "builtin_highlight_ui",
       "custom_prj_args",
     ],
-    "Package settings update request",
+    sourceName,
   );
 
   return {
-    id: ensurePositiveInteger(dictValue.id, "Package settings update request.id"),
+    id: ensurePositiveInteger(dictValue.id, `${sourceName}.id`),
     python_environment_name: ensurePythonEnvironmentName(
       dictValue.python_environment_name,
-      "Package settings update request.python_environment_name",
+      `${sourceName}.python_environment_name`,
     ),
     max_retry_count: ensureMaxRetryCount(
       dictValue.max_retry_count,
-      "Package settings update request.max_retry_count",
+      `${sourceName}.max_retry_count`,
     ),
     timeout_min: ensureRunTimeoutMinutes(
       dictValue.timeout_min,
-      "Package settings update request.timeout_min",
+      `${sourceName}.timeout_min`,
     ),
     builtin_log_level: ensureLogLevel(
       dictValue.builtin_log_level,
-      "Package settings update request.builtin_log_level",
+      `${sourceName}.builtin_log_level`,
     ),
     builtin_record_video: ensureBoolean(
       dictValue.builtin_record_video,
-      "Package settings update request.builtin_record_video",
+      `${sourceName}.builtin_record_video`,
     ),
     builtin_stop_shortcut: ensureBoolean(
       dictValue.builtin_stop_shortcut,
-      "Package settings update request.builtin_stop_shortcut",
+      `${sourceName}.builtin_stop_shortcut`,
     ),
     builtin_highlight_ui: ensureBoolean(
       dictValue.builtin_highlight_ui,
-      "Package settings update request.builtin_highlight_ui",
+      `${sourceName}.builtin_highlight_ui`,
     ),
     custom_prj_args: ensureCustomProjectArgs(
       dictValue.custom_prj_args,
-      "Package settings update request.custom_prj_args",
+      `${sourceName}.custom_prj_args`,
     ),
   };
 }

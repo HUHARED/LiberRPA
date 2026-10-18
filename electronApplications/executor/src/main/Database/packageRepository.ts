@@ -3,15 +3,15 @@
 import type {
   PackageCreateData,
   PackageDetails,
-  PackageSettingsUpdate,
+  PackageSettings,
 } from "../../shared/package";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
   ensureSingleRowAffected,
-  ensureNameRows,
-  ensureNonEmptyColumnRows,
-  ensurePackageDetailsRow,
+  parseNameRows,
+  parseNonEmptyColumnRows,
+  parsePackageDetailsRow,
 } from "./rowValidation";
 
 export function dbSelectProjectNames(): string[] {
@@ -31,7 +31,7 @@ export function dbSelectProjectNames(): string[] {
       `,
     )
     .all();
-  return ensureNonEmptyColumnRows(rows, "project_name", "Project name query result");
+  return parseNonEmptyColumnRows(rows, "project_name", "Project name query result");
 }
 
 export function dbSelectProjectVersions(projectName: string): string[] {
@@ -51,7 +51,7 @@ export function dbSelectProjectVersions(projectName: string): string[] {
       `,
     )
     .all(projectName);
-  return ensureNonEmptyColumnRows(rows, "project_version", "Project version query result");
+  return parseNonEmptyColumnRows(rows, "project_version", "Project version query result");
 }
 
 export function dbSelectPackageBoundSchedules(id: number): { name: string }[] {
@@ -70,7 +70,7 @@ export function dbSelectPackageBoundSchedules(id: number): { name: string }[] {
       `,
     )
     .all(id);
-  return ensureNameRows(rows, "Bound Schedule query result");
+  return parseNameRows(rows, "Bound Schedule query result");
 }
 
 export function dbSelectPackageDetails(
@@ -107,7 +107,7 @@ export function dbSelectPackageDetails(
     .get(projectName, projectVersion);
   return row === undefined
     ? undefined
-    : ensurePackageDetailsRow(row, "Package details query result");
+    : parsePackageDetailsRow(row, "Package details query result");
 }
 
 export function dbSelectPackageDetailsById(id: number): PackageDetails | undefined {
@@ -140,7 +140,7 @@ export function dbSelectPackageDetailsById(id: number): PackageDetails | undefin
     .get(id);
   return row === undefined
     ? undefined
-    : ensurePackageDetailsRow(row, "Package details by ID query result");
+    : parsePackageDetailsRow(row, "Package details by ID query result");
 }
 
 export function dbInsertPackageDetails(dictDetail: PackageCreateData): void {
@@ -192,7 +192,7 @@ export function dbInsertPackageDetails(dictDetail: PackageCreateData): void {
   );
 }
 
-export function dbUpdatePackageSettings(dictDetail: PackageSettingsUpdate): void {
+export function dbUpdatePackageSettings(dictDetail: PackageSettings): void {
   loggerMain.debug("--dbUpdatePackageSettings--");
   const result = getDatabase()
     .prepare(
@@ -288,5 +288,5 @@ export function dbSelectMostRecentlyInstalledPackage(
     .get(projectName);
   return row === undefined
     ? undefined
-    : ensurePackageDetailsRow(row, "Most recently installed Package query result");
+    : parsePackageDetailsRow(row, "Most recently installed Package query result");
 }

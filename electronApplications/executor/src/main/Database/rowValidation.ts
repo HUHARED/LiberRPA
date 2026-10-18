@@ -6,7 +6,7 @@ import type { PackageDetails } from "../../shared/package";
 import { type RunConfig, RunStatus, type RunHistoryItem } from "../../shared/run";
 
 import type { ScheduleDetails, ScheduleListItem } from "../../shared/schedule";
-import type { CustomProjectArgs } from "../../shared/runSettings";
+import type { CustomProjectArgs, RunSettings } from "../../shared/runSettings";
 import {
   ensureExactRecord,
   ensureString,
@@ -64,29 +64,65 @@ function parseCustomProjectArgsJson(value: unknown, sourceName: string): CustomP
   return ensureCustomProjectArgs(parsedValue, sourceName);
 }
 
-function ensureRows<T>(
-  rows: unknown[],
-  ensureRow: (value: unknown, sourceName: string) => T,
+function parseRunSettingsFields(
+  row: Record<string, unknown>,
   sourceName: string,
-): T[] {
-  return rows.map((row, intIndex) => ensureRow(row, `${sourceName}[${intIndex}]`));
+): RunSettings {
+  return {
+    max_retry_count: ensureMaxRetryCount(
+      row.max_retry_count,
+      `${sourceName}.max_retry_count`,
+    ),
+    timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
+    builtin_log_level: ensureLogLevel(
+      row.builtin_log_level,
+      `${sourceName}.builtin_log_level`,
+    ),
+    builtin_record_video:
+      ensureBinaryInteger(
+        row.builtin_record_video,
+        `${sourceName}.builtin_record_video`,
+      ) === 1,
+    builtin_stop_shortcut:
+      ensureBinaryInteger(
+        row.builtin_stop_shortcut,
+        `${sourceName}.builtin_stop_shortcut`,
+      ) === 1,
+    builtin_highlight_ui:
+      ensureBinaryInteger(
+        row.builtin_highlight_ui,
+        `${sourceName}.builtin_highlight_ui`,
+      ) === 1,
+    custom_prj_args: parseCustomProjectArgsJson(
+      row.custom_prj_args,
+      `${sourceName}.custom_prj_args`,
+    ),
+  };
 }
 
-function ensureNameRow(value: unknown, sourceName: string): { name: string } {
+function parseRows<T>(
+  rows: unknown[],
+  parseRow: (value: unknown, sourceName: string) => T,
+  sourceName: string,
+): T[] {
+  return rows.map((row, intIndex) => parseRow(row, `${sourceName}[${intIndex}]`));
+}
+
+function parseNameRow(value: unknown, sourceName: string): { name: string } {
   const row = ensureExactRecord(value, ["name"], sourceName);
   return { name: ensureNonEmptyString(row.name, `${sourceName}.name`) };
 }
 
-export function ensureNameRows(rows: unknown[], sourceName: string): { name: string }[] {
-  return ensureRows(rows, ensureNameRow, sourceName);
+export function parseNameRows(rows: unknown[], sourceName: string): { name: string }[] {
+  return parseRows(rows, parseNameRow, sourceName);
 }
 
-export function ensureNonEmptyColumnRows(
+export function parseNonEmptyColumnRows(
   rows: unknown[],
   columnName: string,
   sourceName: string,
 ): string[] {
-  return ensureRows(
+  return parseRows(
     rows,
     (value, source) => {
       const row = ensureExactRecord(value, [columnName], source);
@@ -96,10 +132,7 @@ export function ensureNonEmptyColumnRows(
   );
 }
 
-export function ensurePackageDetailsRow(
-  value: unknown,
-  sourceName: string,
-): PackageDetails {
+export function parsePackageDetailsRow(value: unknown, sourceName: string): PackageDetails {
   const row = ensureExactRecord(
     value,
     [
@@ -138,34 +171,7 @@ export function ensurePackageDetailsRow(
       row.python_environment_name,
       `${sourceName}.python_environment_name`,
     ),
-    max_retry_count: ensureMaxRetryCount(
-      row.max_retry_count,
-      `${sourceName}.max_retry_count`,
-    ),
-    timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
-    builtin_log_level: ensureLogLevel(
-      row.builtin_log_level,
-      `${sourceName}.builtin_log_level`,
-    ),
-    builtin_record_video:
-      ensureBinaryInteger(
-        row.builtin_record_video,
-        `${sourceName}.builtin_record_video`,
-      ) === 1,
-    builtin_stop_shortcut:
-      ensureBinaryInteger(
-        row.builtin_stop_shortcut,
-        `${sourceName}.builtin_stop_shortcut`,
-      ) === 1,
-    builtin_highlight_ui:
-      ensureBinaryInteger(
-        row.builtin_highlight_ui,
-        `${sourceName}.builtin_highlight_ui`,
-      ) === 1,
-    custom_prj_args: parseCustomProjectArgsJson(
-      row.custom_prj_args,
-      `${sourceName}.custom_prj_args`,
-    ),
+    ...parseRunSettingsFields(row, sourceName),
     created_at_ms: ensureNonNegativeInteger(
       row.created_at_ms,
       `${sourceName}.created_at_ms`,
@@ -177,7 +183,7 @@ export function ensurePackageDetailsRow(
   };
 }
 
-function ensureScheduleListItemRow(value: unknown, sourceName: string): ScheduleListItem {
+function parseScheduleListItemRow(value: unknown, sourceName: string): ScheduleListItem {
   const row = ensureExactRecord(
     value,
     [
@@ -224,14 +230,14 @@ function ensureScheduleListItemRow(value: unknown, sourceName: string): Schedule
   };
 }
 
-export function ensureScheduleListRows(
+export function parseScheduleListRows(
   rows: unknown[],
   sourceName: string,
 ): ScheduleListItem[] {
-  return ensureRows(rows, ensureScheduleListItemRow, sourceName);
+  return parseRows(rows, parseScheduleListItemRow, sourceName);
 }
 
-export function ensureScheduleDetailRow(
+export function parseScheduleDetailsRow(
   value: unknown,
   sourceName: string,
 ): ScheduleDetails {
@@ -297,34 +303,7 @@ export function ensureScheduleDetailRow(
     period_start_ms: intPeriodStartMs,
     period_end_ms: intPeriodEndMs,
     enabled: ensureBinaryInteger(row.enabled, `${sourceName}.enabled`) === 1,
-    max_retry_count: ensureMaxRetryCount(
-      row.max_retry_count,
-      `${sourceName}.max_retry_count`,
-    ),
-    timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
-    builtin_log_level: ensureLogLevel(
-      row.builtin_log_level,
-      `${sourceName}.builtin_log_level`,
-    ),
-    builtin_record_video:
-      ensureBinaryInteger(
-        row.builtin_record_video,
-        `${sourceName}.builtin_record_video`,
-      ) === 1,
-    builtin_stop_shortcut:
-      ensureBinaryInteger(
-        row.builtin_stop_shortcut,
-        `${sourceName}.builtin_stop_shortcut`,
-      ) === 1,
-    builtin_highlight_ui:
-      ensureBinaryInteger(
-        row.builtin_highlight_ui,
-        `${sourceName}.builtin_highlight_ui`,
-      ) === 1,
-    custom_prj_args: parseCustomProjectArgsJson(
-      row.custom_prj_args,
-      `${sourceName}.custom_prj_args`,
-    ),
+    ...parseRunSettingsFields(row, sourceName),
     created_at_ms: ensureNonNegativeInteger(
       row.created_at_ms,
       `${sourceName}.created_at_ms`,
@@ -336,7 +315,7 @@ export function ensureScheduleDetailRow(
   };
 }
 
-export function ensureScheduleRunDetailRow(value: unknown, sourceName: string): RunConfig {
+export function parseScheduleRunConfigRow(value: unknown, sourceName: string): RunConfig {
   const row = ensureExactRecord(
     value,
     [
@@ -376,38 +355,11 @@ export function ensureScheduleRunDetailRow(value: unknown, sourceName: string): 
       row.python_environment_name,
       `${sourceName}.python_environment_name`,
     ),
-    max_retry_count: ensureMaxRetryCount(
-      row.max_retry_count,
-      `${sourceName}.max_retry_count`,
-    ),
-    timeout_min: ensureRunTimeoutMinutes(row.timeout_min, `${sourceName}.timeout_min`),
-    builtin_log_level: ensureLogLevel(
-      row.builtin_log_level,
-      `${sourceName}.builtin_log_level`,
-    ),
-    builtin_record_video:
-      ensureBinaryInteger(
-        row.builtin_record_video,
-        `${sourceName}.builtin_record_video`,
-      ) === 1,
-    builtin_stop_shortcut:
-      ensureBinaryInteger(
-        row.builtin_stop_shortcut,
-        `${sourceName}.builtin_stop_shortcut`,
-      ) === 1,
-    builtin_highlight_ui:
-      ensureBinaryInteger(
-        row.builtin_highlight_ui,
-        `${sourceName}.builtin_highlight_ui`,
-      ) === 1,
-    custom_prj_args: parseCustomProjectArgsJson(
-      row.custom_prj_args,
-      `${sourceName}.custom_prj_args`,
-    ),
+    ...parseRunSettingsFields(row, sourceName),
   };
 }
 
-function ensureRunHistoryListItemRow(value: unknown, sourceName: string): RunHistoryItem {
+function parseRunHistoryListItemRow(value: unknown, sourceName: string): RunHistoryItem {
   const row = ensureExactRecord(
     value,
     [
@@ -458,14 +410,14 @@ function ensureRunHistoryListItemRow(value: unknown, sourceName: string): RunHis
   };
 }
 
-export function ensureRunHistoryListRows(
+export function parseRunHistoryListRows(
   rows: unknown[],
   sourceName: string,
 ): RunHistoryItem[] {
-  return ensureRows(rows, ensureRunHistoryListItemRow, sourceName);
+  return parseRows(rows, parseRunHistoryListItemRow, sourceName);
 }
 
-export function ensureCountRow(
+export function parseCountRow(
   value: unknown,
   strColumnName: string,
   sourceName: string,
@@ -474,7 +426,7 @@ export function ensureCountRow(
   return ensureNonNegativeInteger(row[strColumnName], `${sourceName}.${strColumnName}`);
 }
 
-export function ensureRunHistoryLogLocationRow(
+export function parseRunHistoryLogLocationRow(
   value: unknown,
   sourceName: string,
 ): RunLogLocation {

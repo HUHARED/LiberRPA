@@ -6,11 +6,7 @@ import type {
   ConsoleSignInArgs,
 } from "./consoleAccount";
 import type { ExecutorConfig } from "./config";
-import type {
-  PackageDetails,
-  PackageInstallResult,
-  PackageSettingsUpdate,
-} from "./package";
+import type { PackageDetails, PackageInstallResult, PackageSettings } from "./package";
 import type {
   RunDetails,
   RunHistoryQueryOptions,
@@ -60,11 +56,11 @@ interface ExecutorInvokeContract {
     response: PackageInstallResult;
   };
   savePackageSettings: {
-    request: PackageSettingsUpdate;
+    request: PackageSettings;
     response: void;
   };
   runPackage: {
-    request: PackageSettingsUpdate;
+    request: PackageSettings;
     response: void;
   };
   getPackageBoundSchedules: {

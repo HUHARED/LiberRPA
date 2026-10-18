@@ -19,10 +19,7 @@ import {
   saveExecutorConfigDict,
   chooseProjectLogFolder,
 } from "../Config/executorConfig";
-import {
-  getPythonEnvironmentNames,
-  validatePythonEnvironmentName,
-} from "../Config/environment";
+import { getPythonEnvironmentNames } from "../Config/environment";
 import {
   dbSelectProjectNames,
   dbSelectProjectVersions,
@@ -55,14 +52,12 @@ import {
   getJobQueueItems,
   refreshSchedulerEngine,
 } from "../Scheduler/schedulerEngine";
+import { ensureString, ensurePositiveInteger } from "../Common/validation";
 import {
   ensureRendererLogLevel,
-  ensureInvokeCommand,
   ensureNoData,
-  ensureStringData,
-  ensurePositiveIntegerData,
   ensurePackageRef,
-  ensurePackageSettingsUpdate,
+  ensurePackageSettings,
   ensureScheduleCreate,
   ensureScheduleUpdate,
   ensureScheduleEnabled,
@@ -101,23 +96,23 @@ const INVOKE_VALIDATOR = {
   getPythonEnvironmentNames: (rawData: unknown) =>
     ensureNoData(rawData, "getPythonEnvironmentNames"),
   getProjectNames: (rawData: unknown) => ensureNoData(rawData, "getProjectNames"),
-  getProjectVersions: (rawData: unknown) => ensureStringData(rawData, "getProjectVersions"),
+  getProjectVersions: (rawData: unknown) => ensureString(rawData, "Project name"),
   getPackageDetails: ensurePackageRef,
   installPackage: (rawData: unknown) => ensureNoData(rawData, "installPackage"),
-  savePackageSettings: ensurePackageSettingsUpdate,
-  runPackage: ensurePackageSettingsUpdate,
+  savePackageSettings: (rawData: unknown) =>
+    ensurePackageSettings(rawData, "Package settings update request"),
+  runPackage: (rawData: unknown) => ensurePackageSettings(rawData, "Package run request"),
   getPackageBoundSchedules: (rawData: unknown) =>
-    ensurePositiveIntegerData(rawData, "getPackageBoundSchedules"),
-  deletePackage: (rawData: unknown) => ensurePositiveIntegerData(rawData, "deletePackage"),
+    ensurePositiveInteger(rawData, "Package ID"),
+  deletePackage: (rawData: unknown) => ensurePositiveInteger(rawData, "Package ID"),
 
   // Schedules.
   getScheduleList: (rawData: unknown) => ensureNoData(rawData, "getScheduleList"),
-  getScheduleDetail: (rawData: unknown) => ensureStringData(rawData, "getScheduleDetail"),
+  getScheduleDetail: (rawData: unknown) => ensureString(rawData, "Schedule name"),
   createSchedule: ensureScheduleCreate,
   saveSchedule: ensureScheduleUpdate,
   setScheduleEnabled: ensureScheduleEnabled,
-  deleteSchedule: (rawData: unknown) =>
-    ensurePositiveIntegerData(rawData, "deleteSchedule"),
+  deleteSchedule: (rawData: unknown) => ensurePositiveInteger(rawData, "Schedule ID"),
 
   // Job Queue.
   getJobQueue: (rawData: unknown) => ensureNoData(rawData, "getJobQueue"),
@@ -125,12 +120,11 @@ const INVOKE_VALIDATOR = {
 
   // Run History.
   getRunHistoryPage: ensureRunHistoryOptions,
-  getRunDetails: (rawData: unknown) => ensurePositiveIntegerData(rawData, "Run History ID"),
-  openRunLogFolder: (rawData: unknown) =>
-    ensurePositiveIntegerData(rawData, "openRunLogFolder"),
-  pythonCancel: (rawData: unknown) => ensurePositiveIntegerData(rawData, "pythonCancel"),
+  getRunDetails: (rawData: unknown) => ensurePositiveInteger(rawData, "Run History ID"),
+  openRunLogFolder: (rawData: unknown) => ensurePositiveInteger(rawData, "Run History ID"),
+  pythonCancel: (rawData: unknown) => ensurePositiveInteger(rawData, "Run History ID"),
   getLocalRerunPackage: (rawData: unknown) =>
-    ensurePositiveIntegerData(rawData, "getLocalRerunPackage"),
+    ensurePositiveInteger(rawData, "Run History ID"),
 
   // Settings.
   saveExecutorConfig: (rawData: unknown) => parseExecutorConfig(rawData),
@@ -140,11 +134,11 @@ const INVOKE_VALIDATOR = {
 
   // Console.
   getConsoleAccount: (rawData: unknown) => ensureNoData(rawData, "getConsoleAccount"),
-  saveConsoleAddress: (rawData: unknown) => ensureStringData(rawData, "Console URL"),
+  saveConsoleAddress: (rawData: unknown) => ensureString(rawData, "Console URL"),
   signInConsole: ensureConsoleSignIn,
   getConsoleExecutorChoices: (rawData: unknown) =>
-    ensurePositiveIntegerData(rawData, "Executor choices page"),
-  associateConsoleExecutor: (rawData: unknown) => ensureStringData(rawData, "Executor ID"),
+    ensurePositiveInteger(rawData, "Executor choices page"),
+  associateConsoleExecutor: (rawData: unknown) => ensureString(rawData, "Executor ID"),
   signOutConsole: (rawData: unknown) => ensureNoData(rawData, "signOutConsole"),
 } satisfies ExecutorInvokeValidators;
 
@@ -172,7 +166,6 @@ function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvo
     },
 
     savePackageSettings(detailDict) {
-      validatePythonEnvironmentName(detailDict.python_environment_name);
       dbUpdatePackageSettings(detailDict);
     },
 
@@ -313,7 +306,7 @@ export function registerExecutorIpc(
 
       try {
         const level = ensureRendererLogLevel(rawLevel);
-        const message = ensureStringData(rawMessage, "Renderer log message");
+        const message = ensureString(rawMessage, "Renderer log message");
         loggerMain.log(level, `[Renderer] ${message}`);
       } catch (e: unknown) {
         loggerMain.error(`Invalid Renderer log message: ${getErrorMessage(e)}`);
@@ -333,11 +326,16 @@ export function registerExecutorIpc(
         return createErrorResult(new Error("Unexpected IPC sender."));
       }
 
-      let strCommandForLog = String(rawCommand);
+      const strCommandForLog = String(rawCommand);
       try {
         ensureExecutorRunning();
-        const command = ensureInvokeCommand(rawCommand);
-        strCommandForLog = command;
+        if (
+          typeof rawCommand !== "string" ||
+          !Object.hasOwn(INVOKE_VALIDATOR, rawCommand)
+        ) {
+          throw new Error(`Unknown Renderer invoke command: ${strCommandForLog}`);
+        }
+        const command = rawCommand as ExecutorInvokeCommand;
         loggerMain.debug(`[renderer-invoke] ${command}`);
 
         const data = await executeInvoke(

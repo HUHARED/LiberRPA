@@ -21,9 +21,9 @@ import { getDatabase } from "./connection";
 import {
   ensureSingleRowAffected,
   type RunLogLocation,
-  ensureRunHistoryListRows,
-  ensureCountRow,
-  ensureRunHistoryLogLocationRow,
+  parseRunHistoryListRows,
+  parseCountRow,
+  parseRunHistoryLogLocationRow,
 } from "./rowValidation";
 import { isRecoveredRunHistoryActive } from "../Run/recoveredRuns";
 
@@ -211,7 +211,7 @@ export function dbHasRunningRunForPackage(packageId: number): boolean {
     )
     .get(RunStatus.Running, packageId);
   return (
-    ensureCountRow(row, "runningCount", "Running Run count for Package query result") > 0
+    parseCountRow(row, "runningCount", "Running Run count for Package query result") > 0
   );
 }
 
@@ -235,7 +235,7 @@ export function dbSelectRunHistoryLogLocation(id: number): RunLogLocation | unde
     .get(id);
   return row === undefined
     ? undefined
-    : ensureRunHistoryLogLocationRow(row, "Run History log location query result");
+    : parseRunHistoryLogLocationRow(row, "Run History log location query result");
 }
 
 export function dbSelectFinishedLocalRunProjectName(
@@ -328,7 +328,7 @@ export function dbSelectRunHistoryPage(options: RunHistoryQueryOptions): RunHist
       `,
     )
     .all(...arrWhereParam, options.itemsPerPage, (options.page - 1) * options.itemsPerPage);
-  const arrRow = ensureRunHistoryListRows(rows, "Run History query result");
+  const arrRow = parseRunHistoryListRows(rows, "Run History query result");
 
   const total = getDatabase()
     .prepare(
@@ -341,7 +341,7 @@ export function dbSelectRunHistoryPage(options: RunHistoryQueryOptions): RunHist
       `,
     )
     .get(...arrWhereParam);
-  const intTotal = ensureCountRow(total, "total", "Run History count query result");
+  const intTotal = parseCountRow(total, "total", "Run History count query result");
 
   return { rows: arrRow, total: intTotal };
 }
@@ -350,7 +350,7 @@ function parseRetentionLogLocations(rows: unknown[], sourceName: string): RunLog
   const arrLogLocation: RunLogLocation[] = [];
   for (const [intIndex, row] of rows.entries()) {
     try {
-      const location = ensureRunHistoryLogLocationRow(row, `${sourceName}[${intIndex}]`);
+      const location = parseRunHistoryLogLocationRow(row, `${sourceName}[${intIndex}]`);
       if (!isRecoveredRunHistoryActive(location.id)) arrLogLocation.push(location);
     } catch (e: unknown) {
       loggerMain.warn(`Skip invalid Retention log location: ${getErrorMessage(e)}`);

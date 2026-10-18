@@ -81,11 +81,11 @@ import { cloneJsonSerializable } from "../../Common/json";
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
 import { getErrorMessage } from "../../../../shared/error";
-import type { PackageDetails, PackageSettingsUpdate } from "../../../../shared/package";
+import type { PackageDetails, PackageSettings } from "../../../../shared/package";
 
 const props = defineProps<{ packageDetails: PackageDetails }>();
 const emit = defineEmits<{ close: [] }>();
-const runSettings = ref<PackageSettingsUpdate>(cloneJsonSerializable(props.packageDetails));
+const runSettings = ref<PackageSettings>(cloneJsonSerializable(props.packageDetails));
 const arrPythonEnvironmentName = ref<string[]>([]);
 const boolLoading = ref(true);
 const boolStarting = ref(false);

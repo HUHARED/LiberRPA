@@ -67,12 +67,8 @@ export function getPythonEnvironmentNames(): string[] {
   });
 }
 
-export function validatePythonEnvironmentName(strEnvironmentName: string): void {
-  ensurePythonEnvironmentName(strEnvironmentName, "Python environment name");
-}
-
 export function getPythonEnvironmentPath(strEnvironmentName: string): string {
-  validatePythonEnvironmentName(strEnvironmentName);
+  ensurePythonEnvironmentName(strEnvironmentName, "Python environment name");
 
   const strEnvironmentPath = path.join(strPythonEnvironmentRootPath, strEnvironmentName);
   const strPythonPath = path.join(strEnvironmentPath, "python.exe");
