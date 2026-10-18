@@ -419,8 +419,7 @@ const boolChanged = computed(
     strEnvironment.value !== props.details.package.python_environment_name ||
     JSON.stringify(arrApiInputKey.value) !==
       JSON.stringify(props.details.package.api_input_keys) ||
-    JSON.stringify(draft.value) !==
-      JSON.stringify(cloneRunSettings(props.details.package.settings)),
+    JSON.stringify(draft.value) !== JSON.stringify(props.details.package.settings),
 );
 
 const boolCanRun = computed(

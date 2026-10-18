@@ -8,7 +8,11 @@ import {
   formatTimestampForDateTimeLocal,
   parseDateTimeLocalToTimestamp,
 } from "../Common/time";
-import type { ScheduleCreateDraft, ScheduleEditDraft } from "../Schedule/types";
+import type {
+  ScheduleCreateDraft,
+  ScheduleEditDraft,
+  ScheduleFormDraft,
+} from "../Schedule/types";
 import { useSettingStore } from "./settingStore";
 import type {
   ScheduleCreateData,
@@ -16,17 +20,16 @@ import type {
   ScheduleUpdateData,
 } from "../../../shared/schedule";
 
-function getSchedulePeriodTimestamps({
-  periodStart,
-  periodEnd,
-  timezone,
-}: {
-  periodStart: string;
-  periodEnd: string;
-  timezone: string;
-}): { intPeriodStartMs: number; intPeriodEndMs: number } {
-  const intPeriodStartMs = parseDateTimeLocalToTimestamp(periodStart, timezone);
-  const intPeriodEndMs = parseDateTimeLocalToTimestamp(periodEnd, timezone);
+function parseScheduleDraft(
+  scheduleDraft: ScheduleFormDraft,
+  localPackageId: number,
+  timezone: string,
+): ScheduleCreateData {
+  const intPeriodStartMs = parseDateTimeLocalToTimestamp(
+    scheduleDraft.period_start,
+    timezone,
+  );
+  const intPeriodEndMs = parseDateTimeLocalToTimestamp(scheduleDraft.period_end, timezone);
 
   if (intPeriodStartMs === undefined || intPeriodEndMs === undefined) {
     throw new Error(`Invalid Schedule period for time zone '${timezone}'.`);
@@ -35,7 +38,22 @@ function getSchedulePeriodTimestamps({
     throw new Error("Schedule period end must be later than its start.");
   }
 
-  return { intPeriodStartMs, intPeriodEndMs };
+  return {
+    name: scheduleDraft.name,
+    local_package_id: localPackageId,
+    cron: scheduleDraft.cron,
+    run_conflict_policy: scheduleDraft.run_conflict_policy,
+    period_start_ms: intPeriodStartMs,
+    period_end_ms: intPeriodEndMs,
+    enabled: scheduleDraft.enabled,
+    max_retry_count: scheduleDraft.max_retry_count,
+    timeout_min: scheduleDraft.timeout_min,
+    builtin_log_level: scheduleDraft.builtin_log_level,
+    builtin_record_video: scheduleDraft.builtin_record_video,
+    builtin_stop_shortcut: scheduleDraft.builtin_stop_shortcut,
+    builtin_highlight_ui: scheduleDraft.builtin_highlight_ui,
+    custom_prj_args: scheduleDraft.custom_prj_args,
+  };
 }
 
 export const useScheduleStore = defineStore("schedule", {
@@ -55,6 +73,17 @@ export const useScheduleStore = defineStore("schedule", {
       showDeleteDialog: false as boolean,
       dictDetailNew: undefined as ScheduleCreateDraft | undefined,
     };
+  },
+  getters: {
+    formDraft(state): ScheduleFormDraft | undefined {
+      if (state.formMode === "new") {
+        return state.dictDetailNew;
+      }
+      if (state.formMode === "edit") {
+        return state.dictDetailEdit;
+      }
+      return undefined;
+    },
   },
   actions: {
     async loadProjectNames(): Promise<void> {
@@ -133,28 +162,12 @@ export const useScheduleStore = defineStore("schedule", {
       }
 
       const settingStore = useSettingStore();
-      const { intPeriodStartMs, intPeriodEndMs } = getSchedulePeriodTimestamps({
-        periodStart: this.dictDetailNew.period_start,
-        periodEnd: this.dictDetailNew.period_end,
-        timezone: settingStore.timezone,
-      });
-      const dictTemp: ScheduleCreateData = {
-        name: this.dictDetailNew.name,
-        local_package_id: this.dictDetailNew.local_package_id,
-        cron: this.dictDetailNew.cron,
-        run_conflict_policy: this.dictDetailNew.run_conflict_policy,
-        period_start_ms: intPeriodStartMs,
-        period_end_ms: intPeriodEndMs,
-        enabled: this.dictDetailNew.enabled,
-        max_retry_count: this.dictDetailNew.max_retry_count,
-        timeout_min: this.dictDetailNew.timeout_min,
-        builtin_log_level: this.dictDetailNew.builtin_log_level,
-        builtin_record_video: this.dictDetailNew.builtin_record_video,
-        builtin_stop_shortcut: this.dictDetailNew.builtin_stop_shortcut,
-        builtin_highlight_ui: this.dictDetailNew.builtin_highlight_ui,
-        custom_prj_args: this.dictDetailNew.custom_prj_args,
-      };
-      await invokeMain("createSchedule", dictTemp);
+      const createData = parseScheduleDraft(
+        this.dictDetailNew,
+        this.dictDetailNew.local_package_id,
+        settingStore.timezone,
+      );
+      await invokeMain("createSchedule", createData);
       await this.refreshScheduleList();
     },
 
@@ -167,29 +180,15 @@ export const useScheduleStore = defineStore("schedule", {
       }
 
       const settingStore = useSettingStore();
-      const { intPeriodStartMs, intPeriodEndMs } = getSchedulePeriodTimestamps({
-        periodStart: this.dictDetailEdit.period_start,
-        periodEnd: this.dictDetailEdit.period_end,
-        timezone: settingStore.timezone,
-      });
-      const dictTemp: ScheduleUpdateData = {
+      const updateData: ScheduleUpdateData = {
         id: this.dictDetailEdit.id,
-        name: this.dictDetailEdit.name,
-        local_package_id: this.dictDetailEdit.local_package_id,
-        cron: this.dictDetailEdit.cron,
-        run_conflict_policy: this.dictDetailEdit.run_conflict_policy,
-        period_start_ms: intPeriodStartMs,
-        period_end_ms: intPeriodEndMs,
-        enabled: this.dictDetailEdit.enabled,
-        max_retry_count: this.dictDetailEdit.max_retry_count,
-        timeout_min: this.dictDetailEdit.timeout_min,
-        builtin_log_level: this.dictDetailEdit.builtin_log_level,
-        builtin_record_video: this.dictDetailEdit.builtin_record_video,
-        builtin_stop_shortcut: this.dictDetailEdit.builtin_stop_shortcut,
-        builtin_highlight_ui: this.dictDetailEdit.builtin_highlight_ui,
-        custom_prj_args: this.dictDetailEdit.custom_prj_args,
+        ...parseScheduleDraft(
+          this.dictDetailEdit,
+          this.dictDetailEdit.local_package_id,
+          settingStore.timezone,
+        ),
       };
-      await invokeMain("saveSchedule", dictTemp);
+      await invokeMain("saveSchedule", updateData);
       await this.refreshScheduleList();
     },
 

@@ -100,7 +100,7 @@ export const usePackageStore = defineStore("package", {
         return;
       }
 
-      const dictTemp: PackageSettings = {
+      const dictSettings: PackageSettings = {
         id: this.dictDetailEdit.id,
         python_environment_name: this.dictDetailEdit.python_environment_name,
         max_retry_count: this.dictDetailEdit.max_retry_count,
@@ -111,7 +111,7 @@ export const usePackageStore = defineStore("package", {
         builtin_highlight_ui: this.dictDetailEdit.builtin_highlight_ui,
         custom_prj_args: this.dictDetailEdit.custom_prj_args,
       };
-      await invokeMain("savePackageSettings", dictTemp);
+      await invokeMain("savePackageSettings", dictSettings);
     },
 
     async loadBoundSchedules(): Promise<void> {

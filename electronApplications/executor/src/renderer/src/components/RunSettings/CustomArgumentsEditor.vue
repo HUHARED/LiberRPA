@@ -54,10 +54,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 
-import {
-  getArgumentValueNote,
-  updateCustomProjectArgumentValue,
-} from "../../RunSettings/runSettings";
+import { useInformationStore } from "../../Store/informationStore";
 import type { CustomProjectArgs } from "../../../../shared/runSettings";
 
 const customArgs = defineModel<CustomProjectArgs>("customArgs", { required: true });
@@ -72,6 +69,20 @@ function isDuplicateKey(key: string): boolean {
   return customArgs.value.filter(([argumentKey]) => argumentKey === key).length >= 2;
 }
 
+function getArgumentValueNote(value: unknown): string {
+  const strValue = JSON.stringify(value, null, 0) ?? "undefined";
+  const arrLine = [
+    "Current value:",
+    strValue,
+    "The value must be valid JSON.",
+    "Press Enter or leave the input box to update.",
+  ];
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    arrLine.push("Object keys may be reordered.");
+  }
+  return arrLine.join("\n");
+}
+
 function updateValue(index: number): void {
   const value = arrValueCache.value[index];
   if (value === undefined) {
@@ -82,7 +93,29 @@ function updateValue(index: number): void {
     name,
     argumentValue,
   ]);
-  updateCustomProjectArgumentValue(arrCustomArgs, arrValueCache.value, index, value);
+  try {
+    arrCustomArgs[index][1] = JSON.parse(value, (_key, argumentValue: unknown) => {
+      if (typeof argumentValue === "number") {
+        if (!Number.isFinite(argumentValue)) {
+          throw new Error("Numbers must be finite.");
+        }
+        if (Number.isInteger(argumentValue) && !Number.isSafeInteger(argumentValue)) {
+          throw new Error(
+            "Integers must be between -9007199254740991 and 9007199254740991.",
+          );
+        }
+      }
+      return argumentValue;
+    });
+  } catch (e: unknown) {
+    const informationStore = useInformationStore();
+    informationStore.showAlertMessage(
+      e instanceof Error && !(e instanceof SyntaxError)
+        ? e.message
+        : "Enter a valid JSON value.",
+    );
+    arrValueCache.value[index] = JSON.stringify(arrCustomArgs[index][1]);
+  }
   customArgs.value = arrCustomArgs;
 }
 

@@ -104,7 +104,7 @@ async function submitRun(): Promise<void> {
       builtin_record_video: settings.builtin_record_video,
       builtin_stop_shortcut: settings.builtin_stop_shortcut,
       builtin_highlight_ui: settings.builtin_highlight_ui,
-      custom_prj_args: cloneJsonSerializable(settings.custom_prj_args),
+      custom_prj_args: settings.custom_prj_args,
     });
     emit("close");
   } catch (e: unknown) {

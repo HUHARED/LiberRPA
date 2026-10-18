@@ -188,7 +188,6 @@ import { computed, nextTick, ref, watch } from "vue";
 import BuiltInArguments from "../RunSettings/BuiltInArguments.vue";
 import CustomArgumentsEditor from "../RunSettings/CustomArgumentsEditor.vue";
 
-import { cloneJsonSerializable } from "../../Common/json";
 import {
   formatTimestampForDateTimeLocal,
   parseDateTimeLocalToTimestamp,
@@ -207,15 +206,7 @@ const settingStore = useSettingStore();
 
 let intProjectSelectionRevision = 0;
 
-const detail = computed<ScheduleFormDraft | undefined>(() => {
-  if (scheduleStore.formMode === "new") {
-    return scheduleStore.dictDetailNew;
-  }
-  if (scheduleStore.formMode === "edit") {
-    return scheduleStore.dictDetailEdit;
-  }
-  return undefined;
-});
+const detail = computed(() => scheduleStore.formDraft);
 
 const cronValidation = computed(() => {
   const currentDetail = detail.value;
@@ -364,7 +355,7 @@ async function applyPackageDetailsToSchedule(
   currentDetail.builtin_record_video = packageDetails.builtin_record_video;
   currentDetail.builtin_stop_shortcut = packageDetails.builtin_stop_shortcut;
   currentDetail.builtin_highlight_ui = packageDetails.builtin_highlight_ui;
-  currentDetail.custom_prj_args = cloneJsonSerializable(packageDetails.custom_prj_args);
+  currentDetail.custom_prj_args = packageDetails.custom_prj_args;
 }
 
 async function whenProjectNameChanged(): Promise<void> {

@@ -85,13 +85,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import { ARR_LOG_LEVEL } from "../../RunSettings/runSettings";
 import { useInformationStore } from "../../Store/informationStore";
 import {
   INT_MAX_RETRY_COUNT,
   INT_MAX_RUN_TIMEOUT_MIN,
+  LogLevel,
 } from "../../../../shared/runSettings";
-import type { LogLevel } from "../../../../shared/runSettings";
+
+const ARR_LOG_LEVEL: LogLevel[] = Object.values(LogLevel);
 
 const maxRetryCount = defineModel<number>("maxRetryCount", { required: true });
 const timeoutMin = defineModel<number>("timeoutMin", { required: true });

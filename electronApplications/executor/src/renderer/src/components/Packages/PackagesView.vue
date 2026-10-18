@@ -133,7 +133,7 @@
             variant="tonal"
             prepend-icon="mdi-play-outline"
             :disabled="boolSaving || boolDetailChanged"
-            @click="runPackage()">
+            @click="openRunDialog()">
             Run
           </v-btn>
         </v-container>
@@ -282,10 +282,10 @@ async function openDeleteDialog(): Promise<void> {
   }
 }
 
-function runPackage(): void {
+function openRunDialog(): void {
   if (boolSaving.value) return;
 
-  loggerRenderer.debug("--runPackage--");
+  loggerRenderer.debug("--openRunDialog--");
   if (packageStore.dictDetailEdit && !boolDetailChanged.value) {
     boolShowRunDialog.value = true;
   }

@@ -227,7 +227,6 @@ import {
 
 import { invokeMain } from "../../IPC/ipc";
 import { loggerRenderer } from "../../Logging/logger";
-import { cloneJsonSerializable } from "../../Common/json";
 import { useRunHistoryStore } from "../../Store/runHistoryStore";
 import { useJobQueueStore } from "../../Store/jobQueueStore";
 import { useSettingStore } from "../../Store/settingStore";
@@ -331,8 +330,8 @@ async function handleTableOptionsUpdate(
   await runHistoryStore.loadRunHistoryPage({
     page: optionsDict.page,
     itemsPerPage: optionsDict.itemsPerPage,
-    sortBy: cloneJsonSerializable(optionsDict.sortBy),
-    search: cloneJsonSerializable(dictSearch.value),
+    sortBy: optionsDict.sortBy,
+    search: dictSearch.value,
   });
 }
 

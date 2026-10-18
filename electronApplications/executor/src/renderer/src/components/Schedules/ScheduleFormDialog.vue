@@ -86,7 +86,6 @@ import ScheduleForm from "./ScheduleForm.vue";
 import { formatTimestamp, parseDateTimeLocalToTimestamp } from "../../Common/time";
 import { loggerRenderer } from "../../Logging/logger";
 import { validateCronExpression } from "../../Schedule/cron";
-import type { ScheduleFormDraft } from "../../Schedule/types";
 import { useScheduleStore } from "../../Store/scheduleStore";
 import { useSettingStore } from "../../Store/settingStore";
 import { getErrorMessage } from "../../../../shared/error";
@@ -97,15 +96,7 @@ const settingStore = useSettingStore();
 const boolCanSave = ref(false);
 const boolSaving = ref(false);
 
-const currentDetail = computed<ScheduleFormDraft | undefined>(() => {
-  if (scheduleStore.formMode === "new") {
-    return scheduleStore.dictDetailNew;
-  }
-  if (scheduleStore.formMode === "edit") {
-    return scheduleStore.dictDetailEdit;
-  }
-  return undefined;
-});
+const currentDetail = computed(() => scheduleStore.formDraft);
 
 const dialogTitle = computed(() =>
   scheduleStore.formMode === "new" ? "New Schedule" : "Edit Schedule",
