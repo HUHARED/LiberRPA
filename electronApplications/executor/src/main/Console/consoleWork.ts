@@ -486,7 +486,6 @@ async function prepareRequestedPackages(
 function requestLogUpload(): void {
   const credential = getConsoleControlCredential();
   if (boolStopped || promiseLogs || !credential) return;
-  // The interval only reads local log progress; idle Runs do not issue HTTP requests.
   promiseLogs = uploadConsoleLogs(getConsoleWorkSessionKey(credential), credential)
     .catch((e: unknown) => {
       loggerMain.warn(`Console logs: ${getErrorMessage(e)}`);
@@ -599,18 +598,21 @@ async function processConsoleUpdates(credential: ConsoleCredentialSnapshot): Pro
   }
 }
 
+function updateConsoleWorkRetrySession(strSessionKey: string): void {
+  if (strWorkRetrySessionKey === strSessionKey) return;
+  clearTimeout(timerRetry);
+  timerRetry = undefined;
+  strWorkRetrySessionKey = strSessionKey;
+  floatWorkRetryAt = 0;
+  intRetryDelayMs = 2000;
+  boolContactFailureLogged = false;
+}
+
 function deferConsoleWork(error: unknown): void {
   const credential = getConsoleControlCredential();
   if (!credential) return;
   const strSessionKey = getConsoleWorkSessionKey(credential);
-  if (strWorkRetrySessionKey !== strSessionKey) {
-    clearTimeout(timerRetry);
-    timerRetry = undefined;
-    strWorkRetrySessionKey = strSessionKey;
-    floatWorkRetryAt = 0;
-    intRetryDelayMs = 2000;
-    boolContactFailureLogged = false;
-  }
+  updateConsoleWorkRetrySession(strSessionKey);
   const intRetryAfterMs = error instanceof ConsoleRequestError ? error.retryAfterMs : 0;
   floatWorkRetryAt = Math.max(
     floatWorkRetryAt,
@@ -623,14 +625,7 @@ function requestConsoleSync(): void {
   const credential = getConsoleControlCredential();
   if (boolStopped || promiseSync || !credential || !boolWorkRequested) return;
   const strSessionKey = getConsoleWorkSessionKey(credential);
-  if (strWorkRetrySessionKey !== strSessionKey) {
-    clearTimeout(timerRetry);
-    timerRetry = undefined;
-    strWorkRetrySessionKey = strSessionKey;
-    floatWorkRetryAt = 0;
-    intRetryDelayMs = 2000;
-    boolContactFailureLogged = false;
-  }
+  updateConsoleWorkRetrySession(strSessionKey);
   const floatRemainingMs = floatWorkRetryAt - performance.now();
   if (floatRemainingMs > 0) {
     // Notifications mark pending work but do not shorten the delay before retrying a failed request.
@@ -656,7 +651,7 @@ function requestConsoleSync(): void {
       deferConsoleWork(e);
       if (!boolContactFailureLogged) {
         boolContactFailureLogged = true;
-        loggerMain.warn(`Console work contact: ${getErrorMessage(e)}`);
+        loggerMain.warn(`Failed to sync Console work: ${getErrorMessage(e)}`);
       }
     })
     .finally(() => {

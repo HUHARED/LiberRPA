@@ -23,7 +23,7 @@ import {
   buildPythonProcessEnvironment,
   getPythonEnvironmentPath,
 } from "../Config/environment";
-import { getPackageFolderName } from "./packageArchive";
+import { getPackageFolderName } from "../FileSystem/executorFiles";
 import type { PackageCreateData } from "../../shared/package";
 import type { CustomProjectArgs, LogLevel } from "../../shared/runSettings";
 

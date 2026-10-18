@@ -7,10 +7,12 @@ import path from "path";
 import { getErrorMessage } from "../../shared/error";
 import { ensureNonEmptyString, ensureRecord } from "../Common/validation";
 import { getPythonEnvironmentPath } from "../Config/environment";
-import { strConsolePackageFolderPath } from "../FileSystem/executorFiles";
+import {
+  strConsolePackageFolderPath,
+  getPackageFolderName,
+} from "../FileSystem/executorFiles";
 import { runFileWorker } from "../FileSystem/fileWorker";
 import { loggerMain } from "../Logging/logger";
-import { getPackageFolderName } from "../Package/packageArchive";
 import strPackageArchiveWorkerPath from "../Package/packageArchiveWorker?modulePath";
 import type { PackageArchiveArgs } from "../Package/packageArchiveWorker";
 import {

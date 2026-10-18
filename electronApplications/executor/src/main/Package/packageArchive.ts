@@ -12,15 +12,6 @@ const INT_MAX_ZIP_ENTRY_COUNT = 20_000;
 const INT_MAX_ZIP_ENTRY_SIZE_BYTES = 512 * 1024 ** 2;
 const INT_MAX_UNCOMPRESSED_SIZE_BYTES = 2 * 1024 ** 3;
 
-export function getPackageFolderName(projectName: string, projectVersion: string): string {
-  const strFolderName = `${projectName}_${projectVersion}`;
-  const strError = getWindowsFolderNameError(strFolderName);
-  if (strError !== undefined) {
-    throw new Error(`Cannot create the Flow Package folder name: ${strError}`);
-  }
-  return strFolderName;
-}
-
 function getNormalizedZipEntryName(entryName: string): string {
   if (entryName.includes("\0")) {
     throw new Error(`ZIP entry contains a null character: ${entryName}`);

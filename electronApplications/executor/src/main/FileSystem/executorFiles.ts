@@ -4,8 +4,8 @@ import { shell } from "electron";
 import fs from "fs";
 import path from "path";
 
+import { getWindowsFolderNameError } from "../Common/validation";
 import { strDocumentsFolderPath } from "../Config/environment";
-import { getPackageFolderName } from "../Package/packageArchive";
 
 export const strPackageFolderPath = path.join(
   strDocumentsFolderPath,
@@ -14,6 +14,15 @@ export const strPackageFolderPath = path.join(
 );
 export const strLocalPackageFolderPath = path.join(strPackageFolderPath, "Local");
 export const strConsolePackageFolderPath = path.join(strPackageFolderPath, "Console");
+
+export function getPackageFolderName(projectName: string, projectVersion: string): string {
+  const strFolderName = `${projectName}_${projectVersion}`;
+  const strError = getWindowsFolderNameError(strFolderName);
+  if (strError !== undefined) {
+    throw new Error(`Cannot create the Flow Package folder name: ${strError}`);
+  }
+  return strFolderName;
+}
 
 export function getLocalPackageFolderPath(
   projectName: string,

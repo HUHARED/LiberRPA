@@ -32,7 +32,6 @@ import {
 } from "./lifecycle";
 import {
   PythonProcessNotStartedError,
-  type PythonProcessDiagnosticOutput,
   spawnPythonProcess,
   logPythonDiagnosticOutput,
   requestPythonTermination,
@@ -193,108 +192,6 @@ function requestRunTermination(
   return promiseTermination;
 }
 
-async function waitForInitialRunState({
-  processPy,
-  getProcessError,
-  runId,
-  runStatePath,
-  projectName,
-  projectVersion,
-  expectedStartedAt,
-  expectedLogRootPath,
-  diagnosticOutput,
-}: {
-  processPy: ChildProcessWithoutNullStreams;
-  getProcessError: () => Error | undefined;
-  runId: string;
-  runStatePath: string;
-  projectName: string;
-  projectVersion: string;
-  expectedStartedAt: string;
-  expectedLogRootPath: string;
-  diagnosticOutput: PythonProcessDiagnosticOutput;
-}): Promise<ExecutorRunState> {
-  try {
-    return await waitForExecutorRunStateAvailable({
-      filePath: runStatePath,
-      processPy,
-      getProcessError,
-      expectedRunId: runId,
-      expectedProjectName: projectName,
-      expectedProjectVersion: projectVersion,
-      expectedStartedAt,
-      expectedLogRootPath,
-    });
-  } catch (e: unknown) {
-    await terminatePythonProcessAfterStartupFailure(processPy, runId);
-    logPythonDiagnosticOutput({
-      runId,
-      reason: getErrorMessage(e),
-      diagnosticOutput,
-    });
-    removeExecutorRunStateFile(runStatePath);
-    const strMessage = `Failed to start ${projectName}-${projectVersion}: ${getErrorMessage(e)}`;
-    if (processPy.pid === undefined && getProcessError() !== undefined) {
-      throw new PythonProcessNotStartedError(strMessage, { cause: e });
-    }
-    throw new Error(strMessage, { cause: e });
-  }
-}
-
-async function createRunHistory({
-  processPy,
-  runId,
-  runStatePath,
-  runState,
-  detail,
-  context,
-  diagnosticOutput,
-}: {
-  processPy: ChildProcessWithoutNullStreams;
-  runId: string;
-  runStatePath: string;
-  runState: ExecutorRunState;
-  detail: RunConfig;
-  context: RunExecutionContext;
-  diagnosticOutput: PythonProcessDiagnosticOutput;
-}): Promise<number> {
-  try {
-    const intRunHistoryIdValue = dbInsertRunHistory({
-      schedule_name: detail.schedule_name,
-      local_package_id: detail.local_package_id,
-      source: context.source,
-      run_id: runId,
-      job_id: context.jobId,
-      attempt_number: context.attemptNumber,
-      snapshot: detail,
-      project_name: detail.project_name,
-      project_version: detail.project_version,
-      python_environment_name: detail.python_environment_name,
-      run_started_at_ms: parseExecutorRunTimestamp(runState.startedAt),
-      status: RunStatus.Running,
-      log_path: runState.logPath,
-    }).lastInsertRowid;
-
-    const intRunHistoryId = Number(intRunHistoryIdValue);
-    if (!Number.isSafeInteger(intRunHistoryId) || intRunHistoryId <= 0) {
-      throw new Error(`Invalid Run History ID: ${String(intRunHistoryIdValue)}`);
-    }
-    return intRunHistoryId;
-  } catch (e: unknown) {
-    requestPythonTermination(processPy, runId);
-    await waitForPythonProcessTermination(processPy, runId);
-    logPythonDiagnosticOutput({
-      runId,
-      reason: `Failed to create Run History: ${getErrorMessage(e)}`,
-      diagnosticOutput,
-    });
-    removeExecutorRunStateFile(runStatePath);
-    throw new Error(`Failed to create Run History: ${getErrorMessage(e)}`, {
-      cause: e,
-    });
-  }
-}
-
 function ensureRunMayStart(): void {
   if (boolRunShutdownStarted) {
     throw new Error("Executor is shutting down and cannot start a new Run.");
@@ -302,25 +199,25 @@ function ensureRunMayStart(): void {
 }
 
 async function spawnAndTrackRun(
-  detailDict: RunConfig,
+  runConfig: RunConfig,
   context: RunExecutionContext,
   runId: string,
 ): Promise<void> {
   const strPackagePath =
     context.packagePath ??
-    getLocalPackageFolderPath(detailDict.project_name, detailDict.project_version);
+    getLocalPackageFolderPath(runConfig.project_name, runConfig.project_version);
 
   if (!fs.existsSync(strPackagePath)) {
     throw new Error(`Installed Package folder does not exist: ${strPackagePath}`);
   }
 
   const strPythonEnvironmentPath = getPythonEnvironmentPath(
-    detailDict.python_environment_name,
+    runConfig.python_environment_name,
   );
   await validatePackageLiberrpaRequirement(strPackagePath, strPythonEnvironmentPath);
   ensureRunMayStart();
   loggerMain.info(
-    `Use Python environment '${detailDict.python_environment_name}' for ${detailDict.project_name}-${detailDict.project_version}.`,
+    `Use Python environment '${runConfig.python_environment_name}' for ${runConfig.project_name}-${runConfig.project_version}.`,
   );
 
   const strProjectLogRootPath = getEffectiveProjectLogFolderPath();
@@ -330,7 +227,7 @@ async function spawnAndTrackRun(
   // This call already owns one starting slot; all other starts and actual Runs still count.
   context.beforeSpawn?.(hasActiveRun(true), strStartedAt);
   const { processPy, diagnosticOutput, getProcessError } = spawnPythonProcess({
-    detail: detailDict,
+    detail: runConfig,
     packagePath: strPackagePath,
     pythonEnvironmentPath: strPythonEnvironmentPath,
     runId,
@@ -347,40 +244,88 @@ async function spawnAndTrackRun(
   };
   trackActiveRun(activeRun);
 
-  const dictRunState = await waitForInitialRunState({
-    processPy,
-    getProcessError,
-    runId,
-    runStatePath: strRunStatePath,
-    projectName: detailDict.project_name,
-    projectVersion: detailDict.project_version,
-    expectedStartedAt: strStartedAt,
-    expectedLogRootPath: strProjectLogRootPath,
-    diagnosticOutput,
-  });
+  async function waitForInitialRunState(): Promise<ExecutorRunState> {
+    try {
+      return await waitForExecutorRunStateAvailable({
+        filePath: strRunStatePath,
+        processPy,
+        getProcessError,
+        expectedRunId: runId,
+        expectedProjectName: runConfig.project_name,
+        expectedProjectVersion: runConfig.project_version,
+        expectedStartedAt: strStartedAt,
+        expectedLogRootPath: strProjectLogRootPath,
+      });
+    } catch (e: unknown) {
+      await terminatePythonProcessAfterStartupFailure(processPy, runId);
+      logPythonDiagnosticOutput({
+        runId,
+        reason: getErrorMessage(e),
+        diagnosticOutput,
+      });
+      removeExecutorRunStateFile(strRunStatePath);
+      const strMessage = `Failed to start ${runConfig.project_name}-${runConfig.project_version}: ${getErrorMessage(e)}`;
+      if (processPy.pid === undefined && getProcessError() !== undefined) {
+        throw new PythonProcessNotStartedError(strMessage, { cause: e });
+      }
+      throw new Error(strMessage, { cause: e });
+    }
+  }
+
+  const initialRunState = await waitForInitialRunState();
 
   loggerMain.debug(`Executor run state is available: ${runId}`);
 
-  const intRunHistoryId = await createRunHistory({
-    processPy,
-    runId,
-    runStatePath: strRunStatePath,
-    runState: dictRunState,
-    detail: detailDict,
-    context,
-    diagnosticOutput,
-  });
+  async function createRunHistory(): Promise<number> {
+    try {
+      const intRunHistoryIdValue = dbInsertRunHistory({
+        schedule_name: runConfig.schedule_name,
+        local_package_id: runConfig.local_package_id,
+        source: context.source,
+        run_id: runId,
+        job_id: context.jobId,
+        attempt_number: context.attemptNumber,
+        snapshot: runConfig,
+        project_name: runConfig.project_name,
+        project_version: runConfig.project_version,
+        python_environment_name: runConfig.python_environment_name,
+        run_started_at_ms: parseExecutorRunTimestamp(initialRunState.startedAt),
+        status: RunStatus.Running,
+        log_path: initialRunState.logPath,
+      }).lastInsertRowid;
+
+      const intRunHistoryId = Number(intRunHistoryIdValue);
+      if (!Number.isSafeInteger(intRunHistoryId) || intRunHistoryId <= 0) {
+        throw new Error(`Invalid Run History ID: ${String(intRunHistoryIdValue)}`);
+      }
+      return intRunHistoryId;
+    } catch (e: unknown) {
+      requestPythonTermination(processPy, runId);
+      await waitForPythonProcessTermination(processPy, runId);
+      logPythonDiagnosticOutput({
+        runId,
+        reason: `Failed to create Run History: ${getErrorMessage(e)}`,
+        diagnosticOutput,
+      });
+      removeExecutorRunStateFile(strRunStatePath);
+      throw new Error(`Failed to create Run History: ${getErrorMessage(e)}`, {
+        cause: e,
+      });
+    }
+  }
+
+  const intRunHistoryId = await createRunHistory();
 
   mapActiveRunByHistoryId.set(intRunHistoryId, activeRun);
   // A Console row is visible only after its actual start has produced local history.
   activeRun.queueItem = {
     queue_id: runId,
     source: context.source,
-    schedule_name: detailDict.schedule_name,
-    project_name: detailDict.project_name,
-    project_version: detailDict.project_version,
+    schedule_name: runConfig.schedule_name,
+    project_name: runConfig.project_name,
+    project_version: runConfig.project_version,
     due_at_ms: null,
-    started_at_ms: parseExecutorRunTimestamp(dictRunState.startedAt),
+    started_at_ms: parseExecutorRunTimestamp(initialRunState.startedAt),
     history_id: intRunHistoryId,
     state: JobQueueState.Running,
   };
@@ -391,7 +336,7 @@ async function spawnAndTrackRun(
     historyId: intRunHistoryId,
     processId: processPy.pid,
     startedAt: strStartedAt,
-    logPath: dictRunState.logPath,
+    logPath: initialRunState.logPath,
   };
   try {
     context.onStarted?.(startedFact);
@@ -400,18 +345,18 @@ async function spawnAndTrackRun(
   }
 
   let timeoutId: NodeJS.Timeout | undefined;
-  if (detailDict.timeout_min !== 0) {
-    loggerMain.info(`Set timeout: ${String(detailDict.timeout_min)} minute(s).`);
+  if (runConfig.timeout_min !== 0) {
+    loggerMain.info(`Set timeout: ${String(runConfig.timeout_min)} minute(s).`);
     const stopTimedOutRun = (): void => {
       if (!isProcessRunning(processPy)) return;
       loggerMain.info(
-        `Timeout reached. Stop ${detailDict.project_name}-${detailDict.project_version}.`,
+        `Timeout reached. Stop ${runConfig.project_name}-${runConfig.project_version}.`,
       );
       void requestRunTermination(activeRun, RunTerminationReason.Timeout);
     };
     // Waiting for startup status and saving history both count toward this Run's timeout.
     const floatRemainingMs =
-      detailDict.timeout_min * 60 * 1000 - (performance.now() - floatStartedAt);
+      runConfig.timeout_min * 60 * 1000 - (performance.now() - floatStartedAt);
     if (floatRemainingMs <= 0) stopTimedOutRun();
     else timeoutId = setTimeout(stopTimedOutRun, floatRemainingMs);
   }
@@ -424,7 +369,7 @@ async function spawnAndTrackRun(
     boolFinalized = true;
 
     loggerMain.info(
-      `${detailDict.project_name}-${detailDict.project_version} exited with code ${String(intExitCode)}${
+      `${runConfig.project_name}-${runConfig.project_version} exited with code ${String(intExitCode)}${
         strSignal === null ? "" : ` and signal ${strSignal}`
       }`,
     );
@@ -449,26 +394,26 @@ async function spawnAndTrackRun(
     let errorSummary: { type: string; message: string } | null = null;
 
     try {
-      const dictFinalState = readExecutorRunState({
+      const finalRunState = readExecutorRunState({
         filePath: strRunStatePath,
         expectedRunId: runId,
-        expectedProjectName: detailDict.project_name,
-        expectedProjectVersion: detailDict.project_version,
+        expectedProjectName: runConfig.project_name,
+        expectedProjectVersion: runConfig.project_version,
         expectedStartedAt: strStartedAt,
         expectedLogRootPath: strProjectLogRootPath,
-        expectedLogPath: dictRunState.logPath,
+        expectedLogPath: initialRunState.logPath,
       });
-      outputs = dictFinalState.outputs ?? outputs;
-      emailOutputContext = dictFinalState.emailOutputContext ?? null;
-      errorSummary = dictFinalState.errorSummary ?? null;
-      if (dictFinalState.startedAt !== dictRunState.startedAt) {
+      outputs = finalRunState.outputs ?? outputs;
+      emailOutputContext = finalRunState.emailOutputContext ?? null;
+      errorSummary = finalRunState.errorSummary ?? null;
+      if (finalRunState.startedAt !== initialRunState.startedAt) {
         throw new Error(`Final Executor run state changed startedAt for Run ${runId}.`);
       }
-      if (dictFinalState.endedAt !== undefined) {
-        intRunEndedAtMs = parseExecutorRunTimestamp(dictFinalState.endedAt);
+      if (finalRunState.endedAt !== undefined) {
+        intRunEndedAtMs = parseExecutorRunTimestamp(finalRunState.endedAt);
       }
 
-      switch (dictFinalState.status) {
+      switch (finalRunState.status) {
         case ExecutorRunStateStatus.Completed:
           runStatus = RunStatus.Completed;
           break;
@@ -499,7 +444,7 @@ async function spawnAndTrackRun(
         if (requestedStatus !== undefined) {
           runStatus = requestedStatus;
         } else {
-          if (dictFinalState.status !== ExecutorRunStateStatus.Error) {
+          if (finalRunState.status !== ExecutorRunStateStatus.Error) {
             loggerMain.error(
               `Python process ${runId} exited unexpectedly with code ` +
                 String(intExitCode) +
@@ -551,7 +496,7 @@ async function spawnAndTrackRun(
       })();
       notifyRunHistoryChanged(intRunHistoryId);
       removeExecutorRunStateFile(strRunStatePath);
-      notifyRunFinished(detailDict, context, endedFact);
+      notifyRunFinished(runConfig, context, endedFact);
     } catch (e: unknown) {
       loggerMain.error(`Failed to persist the actual Run result: ${getErrorMessage(e)}`);
     } finally {
@@ -568,7 +513,7 @@ async function spawnAndTrackRun(
 }
 
 export async function startRun(
-  detailDict: RunConfig,
+  runConfig: RunConfig,
   context: RunExecutionContext = {
     source: RunSource.Local,
     jobId: randomUUID(),
@@ -587,9 +532,9 @@ export async function startRun(
     mapStartingJobQueueItem.set(strRunId, {
       queue_id: strRunId,
       source: RunSource.Local,
-      schedule_name: detailDict.schedule_name,
-      project_name: detailDict.project_name,
-      project_version: detailDict.project_version,
+      schedule_name: runConfig.schedule_name,
+      project_name: runConfig.project_name,
+      project_version: runConfig.project_version,
       due_at_ms: null,
       started_at_ms: null,
       history_id: null,
@@ -597,12 +542,12 @@ export async function startRun(
     });
   }
   mapStartingRun.set(strRunId, {
-    localPackageId: detailDict.local_package_id,
+    localPackageId: runConfig.local_package_id,
     source: context.source,
   });
   notifyRunActivityChanged();
   const promiseStartingRun = spawnAndTrackRun(
-    structuredClone(detailDict),
+    structuredClone(runConfig),
     context,
     strRunId,
   );

@@ -8,9 +8,11 @@ import { getErrorMessage } from "../../shared/error";
 import { readJsonFile, writeJsonFileAtomic } from "../Common/jsonFile";
 import { ensureExactRecord, ensureNonEmptyString } from "../Common/validation";
 import { dbSelectPackageDetails } from "../Database/packageRepository";
-import { strLocalPackageFolderPath } from "../FileSystem/executorFiles";
+import {
+  strLocalPackageFolderPath,
+  getPackageFolderName,
+} from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
-import { getPackageFolderName } from "./packageArchive";
 
 interface PackageInstallationTransaction {
   schemaVersion: 1;
