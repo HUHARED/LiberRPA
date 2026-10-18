@@ -38,7 +38,7 @@ from operations.audit import record_audit
 
 from packages.contracts import RUN_PRIORITY_ORDER, RunSettings
 from packages.models import Package
-from packages.runtime import build_run_settings, get_run_snapshot
+from packages.runtime import parse_run_settings, get_run_snapshot
 
 from .contracts import JobSource, JobState, JobCreationRequest
 from .models import JobRequest, Job, JobAdmissionBudget
@@ -294,7 +294,7 @@ def accept_request(
                 dictOverrideSettings["custom_arg_assets"] = listBinding
         elif payload.custom_args is not None:
             raise ValidationError({"custom_args": "Use run settings for a web request."})
-        return build_run_settings(package, overrides=dictOverrideSettings)
+        return parse_run_settings(package, overrides=dictOverrideSettings)
 
     source = (
         JobSource.API if access.channel == AccessChannel.API_KEY else JobSource.MANUAL
@@ -345,7 +345,7 @@ def accept_schedule_trigger(
         department__organization=organization,
         department__deleted_at__isnull=True,
     )
-    runSettings = build_run_settings(schedule)
+    runSettings = parse_run_settings(schedule)
     # ScheduleTrigger and the organization lock already protect this point from duplicate admission.
     strRequestDigest = _get_request_digest({
         "schedule_id": str(schedule.pk),

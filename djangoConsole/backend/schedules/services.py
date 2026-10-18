@@ -23,7 +23,7 @@ from organizations.permissions import (
 )
 from packages.models import Package
 from packages.runtime import (
-    build_run_settings,
+    parse_run_settings,
     apply_run_settings,
     validate_run_settings,
 )
@@ -110,7 +110,7 @@ def save_schedule(
     runSettings = validate_run_settings(package, form.settings)
     boolCreated = schedule is None
     boolSettingsChanged = (
-        schedule is not None and build_run_settings(schedule) != runSettings
+        schedule is not None and parse_run_settings(schedule) != runSettings
     )
     dictBefore = {} if schedule is None else get_audit_snapshot(schedule)
     if schedule is None:

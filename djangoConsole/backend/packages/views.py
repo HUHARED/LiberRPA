@@ -161,7 +161,11 @@ def update_settings(
         access = lock_file_access(request, authentication)
         package = get_package_query(access, manage=True).get(pk=packageId)
         save_package_settings(access, package, payload)
-        return JsonResponse({"package": build_package_payload(package, access)})
+        return JsonResponse({
+            "package": build_package_payload(
+                package, access, runSettings=payload.settings
+            )
+        })
 
 
 @require_POST

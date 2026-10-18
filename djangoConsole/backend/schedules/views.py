@@ -36,7 +36,8 @@ from organizations.permissions import (
     resolve_organization_access,
     get_authorized_departments,
 )
-from packages.runtime import build_run_settings
+from packages.contracts import RunSettings
+from packages.runtime import parse_run_settings
 
 from .contracts import (
     ScheduleTimeRequest,
@@ -96,6 +97,7 @@ def _build_payloads(
     access: OrganizationAccessContext,
     *,
     details: bool = False,
+    runSettingsById: dict[uuid.UUID, RunSettings] | None = None,
 ) -> list[dict[str, object]]:
     if not schedules:
         return []
@@ -161,7 +163,12 @@ def _build_payloads(
             "can_manage": schedule.department_id in setManageableDepartmentId,
         }
         if details:
-            dictPayload["settings"] = build_run_settings(schedule).model_dump(mode="json")
+            runSettings = (
+                runSettingsById.get(schedule.pk) if runSettingsById is not None else None
+            )
+            if runSettings is None:
+                runSettings = parse_run_settings(schedule)
+            dictPayload["settings"] = runSettings.model_dump(mode="json")
             dictPayload["python_environment_name"] = (
                 schedule.package.python_environment_name
             )
@@ -194,7 +201,14 @@ def list_or_create_schedules(request: HttpRequest) -> JsonResponse:
             access = lock_request_write_access(request, membership)
             schedule = save_schedule(access, form)
             return JsonResponse(
-                {"schedule": _build_payloads([schedule], access, details=True)[0]},
+                {
+                    "schedule": _build_payloads(
+                        [schedule],
+                        access,
+                        details=True,
+                        runSettingsById={schedule.pk: form.settings},
+                    )[0]
+                },
                 status=201,
             )
     access = resolve_organization_access(
@@ -257,7 +271,12 @@ def get_or_update_schedule(request: HttpRequest, scheduleId: uuid.UUID) -> JsonR
             schedule = get_schedule_for_access(access, scheduleId, forUpdate=True)
             schedule = save_schedule(access, form, schedule=schedule)
             return JsonResponse({
-                "schedule": _build_payloads([schedule], access, details=True)[0]
+                "schedule": _build_payloads(
+                    [schedule],
+                    access,
+                    details=True,
+                    runSettingsById={schedule.pk: form.settings},
+                )[0]
             })
     access = resolve_organization_access(
         actorId=membership.user_id,

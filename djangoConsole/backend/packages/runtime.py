@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 # NOTE: Keep these mappings aligned with RunSettings and both models when adding a run setting.
-def build_run_settings(
+def parse_run_settings(
     source: "Package | Schedule", *, overrides: dict[str, JsonValue] | None = None
 ) -> RunSettings:
     """Parse saved settings and request overrides once when they enter this workflow."""
@@ -107,7 +107,11 @@ def validate_run_settings(
         else {}
     )
     # Resolving a run must not replace the saved defaults or another attempt's inputs.
-    listArgument = [entry.copy() for entry in settings.custom_prj_args]
+    listArgument = (
+        [entry.copy() for entry in settings.custom_prj_args]
+        if resolveAssets
+        else settings.custom_prj_args
+    )
     dictBindingError: dict[str, list[str]] = {}
     for intIndex, binding in enumerate(settings.custom_arg_assets):
         if binding is None:

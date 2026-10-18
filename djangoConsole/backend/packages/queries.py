@@ -20,9 +20,9 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
-from .contracts import PackageUploadState
+from .contracts import PackageUploadState, RunSettings
 from .models import Package, PackageUpload
-from .runtime import build_run_settings
+from .runtime import parse_run_settings
 
 _INT_PACKAGE_BROWSE_PAGE_SIZE = 50
 
@@ -53,6 +53,7 @@ def build_package_payload(
     access: OrganizationAccessContext,
     *,
     details: bool = True,
+    runSettings: RunSettings | None = None,
     departmentTree: dict[uuid.UUID, Department] | None = None,
     manageableDepartmentIds: set[uuid.UUID] | None = None,
 ) -> dict:
@@ -81,13 +82,15 @@ def build_package_payload(
         "can_manage": package.department_id in manageableDepartmentIds,
     }
     if details:
+        if runSettings is None:
+            runSettings = parse_run_settings(package)
         dictPayload.update({
             "description": package.description,
             "version_summary": package.version_summary,
             "requires_liberrpa": package.requires_liberrpa,
             "component_dependencies": package.component_dependencies,
             "sha256": package.sha256,
-            "settings": build_run_settings(package).model_dump(mode="json"),
+            "settings": runSettings.model_dump(mode="json"),
             "api_input_keys": package.api_input_keys,
         })
     return dictPayload
