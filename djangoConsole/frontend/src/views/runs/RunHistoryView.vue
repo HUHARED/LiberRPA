@@ -187,7 +187,11 @@
         <div class="d-flex align-center ga-1">
           <v-btn
             v-tooltip:bottom="'View Run Details'"
-            :to="{ name: 'run-details', params: { runId: item.id } }"
+            :to="{
+              name: 'run-details',
+              params: { runId: item.id },
+              query: { ...route.query, from: 'run-history' },
+            }"
             size="small"
             variant="text"
             aria-label="View Run Details"
@@ -230,7 +234,7 @@
         :length="page.total_pages"
         :total-visible="5"
         :disabled="boolLoading"
-        @update:model-value="load" />
+        @update:model-value="changePage" />
     </div>
   </v-card>
 
@@ -283,7 +287,7 @@
 </template>
 
 <script setup lang="ts">
-import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import PackageRunDialog from "@/components/packages/PackageRunDialog.vue";
@@ -337,16 +341,26 @@ function emptyFilters(): RunFilters {
 
 const arrDepartment = ref<RunDepartmentInfo[]>([]);
 const filters = ref(emptyFilters());
-const initialStatus = ARR_RUN_STATUS.find((status) => status === route.query.status);
-if (initialStatus) filters.value.statuses = [initialStatus];
-if (typeof route.query.department_id === "string")
-  filters.value.departmentIds = [route.query.department_id];
+const appliedFilters = computed<RunFilters>(() => {
+  function getQueryText(key: string): string {
+    const value = route.query[key];
+    return typeof value === "string" ? value : "";
+  }
 
-let appliedFilters = {
-  ...filters.value,
-  departmentIds: [...filters.value.departmentIds],
-  statuses: [...filters.value.statuses],
-};
+  return {
+    departmentIds: [route.query.department_id]
+      .flat()
+      .filter((value): value is string => typeof value === "string"),
+    projectName: getQueryText("project_name"),
+    scheduleName: getQueryText("schedule_name"),
+    statuses: ARR_RUN_STATUS.filter((status) =>
+      [route.query.status].flat().includes(status),
+    ),
+    executorId: getQueryText("executor_id"),
+    startedFrom: getQueryText("started_from"),
+    startedUntil: getQueryText("started_until"),
+  };
+});
 
 const page = shallowRef<RunPage | null>(null);
 const boolLoading = ref(false);
@@ -373,12 +387,12 @@ function clearSelection(): void {
   updateSelection([]);
 }
 
-async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
+async function load(): Promise<void> {
   const intRevision = ++intLoadRevision;
   boolLoading.value = true;
   strError.value = "";
   try {
-    const response = await getRuns(appliedFilters, pageNumber);
+    const response = await getRuns(appliedFilters.value, Number(route.query.page) || 1);
     if (intRevision === intLoadRevision) page.value = response;
   } catch (e) {
     if (intRevision === intLoadRevision) strError.value = getApiError(e).message;
@@ -387,27 +401,40 @@ async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
   }
 }
 
-function apply(): void {
-  appliedFilters = {
-    ...filters.value,
-    departmentIds: [...filters.value.departmentIds],
-    statuses: [...filters.value.statuses],
+async function changePage(value: number): Promise<void> {
+  await router.replace({ query: { ...route.query, page: String(value) } });
+}
+
+async function apply(): Promise<void> {
+  const location = {
+    name: "run-history",
+    query: {
+      department_id: filters.value.departmentIds,
+      project_name: filters.value.projectName.trim() || undefined,
+      schedule_name: filters.value.scheduleName.trim() || undefined,
+      status: filters.value.statuses,
+      executor_id: filters.value.executorId || undefined,
+      started_from: filters.value.startedFrom || undefined,
+      started_until: filters.value.startedUntil || undefined,
+    },
   };
   clearSelection();
-  page.value = null;
-  void load(1);
+  if (router.resolve(location).fullPath === route.fullPath) {
+    page.value = null;
+    await load();
+  } else await router.replace(location);
 }
 
 function clearFilters(): void {
   filters.value = emptyFilters();
-  apply();
+  void apply();
 }
 
 async function selectAll(): Promise<void> {
   if (boolSelecting.value || boolLoading.value || boolClearDialog.value) return;
   const intRevision = ++intSelectionRevision;
-  // Applying filters replaces this detached snapshot instead of mutating it.
-  const selectionFilters = appliedFilters;
+  // Query changes replace this snapshot instead of mutating it.
+  const selectionFilters = appliedFilters.value;
   boolSelecting.value = true;
   strError.value = "";
   try {
@@ -485,8 +512,25 @@ onBeforeUnmount(() => {
   clearSelection();
 });
 
+watch(
+  [appliedFilters, () => route.query.page],
+  ([currentFilters], [previousFilters]) => {
+    if (route.name !== "run-history") return;
+    if (JSON.stringify(currentFilters) !== JSON.stringify(previousFilters)) {
+      filters.value = {
+        ...currentFilters,
+        departmentIds: [...currentFilters.departmentIds],
+        statuses: [...currentFilters.statuses],
+      };
+      clearSelection();
+    }
+    page.value = null;
+    void load();
+  },
+  { immediate: true },
+);
+
 onMounted(async () => {
-  void load();
   try {
     arrDepartment.value = await getRunDepartments();
   } catch (e) {

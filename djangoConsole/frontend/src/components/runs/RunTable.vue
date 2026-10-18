@@ -31,7 +31,7 @@
         <td>
           <v-btn
             v-tooltip:bottom="'View Run Details'"
-            :to="{ name: 'run-details', params: { runId: run.id } }"
+            :to="{ name: 'run-details', params: { runId: run.id }, query }"
             size="small"
             variant="text"
             aria-label="View Run Details"
@@ -47,6 +47,8 @@
 </template>
 
 <script setup lang="ts">
+import type { LocationQueryRaw } from "vue-router";
+
 import type { RunInfo } from "@/api/runs";
 import { RUN_STATUS_LABELS, RUN_STATUS_COLORS } from "@/app/runLabels";
 import { formatDateTime, formatRunEndTime } from "@/app/formatters";
@@ -54,6 +56,7 @@ import { formatDateTime, formatRunEndTime } from "@/app/formatters";
 defineProps<{
   runs: RunInfo[];
   timeZone: string;
+  query?: LocationQueryRaw;
   emptyText?: string;
 }>();
 </script>

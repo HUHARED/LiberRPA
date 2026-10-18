@@ -1,8 +1,8 @@
 <!-- FileName: RunDetailsView.vue -->
 <template>
   <div class="d-flex align-center flex-wrap ga-3 mb-4">
-    <v-btn to="/runs" variant="tonal" prepend-icon="mdi-arrow-left">
-      Back to Run History
+    <v-btn :to="listLocation" variant="tonal" prepend-icon="mdi-arrow-left">
+      Back to {{ listLocation.name === "job-queue" ? "Job Queue" : "Run History" }}
     </v-btn>
     <v-spacer />
     <v-btn :loading="boolLoading" variant="tonal" prepend-icon="mdi-refresh" @click="load">
@@ -235,7 +235,11 @@
                 <th scope="row" class="text-caption text-medium-emphasis">Job</th>
                 <td>
                   <RouterLink
-                    :to="{ name: 'job-details', params: { jobId: run.job_id } }"
+                    :to="{
+                      name: 'job-details',
+                      params: { jobId: run.job_id },
+                      query: detailsQuery,
+                    }"
                     class="text-primary text-decoration-none">
                     View Job
                   </RouterLink>
@@ -262,6 +266,7 @@
           <RunTable
             :runs="run.other_runs"
             :time-zone="strTimeZone"
+            :query="detailsQuery"
             empty-text="No other runs." />
 
           <h2 class="text-h6 mt-5 mb-3">Video</h2>
@@ -361,7 +366,7 @@
 
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { RouterLink, useRouter } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 
 import RunArgumentsDetails from "@/components/runSettings/RunArgumentsDetails.vue";
 import RunLogs from "@/components/runs/RunLogs.vue";
@@ -393,6 +398,7 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 const props = defineProps<{ runId: string }>();
 const sessionStore = useSessionStore();
+const route = useRoute();
 const router = useRouter();
 const run = shallowRef<RunDetails | null>(null);
 const strTab = ref("logs");
@@ -405,6 +411,19 @@ let timer: ReturnType<typeof setInterval> | undefined;
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 
 let intLoadRevision = 0;
+
+const listLocation = computed(() => {
+  const strSource = route.query.from;
+  if (strSource === "job-queue" || strSource === "run-history") {
+    return { name: strSource, query: { ...route.query, from: undefined } };
+  }
+  return { name: "run-history", query: {} };
+});
+
+const detailsQuery = computed(() => ({
+  ...listLocation.value.query,
+  from: listLocation.value.name,
+}));
 
 async function load(): Promise<void> {
   const intRevision = ++intLoadRevision;

@@ -1,14 +1,8 @@
 <!-- FileName: JobDetailsView.vue -->
 <template>
   <div class="d-flex align-center ga-2 mb-4">
-    <v-btn
-      :to="{
-        name: 'job-queue',
-        query: job?.state === JobState.Finished ? { state: JobState.Finished } : {},
-      }"
-      variant="tonal"
-      prepend-icon="mdi-arrow-left">
-      Back to Job Queue
+    <v-btn :to="listLocation" variant="tonal" prepend-icon="mdi-arrow-left">
+      Back to {{ listLocation.name === "job-queue" ? "Job Queue" : "Run History" }}
     </v-btn>
     <v-spacer />
     <v-btn variant="tonal" prepend-icon="mdi-refresh" :loading="boolLoading" @click="load">
@@ -103,7 +97,7 @@
 
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Runs</v-card-title>
-      <RunTable :runs="job.runs" :time-zone="strTimeZone" />
+      <RunTable :runs="job.runs" :time-zone="strTimeZone" :query="detailsQuery" />
     </v-card>
 
     <v-card variant="outlined" class="mb-4">
@@ -147,6 +141,7 @@
 
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 
 import JobActions from "@/components/runs/JobActions.vue";
 import RunTable from "@/components/runs/RunTable.vue";
@@ -168,12 +163,29 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 const props = defineProps<{ jobId: string }>();
 const sessionStore = useSessionStore();
+const route = useRoute();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const job = shallowRef<JobDetails | null>(null);
 const boolLoading = ref(false);
 const strError = ref("");
 let timer: ReturnType<typeof setInterval> | undefined;
 let intLoadRevision = 0;
+
+const listLocation = computed(() => {
+  const strSource = route.query.from;
+  if (strSource === "job-queue" || strSource === "run-history") {
+    return { name: strSource, query: { ...route.query, from: undefined } };
+  }
+  return {
+    name: "job-queue",
+    query: job.value?.state === JobState.Finished ? { state: JobState.Finished } : {},
+  };
+});
+
+const detailsQuery = computed(() => ({
+  ...listLocation.value.query,
+  from: listLocation.value.name,
+}));
 
 async function load(): Promise<void> {
   const intRevision = ++intLoadRevision;

@@ -12,7 +12,7 @@
     </v-btn>
   </div>
 
-  <v-tabs v-model="boolFinished" class="mb-4">
+  <v-tabs :model-value="boolFinished" class="mb-4" @update:model-value="changeTab">
     <v-tab :value="false">Active</v-tab>
     <v-tab :value="true">Finished</v-tab>
   </v-tabs>
@@ -156,7 +156,11 @@
         <div class="d-flex align-center ga-1">
           <v-btn
             v-tooltip:bottom="'View Job Details'"
-            :to="{ name: 'job-details', params: { jobId: item.id } }"
+            :to="{
+              name: 'job-details',
+              params: { jobId: item.id },
+              query: { ...route.query, from: 'job-queue' },
+            }"
             size="small"
             variant="text"
             aria-label="View Job Details"
@@ -181,14 +185,14 @@
         :length="page.total_pages"
         :total-visible="5"
         :disabled="boolLoading"
-        @update:model-value="load" />
+        @update:model-value="changePage" />
     </div>
   </v-card>
 </template>
 
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { RouterLink, useRoute } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 import type { DataTableHeader } from "vuetify";
 
 import JobActions from "@/components/runs/JobActions.vue";
@@ -209,8 +213,13 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 const sessionStore = useSessionStore();
 const route = useRoute();
+const router = useRouter();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
-const boolFinished = ref(route.query.state === JobState.Finished);
+const boolFinished = computed(
+  () =>
+    route.query.tab === JobState.Finished ||
+    [route.query.state].flat().includes(JobState.Finished),
+);
 
 const arrHeader = computed<DataTableHeader[]>(() => [
   { title: "Schedule", key: "schedule_name" },
@@ -240,16 +249,15 @@ function emptyFilters(): JobFilters {
 }
 
 const filters = ref(emptyFilters());
-const initialState = ARR_JOB_STATE.find((state) => state === route.query.state);
-if (initialState) filters.value.states = [initialState];
-if (typeof route.query.department_id === "string")
-  filters.value.departmentIds = [route.query.department_id];
-
-let appliedFilters = {
-  ...filters.value,
-  departmentIds: [...filters.value.departmentIds],
-  states: [...filters.value.states],
-};
+const appliedFilters = computed<JobFilters>(() => ({
+  departmentIds: [route.query.department_id]
+    .flat()
+    .filter((value): value is string => typeof value === "string"),
+  projectName: typeof route.query.project_name === "string" ? route.query.project_name : "",
+  scheduleName:
+    typeof route.query.schedule_name === "string" ? route.query.schedule_name : "",
+  states: ARR_JOB_STATE.filter((state) => [route.query.state].flat().includes(state)),
+}));
 
 const page = shallowRef<JobPage | null>(null);
 const boolLoading = ref(false);
@@ -257,17 +265,17 @@ const strError = ref("");
 let refreshTimer: ReturnType<typeof setInterval> | undefined;
 let intLoadRevision = 0;
 
-async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
+async function load(): Promise<void> {
   const intRevision = ++intLoadRevision;
   boolLoading.value = true;
   strError.value = "";
   try {
     const response = await getJobs(
       {
-        ...appliedFilters,
-        states: boolFinished.value ? [JobState.Finished] : appliedFilters.states,
+        ...appliedFilters.value,
+        states: boolFinished.value ? [JobState.Finished] : appliedFilters.value.states,
       },
-      pageNumber,
+      Number(route.query.page) || 1,
     );
     if (intRevision === intLoadRevision) page.value = response;
   } catch (e) {
@@ -277,33 +285,68 @@ async function load(pageNumber = page.value?.page ?? 1): Promise<void> {
   }
 }
 
-function apply(): void {
-  appliedFilters = {
-    ...filters.value,
-    departmentIds: [...filters.value.departmentIds],
-    states: [...filters.value.states],
+async function changePage(value: number): Promise<void> {
+  await router.replace({ query: { ...route.query, page: String(value) } });
+}
+
+async function changeTab(value: unknown): Promise<void> {
+  await router.replace({
+    query: {
+      ...route.query,
+      tab: value === true ? JobState.Finished : undefined,
+      state: appliedFilters.value.states,
+      page: undefined,
+    },
+  });
+}
+
+async function apply(): Promise<void> {
+  const location = {
+    name: "job-queue",
+    query: {
+      tab: boolFinished.value ? JobState.Finished : undefined,
+      department_id: filters.value.departmentIds,
+      project_name: filters.value.projectName.trim() || undefined,
+      schedule_name: filters.value.scheduleName.trim() || undefined,
+      state: filters.value.states,
+    },
   };
-  void load(1);
+  if (router.resolve(location).fullPath === route.fullPath) await load();
+  else await router.replace(location);
 }
 
 function clearFilters(): void {
   filters.value = emptyFilters();
-  apply();
+  void apply();
 }
 
-watch(boolFinished, () => {
-  page.value = null;
-  void load(1);
-});
+watch(
+  [appliedFilters, boolFinished, () => route.query.page],
+  ([currentFilters], [previousFilters]) => {
+    if (route.name !== "job-queue") return;
+    if (JSON.stringify(currentFilters) !== JSON.stringify(previousFilters)) {
+      filters.value = {
+        ...currentFilters,
+        departmentIds: [...currentFilters.departmentIds],
+        states: [...currentFilters.states],
+      };
+    }
+    page.value = null;
+    void load();
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
-  void load();
   refreshTimer = setInterval(() => {
     if (!document.hidden && !boolLoading.value) void load();
   }, 10000);
 });
 
-onBeforeUnmount(() => clearInterval(refreshTimer));
+onBeforeUnmount(() => {
+  intLoadRevision += 1;
+  clearInterval(refreshTimer);
+});
 </script>
 
 <style scoped></style>
