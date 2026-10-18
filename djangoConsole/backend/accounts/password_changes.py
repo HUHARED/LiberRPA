@@ -4,18 +4,14 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-import uuid
-
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
 from django.views.decorators.debug import sensitive_variables
 
 from executors.session_state import revoke_user_executor_sessions
 from operations.audit import record_audit
 from organizations.permissions import (
     AccessChannel,
-    get_current_membership,
-    resolve_organization_access,
+    OrganizationAccessContext,
 )
 
 from .api_keys import revoke_active_api_keys
@@ -24,29 +20,16 @@ from .passwords import validate_new_password
 
 
 @sensitive_variables()
-@transaction.atomic
 def change_password(
     *,
-    actorId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     currentPassword: str,
     newPassword: str,
 ) -> None:
-    """Change the signed-in account's password after checking its current credentials.
-
-    actorId and channel come from verified credentials, never from the request body.
-    Password changes use the same organization-first locks as other account writes.
-    """
-    if channel != AccessChannel.SESSION:
+    """Change the password using rechecked session access in the caller's write transaction."""
+    if access.channel != AccessChannel.SESSION:
         raise PermissionDenied("A signed-in account is required to change the password.")
 
-    membership = get_current_membership(actorId=actorId)
-    access = resolve_organization_access(
-        actorId=actorId,
-        organizationId=membership.organization_id,
-        channel=channel,
-        forUpdate=True,
-    )
     user = access.actor
     if not user.check_password(currentPassword):
         raise ValidationError({
@@ -71,6 +54,6 @@ def change_password(
         actor=user,
         organization=access.organization,
         target=user,
-        channel=channel,
+        channel=access.channel,
     )
     # NOTE: Email-change proofs are bound to the old password hash and are now invalid.

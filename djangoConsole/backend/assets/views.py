@@ -67,6 +67,7 @@ def _lock_asset_write_access(
         AccessChannel.SESSION,
         request.session.get(HASH_SESSION_KEY, ""),
         request.session.get_expiry_date(),
+        request.session.session_key,
     )
 
 

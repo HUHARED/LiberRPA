@@ -7,7 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from typing import cast
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
@@ -19,11 +19,11 @@ from console_project.http import (
     parse_json_request,
 )
 from organizations.access import get_account_access_info
-from organizations.http import build_account_access_payload
-from organizations.permissions import AccessChannel
+from organizations.http import build_account_access_payload, get_request_access
 
 from .contracts import SessionUserResponse, ProfileUpdateRequest, ProfileWriteResponse
 from .models import User
+from .session_revocation import SessionInvalidatedError
 from .profile import update_profile
 
 
@@ -50,12 +50,13 @@ def get_or_update_profile(request: HttpRequest) -> JsonResponse:
             profileRequest = parse_json_request(request, ProfileUpdateRequest)
             if isinstance(profileRequest, JsonResponse):
                 return profileRequest
-            user = update_profile(
-                actorId=user.id,
-                channel=AccessChannel.SESSION,
-                username=profileRequest.username,
-                timeZone=profileRequest.time_zone,
-            )
+            with transaction.atomic():
+                access = get_request_access(request, forUpdate=True)
+                user = update_profile(
+                    access=access,
+                    username=profileRequest.username,
+                    timeZone=profileRequest.time_zone,
+                )
             # Return the saved fields without making unrelated reads after the commit.
             return JsonResponse(_build_profile_response(user).model_dump(mode="python"))
 
@@ -64,6 +65,10 @@ def get_or_update_profile(request: HttpRequest) -> JsonResponse:
             **_build_profile_response(user).model_dump(mode="python"),
             **build_account_access_payload(accountAccessInfo),
         })
+    except SessionInvalidatedError:
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
+        )
     except ValidationError as e:
         return build_error_response(
             "invalid_profile",

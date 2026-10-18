@@ -21,10 +21,11 @@ from console_project.http import (
     build_rate_limited_response,
     parse_json_request,
 )
-from organizations.permissions import AccessChannel
+from organizations.http import get_request_access
 
 from .contracts import PasswordChangeRequest
 from .models import User
+from .session_revocation import SessionInvalidatedError
 from .password_changes import change_password
 from .rate_limits import apply_password_change_rate_limit
 
@@ -54,14 +55,18 @@ def change_account_password(request: HttpRequest) -> JsonResponse:
 
         # Commit the password change and current session removal together.
         with transaction.atomic():
+            access = get_request_access(request, forUpdate=True)
             change_password(
-                actorId=user.id,
-                channel=AccessChannel.SESSION,
+                access=access,
                 currentPassword=passwordRequest.current_password.get_secret_value(),
                 newPassword=passwordRequest.new_password.get_secret_value(),
             )
             logout(request)
         return JsonResponse({"message": "Password changed. Sign in again."})
+    except SessionInvalidatedError:
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
+        )
     except ValidationError as e:
         return build_error_response(
             "invalid_password_change",

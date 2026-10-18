@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 
 from django.contrib.auth.hashers import check_password
+from django.contrib.sessions.models import Session
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
@@ -38,6 +39,7 @@ def lock_session_write_access(
     channel: AccessChannel,
     sessionAuthHash: str,
     sessionExpiresAt: datetime,
+    sessionKey: str | None,
 ) -> OrganizationAccessContext:
     """Resolve current access and recheck a browser session after acquiring write locks."""
     if channel != AccessChannel.SESSION:
@@ -46,10 +48,15 @@ def lock_session_write_access(
         actorId=actorId, organizationId=organizationId, channel=channel, forUpdate=True
     )
     actor = access.actor
+    currentTime = timezone.now()
     if (
-        sessionExpiresAt <= timezone.now()
+        sessionExpiresAt <= currentTime
         or not sessionAuthHash
         or not constant_time_compare(sessionAuthHash, actor.get_session_auth_hash())
+        or not sessionKey
+        or not Session.objects.filter(
+            session_key=sessionKey, expire_date__gt=currentTime
+        ).exists()
     ):
         raise SessionInvalidatedError("The current session is no longer valid.")
     return access

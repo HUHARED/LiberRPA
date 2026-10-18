@@ -191,6 +191,7 @@ def lock_queue_session_access(
         AccessChannel.SESSION,
         request.session.get(HASH_SESSION_KEY, ""),
         request.session.get_expiry_date(),
+        request.session.session_key,
     )
 
 

@@ -4,41 +4,27 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-import uuid
-
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
 
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.permissions import (
     AccessChannel,
-    get_current_membership,
-    resolve_organization_access,
+    OrganizationAccessContext,
 )
 
 from .models import User
 
 
-@transaction.atomic
 def update_profile(
     *,
-    actorId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     username: str,
     timeZone: str,
 ) -> User:
-    """Save the authenticated account's profile without changing identity or credentials."""
-    if channel != AccessChannel.SESSION:
+    """Save the profile using rechecked session access in the caller's write transaction."""
+    if access.channel != AccessChannel.SESSION:
         raise PermissionDenied("A signed-in account is required to edit the profile.")
 
-    # Resolve ownership on the server, then recheck it under the normal write locks.
-    membership = get_current_membership(actorId=actorId)
-    access = resolve_organization_access(
-        actorId=actorId,
-        organizationId=membership.organization_id,
-        channel=channel,
-        forUpdate=True,
-    )
     user = access.actor
     dictAuditBefore = get_audit_snapshot(user)
     user.username = User.normalize_username(username.strip())
@@ -60,7 +46,7 @@ def update_profile(
         actor=user,
         organization=access.organization,
         target=user,
-        channel=channel,
+        channel=access.channel,
         before=dictAuditBefore,
     )
     return user
