@@ -9,6 +9,7 @@ from enum import StrEnum
 from typing import Annotated, Literal
 from uuid import UUID
 
+from django.db.models import TextChoices
 from pydantic import Field, SecretStr
 
 from console_project.contracts import JsonRequest, JsonResponsePayload
@@ -97,6 +98,12 @@ class AccountDeletionPreviewResponse(JsonResponsePayload):
     blockers: list[AccountDeletionBlockerResponse]
 
 
+class ApiKeyStatus(TextChoices):
+    ACTIVE = "active", "Active"
+    EXPIRED = "expired", "Expired"
+    REVOKED = "revoked", "Revoked"
+
+
 class ApiKeyCreateRequest(JsonRequest):
     name: str
     expires_at: str
@@ -112,7 +119,7 @@ class ApiKeyNotesRequest(JsonRequest):
 class ApiKeyResponse(JsonResponsePayload):
     id: UUID
     name: str
-    status: Literal["active", "expired", "revoked"]
+    status: ApiKeyStatus = Field(strict=False)
     expires_at: datetime
     last_used_at: datetime | None
     notes: str

@@ -12,18 +12,7 @@ from django.utils import timezone
 
 from organizations.validators import validate_path_segment
 
-
-class AssetType(models.TextChoices):
-    TEXT = "text", "Text"
-    INTEGER = "integer", "Integer"
-    NUMBER = "number", "Number"
-    BOOLEAN = "boolean", "Boolean"
-    JSON = "json", "JSON"
-    SECRET_TEXT = "secret_text", "Secret Text"
-    CREDENTIAL = "credential", "Credential"
-
-
-SECRET_ASSET_TYPES = (AssetType.SECRET_TEXT, AssetType.CREDENTIAL)
+from .contracts import AssetType, SECRET_ASSET_TYPES
 
 
 class Asset(models.Model):

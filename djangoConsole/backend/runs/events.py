@@ -38,6 +38,7 @@ _INT_RETRY_SECONDS = 60
 
 def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
     """Commit one stable event under the organization lock before acknowledging it."""
+    from notifications.models import RunEmailEvent
     from notifications.run_events import notify_run_event
 
     assignment = (
@@ -109,7 +110,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             job.attempt_count = max(job.attempt_count, assignment.attempt_number)
             job.save(update_fields=["attempt_count"])
             if job.closed_at is None:
-                notify_run_event(run, event="start")
+                notify_run_event(run, event=RunEmailEvent.START)
         if isinstance(event, WorkEndedEvent) and run.ended_at is None:
             run.ended_at = event.occurred_at
             run.status = event.status
@@ -135,7 +136,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             assignment.save(update_fields=["state", "reason"])
             if job.closed_at is None:
                 if run.status in (RunStatus.COMPLETED, RunStatus.ERROR):
-                    notify_run_event(run, event=str(run.status))
+                    notify_run_event(run, event=RunEmailEvent(run.status))
                 boolRunRetryable = (
                     run.status == RunStatus.ERROR
                     and job.stop_requested_at is None
@@ -145,7 +146,9 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                     job.state = JobState.WAITING_RETRY
                     job.retry_at = timezone.now() + timedelta(seconds=_INT_RETRY_SECONDS)
                     job.attempt_queued_at = job.retry_at
-                    job.reason = "Waiting 60 seconds before the next attempt."
+                    job.reason = (
+                        f"Waiting {_INT_RETRY_SECONDS} seconds before the next attempt."
+                    )
                     job.save(
                         update_fields=["state", "retry_at", "attempt_queued_at", "reason"]
                     )

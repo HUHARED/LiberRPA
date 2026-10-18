@@ -3,20 +3,16 @@
 import { requestApi } from "./client";
 import { isRecord, rejectInvalidResponse, parsePaginationResponse } from "./responses";
 
-import type {
-  DepartmentRoleRequest,
-  MemberDetailsResponse,
-  MemberResponse,
-  MemberDepartmentRoleResponse,
-  MemberListResponse,
-  MembershipUpdateRequest,
-  MembershipWriteResponse,
+import {
+  ARR_DEPARTMENT_ROLE,
+  type DepartmentRoleRequest,
+  type MemberDetailsResponse,
+  type MemberResponse,
+  type MemberDepartmentRoleResponse,
+  type MemberListResponse,
+  type MembershipUpdateRequest,
+  type MembershipWriteResponse,
 } from "./generated/browserApi";
-
-export enum DepartmentRole {
-  Developer = "developer",
-  Operator = "operator",
-}
 
 function isMember(value: unknown): value is MemberResponse {
   return (
@@ -34,8 +30,7 @@ function isMember(value: unknown): value is MemberResponse {
         typeof assignment.department.id === "string" &&
         typeof assignment.department.name === "string" &&
         typeof assignment.department.path === "string" &&
-        (assignment.role === DepartmentRole.Developer ||
-          assignment.role === DepartmentRole.Operator),
+        ARR_DEPARTMENT_ROLE.some((role) => role === assignment.role),
     ) &&
     typeof value.notes === "string" &&
     typeof value.joined_at === "string" &&
@@ -68,8 +63,7 @@ export function parseMembershipWriteResponse(payload: unknown): MembershipWriteR
       (assignment: unknown): assignment is DepartmentRoleRequest =>
         isRecord(assignment) &&
         typeof assignment.department_id === "string" &&
-        (assignment.role === DepartmentRole.Developer ||
-          assignment.role === DepartmentRole.Operator),
+        ARR_DEPARTMENT_ROLE.some((role) => role === assignment.role),
     )
   )
     return rejectInvalidResponse();

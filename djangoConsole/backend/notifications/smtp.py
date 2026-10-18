@@ -16,7 +16,7 @@ from smtplib import (
 from django.core.mail import EmailMessage, mailers
 from django.views.decorators.debug import sensitive_variables
 
-from .models import EmailStatus, EmailReasonCode
+from .contracts import EmailStatus, EmailReasonCode
 
 
 @dataclass(frozen=True)

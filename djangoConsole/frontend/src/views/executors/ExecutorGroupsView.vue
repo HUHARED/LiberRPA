@@ -160,7 +160,7 @@
       :headers="ARR_HEADER"
       :items="groupPage?.executor_groups ?? []"
       :items-length="groupPage?.total_count ?? 0"
-      :items-per-page="groupPage?.page_size ?? 50"
+      :items-per-page="groupPage?.page_size ?? INT_LIST_PAGE_SIZE"
       :page="groupPage?.page ?? 1"
       :loading="boolLoading"
       :mobile-breakpoint="600"
@@ -246,10 +246,11 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { type ExecutorGroupListFilters, getExecutorGroupList } from "@/api/executorGroups";
-import type {
-  ExecutorGroupRecordResponse,
-  ExecutorGroupListResponse,
-  ExecutorGroupWriteResponse,
+import {
+  INT_LIST_PAGE_SIZE,
+  type ExecutorGroupRecordResponse,
+  type ExecutorGroupListResponse,
+  type ExecutorGroupWriteResponse,
 } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";

@@ -9,25 +9,23 @@ import {
   parseMessageResponse,
 } from "./responses";
 
-import type {
-  QueueCreationRequest,
-  QueueDetailsRequest,
-  QueueDetailsResponse,
-  QueueEntryResponse,
-  QueueItemDetailsResponse,
-  QueueItemResponse,
-  QueueItemsResponse,
-  QueueListResponse,
-  QueueMutationResponse,
-  JsonValue,
+import {
+  ARR_QUEUE_ITEM_STATUS,
+  type QueueItemFilterStatus,
+  type QueueItemOrder,
+  type QueueCreationRequest,
+  type QueueDetailsRequest,
+  type QueueDetailsResponse,
+  type QueueEntryResponse,
+  type QueueItemDetailsResponse,
+  type QueueItemResponse,
+  type QueueItemsResponse,
+  type QueueListResponse,
+  type QueueMutationResponse,
+  type JsonValue,
 } from "./generated/browserApi";
 
 const API_ROOT = "/data-queues/";
-export const QUEUE_STATUSES = [
-  { title: "All", value: "all" },
-  { title: "Unclaimed", value: "unclaimed" },
-  { title: "Claimed", value: "claimed" },
-];
 
 function isQueue(value: unknown): value is QueueEntryResponse {
   return (
@@ -51,7 +49,7 @@ function isItem(value: unknown): value is QueueItemResponse {
     isRecord(value) &&
     typeof value.id === "string" &&
     typeof value.sequence === "number" &&
-    ["unclaimed", "claimed"].includes(String(value.status)) &&
+    ARR_QUEUE_ITEM_STATUS.some((status) => status === value.status) &&
     typeof value.data_summary === "string" &&
     typeof value.uploaded_by_id === "string" &&
     typeof value.uploaded_by_name === "string" &&
@@ -94,8 +92,8 @@ export async function saveQueue(
 }
 export async function getQueueItems(
   queueId: string,
-  status: string,
-  order: string,
+  status: QueueItemFilterStatus,
+  order: QueueItemOrder,
   itemId: string,
   page: number,
 ): Promise<QueueItemsResponse> {

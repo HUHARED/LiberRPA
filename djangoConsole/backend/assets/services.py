@@ -18,15 +18,15 @@ from console_project.config import LimitsConfig
 from console_project.contracts import JsonValue
 from console_project.validators import validate_json_value
 from operations.audit import get_audit_snapshot, record_audit
-from organizations.models import DepartmentRole
+from organizations.contracts import DepartmentRole
 from organizations.validators import get_path_name_key, normalize_path_name
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
 )
 
-from .contracts import AssetUpdateRequest
-from .models import AssetType, SECRET_ASSET_TYPES, Asset
+from .contracts import AssetType, SECRET_ASSET_TYPES, AssetUpdateRequest
+from .models import Asset
 from .queries import get_asset_query
 
 
@@ -124,7 +124,7 @@ def create_asset(
     departmentId: uuid.UUID,
     name: str,
     notes: str,
-    assetType: str,
+    assetType: AssetType,
     value: JsonValue,
 ) -> Asset:
     """The caller owns the organization/account locks and the enclosing transaction."""

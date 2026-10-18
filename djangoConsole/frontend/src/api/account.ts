@@ -8,12 +8,13 @@ import {
   parseMessageResponse,
 } from "./responses";
 
-import type {
-  AccountAccessResponse,
-  DepartmentAccessResponse,
-  LoginRequest,
-  SessionUserResponse,
-  SessionResponse,
+import {
+  ARR_DEPARTMENT_ROLE,
+  type AccountAccessResponse,
+  type DepartmentAccessResponse,
+  type LoginRequest,
+  type SessionUserResponse,
+  type SessionResponse,
 } from "./generated/browserApi";
 
 export function parseSessionUserResponse(payload: unknown): SessionUserResponse {
@@ -69,14 +70,16 @@ export function parseAccountAccessResponse(payload: unknown): AccountAccessRespo
 
   const arrDepartment = payload.departments.map(
     (departmentInfo: unknown): DepartmentAccessResponse => {
+      if (!isRecord(departmentInfo)) return rejectInvalidResponse();
+      const strRole =
+        departmentInfo.role === null
+          ? null
+          : ARR_DEPARTMENT_ROLE.find((role) => role === departmentInfo.role);
       if (
-        !isRecord(departmentInfo) ||
         typeof departmentInfo.id !== "string" ||
         typeof departmentInfo.name !== "string" ||
         typeof departmentInfo.path !== "string" ||
-        (departmentInfo.role !== null &&
-          departmentInfo.role !== "operator" &&
-          departmentInfo.role !== "developer")
+        strRole === undefined
       )
         return rejectInvalidResponse();
 
@@ -84,7 +87,7 @@ export function parseAccountAccessResponse(payload: unknown): AccountAccessRespo
         id: departmentInfo.id,
         name: departmentInfo.name,
         path: departmentInfo.path,
-        role: departmentInfo.role,
+        role: strRole,
       };
     },
   );

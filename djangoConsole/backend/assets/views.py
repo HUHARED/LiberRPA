@@ -41,11 +41,12 @@ from organizations.permissions import (
 )
 
 from .contracts import (
+    AssetType,
     AssetCreationRequest,
     AssetUpdateRequest,
     AssetDeletionRequest,
 )
-from .models import AssetType, Asset
+from .models import Asset
 from .queries import get_asset_query, get_asset_list, build_asset_details
 from .services import (
     SecretStorageUnavailableError,
@@ -181,10 +182,9 @@ def list_or_create_assets(request: HttpRequest, membership: Membership) -> HttpR
                 request.GET, extraFields=frozenset({"type"})
             )
             listType = request.GET.getlist("type")
-            if len(listType) > len(AssetType.values) or any(
-                strValue not in AssetType.values for strValue in listType
-            ):
+            if len(listType) > len(AssetType.values):
                 raise ValueError("Invalid asset types.")
+            tupleAssetType = tuple(AssetType(strAssetType) for strAssetType in listType)
         except ValueError:
             return build_error_response(
                 "invalid_filter",
@@ -197,7 +197,7 @@ def list_or_create_assets(request: HttpRequest, membership: Membership) -> HttpR
             channel=AccessChannel.SESSION,
         )
         return _build_asset_response(
-            get_asset_list(access, **filters, assetTypes=tuple(listType))
+            get_asset_list(access, **filters, assetTypes=tupleAssetType)
         )
 
     payload = parse_json_request(

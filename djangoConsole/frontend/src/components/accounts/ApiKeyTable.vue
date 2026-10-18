@@ -86,9 +86,7 @@
     <v-data-table
       :headers="arrHeader"
       :items="arrVisibleKey"
-      :items-per-page="50"
-      :items-per-page-options="[50]"
-      :hide-default-footer="arrVisibleKey.length <= 50"
+      :hide-default-footer="arrVisibleKey.length <= INT_LIST_PAGE_SIZE"
       :loading="boolLoading"
       :mobile-breakpoint="600"
       item-value="id"
@@ -177,22 +175,29 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { type ApiError, getApiError } from "@/api/errors";
-import { type ApiKeyStatus, getApiKeyList, getApiKeyStatus } from "@/api/apiKeys";
-import type {
-  UserResponse,
-  ApiKeyResponse,
-  ApiKeyListResponse,
+import { getApiKeyList, getApiKeyStatus } from "@/api/apiKeys";
+import {
+  INT_LIST_PAGE_SIZE,
+  ARR_API_KEY_STATUS,
+  type UserResponse,
+  type ApiKeyStatus,
+  type ApiKeyResponse,
+  type ApiKeyListResponse,
 } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
 
 const props = defineProps<{ member?: UserResponse }>();
 
-const ARR_STATUS_OPTION = [
-  { title: "Active", value: "active" },
-  { title: "Expired", value: "expired" },
-  { title: "Revoked", value: "revoked" },
-];
+const DICT_STATUS_LABEL: Record<ApiKeyStatus, string> = {
+  active: "Active",
+  expired: "Expired",
+  revoked: "Revoked",
+};
+const ARR_STATUS_OPTION = ARR_API_KEY_STATUS.map((status) => ({
+  title: DICT_STATUS_LABEL[status],
+  value: status,
+}));
 
 const sessionStore = useSessionStore();
 const account = computed(() => props.member ?? sessionStore.session?.user);
@@ -206,7 +211,7 @@ const boolCanManage = computed(
 );
 
 const { intCurrentTimeMs } = useRetryDelay();
-const arrStatus = ref<ApiKeyStatus[]>(["active", "expired", "revoked"]);
+const arrStatus = ref<ApiKeyStatus[]>([...ARR_API_KEY_STATUS]);
 
 const arrHeader = computed(() => [
   { title: "Name", key: "name", minWidth: 180 },

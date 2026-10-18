@@ -145,9 +145,7 @@
         <v-data-table
           :headers="ARR_ROLE_HEADER"
           :items="memberInfo.department_roles"
-          :items-per-page="50"
-          :items-per-page-options="[50]"
-          :hide-default-footer="memberInfo.department_roles.length <= 50"
+          :hide-default-footer="memberInfo.department_roles.length <= INT_LIST_PAGE_SIZE"
           :mobile-breakpoint="600"
           item-value="department.id"
           disable-sort>
@@ -212,7 +210,11 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { getMemberDetails } from "@/api/members";
-import type { UserResponse, MemberResponse } from "@/api/generated/browserApi";
+import {
+  INT_LIST_PAGE_SIZE,
+  type UserResponse,
+  type MemberResponse,
+} from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
 

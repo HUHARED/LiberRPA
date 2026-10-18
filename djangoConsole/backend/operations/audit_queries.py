@@ -12,15 +12,15 @@ from django.core.paginator import Page, Paginator
 from django.db.models import F, Q, QuerySet, Window
 from django.db.models.functions import RowNumber
 
+from console_project.constants import INT_LIST_PAGE_SIZE
 from organizations.permissions import (
     AccessChannel,
     resolve_organization_access,
     require_organization_admin,
 )
 
+from .contracts import AuditResult
 from .models import AuditScope, AuditRecord
-
-_INT_RECORDS_PER_PAGE = 50
 
 
 @dataclass(frozen=True)
@@ -31,7 +31,7 @@ class AuditListFilters:
     includeSystem: bool
     modules: tuple[str, ...]
     actions: tuple[str, ...]
-    results: tuple[str, ...]
+    results: tuple[AuditResult, ...]
 
 
 def _get_organization_audit_query(
@@ -75,7 +75,7 @@ def get_audit_list(
     # Detail bodies are loaded only when opening one record.
     return Paginator(
         auditQuery.defer("details").order_by("-created_at", "-id"),
-        _INT_RECORDS_PER_PAGE,
+        INT_LIST_PAGE_SIZE,
     ).page(pageNumber)
 
 

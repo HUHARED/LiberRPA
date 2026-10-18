@@ -24,13 +24,13 @@ from file_storage.streaming import SyncFileStream, AsyncFileStream
 from organizations.validators import parse_resource_path
 
 from .contracts import (
+    UploadState,
     FileListRequest,
     FilePathRequest,
     FileUploadRequest,
     FileDeleteRequest,
     EmptyFileRequest,
 )
-from .models import UploadState
 from .queries import (
     build_file_payload,
     resolve_file,

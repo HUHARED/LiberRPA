@@ -41,13 +41,14 @@ from .api_keys import (
     revoke_api_key,
 )
 from .contracts import (
+    ApiKeyStatus,
     ApiKeyCreateRequest,
     ApiKeyNotesRequest,
     ApiKeyWriteResponse,
     ApiKeyCreationResponse,
     ApiKeyListResponse,
 )
-from .models import ApiKey, ApiKeyStatus, User
+from .models import ApiKey, User
 from .rate_limits import apply_api_key_creation_rate_limit
 from .session_revocation import SessionInvalidatedError
 

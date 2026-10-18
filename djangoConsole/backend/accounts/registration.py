@@ -18,7 +18,8 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
-from notifications.models import EmailDelivery, EmailStatus, EmailType
+from notifications.contracts import EmailStatus
+from notifications.models import EmailDelivery, EmailType
 from operations.policies import require_organization_creation_allowed
 from organizations.creation import OrganizationCreationResult, create_organization_records
 

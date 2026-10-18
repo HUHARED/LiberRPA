@@ -15,16 +15,16 @@ from django.db.models import QuerySet
 from django.db.models.functions import Lower
 
 from accounts.models import User
+from console_project.constants import INT_LIST_PAGE_SIZE
 
 from .department_queries import get_department_path
-from .models import Membership, Department, DepartmentRole, DepartmentMembership
+from .contracts import DepartmentRole
+from .models import Membership, Department, DepartmentMembership
 from .permissions import (
     AccessChannel,
     resolve_organization_access,
     require_organization_admin,
 )
-
-_INT_MEMBERS_PER_PAGE = 50
 
 
 @dataclass(frozen=True)
@@ -142,12 +142,12 @@ def get_member_list(
     membershipQuery = _get_member_query(actorId, organizationId, channel).order_by(
         Lower("user__username"), "user__email", "user_id"
     )
-    paginator = Paginator(membershipQuery, _INT_MEMBERS_PER_PAGE)
+    paginator = Paginator(membershipQuery, INT_LIST_PAGE_SIZE)
     memberPage = paginator.page(pageNumber)
     return MemberPageInfo(
         members=_get_member_info_list(list(memberPage.object_list), organizationId),
         page=memberPage.number,
-        pageSize=_INT_MEMBERS_PER_PAGE,
+        pageSize=INT_LIST_PAGE_SIZE,
         totalCount=paginator.count,
         totalPages=paginator.num_pages,
     )

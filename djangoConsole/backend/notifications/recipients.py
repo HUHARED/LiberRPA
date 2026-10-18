@@ -24,11 +24,9 @@ from organizations.permissions import (
     require_organization_business_available,
 )
 
-from .contracts import RunEmailRecipientStatus
+from .contracts import EmailStatus, EmailReasonCode, RunEmailRecipientStatus
 from .models import (
     EmailType,
-    EmailStatus,
-    EmailReasonCode,
     EmailDelivery,
     RunEmailRecipient,
     RunRecipientVerification,

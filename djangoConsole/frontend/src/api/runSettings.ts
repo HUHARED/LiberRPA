@@ -8,6 +8,14 @@ import type {
   RunSettingsResponse,
   RunSnapshotResponse,
 } from "./generated/browserApi";
+import {
+  ARR_ORDINARY_ASSET_TYPE,
+  ARR_CONFLICT_POLICY,
+  ARR_PRIORITY,
+  ARR_LOG_LEVEL,
+  INT_MAX_RETRY_COUNT,
+  INT_MAX_TIMEOUT_MIN,
+} from "./generated/browserApi";
 import { isRecord } from "./responses";
 
 export type { JsonValue } from "./generated/browserApi";
@@ -17,25 +25,13 @@ export type LogLevel = RunLogLevel;
 export type RunEmailConfig = RunEmailSettingsResponse;
 export type RunSettings = RunSettingsResponse;
 export type RunSnapshot = RunSnapshotResponse;
-export const ARR_CONFLICT_POLICY = [
-  "skip",
-  "wait",
-  "concurrent",
-] as const satisfies readonly ConflictPolicy[];
-export const ARR_PRIORITY = [
-  "high",
-  "normal",
-  "low",
-] as const satisfies readonly Priority[];
-export const ARR_LOG_LEVEL = [
-  "VERBOSE",
-  "DEBUG",
-  "INFO",
-  "WARNING",
-  "ERROR",
-  "CRITICAL",
-] as const satisfies readonly LogLevel[];
-export const INT_MAX_TIMEOUT_MIN = 35791;
+export {
+  ARR_CONFLICT_POLICY,
+  ARR_PRIORITY,
+  ARR_LOG_LEVEL,
+  INT_MAX_RETRY_COUNT,
+  INT_MAX_TIMEOUT_MIN,
+};
 export function isRunSettings(value: unknown): value is RunSettings {
   return (
     isRecord(value) &&
@@ -56,9 +52,7 @@ export function isRunSettings(value: unknown): value is RunSettings {
         binding === null ||
         (isRecord(binding) &&
           typeof binding.name === "string" &&
-          ["text", "integer", "number", "boolean", "json"].some(
-            (type) => type === binding.asset_type,
-          )),
+          ARR_ORDINARY_ASSET_TYPE.some((assetType) => assetType === binding.asset_type)),
     ) &&
     ARR_CONFLICT_POLICY.some((policy) => policy === value.run_conflict_policy) &&
     ARR_PRIORITY.some((priority) => priority === value.priority) &&

@@ -1,7 +1,6 @@
 // FileName: executors.ts
 
 import { requestApi } from "./client";
-import { PackagePreparationState } from "./packages";
 import {
   isRecord,
   isNonnegativeInteger,
@@ -12,20 +11,22 @@ import {
   parsePaginationResponse,
 } from "./responses";
 
-import type {
-  ExecutorCreationRequest,
-  ExecutorDeletionRequest,
-  ExecutorDetailsResponse,
-  ExecutorPreparationEntryResponse,
-  ExecutorGroupReferenceResponse,
-  ExecutorScheduleReferenceResponse,
-  ExecutorDispatchRequest,
-  ExecutorListEntryResponse,
-  ExecutorListResponse,
-  ExecutorUnassociateRequest,
-  ExecutorUpdateRequest,
-  ExecutorUpdateResponse,
-  ExecutorRecordResponse,
+import {
+  PackagePreparationState,
+  ARR_EXECUTOR_ASSOCIATION_STATUS,
+  type ExecutorCreationRequest,
+  type ExecutorDeletionRequest,
+  type ExecutorDetailsResponse,
+  type ExecutorPreparationEntryResponse,
+  type ExecutorGroupReferenceResponse,
+  type ExecutorScheduleReferenceResponse,
+  type ExecutorDispatchRequest,
+  type ExecutorListEntryResponse,
+  type ExecutorListResponse,
+  type ExecutorUnassociateRequest,
+  type ExecutorUpdateRequest,
+  type ExecutorUpdateResponse,
+  type ExecutorRecordResponse,
 } from "./generated/browserApi";
 
 export interface ExecutorListFilters {
@@ -68,9 +69,7 @@ export function isExecutorListEntry(value: unknown): value is ExecutorListEntryR
     typeof value.department.name === "string" &&
     typeof value.department.path === "string" &&
     typeof value.can_manage === "boolean" &&
-    (value.association_status === "unassociated" ||
-      value.association_status === "online" ||
-      value.association_status === "offline") &&
+    ARR_EXECUTOR_ASSOCIATION_STATUS.some((status) => status === value.association_status) &&
     isNullableString(value.session_id) &&
     (value.account === null ||
       (isRecord(value.account) &&

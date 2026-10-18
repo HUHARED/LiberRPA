@@ -9,15 +9,39 @@ from enum import StrEnum
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
+from django.db.models import TextChoices
 from pydantic import Field, model_validator
 
-from console_project.contracts import JsonValue, JsonRequest, JsonResponsePayload
+from console_project.contracts import (
+    JsonValue,
+    JsonRequest,
+    JsonResponsePayload,
+    PaginationResponse,
+)
 
 
 MAX_ASSET_RUNTIME_BYTES = 2 * 1024 * 1024
 
-type AssetType = Literal[
-    "text", "integer", "number", "boolean", "json", "secret_text", "credential"
+
+class AssetType(TextChoices):
+    TEXT = "text", "Text"
+    INTEGER = "integer", "Integer"
+    NUMBER = "number", "Number"
+    BOOLEAN = "boolean", "Boolean"
+    JSON = "json", "JSON"
+    SECRET_TEXT = "secret_text", "Secret Text"
+    CREDENTIAL = "credential", "Credential"
+
+
+SECRET_ASSET_TYPES = (AssetType.SECRET_TEXT, AssetType.CREDENTIAL)
+
+
+type OrdinaryAssetType = Literal[
+    AssetType.TEXT,
+    AssetType.INTEGER,
+    AssetType.NUMBER,
+    AssetType.BOOLEAN,
+    AssetType.JSON,
 ]
 
 
@@ -28,7 +52,7 @@ class AssetDetailsRequest(JsonRequest):
 
 class AssetCreationRequest(AssetDetailsRequest):
     department_id: Annotated[UUID, Field(strict=False)]
-    asset_type: AssetType
+    asset_type: AssetType = Field(strict=False)
     value: JsonValue
 
 
@@ -66,7 +90,7 @@ class AssetEntryResponse(JsonResponsePayload):
     name: str
     department: AssetDepartmentResponse
     path: str
-    asset_type: AssetType
+    asset_type: AssetType = Field(strict=False)
     notes: str
     value_summary: str
     can_manage: bool
@@ -75,12 +99,8 @@ class AssetEntryResponse(JsonResponsePayload):
     updated_at: datetime
 
 
-class AssetListResponse(JsonResponsePayload):
+class AssetListResponse(PaginationResponse):
     assets: list[AssetEntryResponse]
-    page: int
-    page_size: int
-    total_count: int
-    total_pages: int
 
 
 class AssetReferenceKind(StrEnum):

@@ -163,7 +163,7 @@
       :headers="ARR_HEADER"
       :items="page?.files ?? []"
       :items-length="page?.total_count ?? 0"
-      :items-per-page="50"
+      :items-per-page="page?.page_size ?? INT_LIST_PAGE_SIZE"
       :page="page?.page ?? 1"
       :loading="boolLoading"
       item-value="path"
@@ -274,11 +274,12 @@ import { formatDateTime, formatFileSize } from "@/app/formatters";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { getSharedFiles, downloadSharedFile } from "@/api/sharedFiles";
-import type {
-  FileDeleteResponse,
-  FileInfoResponse,
-  FileListRequest,
-  FileListResponse,
+import {
+  INT_LIST_PAGE_SIZE,
+  type FileDeleteResponse,
+  type FileInfoResponse,
+  type FileListRequest,
+  type FileListResponse,
 } from "@/api/generated/browserApi";
 
 const ARR_HEADER = [

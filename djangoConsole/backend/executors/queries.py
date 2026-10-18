@@ -14,8 +14,10 @@ from django.db.models import QuerySet
 from django.db.models.functions import Lower
 from django.utils import timezone
 
+from console_project.constants import INT_LIST_PAGE_SIZE
 from organizations.department_queries import get_department_tree, get_department_path
-from organizations.models import Department, DepartmentRole
+from organizations.contracts import DepartmentRole
+from organizations.models import Department
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -35,9 +37,6 @@ from .session_state import (
     get_executor_association_status,
     get_current_executor_sessions,
 )
-
-_INT_EXECUTORS_PER_PAGE = 50
-_INT_PREPARATIONS_PER_PAGE = 50
 
 
 @dataclass(frozen=True)
@@ -154,7 +153,7 @@ def get_executor_list(
         )
         executorQuery = executorQuery.exclude(pk__in=dictSessionByExecutorId)
     executorQuery = executorQuery.order_by(Lower("name"), "id")
-    paginator = Paginator(executorQuery, _INT_EXECUTORS_PER_PAGE)
+    paginator = Paginator(executorQuery, INT_LIST_PAGE_SIZE)
     executorPage = paginator.page(pageNumber)
     executors = list(executorPage.object_list)
     executorInfoEntries: tuple[ExecutorInfo, ...] = ()
@@ -169,7 +168,7 @@ def get_executor_list(
     return ExecutorPageInfo(
         executors=executorInfoEntries,
         page=executorPage.number,
-        pageSize=_INT_EXECUTORS_PER_PAGE,
+        pageSize=INT_LIST_PAGE_SIZE,
         totalCount=paginator.count,
         totalPages=paginator.num_pages,
     )
@@ -225,7 +224,7 @@ def get_executor_preparation_page(
             "id",
         )
     )
-    paginator = Paginator(preparationQuery, _INT_PREPARATIONS_PER_PAGE)
+    paginator = Paginator(preparationQuery, INT_LIST_PAGE_SIZE)
     preparationPage = paginator.get_page(pageNumber)
     return ExecutorPreparationPageResponse(
         items=[
@@ -247,7 +246,7 @@ def get_executor_preparation_page(
             for preparation in preparationPage.object_list
         ],
         page=preparationPage.number,
-        page_size=_INT_PREPARATIONS_PER_PAGE,
+        page_size=INT_LIST_PAGE_SIZE,
         total_count=paginator.count,
         total_pages=paginator.num_pages,
     )

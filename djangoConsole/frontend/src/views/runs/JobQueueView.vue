@@ -95,7 +95,7 @@
       :headers="arrHeader"
       :items="page?.jobs ?? []"
       :items-length="page?.total_count ?? 0"
-      :items-per-page="50"
+      :items-per-page="page?.page_size ?? INT_LIST_PAGE_SIZE"
       :loading="boolLoading"
       disable-sort
       hide-default-footer>
@@ -204,14 +204,9 @@ import type { DataTableHeader } from "vuetify";
 
 import JobActions from "@/components/runs/JobActions.vue";
 
-import {
-  JobState,
-  ARR_ACTIVE_JOB_STATE,
-  getJobs,
-  type JobPage,
-  type JobFilters,
-} from "@/api/runs";
+import { ARR_ACTIVE_JOB_STATE, getJobs, type JobPage, type JobFilters } from "@/api/runs";
 import { getApiError } from "@/api/errors";
+import { INT_LIST_PAGE_SIZE, JobState } from "@/api/generated/browserApi";
 
 import { PRIORITY_LABELS, JOB_STATE_LABELS, JOB_STATE_COLORS } from "@/app/runLabels";
 import { formatDateTime } from "@/app/formatters";

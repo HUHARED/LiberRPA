@@ -15,7 +15,8 @@ from django.db.models.lookups import Exact
 
 from accounts.models import User
 
-from .models import Organization, Membership, Department, DepartmentRole
+from .contracts import DepartmentRole
+from .models import Organization, Membership, Department
 
 
 class AccessChannel(StrEnum):

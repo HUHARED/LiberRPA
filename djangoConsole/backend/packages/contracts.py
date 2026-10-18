@@ -13,10 +13,15 @@ from uuid import UUID
 from django.db.models import TextChoices
 from pydantic import Field, field_validator, model_validator
 
-from console_project.contracts import JsonValue, JsonRequest, JsonResponsePayload
+from assets.contracts import OrdinaryAssetType
+from console_project.contracts import (
+    JsonValue,
+    JsonRequest,
+    JsonResponsePayload,
+    PaginationResponse,
+)
 from console_project.constants import INT_WINDOWS_NAME_MAX_LENGTH, RunLogLevel
 from console_project.validators import validate_windows_name, validate_json_value
-from organizations.contracts import PaginationResponse
 from notifications.contracts import INT_RUN_EMAIL_MAX_BYTES
 
 MAX_PACKAGE_BYTES = 512 * 1024 * 1024
@@ -57,18 +62,19 @@ class RunConflictPolicy(StrEnum):
     CONCURRENT = "concurrent"
 
 
+# NOTE: Declaration order determines dispatch priority.
 class RunPriority(StrEnum):
     HIGH = "high"
     NORMAL = "normal"
     LOW = "low"
 
 
-RUN_PRIORITY_ORDER = (RunPriority.HIGH, RunPriority.NORMAL, RunPriority.LOW)
+RUN_PRIORITY_ORDER = tuple(RunPriority)
 
 
 class OrdinaryAssetBinding(JsonRequest):
     name: str = Field(min_length=1, max_length=128)
-    asset_type: Literal["text", "integer", "number", "boolean", "json"]
+    asset_type: OrdinaryAssetType
 
 
 class RunEmailTemplate(JsonRequest):

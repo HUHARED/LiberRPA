@@ -11,6 +11,8 @@ from django.utils import timezone
 
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
 
+from .contracts import AuditChannel, AuditResult, AuditStage
+
 
 class ServiceSettings(models.Model):
     """One shared settings record for the Console instance, independent of any organization."""
@@ -35,19 +37,6 @@ class ServiceSettings(models.Model):
 class AuditScope(models.TextChoices):
     ORGANIZATION = "organization", "Organization"
     PLATFORM = "platform", "Platform"
-
-
-class AuditChannel(models.TextChoices):
-    SESSION = "session", "Web"
-    EDITOR = "editor", "Editor"
-    EXECUTOR = "executor", "Executor"
-    API_KEY = "api_key", "API Key"
-    SYSTEM = "system", "System"
-
-
-class AuditResult(models.TextChoices):
-    SUCCEEDED = "succeeded", "Succeeded"
-    FAILED = "failed", "Failed"
 
 
 class AuditRecord(models.Model):
@@ -115,5 +104,11 @@ class AuditRecord(models.Model):
             models.CheckConstraint(
                 condition=models.Q(result__in=AuditResult.values),
                 name="audit_result_valid",
+            ),
+            models.CheckConstraint(
+                # A missing stage means operation; an explicit value must be valid.
+                condition=models.Q(details__stage__isnull=True)
+                | models.Q(details__stage__in=AuditStage.values),
+                name="audit_stage_valid",
             ),
         ]

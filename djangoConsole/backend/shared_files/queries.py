@@ -11,14 +11,14 @@ from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.utils import timezone
 
-from console_project.constants import INT_UPLOAD_CHUNK_BYTES
+from console_project.constants import INT_LIST_PAGE_SIZE, INT_UPLOAD_CHUNK_BYTES
 from file_storage.services import get_storage_usage
 from organizations.department_queries import (
     get_department_tree,
     resolve_department_path,
     get_department_path,
 )
-from organizations.models import DepartmentRole
+from organizations.contracts import DepartmentRole
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -26,15 +26,14 @@ from organizations.permissions import (
 from organizations.validators import get_path_name_key
 
 from .contracts import (
+    UploadState,
     FileListRequest,
     FileInfoResponse,
     FileUsageResponse,
     FileListResponse,
     FileUploadResponse,
 )
-from .models import SharedFile, UploadState, UploadSession
-
-_INT_FILES_PER_PAGE = 50
+from .models import SharedFile, UploadSession
 
 
 def require_file_department_access(
@@ -101,7 +100,7 @@ def get_file_list(
     }[payload.sort_by]
     page = Paginator(
         query.order_by(("-" if payload.order == "desc" else "") + strOrderField, "id"),
-        _INT_FILES_PER_PAGE,
+        INT_LIST_PAGE_SIZE,
     ).page(payload.page)
     return FileListResponse(
         files=[
@@ -122,7 +121,7 @@ def get_file_list(
             max_file_bytes=settings.CONSOLE_LIMITS.maxSharedFileBytes,
         ),
         page=page.number,
-        page_size=_INT_FILES_PER_PAGE,
+        page_size=INT_LIST_PAGE_SIZE,
         total_count=page.paginator.count,
         total_pages=page.paginator.num_pages,
     )

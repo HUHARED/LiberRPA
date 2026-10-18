@@ -17,7 +17,8 @@ from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
 from console_project.config import LimitsConfig
-from organizations.models import DepartmentRole, Membership
+from organizations.contracts import DepartmentRole
+from organizations.models import Membership
 from organizations.permissions import get_department_access_query
 
 from .contracts import ExecutorAssociationStatus

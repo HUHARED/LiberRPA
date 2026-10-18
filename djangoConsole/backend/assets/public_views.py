@@ -37,8 +37,13 @@ from console_project.http import (
 from organizations.models import Department
 from organizations.validators import parse_resource_path
 
-from .models import Asset, AssetType
-from .contracts import MAX_ASSET_RUNTIME_BYTES, AssetPathRequest, AssetRuntimeValueRequest
+from .contracts import (
+    MAX_ASSET_RUNTIME_BYTES,
+    AssetType,
+    AssetPathRequest,
+    AssetRuntimeValueRequest,
+)
+from .models import Asset
 from .runtime import (
     AssetRuntimeError,
     get_runtime_asset_value,

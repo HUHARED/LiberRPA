@@ -3,21 +3,16 @@
 import { requestApi } from "./client";
 import { isRecord, rejectInvalidResponse } from "./responses";
 
+import { RunEmailRecipientStatus } from "./generated/browserApi";
 import type {
   RunEmailRecipientResponse,
-  RunEmailRecipientStatus as RunEmailRecipientStatusValue,
   RunEmailRecipientListResponse,
   RunEmailVerificationResponse,
   RunEmailSettingsResponse,
 } from "./generated/browserApi";
 
 export type RunEmailRecipient = RunEmailRecipientResponse;
-export type RunEmailRecipientStatus = RunEmailRecipientStatusValue;
-export const RunEmailRecipientStatus = {
-  Member: "member",
-  Verified: "verified",
-  Pending: "pending",
-} as const satisfies Record<string, RunEmailRecipientStatus>;
+export type { RunEmailRecipientStatus };
 export type RunEmailRecipientFilter = RunEmailRecipientStatus | "all" | "eligible";
 
 export type RunEmailEventKey = Exclude<keyof RunEmailSettingsResponse, "recipient_ids">;

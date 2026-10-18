@@ -39,7 +39,7 @@
       :headers="arrHeader"
       :items="memberPage?.members ?? []"
       :items-length="memberPage?.pagination.total_count ?? 0"
-      :items-per-page="memberPage?.pagination.page_size ?? 50"
+      :items-per-page="memberPage?.pagination.page_size ?? INT_LIST_PAGE_SIZE"
       :page="memberPage?.pagination.page ?? 1"
       :loading="boolLoading"
       :mobile-breakpoint="600"
@@ -173,7 +173,11 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { getMemberList } from "@/api/members";
-import type { UserResponse, MemberListResponse } from "@/api/generated/browserApi";
+import {
+  INT_LIST_PAGE_SIZE,
+  type UserResponse,
+  type MemberListResponse,
+} from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
 

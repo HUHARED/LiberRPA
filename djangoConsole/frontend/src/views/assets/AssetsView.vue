@@ -148,7 +148,7 @@
       :headers="ARR_HEADER"
       :items="assetPage?.assets ?? []"
       :items-length="assetPage?.total_count ?? 0"
-      :items-per-page="assetPage?.page_size ?? 50"
+      :items-per-page="assetPage?.page_size ?? INT_LIST_PAGE_SIZE"
       :page="assetPage?.page ?? 1"
       :loading="boolLoading"
       :mobile-breakpoint="600"
@@ -283,11 +283,12 @@ import {
   getAssetList,
   getAssetDetails,
 } from "@/api/assets";
-import type {
-  AssetType,
-  AssetListResponse,
-  AssetDetailsResponse,
-  AssetDetailsEntryResponse,
+import {
+  INT_LIST_PAGE_SIZE,
+  type AssetType,
+  type AssetListResponse,
+  type AssetDetailsResponse,
+  type AssetDetailsEntryResponse,
 } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";

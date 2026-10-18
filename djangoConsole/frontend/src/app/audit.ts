@@ -1,19 +1,14 @@
 // FileName: audit.ts
 
-import type { AuditRecordResponse } from "../api/generated/browserApi";
+import { ARR_AUDIT_RESULT_VALUE, type AuditChannel } from "../api/generated/browserApi";
 
-export const AUDIT_CHANNEL_LABEL: Record<AuditRecordResponse["channel"], string> = {
+export const AUDIT_CHANNEL_LABEL: Record<AuditChannel, string> = {
   session: "Web",
-  executor: "Executor",
   editor: "Editor",
+  executor: "Executor",
   api_key: "API Key",
   system: "System",
 };
-
-export const ARR_AUDIT_RESULT = [
-  { title: "Succeeded", value: "succeeded" },
-  { title: "Failed", value: "failed" },
-];
 
 const AUDIT_TERM_LABEL: Record<string, string> = {
   api: "API",
@@ -32,3 +27,8 @@ export function formatAuditLabel(value: string): string {
     .map((word) => AUDIT_TERM_LABEL[word] ?? word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 }
+
+export const ARR_AUDIT_RESULT = ARR_AUDIT_RESULT_VALUE.map((value) => ({
+  title: formatAuditLabel(value),
+  value,
+}));

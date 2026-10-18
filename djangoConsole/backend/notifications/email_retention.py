@@ -14,7 +14,8 @@ from django.utils import timezone
 
 from console_project.config import LimitsConfig
 
-from .models import EmailStatus, EmailDelivery
+from .contracts import EmailStatus
+from .models import EmailDelivery
 from .delivery import EMAIL_BUDGET_WINDOW
 
 

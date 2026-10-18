@@ -5,13 +5,45 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from datetime import datetime
-from typing import Annotated, Literal
+from enum import StrEnum
+from typing import Annotated
 from uuid import UUID
 
+from django.db.models import TextChoices
 from pydantic import Field, SecretStr, field_validator
 
 from accounts.contracts import UserResponse
-from console_project.contracts import JsonRequest, JsonResponsePayload
+from console_project.contracts import JsonRequest, JsonResponsePayload, PaginationResponse
+from notifications.contracts import EmailStatus, EmailReasonCode
+
+
+class DepartmentRole(TextChoices):
+    """The two roles that can be explicitly assigned within a department."""
+
+    DEVELOPER = "developer", "Developer"
+    OPERATOR = "operator", "Operator"
+
+
+class DepartmentDeletionBlockerCode(StrEnum):
+    CHILD_DEPARTMENTS = "child_departments"
+    DEPARTMENT_MEMBERSHIPS = "department_memberships"
+    EXECUTORS = "executors"
+    EXECUTOR_GROUPS = "executor_groups"
+    ASSETS = "assets"
+    DATA_QUEUES = "data_queues"
+    SHARED_FILES = "shared_files"
+    FILE_UPLOADS = "file_uploads"
+    PACKAGES = "packages"
+    PACKAGE_UPLOADS = "package_uploads"
+    SCHEDULES = "schedules"
+    ACTIVE_JOBS = "active_jobs"
+
+
+class InvitationStatus(TextChoices):
+    PENDING = "pending", "Pending"
+    EXPIRED = "expired", "Expired"
+    ACCEPTED = "accepted", "Accepted"
+    REVOKED = "revoked", "Revoked"
 
 
 class OrganizationAccessResponse(JsonResponsePayload):
@@ -27,7 +59,7 @@ class DepartmentAccessResponse(JsonResponsePayload):
     id: UUID
     name: str
     path: str
-    role: Literal["developer", "operator"] | None
+    role: DepartmentRole | None = Field(strict=False)
 
 
 class AccountAccessResponse(JsonResponsePayload):
@@ -90,7 +122,7 @@ class DepartmentListResponse(JsonResponsePayload):
 
 class DepartmentMemberResponse(JsonResponsePayload):
     user: UserResponse
-    role: Literal["developer", "operator"]
+    role: DepartmentRole = Field(strict=False)
 
 
 class DepartmentDetailsResponse(JsonResponsePayload):
@@ -104,20 +136,7 @@ class DepartmentIdentityResponse(JsonResponsePayload):
 
 
 class DepartmentDeletionBlockerResponse(JsonResponsePayload):
-    code: Literal[
-        "child_departments",
-        "department_memberships",
-        "executors",
-        "executor_groups",
-        "assets",
-        "data_queues",
-        "shared_files",
-        "file_uploads",
-        "packages",
-        "package_uploads",
-        "schedules",
-        "active_jobs",
-    ]
+    code: DepartmentDeletionBlockerCode = Field(strict=False)
     count: int = Field(gt=0)
 
 
@@ -141,7 +160,7 @@ class MemberDepartmentResponse(DepartmentIdentityResponse):
 
 class MemberDepartmentRoleResponse(JsonResponsePayload):
     department: MemberDepartmentResponse
-    role: Literal["developer", "operator"]
+    role: DepartmentRole = Field(strict=False)
 
 
 class MemberResponse(JsonResponsePayload):
@@ -150,13 +169,6 @@ class MemberResponse(JsonResponsePayload):
     department_roles: list[MemberDepartmentRoleResponse]
     notes: str
     joined_at: datetime
-
-
-class PaginationResponse(JsonResponsePayload):
-    page: int = Field(ge=1)
-    page_size: int = Field(ge=1)
-    total_count: int = Field(ge=0)
-    total_pages: int = Field(ge=1)
 
 
 class MemberListResponse(JsonResponsePayload):
@@ -170,7 +182,7 @@ class MemberDetailsResponse(JsonResponsePayload):
 
 class DepartmentRoleRequest(JsonRequest):
     department_id: Annotated[UUID, Field(strict=False)]
-    role: Literal["developer", "operator"]
+    role: DepartmentRole = Field(strict=False)
 
 
 class MembershipUpdateRequest(JsonRequest):
@@ -225,13 +237,13 @@ class InvitationDepartmentRoleResponse(JsonResponsePayload):
     department_name: str
     department_path: str
     department_deleted: bool
-    role: Literal["developer", "operator"]
+    role: DepartmentRole = Field(strict=False)
 
 
 class InvitationEmailDeliveryResponse(JsonResponsePayload):
     id: UUID
-    status: Literal["pending", "sending", "accepted", "failed", "not_sent", "unknown"]
-    reason_code: str
+    status: EmailStatus = Field(strict=False)
+    reason_code: EmailReasonCode = Field(strict=False)
     attempted_at: datetime | None
     finished_at: datetime | None
 
@@ -242,7 +254,7 @@ class InvitationResponse(JsonResponsePayload):
     is_org_admin: bool
     department_roles: list[InvitationDepartmentRoleResponse]
     notes: str
-    status: Literal["pending", "expired", "accepted", "revoked"]
+    status: InvitationStatus = Field(strict=False)
     created_at: datetime
     requested_at: datetime
     expires_at: datetime

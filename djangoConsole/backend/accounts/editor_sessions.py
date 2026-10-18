@@ -18,7 +18,7 @@ from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
 from operations.audit import record_audit
-from operations.models import AuditChannel
+from operations.contracts import AuditChannel
 from organizations.models import Organization
 from organizations.permissions import (
     AccessChannel,

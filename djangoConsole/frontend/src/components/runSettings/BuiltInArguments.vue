@@ -14,7 +14,7 @@
         :error-messages="getFieldErrors(fieldErrors, 'settings.max_retry_count')"
         label="Max Retry Count"
         :min="0"
-        :max="3"
+        :max="INT_MAX_RETRY_COUNT"
         :precision="0"
         :rules="[validateMaxRetryCount]"
         :disabled="disabled"
@@ -44,8 +44,8 @@
         :readonly="readonly"
         hide-details="auto">
         <v-tooltip activator="parent" location="top">
-          Stop the run when it exceeds this timeout. 0 means no limit. Maximum: 35,791
-          minutes. Applies to each attempt.
+          Stop the run when it exceeds this timeout. 0 means no limit. Maximum:
+          {{ INT_MAX_TIMEOUT_MIN }} minutes. Applies to each attempt.
         </v-tooltip>
       </v-number-input>
     </v-col>
@@ -94,7 +94,12 @@
 
 <script setup lang="ts">
 import { getFieldErrors } from "@/api/errors";
-import { type RunSettings, ARR_LOG_LEVEL, INT_MAX_TIMEOUT_MIN } from "@/api/runSettings";
+import {
+  type RunSettings,
+  ARR_LOG_LEVEL,
+  INT_MAX_RETRY_COUNT,
+  INT_MAX_TIMEOUT_MIN,
+} from "@/api/runSettings";
 
 defineProps<{
   disabled?: boolean;
@@ -106,8 +111,11 @@ const settings = defineModel<RunSettings>({ required: true });
 
 function validateMaxRetryCount(value: unknown): true | string {
   return (
-    (typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 3) ||
-    "Enter an integer from 0 to 3."
+    (typeof value === "number" &&
+      Number.isInteger(value) &&
+      value >= 0 &&
+      value <= INT_MAX_RETRY_COUNT) ||
+    `Enter an integer from 0 to ${INT_MAX_RETRY_COUNT}.`
   );
 }
 

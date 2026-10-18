@@ -24,8 +24,9 @@ from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
 from operations.audit import record_audit
-from operations.models import AuditChannel
-from organizations.models import DepartmentRole, Organization
+from operations.contracts import AuditChannel
+from organizations.contracts import DepartmentRole
+from organizations.models import Organization
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,

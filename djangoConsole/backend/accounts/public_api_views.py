@@ -17,7 +17,7 @@ from console_project.http import (
     build_rate_limited_response,
 )
 from organizations.access import get_department_access_info
-from organizations.models import DepartmentRole
+from organizations.contracts import DepartmentRole
 
 from .api_key_authentication import InvalidApiKeyError, authenticate_api_key
 from .rate_limits import apply_api_key_authentication_rate_limit

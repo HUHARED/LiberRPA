@@ -14,8 +14,9 @@ from django.db.models import QuerySet
 from django.db.models.functions import Lower
 from django.utils import timezone
 
+from console_project.constants import INT_LIST_PAGE_SIZE
 from organizations.department_queries import get_department_path
-from organizations.models import DepartmentRole
+from organizations.contracts import DepartmentRole
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -27,8 +28,6 @@ from .contracts import ExecutorAssociationStatus
 from .models import Executor, ExecutorGroup, ExecutorGroupMember
 from .queries import ExecutorInfo, get_executor_read_context, build_executor_info_list
 from .session_state import get_executor_association_status
-
-_INT_EXECUTOR_GROUPS_PER_PAGE = 50
 
 
 @dataclass(frozen=True)
@@ -124,14 +123,12 @@ def get_executor_group_list(
         groups = groups.filter(department_id__in=departmentIds)
     if name:
         groups = groups.filter(name__icontains=name)
-    paginator = Paginator(
-        groups.order_by(Lower("name"), "id"), _INT_EXECUTOR_GROUPS_PER_PAGE
-    )
+    paginator = Paginator(groups.order_by(Lower("name"), "id"), INT_LIST_PAGE_SIZE)
     groupPage = paginator.page(pageNumber)
     return ExecutorGroupPageInfo(
         groups=_get_group_info_list(list(groupPage.object_list), access),
         page=groupPage.number,
-        pageSize=_INT_EXECUTOR_GROUPS_PER_PAGE,
+        pageSize=INT_LIST_PAGE_SIZE,
         totalCount=paginator.count,
         totalPages=paginator.num_pages,
     )

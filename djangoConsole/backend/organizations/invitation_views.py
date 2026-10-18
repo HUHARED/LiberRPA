@@ -25,6 +25,7 @@ from accounts.rate_limits import (
     apply_registration_token_rate_limit,
 )
 from console_project.config import LimitsConfig
+from console_project.constants import INT_LIST_PAGE_SIZE
 from console_project.contracts import JsonRequest
 from console_project.http import (
     build_error_response,
@@ -58,7 +59,6 @@ from .department_queries import get_department_path
 from .models import (
     Membership,
     Department,
-    DepartmentRole,
     MemberInvitation,
     InvitationDepartmentRole,
 )
@@ -70,7 +70,6 @@ from .permissions import (
 )
 
 _INT_MAX_INVITATION_BODY_BYTES = 64 * 1024
-_INT_INVITATIONS_PER_PAGE = 50
 
 
 def _handle_invitation_errors[**Params](
@@ -239,7 +238,7 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
                 email=invitationRequest.email,
                 isOrgAdmin=invitationRequest.is_org_admin,
                 departmentRoles={
-                    roleRequest.department_id: DepartmentRole(roleRequest.role)
+                    roleRequest.department_id: roleRequest.role
                     for roleRequest in invitationRequest.department_roles
                 },
                 notes=invitationRequest.notes,
@@ -257,14 +256,14 @@ def list_or_create_invitations(request: HttpRequest) -> JsonResponse:
         accepted_at__isnull=True,
         revoked_at__isnull=True,
     ).order_by("-created_at", "-id")
-    paginator = Paginator(invitationQuery, _INT_INVITATIONS_PER_PAGE)
+    paginator = Paginator(invitationQuery, INT_LIST_PAGE_SIZE)
     invitationPage = paginator.page(intPageNumber)
     return JsonResponse(
         InvitationListResponse.model_validate({
             "invitations": _build_invitation_payloads(list(invitationPage.object_list)),
             "pagination": {
                 "page": invitationPage.number,
-                "page_size": _INT_INVITATIONS_PER_PAGE,
+                "page_size": INT_LIST_PAGE_SIZE,
                 "total_count": paginator.count,
                 "total_pages": paginator.num_pages,
             },

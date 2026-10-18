@@ -8,13 +8,17 @@ import {
   parsePaginationResponse,
 } from "./responses";
 
-import type {
-  AuditDetailsResponse,
-  AuditChangeResponse,
-  AuditFilterOptionsResponse,
-  AuditActorResponse,
-  AuditListResponse,
-  AuditRecordResponse,
+import {
+  ARR_AUDIT_CHANNEL,
+  ARR_AUDIT_RESULT_VALUE,
+  ARR_AUDIT_STAGE,
+  type AuditResult,
+  type AuditDetailsResponse,
+  type AuditChangeResponse,
+  type AuditFilterOptionsResponse,
+  type AuditActorResponse,
+  type AuditListResponse,
+  type AuditRecordResponse,
 } from "./generated/browserApi";
 
 export interface AuditListFilters {
@@ -24,7 +28,7 @@ export interface AuditListFilters {
   actorIds: string[];
   modules: string[];
   actions: string[];
-  results: string[];
+  results: AuditResult[];
 }
 
 function isAuditRecord(value: unknown): value is AuditRecordResponse {
@@ -35,14 +39,13 @@ function isAuditRecord(value: unknown): value is AuditRecordResponse {
     Number.isFinite(Date.parse(value.created_at)) &&
     isNullableString(value.actor_id) &&
     typeof value.actor_name === "string" &&
-    typeof value.channel === "string" &&
-    ["session", "editor", "executor", "api_key", "system"].includes(value.channel) &&
+    ARR_AUDIT_CHANNEL.some((channel) => channel === value.channel) &&
     typeof value.module === "string" &&
     typeof value.action === "string" &&
     typeof value.object_type === "string" &&
     typeof value.object_id === "string" &&
     typeof value.object_name === "string" &&
-    (value.result === "succeeded" || value.result === "failed")
+    ARR_AUDIT_RESULT_VALUE.some((result) => result === value.result)
   );
 }
 
@@ -82,12 +85,13 @@ export function parseAuditDetailsResponse(payload: unknown): AuditDetailsRespons
   if (!isRecord(payload) || !isRecord(payload.record) || !isAuditRecord(payload.record))
     return rejectInvalidResponse();
   const record = payload.record;
+  const strStage = ARR_AUDIT_STAGE.find((stage) => stage === record.stage);
   if (
     typeof record.organization_id !== "string" ||
     typeof record.organization_name !== "string" ||
     !isNullableString(record.department_id) ||
     !isNullableString(record.request_id) ||
-    (record.stage !== "operation" && record.stage !== "request") ||
+    strStage === undefined ||
     !isNullableString(record.reason_code) ||
     !(
       record.http_status === null ||
@@ -111,7 +115,7 @@ export function parseAuditDetailsResponse(payload: unknown): AuditDetailsRespons
       organization_name: record.organization_name,
       department_id: record.department_id,
       request_id: record.request_id,
-      stage: record.stage,
+      stage: strStage,
       reason_code: record.reason_code,
       http_status: record.http_status,
       changes: record.changes,

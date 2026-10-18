@@ -28,27 +28,7 @@ from .contracts import (
 )
 
 
-class Package(models.Model):
-    department_id: uuid.UUID
-    blob_id: uuid.UUID
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    department = models.ForeignKey("organizations.Department", on_delete=models.PROTECT)
-    project_name = models.CharField(max_length=255)
-    project_name_key = models.TextField(db_collation="C")
-    project_version = models.CharField(max_length=INT_WINDOWS_NAME_MAX_LENGTH)
-    project_version_key = models.CharField(
-        max_length=INT_WINDOWS_NAME_MAX_LENGTH, db_collation="C"
-    )
-    description = models.CharField(max_length=INT_DESCRIPTION_MAX_LENGTH)
-    version_summary = models.CharField(max_length=INT_VERSION_SUMMARY_MAX_LENGTH)
-    requires_liberrpa = models.TextField()
-    component_dependencies = models.JSONField(default=dict)
-    argument_names = models.JSONField(default=list)
-    blob = models.OneToOneField("file_storage.StoredBlob", on_delete=models.PROTECT)
-    python_environment_name = models.CharField(
-        max_length=INT_WINDOWS_NAME_MAX_LENGTH, default="default"
-    )
+class RunSettingsModel(models.Model):
     max_retry_count = models.PositiveSmallIntegerField(default=0)
     timeout_min = models.PositiveIntegerField(default=0)
     builtin_log_level = models.CharField(
@@ -71,8 +51,64 @@ class Package(models.Model):
         choices=[(entry.value, entry.value) for entry in RunPriority],
         default=RunPriority.NORMAL,
     )
-    api_input_keys = models.JSONField(default=list, blank=True)
     run_email = models.JSONField(default=build_default_run_email)
+
+    class Meta:
+        abstract = True
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(
+                    run_conflict_policy__in=[entry.value for entry in RunConflictPolicy]
+                ),
+                name="%(class)s_conflict_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(priority__in=[entry.value for entry in RunPriority]),
+                name="%(class)s_priority_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    max_retry_count__gte=0, max_retry_count__lte=INT_MAX_RETRY_COUNT
+                ),
+                name="%(class)s_retry_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    timeout_min__gte=0, timeout_min__lte=INT_MAX_TIMEOUT_MIN
+                ),
+                name="%(class)s_timeout_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    builtin_log_level__in=[entry.value for entry in RunLogLevel]
+                ),
+                name="%(class)s_log_level_valid",
+            ),
+        ]
+
+
+class Package(RunSettingsModel):
+    department_id: uuid.UUID
+    blob_id: uuid.UUID
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    department = models.ForeignKey("organizations.Department", on_delete=models.PROTECT)
+    project_name = models.CharField(max_length=255)
+    project_name_key = models.TextField(db_collation="C")
+    project_version = models.CharField(max_length=INT_WINDOWS_NAME_MAX_LENGTH)
+    project_version_key = models.CharField(
+        max_length=INT_WINDOWS_NAME_MAX_LENGTH, db_collation="C"
+    )
+    description = models.CharField(max_length=INT_DESCRIPTION_MAX_LENGTH)
+    version_summary = models.CharField(max_length=INT_VERSION_SUMMARY_MAX_LENGTH)
+    requires_liberrpa = models.TextField()
+    component_dependencies = models.JSONField(default=dict)
+    argument_names = models.JSONField(default=list)
+    blob = models.OneToOneField("file_storage.StoredBlob", on_delete=models.PROTECT)
+    python_environment_name = models.CharField(
+        max_length=INT_WINDOWS_NAME_MAX_LENGTH, default="default"
+    )
+    api_input_keys = models.JSONField(default=list, blank=True)
     uploaded_by_id = models.UUIDField()
     uploaded_by_name = models.CharField(max_length=INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH)
     uploaded_at = models.DateTimeField(default=timezone.now)
@@ -88,34 +124,7 @@ class Package(models.Model):
                 fields=["department", "project_name_key", "project_version_key"],
                 name="package_unique",
             ),
-            models.CheckConstraint(
-                condition=models.Q(
-                    run_conflict_policy__in=[entry.value for entry in RunConflictPolicy]
-                ),
-                name="package_conflict_valid",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(priority__in=[entry.value for entry in RunPriority]),
-                name="package_priority_valid",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(
-                    max_retry_count__gte=0, max_retry_count__lte=INT_MAX_RETRY_COUNT
-                ),
-                name="package_retry_valid",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(
-                    timeout_min__gte=0, timeout_min__lte=INT_MAX_TIMEOUT_MIN
-                ),
-                name="package_timeout_valid",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(
-                    builtin_log_level__in=[entry.value for entry in RunLogLevel]
-                ),
-                name="package_log_level_valid",
-            ),
+            *RunSettingsModel.Meta.constraints,
         ]
 
     def __str__(self) -> str:

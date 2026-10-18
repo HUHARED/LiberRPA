@@ -7,7 +7,8 @@ import {
   type Priority,
 } from "@/api/runSettings";
 import type { PackagePreparationState, PackageUploadState } from "@/api/packages";
-import { RunStatus, type JobSource, JobState, type RunEventKind } from "@/api/runs";
+import type { JobSource, RunEventKind } from "@/api/runs";
+import { JobState, RunStatus } from "@/api/generated/browserApi";
 
 export const CONFLICT_POLICY_LABELS: Record<ConflictPolicy, string> = {
   skip: "Skip This Run",

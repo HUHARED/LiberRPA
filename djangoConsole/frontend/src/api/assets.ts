@@ -10,6 +10,7 @@ import {
 
 import type {
   AssetType,
+  OrdinaryAssetType,
   AssetCreationRequest,
   AssetEntryResponse,
   AssetListResponse,
@@ -17,16 +18,23 @@ import type {
   AssetUpdateRequest,
   AssetReferenceResponse,
 } from "./generated/browserApi";
+import {
+  ARR_ASSET_TYPE_VALUE,
+  ARR_ORDINARY_ASSET_TYPE,
+  ARR_ASSET_REFERENCE_KIND,
+} from "./generated/browserApi";
 
-export const ARR_ASSET_TYPE: { title: string; value: AssetType }[] = [
-  { title: "Text", value: "text" },
-  { title: "Integer", value: "integer" },
-  { title: "Number", value: "number" },
-  { title: "Boolean", value: "boolean" },
-  { title: "JSON", value: "json" },
-  { title: "Secret Text", value: "secret_text" },
-  { title: "Credential", value: "credential" },
-];
+const DICT_ASSET_TYPE_LABEL: Record<AssetType, string> = {
+  text: "Text",
+  integer: "Integer",
+  number: "Number",
+  boolean: "Boolean",
+  json: "JSON",
+  secret_text: "Secret Text",
+  credential: "Credential",
+};
+export const ARR_ASSET_TYPE: { title: string; value: AssetType }[] =
+  ARR_ASSET_TYPE_VALUE.map((value) => ({ title: DICT_ASSET_TYPE_LABEL[value], value }));
 
 export interface AssetListFilters {
   name: string;
@@ -34,12 +42,16 @@ export interface AssetListFilters {
   assetTypes: AssetType[];
 }
 
+export function isOrdinaryAssetType(value: unknown): value is OrdinaryAssetType {
+  return ARR_ORDINARY_ASSET_TYPE.some((assetType) => assetType === value);
+}
+
 export function isSecretAsset(assetType: AssetType): boolean {
-  return assetType === "secret_text" || assetType === "credential";
+  return !isOrdinaryAssetType(assetType);
 }
 
 export function getAssetTypeLabel(assetType: AssetType): string {
-  return ARR_ASSET_TYPE.find((option) => option.value === assetType)!.title;
+  return DICT_ASSET_TYPE_LABEL[assetType];
 }
 
 function isAssetEntry(value: unknown): value is AssetEntryResponse {
@@ -51,7 +63,7 @@ function isAssetEntry(value: unknown): value is AssetEntryResponse {
     typeof value.department.id === "string" &&
     typeof value.department.path === "string" &&
     typeof value.path === "string" &&
-    ARR_ASSET_TYPE.some((option) => option.value === value.asset_type) &&
+    ARR_ASSET_TYPE_VALUE.some((assetType) => assetType === value.asset_type) &&
     typeof value.notes === "string" &&
     typeof value.value_summary === "string" &&
     typeof value.can_manage === "boolean" &&
@@ -72,7 +84,7 @@ function parseAssetDetails(payload: unknown): AssetDetailsResponse {
     !payload.asset.references.every(
       (reference: unknown): reference is AssetReferenceResponse =>
         isRecord(reference) &&
-        (reference.kind === "package" || reference.kind === "schedule") &&
+        ARR_ASSET_REFERENCE_KIND.some((kind) => kind === reference.kind) &&
         typeof reference.id === "string" &&
         typeof reference.name === "string" &&
         (reference.project_version === null ||

@@ -37,8 +37,14 @@ from .audit_queries import (
     get_audit_filter_options,
     get_audit_details,
 )
-from .contracts import AuditListResponse, AuditFilterOptionsResponse, AuditDetailsResponse
-from .models import AuditResult, AuditRecord
+from .contracts import (
+    AuditResult,
+    AuditStage,
+    AuditListResponse,
+    AuditFilterOptionsResponse,
+    AuditDetailsResponse,
+)
+from .models import AuditRecord
 
 _LOGGER = logging.getLogger("console.operations")
 
@@ -100,7 +106,6 @@ def _parse_audit_filters(query: QueryDict, defaultTimeZone: str) -> AuditListFil
     )
     tupleModule = tuple(query.getlist("module"))
     tupleAction = tuple(query.getlist("action"))
-    tupleResult = tuple(query.getlist("result"))
     if any(re.fullmatch(r"[a-z_]{1,32}", strValue) is None for strValue in tupleModule):
         raise ValueError("Invalid audit module.")
     if any(
@@ -108,8 +113,10 @@ def _parse_audit_filters(query: QueryDict, defaultTimeZone: str) -> AuditListFil
         for strValue in tupleAction
     ):
         raise ValueError("Invalid audit action.")
-    if any(strValue not in AuditResult.values for strValue in tupleResult):
-        raise ValueError("Invalid audit result.")
+    try:
+        tupleResult = tuple(AuditResult(strValue) for strValue in query.getlist("result"))
+    except ValueError:
+        raise ValueError("Invalid audit result.") from None
     return AuditListFilters(
         fromTime=fromTime,
         untilTime=untilTime,
@@ -167,7 +174,7 @@ def _build_details_payload(record: AuditRecord) -> dict[str, object]:
         "organization_name": record.organization_name,
         "department_id": record.department_id,
         "request_id": record.request_id,
-        "stage": details.get("stage", "operation"),
+        "stage": details.get("stage", AuditStage.OPERATION),
         "reason_code": details.get("reason_code"),
         "http_status": details.get("http_status"),
         "changes": listChange,

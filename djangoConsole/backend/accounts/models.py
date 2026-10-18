@@ -152,12 +152,6 @@ class EditorSession(models.Model):
         ]
 
 
-class ApiKeyStatus(models.TextChoices):
-    ACTIVE = "active", "Active"
-    EXPIRED = "expired", "Expired"
-    REVOKED = "revoked", "Revoked"
-
-
 class ApiKey(models.Model):
     """Independent account credential; permissions are resolved from current membership."""
 

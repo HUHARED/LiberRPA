@@ -11,10 +11,11 @@ from django.db.models import F, Q, QuerySet, Window
 from django.db.models.functions import RowNumber
 from django.utils import timezone
 
-from console_project.constants import INT_UPLOAD_CHUNK_BYTES
+from console_project.constants import INT_LIST_PAGE_SIZE, INT_UPLOAD_CHUNK_BYTES
 
 from organizations.department_queries import get_department_tree, get_department_path
-from organizations.models import DepartmentRole, Department
+from organizations.contracts import DepartmentRole
+from organizations.models import Department
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -23,8 +24,6 @@ from organizations.permissions import (
 from .contracts import PackageUploadState, RunSettings
 from .models import Package, PackageUpload
 from .runtime import parse_run_settings
-
-_INT_PACKAGE_BROWSE_PAGE_SIZE = 50
 
 
 def require_package_department(
@@ -176,13 +175,13 @@ def get_package_project_groups(
                 department_id__lt=package.department_id,
             )
         ).count()
-        pageNumber = intBefore // _INT_PACKAGE_BROWSE_PAGE_SIZE + 1
+        pageNumber = intBefore // INT_LIST_PAGE_SIZE + 1
 
     page = Paginator(
         latestPackagePerProject.only(
             "id", "department_id", "project_name", "project_name_key"
         ).order_by("project_name_key", "department_id"),
-        _INT_PACKAGE_BROWSE_PAGE_SIZE,
+        INT_LIST_PAGE_SIZE,
     ).page(pageNumber)
     dictDepartment = get_department_tree(access.organization.pk)
     return {
@@ -194,7 +193,7 @@ def get_package_project_groups(
             for package in page
         ],
         "page": page.number,
-        "page_size": _INT_PACKAGE_BROWSE_PAGE_SIZE,
+        "page_size": INT_LIST_PAGE_SIZE,
         "total_count": page.paginator.count,
         "total_pages": page.paginator.num_pages,
     }
@@ -221,14 +220,14 @@ def get_project_packages(
             Q(uploaded_at__gt=selectedPackage.uploaded_at)
             | Q(uploaded_at=selectedPackage.uploaded_at, pk__lt=selectedPackage.pk)
         ).count()
-        pageNumber = intBefore // _INT_PACKAGE_BROWSE_PAGE_SIZE + 1
+        pageNumber = intBefore // INT_LIST_PAGE_SIZE + 1
 
     page = Paginator(
         query
         .select_related(None)
         .only("id", "project_version")
         .order_by("-uploaded_at", "pk"),
-        _INT_PACKAGE_BROWSE_PAGE_SIZE,
+        INT_LIST_PAGE_SIZE,
     ).page(pageNumber)
     return {
         "project_group": _build_package_project_group_payload(
@@ -239,7 +238,7 @@ def get_project_packages(
             for package in page
         ],
         "page": page.number,
-        "page_size": _INT_PACKAGE_BROWSE_PAGE_SIZE,
+        "page_size": INT_LIST_PAGE_SIZE,
         "total_count": page.paginator.count,
         "total_pages": page.paginator.num_pages,
     }
@@ -263,13 +262,13 @@ def get_upload(access: OrganizationAccessContext, uploadId: uuid.UUID) -> Packag
     return upload
 
 
-def get_upload_state(upload: PackageUpload) -> str:
+def get_upload_state(upload: PackageUpload) -> PackageUploadState:
     if (
         upload.state == PackageUploadState.RECEIVING
         and upload.expires_at <= timezone.now()
     ):
         return PackageUploadState.EXPIRED
-    return upload.state
+    return PackageUploadState(upload.state)
 
 
 def build_upload_payload(upload: PackageUpload) -> dict:

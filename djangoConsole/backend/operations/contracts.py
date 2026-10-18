@@ -5,11 +5,30 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from datetime import datetime
-from typing import Literal
 from uuid import UUID
 
-from console_project.contracts import JsonResponsePayload
-from organizations.contracts import PaginationResponse
+from django.db.models import TextChoices
+from pydantic import Field
+
+from console_project.contracts import JsonResponsePayload, PaginationResponse
+
+
+class AuditChannel(TextChoices):
+    SESSION = "session", "Web"
+    EDITOR = "editor", "Editor"
+    EXECUTOR = "executor", "Executor"
+    API_KEY = "api_key", "API Key"
+    SYSTEM = "system", "System"
+
+
+class AuditResult(TextChoices):
+    SUCCEEDED = "succeeded", "Succeeded"
+    FAILED = "failed", "Failed"
+
+
+class AuditStage(TextChoices):
+    OPERATION = "operation", "Operation"
+    REQUEST = "request", "Request"
 
 
 class AuditRecordResponse(JsonResponsePayload):
@@ -17,13 +36,13 @@ class AuditRecordResponse(JsonResponsePayload):
     created_at: datetime
     actor_id: UUID | None
     actor_name: str
-    channel: Literal["session", "editor", "executor", "api_key", "system"]
+    channel: AuditChannel = Field(strict=False)
     module: str
     action: str
     object_type: str
     object_id: str
     object_name: str
-    result: Literal["succeeded", "failed"]
+    result: AuditResult = Field(strict=False)
 
 
 class AuditListResponse(JsonResponsePayload):
@@ -54,7 +73,7 @@ class AuditDetailsRecordResponse(AuditRecordResponse):
     organization_name: str
     department_id: UUID | None
     request_id: UUID | None
-    stage: Literal["operation", "request"]
+    stage: AuditStage = Field(strict=False)
     reason_code: str | None
     http_status: int | None
     changes: list[AuditChangeResponse]

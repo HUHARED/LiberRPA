@@ -13,7 +13,8 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from organizations.models import Organization
-from notifications.models import EmailDelivery, EmailStatus, EmailReasonCode
+from notifications.contracts import EmailStatus, EmailReasonCode
+from notifications.models import EmailDelivery
 from schedules.models import ScheduleTrigger
 
 from .contracts import JobState, AssignmentState, RunEventKind

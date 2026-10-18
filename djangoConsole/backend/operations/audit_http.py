@@ -16,7 +16,8 @@ from django.http import HttpRequest, HttpResponse, HttpResponseBase
 from console_project.logging import get_request_id
 from organizations.models import Organization, Membership
 
-from .models import AuditScope, AuditChannel, AuditResult, AuditRecord
+from .contracts import AuditChannel, AuditResult, AuditStage
+from .models import AuditScope, AuditRecord
 
 _LOGGER = logging.getLogger("console.audit")
 # These are write endpoints. Anonymous authentication failures stay in runtime diagnostics;
@@ -89,7 +90,7 @@ def record_failed_request(request: HttpRequest, response: HttpResponseBase) -> N
                 return
             # The scope comes from the authenticated actor, never a target ID or posted organization.
             dictDetail: dict[str, object] = {
-                "stage": "request",
+                "stage": AuditStage.REQUEST,
                 "http_status": response.status_code,
             }
             if isinstance(response, HttpResponse) and len(response.content) <= 32768:

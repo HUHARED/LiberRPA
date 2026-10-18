@@ -16,6 +16,7 @@ from console_project.constants import (
     INT_WINDOWS_NAME_MAX_LENGTH,
     RunLogLevel,
 )
+from packages.contracts import INT_MAX_RETRY_COUNT, RunPriority, RUN_PRIORITY_ORDER
 
 from .contracts import (
     JobSource,
@@ -101,7 +102,9 @@ class Job(models.Model):
         choices=JobState.choices,
         default=JobState.WAITING,
     )
-    priority_rank = models.PositiveSmallIntegerField(default=1)
+    priority_rank = models.PositiveSmallIntegerField(
+        default=RUN_PRIORITY_ORDER.index(RunPriority.NORMAL)
+    )
     reason = models.CharField(max_length=2000, blank=True)
     queued_at = models.DateTimeField(default=timezone.now)
     attempt_queued_at = models.DateTimeField(default=timezone.now)
@@ -127,7 +130,9 @@ class Job(models.Model):
             ),
             models.CheckConstraint(
                 condition=models.Q(
-                    max_retry_count__lte=3, attempt_count__lte=4, priority_rank__lte=2
+                    max_retry_count__lte=INT_MAX_RETRY_COUNT,
+                    attempt_count__lte=INT_MAX_RETRY_COUNT + 1,
+                    priority_rank__lte=len(RUN_PRIORITY_ORDER) - 1,
                 ),
                 name="job_attempt_bounds_valid",
             ),
@@ -190,7 +195,9 @@ class Assignment(models.Model):
                 name="assignment_state_valid",
             ),
             models.CheckConstraint(
-                condition=models.Q(attempt_number__gte=1, attempt_number__lte=4),
+                condition=models.Q(
+                    attempt_number__gte=1, attempt_number__lte=INT_MAX_RETRY_COUNT + 1
+                ),
                 name="assignment_attempt_valid",
             ),
             models.UniqueConstraint(

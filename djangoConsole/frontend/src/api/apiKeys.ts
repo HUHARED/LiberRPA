@@ -9,25 +9,24 @@ import {
   rejectInvalidResponse,
 } from "./responses";
 
-import type {
-  ApiKeyCreateRequest,
-  ApiKeyCreationResponse,
-  ApiKeyResponse,
-  ApiKeyListResponse,
-  ApiKeyNotesRequest,
-  ApiKeyWriteResponse,
+import {
+  ARR_API_KEY_STATUS,
+  type ApiKeyStatus,
+  type ApiKeyCreateRequest,
+  type ApiKeyCreationResponse,
+  type ApiKeyResponse,
+  type ApiKeyListResponse,
+  type ApiKeyNotesRequest,
+  type ApiKeyWriteResponse,
 } from "./generated/browserApi";
 
-export type ApiKeyStatus = ApiKeyResponse["status"];
-
 function parseApiKey(payload: unknown): ApiKeyResponse {
+  if (!isRecord(payload)) return rejectInvalidResponse();
+  const status = ARR_API_KEY_STATUS.find((value) => value === payload.status);
   if (
-    !isRecord(payload) ||
     typeof payload.id !== "string" ||
     typeof payload.name !== "string" ||
-    (payload.status !== "active" &&
-      payload.status !== "expired" &&
-      payload.status !== "revoked") ||
+    status === undefined ||
     !isDateString(payload.expires_at) ||
     !isNullableDateString(payload.last_used_at) ||
     typeof payload.notes !== "string" ||
@@ -39,7 +38,7 @@ function parseApiKey(payload: unknown): ApiKeyResponse {
   return {
     id: payload.id,
     name: payload.name,
-    status: payload.status,
+    status,
     expires_at: payload.expires_at,
     last_used_at: payload.last_used_at,
     notes: payload.notes,

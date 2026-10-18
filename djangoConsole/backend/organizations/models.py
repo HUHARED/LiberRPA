@@ -16,6 +16,7 @@ from django.utils import timezone
 
 from console_project.validators import validate_time_zone
 
+from .contracts import DepartmentRole
 from .validators import validate_path_segment
 
 
@@ -198,13 +199,6 @@ class Department(models.Model):
         return self.name
 
 
-class DepartmentRole(models.TextChoices):
-    """The two roles that can be explicitly assigned within a department."""
-
-    DEVELOPER = "developer", "Developer"
-    OPERATOR = "operator", "Operator"
-
-
 class DepartmentMembership(models.Model):
     """An explicit department role for a current organization member."""
 
@@ -274,13 +268,6 @@ class DepartmentMembership(models.Model):
         return (
             f"Member {self.membership_id} in department {self.department_id}: {self.role}"
         )
-
-
-class InvitationStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
-    EXPIRED = "expired", "Expired"
-    ACCEPTED = "accepted", "Accepted"
-    REVOKED = "revoked", "Revoked"
 
 
 class MemberInvitation(models.Model):

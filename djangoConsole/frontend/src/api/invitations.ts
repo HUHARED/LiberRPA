@@ -10,16 +10,20 @@ import {
   parseMessageResponse,
 } from "./responses";
 
-import type {
-  InvitationCompletionRequest,
-  InvitationCreateRequest,
-  InvitationDetailsResponse,
-  InvitationResponse,
-  InvitationDepartmentRoleResponse,
-  InvitationEmailDeliveryResponse,
-  InvitationListResponse,
-  InvitationRegistrationResponse,
-  InvitationTokenRequest,
+import {
+  ARR_DEPARTMENT_ROLE,
+  ARR_INVITATION_STATUS,
+  ARR_EMAIL_STATUS,
+  ARR_EMAIL_REASON_CODE,
+  type InvitationCompletionRequest,
+  type InvitationCreateRequest,
+  type InvitationDetailsResponse,
+  type InvitationResponse,
+  type InvitationDepartmentRoleResponse,
+  type InvitationEmailDeliveryResponse,
+  type InvitationListResponse,
+  type InvitationRegistrationResponse,
+  type InvitationTokenRequest,
 } from "./generated/browserApi";
 
 function isNullableDeliveryResponse(
@@ -29,11 +33,8 @@ function isNullableDeliveryResponse(
     value === null ||
     (isRecord(value) &&
       typeof value.id === "string" &&
-      typeof value.status === "string" &&
-      ["pending", "sending", "accepted", "failed", "not_sent", "unknown"].includes(
-        value.status,
-      ) &&
-      typeof value.reason_code === "string" &&
+      ARR_EMAIL_STATUS.some((status) => status === value.status) &&
+      ARR_EMAIL_REASON_CODE.some((reasonCode) => reasonCode === value.reason_code) &&
       isNullableDateString(value.attempted_at) &&
       isNullableDateString(value.finished_at))
   );
@@ -46,8 +47,7 @@ function isInvitation(value: unknown): value is InvitationResponse {
     typeof value.email === "string" &&
     typeof value.is_org_admin === "boolean" &&
     typeof value.notes === "string" &&
-    typeof value.status === "string" &&
-    ["pending", "expired", "accepted", "revoked"].includes(value.status) &&
+    ARR_INVITATION_STATUS.some((status) => status === value.status) &&
     isDateString(value.created_at) &&
     isDateString(value.requested_at) &&
     isDateString(value.expires_at) &&
@@ -63,7 +63,7 @@ function isInvitation(value: unknown): value is InvitationResponse {
         typeof assignment.department_name === "string" &&
         typeof assignment.department_path === "string" &&
         typeof assignment.department_deleted === "boolean" &&
-        (assignment.role === "developer" || assignment.role === "operator"),
+        ARR_DEPARTMENT_ROLE.some((role) => role === assignment.role),
     )
   );
 }

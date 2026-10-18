@@ -90,7 +90,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { controlJob, JobState, type JobControlAction, type JobInfo } from "@/api/runs";
+import { controlJob, type JobControlAction, type JobInfo } from "@/api/runs";
+import { JobState } from "@/api/generated/browserApi";
 import { getApiError } from "@/api/errors";
 
 const props = defineProps<{ job: JobInfo; iconOnly?: boolean }>();

@@ -18,6 +18,7 @@ _PATH_CONSOLE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_PATH_CONSOLE / "backend"))
 
 from console_project import contracts as commonContracts
+from console_project.constants import INT_LIST_PAGE_SIZE
 from accounts import contracts as accountContracts
 from organizations import contracts as organizationContracts
 from assets import contracts as assetContracts
@@ -207,7 +208,13 @@ def main() -> int:
                 str(_PATH_CONSOLE / "frontend/scripts/generateApiTypes.mjs"),
             ],
             cwd=_PATH_CONSOLE,
-            input=json.dumps(_build_browser_contract_schema(), sort_keys=True),
+            input=json.dumps(
+                {
+                    "schema": _build_browser_contract_schema(),
+                    "list_page_size": INT_LIST_PAGE_SIZE,
+                },
+                sort_keys=True,
+            ),
             stdout=subprocess.PIPE,
             encoding="utf-8",
             check=False,

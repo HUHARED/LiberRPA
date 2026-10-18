@@ -21,7 +21,8 @@ from django.views.decorators.debug import sensitive_variables
 from console_project.config import LimitsConfig
 from executors.session_state import revoke_user_executor_sessions
 from operations.audit import record_audit
-from notifications.models import EmailDelivery, EmailStatus, EmailType
+from notifications.contracts import EmailStatus
+from notifications.models import EmailDelivery, EmailType
 from organizations.permissions import (
     get_current_membership,
     lock_account_for_password_reset,

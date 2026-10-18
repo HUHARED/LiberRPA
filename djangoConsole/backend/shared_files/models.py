@@ -11,6 +11,8 @@ from django.utils import timezone
 
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
 
+from .contracts import UploadState
+
 
 class SharedFile(models.Model):
     department_id: uuid.UUID
@@ -31,14 +33,6 @@ class SharedFile(models.Model):
                 fields=["department", "name_key"], name="shared_file_name_unique"
             )
         ]
-
-
-class UploadState(models.TextChoices):
-    RECEIVING = "receiving", "Receiving"
-    COMPLETED = "completed", "Completed"
-    FAILED = "failed", "Failed"
-    EXPIRED = "expired", "Expired"
-    CANCELED = "canceled", "Canceled"
 
 
 class UploadSession(models.Model):

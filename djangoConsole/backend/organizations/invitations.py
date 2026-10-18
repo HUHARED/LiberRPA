@@ -27,13 +27,12 @@ from notifications.models import EmailDelivery, EmailType
 from notifications.recipients import register_member_recipient
 from operations.audit import get_audit_snapshot, record_audit
 
+from .contracts import DepartmentRole, InvitationStatus
 from .models import (
     Organization,
     Membership,
     Department,
-    DepartmentRole,
     DepartmentMembership,
-    InvitationStatus,
     MemberInvitation,
     InvitationDepartmentRole,
 )
@@ -118,11 +117,9 @@ def _validate_department_roles(
     intDepartmentCount = Department.objects.filter(
         pk__in=departmentRoles, organization_id=organizationId, deleted_at__isnull=True
     ).count()
-    if intDepartmentCount != len(departmentRoles) or any(
-        role not in DepartmentRole.values for role in departmentRoles.values()
-    ):
+    if intDepartmentCount != len(departmentRoles):
         raise ValidationError({
-            "department_roles": "Select available departments and valid roles in this organization."
+            "department_roles": "Select available departments in this organization."
         })
 
 

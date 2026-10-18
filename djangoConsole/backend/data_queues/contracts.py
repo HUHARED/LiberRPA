@@ -11,7 +11,12 @@ from uuid import UUID
 
 from pydantic import Field, model_validator
 
-from console_project.contracts import JsonRequest, JsonResponsePayload, JsonValue
+from console_project.contracts import (
+    JsonValue,
+    JsonRequest,
+    JsonResponsePayload,
+    PaginationResponse,
+)
 
 MAX_QUEUE_RESPONSE_BYTES = 2 * 1024 * 1024
 
@@ -123,14 +128,7 @@ class QueueDetailsResponse(JsonResponsePayload):
     queue: QueueEntryResponse
 
 
-class QueuePageResponse(JsonResponsePayload):
-    page: int
-    page_size: int
-    total_count: int
-    total_pages: int
-
-
-class QueueListResponse(QueuePageResponse):
+class QueueListResponse(PaginationResponse):
     queues: list[QueueEntryResponse]
 
 
@@ -151,7 +149,7 @@ class QueueItemDetailsResponse(QueueItemResponse):
     data: JsonValue
 
 
-class QueueItemsResponse(QueuePageResponse):
+class QueueItemsResponse(PaginationResponse):
     queue: QueueEntryResponse
     items: list[QueueItemResponse]
 

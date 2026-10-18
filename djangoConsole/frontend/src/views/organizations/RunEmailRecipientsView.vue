@@ -40,12 +40,7 @@
     </v-col>
   </v-row>
 
-  <v-data-table
-    :headers="ARR_HEADER"
-    :items="arrFiltered"
-    :items-per-page="50"
-    :items-per-page-options="[50]"
-    :loading="boolLoading">
+  <v-data-table :headers="ARR_HEADER" :items="arrFiltered" :loading="boolLoading">
     <template #item.status="{ item }">
       {{ DICT_STATUS_LABEL[item.status] }}
     </template>
@@ -153,8 +148,8 @@
         <v-list v-if="arrReference.length">
           <v-list-item
             v-for="reference in arrReference"
-            :key="`${reference.kind}:${reference.id}`"
-            :subtitle="reference.department"
+            :key="'id' in reference ? `${reference.kind}:${reference.id}` : reference.kind"
+            :subtitle="'department' in reference ? reference.department : undefined"
             :to="getReferenceLocation(reference)"
             class="text-decoration-none">
             <template #title>
@@ -197,19 +192,21 @@ import {
   getRunEmailRecipients,
   saveRunEmailRecipient,
   actOnRunEmailRecipient,
-  RunEmailRecipientStatus,
   type RunEmailRecipientFilter,
   type RunEmailRecipient,
 } from "@/api/runEmail";
+import { RunEmailRecipientStatus } from "@/api/generated/browserApi";
 import { getApiError } from "@/api/errors";
 import { isRecord } from "@/api/responses";
 
-interface RecipientReference {
-  kind: string;
-  id: string;
-  name: string;
-  department: string;
-}
+type RecipientReference =
+  | {
+      kind: "package" | "schedule";
+      id: string;
+      name: string;
+      department: string;
+    }
+  | { kind: "job" | "delivery"; name: string };
 
 const DICT_STATUS_LABEL: Record<RunEmailRecipientStatus, string> = {
   [RunEmailRecipientStatus.Member]: "Member",
@@ -331,6 +328,7 @@ async function remove(): Promise<void> {
   if (!recipientDelete.value) return;
   boolBusy.value = true;
   strDeleteError.value = "";
+  arrReference.value = [];
   try {
     await actOnRunEmailRecipient(recipientDelete.value.id, "delete");
     recipientDelete.value = null;
@@ -342,9 +340,20 @@ async function remove(): Promise<void> {
     if (
       isRecord(payload) &&
       isRecord(payload.error) &&
-      Array.isArray(payload.error.references)
+      Array.isArray(payload.error.references) &&
+      payload.error.references.every(
+        (reference: unknown): reference is RecipientReference => {
+          if (!isRecord(reference) || typeof reference.name !== "string") return false;
+          if (reference.kind === "job" || reference.kind === "delivery") return true;
+          return (
+            (reference.kind === "package" || reference.kind === "schedule") &&
+            typeof reference.id === "string" &&
+            typeof reference.department === "string"
+          );
+        },
+      )
     )
-      arrReference.value = payload.error.references as RecipientReference[];
+      arrReference.value = payload.error.references;
   } finally {
     boolBusy.value = false;
   }

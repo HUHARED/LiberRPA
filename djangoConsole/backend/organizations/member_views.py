@@ -26,13 +26,14 @@ from console_project.http import (
 )
 
 from .contracts import (
+    DepartmentRole,
     MemberListResponse,
     MemberDetailsResponse,
     MembershipUpdateRequest,
     MembershipWriteResponse,
 )
 from .member_queries import MemberInfo, get_member_details, get_member_list
-from .models import DepartmentRole, Membership
+from .models import Membership
 from .http import lock_request_write_access
 from .permissions import AccessChannel, get_current_membership
 from .member_services import update_membership
@@ -178,7 +179,7 @@ def get_or_update_member(request: HttpRequest, userId: uuid.UUID) -> JsonRespons
             if isinstance(membershipRequest, JsonResponse):
                 return membershipRequest
             dictDepartmentRole = {
-                roleRequest.department_id: DepartmentRole(roleRequest.role)
+                roleRequest.department_id: roleRequest.role
                 for roleRequest in membershipRequest.department_roles
             }
             with transaction.atomic():

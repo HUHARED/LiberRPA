@@ -156,7 +156,7 @@
       :headers="ARR_HEADER"
       :items="page?.runs ?? []"
       :items-length="page?.total_count ?? 0"
-      :items-per-page="50"
+      :items-per-page="page?.page_size ?? INT_LIST_PAGE_SIZE"
       :loading="boolLoading"
       item-value="id"
       show-select
@@ -305,6 +305,7 @@ import {
   type RunFilters,
 } from "@/api/runs";
 import { getApiError } from "@/api/errors";
+import { INT_LIST_PAGE_SIZE } from "@/api/generated/browserApi";
 
 import { RUN_STATUS_LABELS, RUN_STATUS_COLORS } from "@/app/runLabels";
 import { formatDateTime, formatRunEndTime } from "@/app/formatters";

@@ -20,7 +20,8 @@ from console_project.config import LimitsConfig
 from console_project.contracts import JsonValue
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
 
-from organizations.models import Organization, DepartmentRole
+from organizations.contracts import DepartmentRole
+from organizations.models import Organization
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -33,7 +34,7 @@ from executors.session_state import (
     get_current_executor_sessions,
 )
 
-from operations.models import AuditChannel
+from operations.contracts import AuditChannel
 from operations.audit import record_audit
 
 from packages.contracts import RUN_PRIORITY_ORDER, RunSettings

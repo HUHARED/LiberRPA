@@ -57,7 +57,7 @@
       :headers="arrHeader"
       :items="invitationPage?.invitations ?? []"
       :items-length="invitationPage?.pagination.total_count ?? 0"
-      :items-per-page="invitationPage?.pagination.page_size ?? 50"
+      :items-per-page="invitationPage?.pagination.page_size ?? INT_LIST_PAGE_SIZE"
       :page="invitationPage?.pagination.page ?? 1"
       :loading="boolLoading"
       :mobile-breakpoint="600"
@@ -194,9 +194,10 @@ import {
   getInvitationStatus,
   getDeliveryLabel,
 } from "@/api/invitations";
-import type {
-  InvitationResponse,
-  InvitationListResponse,
+import {
+  INT_LIST_PAGE_SIZE,
+  type InvitationResponse,
+  type InvitationListResponse,
 } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";

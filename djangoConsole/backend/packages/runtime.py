@@ -5,7 +5,6 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
-from typing import TYPE_CHECKING
 
 from django.core.exceptions import ValidationError
 from pydantic import ValidationError as ContractValidationError
@@ -17,15 +16,12 @@ from console_project.contracts import JsonValue
 from console_project.http import get_contract_error_fields
 
 from .contracts import RunSettings, validate_custom_arguments
-from .models import Package
-
-if TYPE_CHECKING:
-    from schedules.models import Schedule
+from .models import Package, RunSettingsModel
 
 
-# NOTE: Keep these mappings aligned with RunSettings and both models when adding a run setting.
+# NOTE: Keep these mappings aligned with RunSettings and RunSettingsModel.
 def parse_run_settings(
-    source: "Package | Schedule", *, overrides: dict[str, JsonValue] | None = None
+    source: RunSettingsModel, *, overrides: dict[str, JsonValue] | None = None
 ) -> RunSettings:
     """Parse saved settings and request overrides once when they enter this workflow."""
     dictSettings: dict[str, object] = {
@@ -49,7 +45,7 @@ def parse_run_settings(
         raise ValidationError(get_contract_error_fields(e, prefix="settings")) from None
 
 
-def apply_run_settings(target: "Package | Schedule", values: RunSettings) -> None:
+def apply_run_settings(target: RunSettingsModel, values: RunSettings) -> None:
     """Assign validated settings; convert structured values to JSON only for database storage."""
     target.max_retry_count = values.max_retry_count
     target.timeout_min = values.timeout_min

@@ -12,14 +12,7 @@ from django.db.models.functions import Lower
 from django.db.models.lookups import Exact
 from django.utils import timezone
 
-from console_project.constants import RunLogLevel
-from packages.contracts import (
-    INT_MAX_RETRY_COUNT,
-    INT_MAX_TIMEOUT_MIN,
-    RunConflictPolicy,
-    RunPriority,
-    build_default_run_email,
-)
+from packages.models import RunSettingsModel
 
 
 class TriggerStatus(models.TextChoices):
@@ -28,7 +21,7 @@ class TriggerStatus(models.TextChoices):
     MISSED = "missed", "Missed"
 
 
-class Schedule(models.Model):
+class Schedule(RunSettingsModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     department_id: uuid.UUID
     department = models.ForeignKey("organizations.Department", on_delete=models.PROTECT)
@@ -39,29 +32,6 @@ class Schedule(models.Model):
     enabled = models.BooleanField(default=True)
     executor_ids = models.JSONField(default=list)
     group_id = models.UUIDField(null=True, blank=True)
-    max_retry_count = models.PositiveSmallIntegerField(default=0)
-    timeout_min = models.PositiveIntegerField(default=0)
-    builtin_log_level = models.CharField(
-        max_length=max(len(entry.value) for entry in RunLogLevel),
-        choices=[(entry.value, entry.value) for entry in RunLogLevel],
-        default=RunLogLevel.INFO,
-    )
-    builtin_record_video = models.BooleanField(default=False)
-    builtin_stop_shortcut = models.BooleanField(default=True)
-    builtin_highlight_ui = models.BooleanField(default=False)
-    custom_prj_args = models.JSONField(default=list, blank=True)
-    custom_arg_assets = models.JSONField(default=list, blank=True)
-    run_conflict_policy = models.CharField(
-        max_length=max(len(entry.value) for entry in RunConflictPolicy),
-        choices=[(entry.value, entry.value) for entry in RunConflictPolicy],
-        default=RunConflictPolicy.WAIT,
-    )
-    priority = models.CharField(
-        max_length=max(len(entry.value) for entry in RunPriority),
-        choices=[(entry.value, entry.value) for entry in RunPriority],
-        default=RunPriority.NORMAL,
-    )
-    run_email = models.JSONField(default=build_default_run_email)
     cron = models.CharField(max_length=200)
     time_zone = models.CharField(max_length=100)
     active_from = models.DateTimeField()
@@ -94,41 +64,7 @@ class Schedule(models.Model):
             models.CheckConstraint(
                 condition=~models.Q(name=""), name="schedule_name_not_empty"
             ),
-            models.CheckConstraint(
-                condition=models.Q(
-                    run_conflict_policy__in=[entry.value for entry in RunConflictPolicy]
-                ),
-                name="schedule_conflict_valid",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(priority__in=[entry.value for entry in RunPriority]),
-                name="schedule_priority_valid",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(
-                    max_retry_count__gte=0, max_retry_count__lte=INT_MAX_RETRY_COUNT
-                ),
-                name="schedule_retry_valid",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(
-                    timeout_min__gte=0, timeout_min__lte=INT_MAX_TIMEOUT_MIN
-                ),
-                name="schedule_timeout_valid",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(
-                    builtin_log_level__in=[entry.value for entry in RunLogLevel]
-                ),
-                name="schedule_log_level_valid",
-            ),
-            models.CheckConstraint(
-                condition=(
-                    models.Q(group_id__isnull=False, executor_ids=[])
-                    | (models.Q(group_id__isnull=True) & ~models.Q(executor_ids=[]))
-                ),
-                name="schedule_target_valid",
-            ),
+            *RunSettingsModel.Meta.constraints,
             models.CheckConstraint(
                 condition=Exact(
                     models.Func(
@@ -139,6 +75,13 @@ class Schedule(models.Model):
                     models.Value("array"),
                 ),
                 name="schedule_executor_ids_array",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(group_id__isnull=False, executor_ids=[])
+                    | (models.Q(group_id__isnull=True) & ~models.Q(executor_ids=[]))
+                ),
+                name="schedule_target_valid",
             ),
         ]
 

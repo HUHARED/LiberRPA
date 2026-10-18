@@ -185,7 +185,7 @@
               :headers="ARR_MEMBER_HEADER"
               :items="memberPage?.executors ?? []"
               :items-length="memberPage?.total_count ?? 0"
-              :items-per-page="memberPage?.page_size ?? 50"
+              :items-per-page="memberPage?.page_size ?? INT_LIST_PAGE_SIZE"
               :page="memberPage?.page ?? 1"
               :loading="boolLoadingMembers"
               :mobile-breakpoint="600"
@@ -289,11 +289,12 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { type ApiError, getApiError } from "@/api/errors";
 import { getExecutorList } from "@/api/executors";
 import { createExecutorGroup, updateExecutorGroup } from "@/api/executorGroups";
-import type {
-  DepartmentAccessResponse,
-  ExecutorGroupDetailsEntryResponse,
-  ExecutorGroupWriteResponse,
-  ExecutorListResponse,
+import {
+  INT_LIST_PAGE_SIZE,
+  type DepartmentAccessResponse,
+  type ExecutorGroupDetailsEntryResponse,
+  type ExecutorGroupWriteResponse,
+  type ExecutorListResponse,
 } from "@/api/generated/browserApi";
 
 const props = defineProps<{

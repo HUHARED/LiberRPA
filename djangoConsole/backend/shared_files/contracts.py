@@ -8,12 +8,21 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
+from django.db.models import TextChoices
 from pydantic import Field
 
-from console_project.contracts import JsonRequest, JsonResponsePayload
+from console_project.contracts import JsonRequest, JsonResponsePayload, PaginationResponse
 
 
 MAX_FILE_RESPONSE_BYTES = 2 * 1024 * 1024
+
+
+class UploadState(TextChoices):
+    RECEIVING = "receiving", "Receiving"
+    COMPLETED = "completed", "Completed"
+    FAILED = "failed", "Failed"
+    EXPIRED = "expired", "Expired"
+    CANCELED = "canceled", "Canceled"
 
 
 type FileRequestUuid = Annotated[UUID, Field(strict=False)]
@@ -66,19 +75,15 @@ class FileUsageResponse(JsonResponsePayload):
     max_file_bytes: int
 
 
-class FileListResponse(JsonResponsePayload):
+class FileListResponse(PaginationResponse):
     files: list[FileInfoResponse]
     department_path: str | None
     usage: FileUsageResponse
-    page: int
-    page_size: int
-    total_count: int
-    total_pages: int
 
 
 class FileUploadResponse(JsonResponsePayload):
     upload_id: UUID
-    state: Literal["receiving", "completed", "failed", "expired", "canceled"]
+    state: UploadState = Field(strict=False)
     offset: int
     size_bytes: int
     chunk_bytes: int

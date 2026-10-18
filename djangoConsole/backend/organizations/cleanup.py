@@ -24,10 +24,9 @@ from runs.models import JobRequest, RunLogUsage
 from schedules.models import Schedule
 from operations.audit import record_audit
 from operations.models import AuditScope, AuditRecord
+from notifications.contracts import EmailStatus, EmailReasonCode
 from notifications.models import (
     EmailType,
-    EmailStatus,
-    EmailReasonCode,
     EmailDelivery,
     OrganizationDeletionNotice,
 )

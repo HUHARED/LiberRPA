@@ -4,14 +4,8 @@ import { onBeforeUnmount, onMounted, watch } from "vue";
 import { useEventListener, useWebSocket } from "@vueuse/core";
 
 import { isRecord } from "../api/responses";
-import type { BrowserMessageType } from "../api/generated/browserApi";
+import { BrowserMessageType } from "../api/generated/browserApi";
 import { useSessionStore } from "../stores/sessionStore";
-
-const BROWSER_MESSAGE = {
-  READY: "ready",
-  SESSION_CHANGED: "session_changed",
-  NOTIFICATIONS_CHANGED: "notifications_changed",
-} as const satisfies Record<string, BrowserMessageType>;
 
 const BROWSER_CLOSE_CODE = {
   NORMAL: 1000,
@@ -125,7 +119,7 @@ export function useSessionLifecycle(): void {
         return;
       }
       switch (payload.type) {
-        case BROWSER_MESSAGE.READY:
+        case BrowserMessageType.Ready:
           clearTimeout(readyTimer);
           console.info(
             `${STR_LOG_PREFIX} ${boolInterrupted ? "Connection restored." : "Connected."}`,
@@ -134,10 +128,10 @@ export function useSessionLifecycle(): void {
           // Reconcile changes made before connection or while the connection was down.
           requestSessionRefresh(true);
           break;
-        case BROWSER_MESSAGE.SESSION_CHANGED:
+        case BrowserMessageType.SessionChanged:
           requestSessionRefresh();
           break;
-        case BROWSER_MESSAGE.NOTIFICATIONS_CHANGED:
+        case BrowserMessageType.NotificationsChanged:
           announceNotifications();
           break;
         default:

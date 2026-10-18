@@ -114,7 +114,7 @@
       :headers="ARR_HEADER"
       :items="page?.schedules ?? []"
       :items-length="page?.total_count ?? 0"
-      :items-per-page="50"
+      :items-per-page="page?.page_size ?? INT_LIST_PAGE_SIZE"
       :loading="boolLoading"
       disable-sort
       hide-default-footer>
@@ -245,6 +245,7 @@ import {
   setScheduleEnabled,
 } from "@/api/schedules";
 import { type ApiError, getApiError } from "@/api/errors";
+import { INT_LIST_PAGE_SIZE } from "@/api/generated/browserApi";
 
 import { CONFLICT_POLICY_LABELS } from "@/app/runLabels";
 

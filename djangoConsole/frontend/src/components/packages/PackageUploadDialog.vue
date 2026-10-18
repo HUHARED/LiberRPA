@@ -79,11 +79,11 @@ import {
   getPackageUpload,
   appendPackageChunk,
   finishPackageUpload,
-  PackageUploadState,
   type PackageUpload,
   type PackageInfo,
 } from "@/api/packages";
 import { getApiError } from "@/api/errors";
+import { PackageUploadState } from "@/api/generated/browserApi";
 
 import { formatFileSize } from "@/app/formatters";
 import { PACKAGE_UPLOAD_LABELS } from "@/app/runLabels";

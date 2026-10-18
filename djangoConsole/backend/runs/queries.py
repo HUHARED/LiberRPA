@@ -13,8 +13,10 @@ from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.http import QueryDict
 
+from console_project.constants import INT_LIST_PAGE_SIZE
 from console_project.validators import parse_zoned_time
-from organizations.models import Department, DepartmentRole
+from organizations.contracts import DepartmentRole
+from organizations.models import Department
 from organizations.department_queries import get_department_path
 from organizations.permissions import (
     OrganizationAccessContext,
@@ -28,7 +30,6 @@ from schedules.models import Schedule
 from .contracts import JobState, ACTIVE_ASSIGNMENT_STATES, RunStatus
 from .models import Assignment, Job, Run
 
-_INT_PAGE_SIZE = 50
 _INT_MAX_SELECTED_RUNS = 20000
 
 
@@ -319,7 +320,7 @@ def get_matching_run_ids(
 def list_work(access: OrganizationAccessContext, query: QueryDict, *, runs: bool) -> dict:
     workQuery = _get_filtered_work(access, query, runs=runs)
     intPage = int(query.get("page", "1"))
-    paginator: Paginator[Job | Run] = Paginator(workQuery, _INT_PAGE_SIZE)
+    paginator: Paginator[Job | Run] = Paginator(workQuery, INT_LIST_PAGE_SIZE)
     page = paginator.page(intPage)
     if runs:
         listPayload = [
@@ -386,7 +387,7 @@ def list_work(access: OrganizationAccessContext, query: QueryDict, *, runs: bool
     return {
         "runs" if runs else "jobs": listPayload,
         "page": page.number,
-        "page_size": _INT_PAGE_SIZE,
+        "page_size": INT_LIST_PAGE_SIZE,
         "total_count": paginator.count,
         "total_pages": paginator.num_pages,
     }

@@ -4,20 +4,22 @@ import { requestApi } from "./client";
 import { ApiError } from "./errors";
 import { isRecord, rejectInvalidResponse } from "./responses";
 
-import type {
-  DepartmentCreationRequest,
-  DepartmentDeletionPreviewResponse,
-  DepartmentDeletionBlockerResponse,
-  DepartmentIdentityResponse,
-  DepartmentDeletionRequest,
-  DepartmentDeletionResponse,
-  DepartmentDetailsResponse,
-  DepartmentListEntryResponse,
-  DepartmentMemberResponse,
-  DepartmentListResponse,
-  DepartmentUpdateRequest,
-  DepartmentWriteResponse,
-  DepartmentRecordResponse,
+import {
+  ARR_DEPARTMENT_ROLE,
+  ARR_DEPARTMENT_DELETION_BLOCKER_CODE,
+  type DepartmentCreationRequest,
+  type DepartmentDeletionPreviewResponse,
+  type DepartmentDeletionBlockerResponse,
+  type DepartmentIdentityResponse,
+  type DepartmentDeletionRequest,
+  type DepartmentDeletionResponse,
+  type DepartmentDetailsResponse,
+  type DepartmentListEntryResponse,
+  type DepartmentMemberResponse,
+  type DepartmentListResponse,
+  type DepartmentUpdateRequest,
+  type DepartmentWriteResponse,
+  type DepartmentRecordResponse,
 } from "./generated/browserApi";
 
 function isDepartmentRecord(value: unknown): value is DepartmentRecordResponse {
@@ -62,7 +64,7 @@ export function parseDepartmentDetailsResponse(
         typeof member.user.id === "string" &&
         typeof member.user.email === "string" &&
         typeof member.user.username === "string" &&
-        (member.role === "developer" || member.role === "operator"),
+        ARR_DEPARTMENT_ROLE.some((role) => role === member.role),
     )
   )
     return rejectInvalidResponse();
@@ -86,18 +88,7 @@ export function parseDepartmentDeletionPreviewResponse(
     !payload.blockers.every(
       (blocker: unknown): blocker is DepartmentDeletionBlockerResponse =>
         isRecord(blocker) &&
-        (blocker.code === "child_departments" ||
-          blocker.code === "department_memberships" ||
-          blocker.code === "executors" ||
-          blocker.code === "executor_groups" ||
-          blocker.code === "assets" ||
-          blocker.code === "data_queues" ||
-          blocker.code === "shared_files" ||
-          blocker.code === "file_uploads" ||
-          blocker.code === "packages" ||
-          blocker.code === "schedules" ||
-          blocker.code === "active_jobs" ||
-          blocker.code === "package_uploads") &&
+        ARR_DEPARTMENT_DELETION_BLOCKER_CODE.some((code) => code === blocker.code) &&
         typeof blocker.count === "number" &&
         Number.isSafeInteger(blocker.count) &&
         blocker.count > 0,

@@ -7,12 +7,18 @@ import "@vue-js-cron/vuetify/dist/vuetify.css";
 import { createVuetify } from "vuetify";
 import { VChip, VCol, VIcon, VList, VListItem, VMenu, VRow } from "vuetify/components";
 
+import { INT_LIST_PAGE_SIZE } from "@/api/generated/browserApi";
+
 export const vuetify = createVuetify({
   // NOTE: The compiled cron editor resolves these components at runtime.
   components: { VChip, VCol, VIcon, VList, VListItem, VMenu, VRow },
   defaults: {
     // NOTE: Navigation buttons should not inherit the current route's active style.
     VBtn: { active: false },
+    VDataTable: {
+      itemsPerPage: INT_LIST_PAGE_SIZE,
+      itemsPerPageOptions: [INT_LIST_PAGE_SIZE],
+    },
   },
   theme: {
     defaultTheme: "light",

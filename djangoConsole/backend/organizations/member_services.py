@@ -13,7 +13,8 @@ from executors.session_state import revoke_unqualified_executor_sessions
 from operations.audit import get_audit_snapshot, record_audit
 from runs.services import recheck_job_source_access
 
-from .models import Membership, Department, DepartmentRole, DepartmentMembership
+from .contracts import DepartmentRole
+from .models import Membership, Department, DepartmentMembership
 from .permissions import (
     OrganizationAccessContext,
     require_organization_admin,

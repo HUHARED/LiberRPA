@@ -29,7 +29,8 @@ from organizations.permissions import (
     require_organization_admin,
 )
 
-from .models import ApiKey, ApiKeyStatus, User
+from .contracts import ApiKeyStatus
+from .models import ApiKey, User
 
 
 @dataclass(frozen=True)

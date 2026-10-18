@@ -21,7 +21,7 @@ from django.views.decorators.debug import sensitive_variables
 from console_project.config import LimitsConfig
 from console_project.validators import validate_json_value
 from operations.audit import get_audit_snapshot, record_audit
-from organizations.models import DepartmentRole
+from organizations.contracts import DepartmentRole
 from organizations.validators import get_path_name_key, normalize_path_name
 from organizations.permissions import (
     OrganizationAccessContext,

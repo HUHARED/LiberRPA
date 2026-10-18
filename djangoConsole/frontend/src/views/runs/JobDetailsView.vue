@@ -147,7 +147,8 @@ import JobActions from "@/components/runs/JobActions.vue";
 import RunTable from "@/components/runs/RunTable.vue";
 import RunArgumentsDetails from "@/components/runSettings/RunArgumentsDetails.vue";
 
-import { JobState, getJob, type JobDetails } from "@/api/runs";
+import { getJob, type JobDetails } from "@/api/runs";
+import { JobState } from "@/api/generated/browserApi";
 import { getApiError } from "@/api/errors";
 
 import {

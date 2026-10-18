@@ -15,7 +15,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
-from organizations.models import DepartmentRole
+from organizations.contracts import DepartmentRole
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,

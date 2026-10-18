@@ -12,8 +12,7 @@ from uuid import UUID
 from pydantic import Field
 
 from accounts.contracts import UserResponse
-from console_project.contracts import JsonRequest, JsonResponsePayload
-from organizations.contracts import PaginationResponse
+from console_project.contracts import JsonRequest, JsonResponsePayload, PaginationResponse
 from packages.contracts import PackagePreparationState
 
 
@@ -76,12 +75,8 @@ class ExecutorListEntryResponse(ExecutorRecordResponse):
     last_seen_at: datetime | None
 
 
-class ExecutorListResponse(JsonResponsePayload):
+class ExecutorListResponse(PaginationResponse):
     executors: list[ExecutorListEntryResponse]
-    page: int
-    page_size: int
-    total_count: int
-    total_pages: int
 
 
 class ExecutorGroupReferenceResponse(JsonResponsePayload):
@@ -158,12 +153,8 @@ class ExecutorGroupListEntryResponse(ExecutorGroupRecordResponse):
     is_empty: bool
 
 
-class ExecutorGroupListResponse(JsonResponsePayload):
+class ExecutorGroupListResponse(PaginationResponse):
     executor_groups: list[ExecutorGroupListEntryResponse]
-    page: int
-    page_size: int
-    total_count: int
-    total_pages: int
 
 
 class ExecutorGroupDetailsEntryResponse(ExecutorGroupListEntryResponse):

@@ -150,9 +150,12 @@ import { useDisplay } from "vuetify";
 
 import BuiltInArguments from "./BuiltInArguments.vue";
 
-import { getAssetList } from "@/api/assets";
+import { isOrdinaryAssetType, getAssetList } from "@/api/assets";
 import { getApiError, getFieldErrors } from "@/api/errors";
-import type { AssetEntryResponse } from "@/api/generated/browserApi";
+import {
+  ARR_ORDINARY_ASSET_TYPE,
+  type AssetEntryResponse,
+} from "@/api/generated/browserApi";
 
 import type { JsonValue, RunSettings } from "@/api/runSettings";
 
@@ -242,7 +245,7 @@ function setSource(index: number, useAsset: boolean): void {
 
 function setAsset(index: number, name: string): void {
   const asset = arrAsset.value.find((entry) => entry.name === name);
-  if (asset && asset.asset_type !== "secret_text" && asset.asset_type !== "credential")
+  if (asset && isOrdinaryAssetType(asset.asset_type))
     settings.value.custom_arg_assets[index] = {
       name: asset.name,
       asset_type: asset.asset_type,
@@ -279,7 +282,7 @@ async function loadAssets(): Promise<void> {
         {
           name: "",
           departmentIds: [strDepartmentId],
-          assetTypes: ["text", "integer", "number", "boolean", "json"],
+          assetTypes: [...ARR_ORDINARY_ASSET_TYPE],
         },
         intPage++,
       );

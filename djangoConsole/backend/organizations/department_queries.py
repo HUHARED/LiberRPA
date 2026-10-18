@@ -8,7 +8,8 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from .models import Department, DepartmentRole, DepartmentMembership
+from .contracts import DepartmentRole
+from .models import Department, DepartmentMembership
 from .validators import get_path_name_key
 from .permissions import (
     AccessChannel,

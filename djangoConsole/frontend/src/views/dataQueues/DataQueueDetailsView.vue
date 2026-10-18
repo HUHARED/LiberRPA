@@ -82,7 +82,7 @@
             <v-col cols="12" md="3">
               <v-select
                 v-model="strStatus"
-                :items="QUEUE_STATUSES"
+                :items="ARR_STATUS_OPTION"
                 label="Status"
                 variant="underlined"
                 density="compact"
@@ -186,7 +186,7 @@
         :headers="ARR_HEADER"
         :items="page.items"
         :items-length="page.total_count"
-        :items-per-page="50"
+        :items-per-page="page.page_size"
         :page="page.page"
         :loading="boolLoading"
         :item-selectable="() => !boolBusy && !error"
@@ -335,9 +335,16 @@ import DataQueueItemUploadDialog from "@/components/dataQueues/DataQueueItemUplo
 
 import { useSessionStore } from "@/stores/sessionStore";
 
-import { type ApiError, getApiError } from "@/api/errors";
-import { QUEUE_STATUSES, getQueueItems, changeQueueItems } from "@/api/dataQueues";
-import type { QueueItemsResponse, QueueMutationResponse } from "@/api/generated/browserApi";
+import { ApiError, getApiError } from "@/api/errors";
+import { getQueueItems, changeQueueItems } from "@/api/dataQueues";
+import {
+  ARR_QUEUE_ITEM_FILTER_STATUS,
+  ARR_QUEUE_ITEM_ORDER,
+  type QueueItemFilterStatus,
+  type QueueItemOrder,
+  type QueueItemsResponse,
+  type QueueMutationResponse,
+} from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
 
@@ -357,14 +364,24 @@ const ARR_HEADER = [
   { title: "Actions", key: "actions" },
 ];
 
+const DICT_STATUS_LABEL: Record<QueueItemFilterStatus, string> = {
+  all: "All",
+  unclaimed: "Unclaimed",
+  claimed: "Claimed",
+};
+const ARR_STATUS_OPTION = ARR_QUEUE_ITEM_FILTER_STATUS.map((status) => ({
+  title: DICT_STATUS_LABEL[status],
+  value: status,
+}));
+
 const page = shallowRef<QueueItemsResponse | null>(null);
 const error = shallowRef<ApiError | null>(null);
 const mutationError = shallowRef<ApiError | null>(null);
 const strMessage = ref("");
 const strActionError = ref("");
 const selectedItemIds = ref<string[]>([]);
-const strStatus = ref("all");
-const strOrder = ref("oldest_first");
+const strStatus = ref<QueueItemFilterStatus>("all");
+const strOrder = ref<QueueItemOrder>("oldest_first");
 const strItemId = ref<string | null>("");
 const boolLoading = ref(false);
 const boolSaving = ref(false);
@@ -389,6 +406,15 @@ let intRevision = 0;
 const getQueryText = (key: string, fallback: string): string =>
   typeof route.query[key] === "string" ? route.query[key] : fallback;
 
+const activeFilters = computed(() => ({
+  status: ARR_QUEUE_ITEM_FILTER_STATUS.find(
+    (status) => status === getQueryText("status", "all"),
+  ),
+  order: ARR_QUEUE_ITEM_ORDER.find(
+    (order) => order === getQueryText("order", "oldest_first"),
+  ),
+}));
+
 async function changePage(value: number): Promise<void> {
   selectedItemIds.value = [];
   await router.replace({ query: { ...route.query, item_page: String(value) } });
@@ -401,10 +427,17 @@ async function load(): Promise<void> {
   error.value = null;
   strActionError.value = "";
   try {
+    const { status, order } = activeFilters.value;
+    if (status === undefined || order === undefined)
+      throw new ApiError("The status or order filter is invalid.", {
+        statusCode: 400,
+        code: "invalid_request",
+      });
+
     const result = await getQueueItems(
       props.queueId,
-      getQueryText("status", "all"),
-      getQueryText("order", "oldest_first"),
+      status,
+      order,
       getQueryText("item_id", ""),
       Number(route.query.item_page) || 1,
     );
@@ -525,8 +558,9 @@ watch(
     () => Number(route.query.item_page) || 1,
   ],
   () => {
-    strStatus.value = getQueryText("status", "all");
-    strOrder.value = getQueryText("order", "oldest_first");
+    const { status, order } = activeFilters.value;
+    if (status !== undefined) strStatus.value = status;
+    if (order !== undefined) strOrder.value = order;
     strItemId.value = getQueryText("item_id", "");
     closeConfirm();
     boolUploadOpen.value = false;

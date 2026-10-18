@@ -4,7 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 type JsonValue = dict[str, JsonValue] | list[JsonValue] | str | int | float | bool | None
 
@@ -23,6 +23,13 @@ class JsonResponsePayload(BaseModel):
     model_config = ConfigDict(
         strict=True, extra="forbid", frozen=True, hide_input_in_errors=True
     )
+
+
+class PaginationResponse(JsonResponsePayload):
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1)
+    total_count: int = Field(ge=0)
+    total_pages: int = Field(ge=1)
 
 
 class MessageResponse(JsonResponsePayload):

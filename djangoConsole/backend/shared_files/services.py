@@ -40,7 +40,7 @@ from organizations.department_queries import (
     resolve_department_path,
     get_department_path,
 )
-from organizations.models import DepartmentRole
+from organizations.contracts import DepartmentRole
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -48,6 +48,7 @@ from organizations.permissions import (
 from organizations.validators import get_path_name_key
 
 from .contracts import (
+    UploadState,
     FileUploadRequest,
     FileDeleteRequest,
     FileUploadResponse,
@@ -56,7 +57,6 @@ from .contracts import (
 )
 from .models import (
     SharedFile,
-    UploadState,
     UploadSession,
     UploadChunk,
     FileDeletionReceipt,
@@ -314,7 +314,7 @@ def validate_upload_content(
     path = get_blob_path(blobId)
     try:
         # Chunks are already durable; only a newly created empty file still needs syncing.
-        with path.open("r+b") if upload.size_bytes == 0 else path.open("rb") as handle:
+        with (path.open("r+b") if upload.size_bytes == 0 else path.open("rb")) as handle:
             fileStat = os.fstat(handle.fileno())
             if fileStat.st_size < upload.size_bytes:
                 return FileOperationError(

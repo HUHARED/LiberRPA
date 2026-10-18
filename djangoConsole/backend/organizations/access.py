@@ -12,7 +12,8 @@ from typing import cast
 from accounts.models import User
 
 from .department_queries import get_department_path
-from .models import Department, DepartmentRole, Organization
+from .contracts import DepartmentRole
+from .models import Department, Organization
 from .permissions import (
     AccessChannel,
     OrganizationAccessContext,

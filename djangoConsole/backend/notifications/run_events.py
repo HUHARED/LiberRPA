@@ -15,21 +15,17 @@ from .models import (
     RunEmailReference,
 )
 from .recipients import get_eligible_recipients
+from .run_email import DICT_RUN_EMAIL_EVENT_KEY
 from .services import notify_prestart_failure
 
 if TYPE_CHECKING:
     from runs.models import Job, Run
 
 
-def notify_run_event(run: "Run", event: str) -> None:
+def notify_run_event(run: "Run", event: RunEmailEvent) -> None:
     if run.job.closed_at is not None:
         return
-    emailEvent = RunEmailEvent(event)
-    strKey = {
-        RunEmailEvent.START: "on_start",
-        RunEmailEvent.COMPLETED: "on_completed",
-        RunEmailEvent.ERROR: "on_error",
-    }[emailEvent]
+    strKey = DICT_RUN_EMAIL_EVENT_KEY[event]
     dictConfig = run.job.run_snapshot.get("run_email", {})
     if not dictConfig.get(strKey, {}).get("enabled", False):
         return
@@ -38,7 +34,7 @@ def notify_run_event(run: "Run", event: str) -> None:
         pk__in=dictConfig.get("recipient_ids", [])
     ):
         if RunEmailReference.objects.filter(
-            run_id=run.pk, event=emailEvent, recipient=recipient
+            run_id=run.pk, event=event, recipient=recipient
         ).exists():
             continue
         delivery = EmailDelivery.objects.create(
@@ -51,7 +47,7 @@ def notify_run_event(run: "Run", event: str) -> None:
             organization_id=organizationId,
             recipient=recipient,
             run_id=run.pk,
-            event=emailEvent,
+            event=event,
         )
 
 

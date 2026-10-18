@@ -12,8 +12,9 @@ from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.db.models.functions import Substr
 
+from console_project.constants import INT_LIST_PAGE_SIZE
 from organizations.department_queries import get_department_tree, get_department_path
-from organizations.models import DepartmentRole
+from organizations.contracts import DepartmentRole
 from organizations.validators import get_path_name_key
 from organizations.permissions import (
     OrganizationAccessContext,
@@ -21,6 +22,8 @@ from organizations.permissions import (
 )
 
 from .contracts import (
+    AssetType,
+    SECRET_ASSET_TYPES,
     AssetEntryResponse,
     AssetListResponse,
     AssetReferenceKind,
@@ -28,9 +31,7 @@ from .contracts import (
     AssetDetailsEntryResponse,
     AssetDetailsResponse,
 )
-from .models import SECRET_ASSET_TYPES, Asset
-
-_INT_ASSETS_PER_PAGE = 50
+from .models import Asset
 
 
 def get_asset_query(
@@ -49,7 +50,7 @@ def get_asset_list(
     pageNumber: int = 1,
     departmentIds: tuple[uuid.UUID, ...] = (),
     name: str = "",
-    assetTypes: tuple[str, ...] = (),
+    assetTypes: tuple[AssetType, ...] = (),
 ) -> AssetListResponse:
     assets = get_asset_query(access)
     if departmentIds:
@@ -69,7 +70,7 @@ def get_asset_list(
         "updated_at",
         value_summary=Substr("value_json", 1, 161),
     )
-    paginator = Paginator(rows, _INT_ASSETS_PER_PAGE)
+    paginator = Paginator(rows, INT_LIST_PAGE_SIZE)
     page = paginator.page(pageNumber)
     departmentsById = get_department_tree(access.organization.pk)
     managedDepartmentIds = set(
@@ -99,7 +100,7 @@ def get_asset_list(
     return AssetListResponse(
         assets=listEntry,
         page=page.number,
-        page_size=_INT_ASSETS_PER_PAGE,
+        page_size=INT_LIST_PAGE_SIZE,
         total_count=paginator.count,
         total_pages=paginator.num_pages,
     )

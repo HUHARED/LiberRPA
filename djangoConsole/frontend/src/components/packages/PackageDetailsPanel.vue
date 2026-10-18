@@ -396,8 +396,6 @@ import RunDispatchEmailEditor from "@/components/runSettings/RunDispatchEmailEdi
 import PackageRunDialog from "./PackageRunDialog.vue";
 
 import {
-  PackageReferenceKind,
-  PackagePreparationState,
   PACKAGE_REFERENCE_LABELS,
   type PackageReference,
   type PackageDetails,
@@ -409,6 +407,7 @@ import {
 } from "@/api/packages";
 import { cloneRunSettings, type RunSettings } from "@/api/runSettings";
 import { getApiError, getFieldErrors } from "@/api/errors";
+import { PackageReferenceKind, PackagePreparationState } from "@/api/generated/browserApi";
 
 import { PACKAGE_PREPARATION_LABELS } from "@/app/runLabels";
 import { formatDateTime, formatFileSize } from "@/app/formatters";

@@ -17,6 +17,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
 from accounts.session_revocation import SessionInvalidatedError
+from console_project.constants import INT_LIST_PAGE_SIZE
 from console_project.http import (
     build_authentication_required_response,
     build_error_response,
@@ -29,7 +30,7 @@ from organizations.http import (
     lock_request_write_access,
     parse_department_resource_filters,
 )
-from organizations.models import DepartmentRole
+from organizations.contracts import DepartmentRole
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -54,8 +55,6 @@ from .services import (
     set_schedule_enabled,
     delete_schedule,
 )
-
-_INT_PAGE_SIZE = 50
 
 
 def _handle_errors(view: Callable) -> Callable:
@@ -246,12 +245,12 @@ def list_or_create_schedules(request: HttpRequest) -> JsonResponse:
         query = query.filter(
             Q(group_id=targetId) | Q(executor_ids__contains=[str(targetId)])
         )
-    paginator = Paginator(query.order_by("name", "id"), _INT_PAGE_SIZE)
+    paginator = Paginator(query.order_by("name", "id"), INT_LIST_PAGE_SIZE)
     page = paginator.page(filters["pageNumber"])
     return JsonResponse({
         "schedules": _build_payloads(list(page.object_list), access),
         "page": page.number,
-        "page_size": _INT_PAGE_SIZE,
+        "page_size": INT_LIST_PAGE_SIZE,
         "total_count": paginator.count,
         "total_pages": paginator.num_pages,
     })

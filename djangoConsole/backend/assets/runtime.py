@@ -18,8 +18,13 @@ from organizations.department_queries import get_department_tree, resolve_depart
 from organizations.permissions import AccessChannel, OrganizationAccessContext
 from organizations.validators import get_path_name_key
 
-from .contracts import AssetRuntimeValueResponse, AssetCredentialResponse
-from .models import SECRET_ASSET_TYPES, Asset, AssetType
+from .contracts import (
+    AssetType,
+    SECRET_ASSET_TYPES,
+    AssetRuntimeValueResponse,
+    AssetCredentialResponse,
+)
+from .models import Asset
 from .queries import get_asset_query
 from .services import SecretStorageUnavailableError, save_asset_value
 

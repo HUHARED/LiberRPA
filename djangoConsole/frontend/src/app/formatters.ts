@@ -1,6 +1,7 @@
 // FileName: formatters.ts
 
-import { RunStatus, type RunInfo } from "@/api/runs";
+import type { RunInfo } from "@/api/runs";
+import { RunStatus } from "@/api/generated/browserApi";
 
 export function getDisplayName(username: string, email: string): string {
   return username || email;

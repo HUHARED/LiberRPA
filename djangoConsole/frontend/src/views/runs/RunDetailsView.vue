@@ -377,13 +377,9 @@ import {
   RunStatus,
   OutputsStatus,
   RecordingStatus,
-  getRun,
-  getRerun,
-  stopRun,
-  downloadRunFile,
   RunFileKind,
-  type RunDetails,
-} from "@/api/runs";
+} from "@/api/generated/browserApi";
+import { getRun, getRerun, stopRun, downloadRunFile, type RunDetails } from "@/api/runs";
 import { getApiError } from "@/api/errors";
 
 import { JOB_SOURCE_LABELS, RUN_STATUS_LABELS, RUN_STATUS_COLORS } from "@/app/runLabels";

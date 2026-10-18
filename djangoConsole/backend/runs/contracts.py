@@ -20,10 +20,14 @@ from pydantic import (
     model_validator,
 )
 
-from console_project.contracts import JsonValue, JsonRequest, JsonResponsePayload
+from console_project.contracts import (
+    JsonValue,
+    JsonRequest,
+    JsonResponsePayload,
+    PaginationResponse,
+)
 from console_project.constants import RunLogLevel
 from console_project.validators import validate_json_string, validate_json_value
-from organizations.contracts import PaginationResponse
 from notifications.contracts import (
     INT_RUN_EMAIL_MAX_BYTES,
     RunEmailOutputValue,

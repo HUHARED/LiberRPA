@@ -109,9 +109,7 @@
         <v-data-table
           :headers="ARR_MEMBER_HEADER"
           :items="detailsInfo.members"
-          :items-per-page="50"
-          :items-per-page-options="[50]"
-          :hide-default-footer="detailsInfo.members.length <= 50"
+          :hide-default-footer="detailsInfo.members.length <= INT_LIST_PAGE_SIZE"
           :mobile-breakpoint="600"
           item-value="user.id"
           disable-sort>
@@ -227,7 +225,10 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { getDepartmentDetails } from "@/api/departments";
-import type { DepartmentDetailsResponse } from "@/api/generated/browserApi";
+import {
+  INT_LIST_PAGE_SIZE,
+  type DepartmentDetailsResponse,
+} from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
 

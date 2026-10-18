@@ -114,7 +114,8 @@ def require_upload_slot(organizationId: uuid.UUID) -> None:
     """Count active incoming uploads under the caller's organization lock."""
     from packages.contracts import PackageUploadState
     from packages.models import PackageUpload
-    from shared_files.models import UploadSession, UploadState
+    from shared_files.contracts import UploadState
+    from shared_files.models import UploadSession
 
     currentTime = timezone.now()
     intUploadCount = PackageUpload.objects.filter(

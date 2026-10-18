@@ -154,7 +154,7 @@
       :headers="ARR_HEADER"
       :items="executorPage?.executors ?? []"
       :items-length="executorPage?.total_count ?? 0"
-      :items-per-page="executorPage?.page_size ?? 50"
+      :items-per-page="executorPage?.page_size ?? INT_LIST_PAGE_SIZE"
       :page="executorPage?.page ?? 1"
       :loading="boolLoading"
       :mobile-breakpoint="600"
@@ -366,9 +366,10 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { type ExecutorListFilters, getExecutorList, createExecutor } from "@/api/executors";
-import type {
-  ExecutorListResponse,
-  ExecutorRecordResponse,
+import {
+  INT_LIST_PAGE_SIZE,
+  type ExecutorListResponse,
+  type ExecutorRecordResponse,
 } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";

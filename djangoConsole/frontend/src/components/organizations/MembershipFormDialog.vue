@@ -236,15 +236,16 @@ import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { getDepartmentList } from "@/api/departments";
-import { DepartmentRole, getMemberDetails, updateMembership } from "@/api/members";
+import { getMemberDetails, updateMembership } from "@/api/members";
 import { createInvitation } from "@/api/invitations";
-import type {
-  UserResponse,
-  DepartmentListEntryResponse,
-  DepartmentRoleRequest,
-  InvitationResponse,
-  MembershipUpdateRequest,
-  MembershipRecordResponse,
+import {
+  DepartmentRole,
+  type UserResponse,
+  type DepartmentListEntryResponse,
+  type DepartmentRoleRequest,
+  type InvitationResponse,
+  type MembershipUpdateRequest,
+  type MembershipRecordResponse,
 } from "@/api/generated/browserApi";
 
 const props = defineProps<{ member?: UserResponse }>();

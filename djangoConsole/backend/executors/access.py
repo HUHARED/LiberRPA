@@ -8,7 +8,7 @@ import uuid
 
 from django.core.exceptions import PermissionDenied
 
-from organizations.models import DepartmentRole
+from organizations.contracts import DepartmentRole
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,

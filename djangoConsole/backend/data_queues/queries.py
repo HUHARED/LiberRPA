@@ -15,12 +15,13 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q, QuerySet
 from django.db.models.functions import Substr
 
+from console_project.constants import INT_LIST_PAGE_SIZE
 from organizations.department_queries import (
     get_department_tree,
     resolve_department_path,
     get_department_path,
 )
-from organizations.models import DepartmentRole
+from organizations.contracts import DepartmentRole
 from organizations.validators import get_path_name_key
 from organizations.permissions import (
     AccessChannel,
@@ -43,10 +44,6 @@ from .contracts import (
     QueueQueryResponse,
 )
 from .models import DataQueue, QueueItem
-
-
-_INT_QUEUES_PER_PAGE = 50
-_INT_ITEMS_PER_PAGE = 50
 
 
 def get_queue_query(
@@ -134,13 +131,13 @@ def get_queue_list(
         query = query.filter(department_id__in=departmentIds)
     if name:
         query = query.filter(name_key__contains=get_path_name_key(name))
-    page = Paginator(query.order_by("name_key", "id"), _INT_QUEUES_PER_PAGE).page(
+    page = Paginator(query.order_by("name_key", "id"), INT_LIST_PAGE_SIZE).page(
         pageNumber
     )
     return QueueListResponse(
         queues=build_queue_payloads(list(page.object_list), access),
         page=page.number,
-        page_size=_INT_QUEUES_PER_PAGE,
+        page_size=INT_LIST_PAGE_SIZE,
         total_count=page.paginator.count,
         total_pages=page.paginator.num_pages,
     )
@@ -199,7 +196,7 @@ def get_item_list(
         .annotate(summary=Substr("data_json", 1, 161))
         .defer("data_json")
     )
-    page = Paginator(query, _INT_ITEMS_PER_PAGE).page(pageNumber)
+    page = Paginator(query, INT_LIST_PAGE_SIZE).page(pageNumber)
     return QueueItemsResponse(
         queue=build_queue_payloads([queue], access)[0],
         items=[
@@ -207,7 +204,7 @@ def get_item_list(
             for item in page
         ],
         page=page.number,
-        page_size=_INT_ITEMS_PER_PAGE,
+        page_size=INT_LIST_PAGE_SIZE,
         total_count=page.paginator.count,
         total_pages=page.paginator.num_pages,
     )

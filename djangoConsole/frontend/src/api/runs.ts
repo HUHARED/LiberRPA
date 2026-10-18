@@ -9,28 +9,29 @@ import {
   rejectInvalidResponse,
   parsePaginationResponse,
 } from "./responses";
-import type {
-  JobState as JobStateValue,
-  RunStatus as RunStatusValue,
-  JobSource,
-  JobControlAction,
-  OutputsStatus as OutputsStatusValue,
-  RecordingStatus as RecordingStatusValue,
-  RunEventKind as RunEventKindValue,
-  RunFileKind as RunFileKindValue,
-  JobResponse,
-  JobListEntryResponse,
-  JobDetailsEntryResponse,
-  JobListResponse,
-  JobCreationResponse,
-  RunResponse,
-  RunDetailsEntryResponse,
-  RunListResponse,
-  RunLogEntryResponse,
-  RunLogListResponse,
-  RunDepartmentResponse,
-  RunRerunResponse,
-  RunLogClearResponse,
+import {
+  JobState,
+  RunStatus,
+  OutputsStatus,
+  RunEventKind,
+  RunFileKind,
+  ARR_JOB_SOURCE,
+  type JobSource,
+  type JobControlAction,
+  type RecordingStatus,
+  type JobResponse,
+  type JobListEntryResponse,
+  type JobDetailsEntryResponse,
+  type JobListResponse,
+  type JobCreationResponse,
+  type RunResponse,
+  type RunDetailsEntryResponse,
+  type RunListResponse,
+  type RunLogEntryResponse,
+  type RunLogListResponse,
+  type RunDepartmentResponse,
+  type RunRerunResponse,
+  type RunLogClearResponse,
 } from "./generated/browserApi";
 import {
   type RunSettings,
@@ -39,7 +40,16 @@ import {
   isRunSnapshot,
 } from "./runSettings";
 
-export type { JobSource, JobControlAction };
+export type {
+  JobState,
+  RunStatus,
+  JobSource,
+  JobControlAction,
+  OutputsStatus,
+  RecordingStatus,
+  RunEventKind,
+  RunFileKind,
+};
 export type JobInfo = JobResponse;
 export type JobDetails = JobDetailsEntryResponse;
 export type JobPage = JobListResponse;
@@ -49,65 +59,11 @@ export type RunPage = RunListResponse;
 export type LogEntry = RunLogEntryResponse;
 export type LogPage = RunLogListResponse;
 export type RunDepartmentInfo = RunDepartmentResponse;
-export type JobState = JobStateValue;
-export const JobState = {
-  Waiting: "waiting",
-  Preparing: "preparing",
-  Starting: "starting",
-  Running: "running",
-  Stopping: "stopping",
-  WaitingRetry: "waiting_retry",
-  NeedsReview: "needs_review",
-  Finished: "finished",
-} as const satisfies Record<string, JobState>;
 export const ARR_ACTIVE_JOB_STATE = Object.values(JobState).filter(
   (state) => state !== JobState.Finished,
 );
-export type RunStatus = RunStatusValue;
-export const RunStatus = {
-  Running: "running",
-  Completed: "completed",
-  Error: "error",
-  Canceled: "canceled",
-  TimedOut: "timed_out",
-  Interrupted: "interrupted",
-} as const satisfies Record<string, RunStatus>;
 export const ARR_RUN_STATUS = Object.values(RunStatus);
-export const ARR_JOB_SOURCE = [
-  "manual",
-  "api",
-  "schedule",
-] as const satisfies readonly JobSource[];
-export type RunEventKind = RunEventKindValue;
-export const RunEventKind = {
-  Started: "started",
-  Ended: "ended",
-  PreparationFailed: "preparation_failed",
-  NotStarted: "not_started",
-  Unknown: "unknown",
-  Recording: "recording",
-} as const satisfies Record<string, RunEventKind>;
-export type OutputsStatus = OutputsStatusValue;
-export const OutputsStatus = {
-  Waiting: "waiting",
-  Complete: "complete",
-  Partial: "partial",
-  Unavailable: "unavailable",
-} as const satisfies Record<string, OutputsStatus>;
 export const ARR_OUTPUTS_STATUS = Object.values(OutputsStatus);
-export type RecordingStatus = RecordingStatusValue;
-export const RecordingStatus = {
-  Recording: "recording",
-  Processing: "processing",
-  Ready: "ready",
-  Unavailable: "unavailable",
-} as const satisfies Record<string, RecordingStatus>;
-export type RunFileKind = RunFileKindValue;
-export const RunFileKind = {
-  Logs: "logs",
-  Video: "video",
-  Subtitles: "subtitles",
-} as const satisfies Record<string, RunFileKind>;
 
 interface WorkFilters {
   departmentIds: string[];

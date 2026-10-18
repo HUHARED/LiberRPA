@@ -10,7 +10,7 @@ from datetime import datetime
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 
-from organizations.models import DepartmentRole
+from organizations.contracts import DepartmentRole
 from organizations.permissions import (
     AccessChannel,
     resolve_organization_access,

@@ -33,10 +33,9 @@ from organizations.emails import (
     build_organization_deletion_notice,
 )
 
+from .contracts import EmailStatus, EmailReasonCode
 from .models import (
     EmailType,
-    EmailStatus,
-    EmailReasonCode,
     EmailDispatchState,
     EmailDelivery,
     OrganizationDeletionNotice,
@@ -179,8 +178,9 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
             .filter(pk=reference.run_id, job__closed_at__isnull=True)
             .first()
         )
+        emailEvent = RunEmailEvent(reference.event)
         if run is None or (
-            reference.event != RunEmailEvent.START and run.status != reference.event
+            emailEvent != RunEmailEvent.START and run.status != emailEvent
         ):
             return _mark_email_not_sent(
                 delivery, reasonCode=EmailReasonCode.RUN_NOT_ELIGIBLE
@@ -215,7 +215,7 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
                 delivery, reasonCode=EmailReasonCode.RUN_BUDGET_EXHAUSTED
             )
         emailMessage = build_run_email(
-            run, event=reference.event, recipient=delivery.recipient
+            run, event=emailEvent, recipient=delivery.recipient
         )
     elif delivery.email_type == EmailType.RUN_RECIPIENT_VERIFICATION:
         from .recipients import build_recipient_verification_email

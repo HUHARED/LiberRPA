@@ -10,8 +10,7 @@ from uuid import UUID
 
 from pydantic import Field
 
-from console_project.contracts import JsonRequest, JsonResponsePayload
-from organizations.contracts import PaginationResponse
+from console_project.contracts import JsonRequest, JsonResponsePayload, PaginationResponse
 from packages.contracts import RunConflictPolicy, RunSettings, RunSettingsResponse
 
 UuidValue = Annotated[UUID, Field(strict=False)]

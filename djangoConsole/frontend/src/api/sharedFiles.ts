@@ -4,20 +4,20 @@ import { getSha256, saveBlob } from "@/app/files";
 
 import { requestApi } from "./client";
 import { ApiError } from "./errors";
-import { isRecord, isNonnegativeInteger } from "./responses";
+import { isRecord, isNonnegativeInteger, parsePaginationResponse } from "./responses";
 
-import type {
-  FileDeleteResponse,
-  FileDownloadResponse,
-  FileInfoResponse,
-  FileListRequest,
-  FileListResponse,
-  FileUploadRequest,
-  FileUploadResponse,
+import {
+  ARR_FILE_UPLOAD_STATE,
+  type FileDeleteResponse,
+  type FileDownloadResponse,
+  type FileInfoResponse,
+  type FileListRequest,
+  type FileListResponse,
+  type FileUploadRequest,
+  type FileUploadResponse,
 } from "./generated/browserApi";
 
 const API_ROOT = "/shared-files/";
-const UPLOAD_STATES = ["receiving", "completed", "failed", "expired", "canceled"];
 const UUID_V4_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function rejectInvalidFileResponse(): never {
@@ -40,11 +40,12 @@ function isFileInfoResponse(value: unknown): value is FileInfoResponse {
   );
 }
 function parseFileUploadResponse(value: unknown): FileUploadResponse {
+  if (!isRecord(value)) return rejectInvalidFileResponse();
+  const strState = ARR_FILE_UPLOAD_STATE.find((state) => state === value.state);
   if (
-    !isRecord(value) ||
+    strState === undefined ||
     typeof value.upload_id !== "string" ||
     !UUID_V4_PATTERN.test(value.upload_id) ||
-    !UPLOAD_STATES.includes(String(value.state)) ||
     !isNonnegativeInteger(value.offset) ||
     !isNonnegativeInteger(value.size_bytes) ||
     value.offset > value.size_bytes ||
@@ -53,10 +54,18 @@ function parseFileUploadResponse(value: unknown): FileUploadResponse {
     value.chunk_bytes > 4 * 1024 * 1024 ||
     typeof value.expires_at !== "string" ||
     !(value.file === null || isFileInfoResponse(value.file)) ||
-    (value.state === "completed" && value.file === null)
+    (strState === "completed" && value.file === null)
   )
     return rejectInvalidFileResponse();
-  return value as unknown as FileUploadResponse;
+  return {
+    upload_id: value.upload_id,
+    state: strState,
+    offset: value.offset,
+    size_bytes: value.size_bytes,
+    chunk_bytes: value.chunk_bytes,
+    expires_at: value.expires_at,
+    file: value.file,
+  };
 }
 export async function getOrCreateFileRequestIdentity(
   userId: string,
@@ -84,23 +93,25 @@ export async function getSharedFiles(body: FileListRequest): Promise<FileListRes
     !value.files.every(isFileInfoResponse) ||
     !(value.department_path === null || typeof value.department_path === "string") ||
     !isRecord(value.usage) ||
-    ![
-      value.page,
-      value.page_size,
-      value.total_count,
-      value.total_pages,
-      value.usage.used_bytes,
-      value.usage.reserved_bytes,
-      value.usage.pending_cleanup_bytes,
-      value.usage.limit_bytes,
-      value.usage.max_file_bytes,
-    ].every(isNonnegativeInteger) ||
-    value.page === 0 ||
-    value.total_pages === 0 ||
-    value.page_size !== 50
+    !isNonnegativeInteger(value.usage.used_bytes) ||
+    !isNonnegativeInteger(value.usage.reserved_bytes) ||
+    !isNonnegativeInteger(value.usage.pending_cleanup_bytes) ||
+    !isNonnegativeInteger(value.usage.limit_bytes) ||
+    !isNonnegativeInteger(value.usage.max_file_bytes)
   )
     return rejectInvalidFileResponse();
-  return value as unknown as FileListResponse;
+  return {
+    files: value.files,
+    department_path: value.department_path,
+    usage: {
+      used_bytes: value.usage.used_bytes,
+      reserved_bytes: value.usage.reserved_bytes,
+      pending_cleanup_bytes: value.usage.pending_cleanup_bytes,
+      limit_bytes: value.usage.limit_bytes,
+      max_file_bytes: value.usage.max_file_bytes,
+    },
+    ...parsePaginationResponse(value),
+  };
 }
 export async function createSharedUpload(
   body: FileUploadRequest,

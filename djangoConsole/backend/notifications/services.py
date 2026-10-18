@@ -15,7 +15,8 @@ from django.db import transaction
 from accounts.models import User
 from accounts.browser_events import notify_browser_user
 from accounts.contracts import BrowserMessageType
-from organizations.models import Membership, DepartmentRole, DepartmentMembership
+from organizations.contracts import DepartmentRole
+from organizations.models import Membership, DepartmentMembership
 from organizations.permissions import (
     AccessChannel,
     get_authorized_departments,

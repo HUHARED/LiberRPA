@@ -17,7 +17,7 @@ from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 
 from console_project.contracts import JsonValue
-from packages.contracts import RunEmailSettings
+from packages.contracts import RunEmailTemplate, RunEmailSettings
 
 from .contracts import (
     INT_RUN_EMAIL_MAX_BYTES,
@@ -35,7 +35,7 @@ _RE_FIELD = re.compile(
 _RE_SUBJECT_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 _INT_MAX_SUBJECT_LENGTH = 256
 _INT_MAX_VALUE_DEPTH = 8
-_DICT_EVENT_KEY = {
+DICT_RUN_EMAIL_EVENT_KEY = {
     RunEmailEvent.START: "on_start",
     RunEmailEvent.COMPLETED: "on_completed",
     RunEmailEvent.ERROR: "on_error",
@@ -150,11 +150,8 @@ def validate_run_email(
         RunEmailEvent.COMPLETED: [],
         RunEmailEvent.ERROR: [],
     }
-    for event, strKey, template in (
-        (RunEmailEvent.START, "on_start", config.on_start),
-        (RunEmailEvent.COMPLETED, "on_completed", config.on_completed),
-        (RunEmailEvent.ERROR, "on_error", config.on_error),
-    ):
+    for event, strKey in DICT_RUN_EMAIL_EVENT_KEY.items():
+        template: RunEmailTemplate = getattr(config, strKey)
         strPrefix = f"settings.run_email.{strKey}"
         if (
             _RE_SUBJECT_CONTROL.search(template.subject) is not None
@@ -229,13 +226,13 @@ def _render_value(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
 
 
-def build_run_email(run: "Run", *, event: str, recipient: str) -> EmailMessage:
+def build_run_email(run: "Run", *, event: RunEmailEvent, recipient: str) -> EmailMessage:
     job = run.job
     jobRequest = job.request
     organization = jobRequest.organization
     zone = ZoneInfo(organization.default_time_zone)
     assignment = run.assignment
-    strEventKey = _DICT_EVENT_KEY[RunEmailEvent(event)]
+    strEventKey = DICT_RUN_EMAIL_EVENT_KEY[event]
     dictTemplate = job.run_snapshot["run_email"][strEventKey]
     dictDefault = DEFAULT_TEMPLATES[strEventKey]
     strSubject = dictTemplate["subject"] or dictDefault["subject"]

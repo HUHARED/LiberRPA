@@ -166,7 +166,7 @@
       :headers="ARR_HEADER"
       :items="recordPage?.records ?? []"
       :items-length="recordPage?.pagination.total_count ?? 0"
-      :items-per-page="recordPage?.pagination.page_size ?? 50"
+      :items-per-page="recordPage?.pagination.page_size ?? INT_LIST_PAGE_SIZE"
       :page="recordPage?.pagination.page ?? 1"
       :loading="boolLoading"
       :mobile-breakpoint="600"
@@ -267,9 +267,10 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { type AuditListFilters, getAuditList, getAuditFilterOptions } from "@/api/audit";
-import type {
-  AuditFilterOptionsResponse,
-  AuditListResponse,
+import {
+  INT_LIST_PAGE_SIZE,
+  type AuditFilterOptionsResponse,
+  type AuditListResponse,
 } from "@/api/generated/browserApi";
 
 import { AUDIT_CHANNEL_LABEL, ARR_AUDIT_RESULT, formatAuditLabel } from "@/app/audit";

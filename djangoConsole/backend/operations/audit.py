@@ -22,8 +22,10 @@ from organizations.models import (
     DepartmentMembership,
     InvitationDepartmentRole,
 )
+from organizations.permissions import AccessChannel
 
-from .models import AuditScope, AuditChannel, AuditResult, AuditRecord
+from .contracts import AuditChannel, AuditResult, AuditStage
+from .models import AuditScope, AuditRecord
 
 _INT_MAX_OBJECT_NAME_LENGTH = cast(
     models.CharField, AuditRecord._meta.get_field("object_name")
@@ -144,7 +146,7 @@ def _bound_details(details: dict[str, object]) -> dict[str, object]:
     if len(strDetails.encode("utf-8")) > _INT_MAX_DETAIL_BYTES:
         # Large role/member changes keep field names and an explicit omission marker.
         return {
-            "stage": details.get("stage", "operation"),
+            "stage": details.get("stage", AuditStage.OPERATION),
             "changed_fields": list(cast(dict, details.get("changes", {}))),
             "details_omitted": True,
         }
@@ -158,7 +160,7 @@ def _build_audit_record(
     actor: User | None,
     organization: Organization | None,
     target: models.Model,
-    channel: str = AuditChannel.SESSION,
+    channel: AuditChannel | AccessChannel = AuditChannel.SESSION,
     before: dict[str, object] | None = None,
     scope: AuditScope | None = None,
     metadata: dict[str, object] | None = None,
@@ -209,7 +211,7 @@ def _build_audit_record(
         else getattr(target, "department_id", None),
         result=AuditResult.SUCCEEDED,
         details=_bound_details({
-            "stage": "operation",
+            "stage": AuditStage.OPERATION,
             "changes": dictChange,
             **({"metadata": metadata} if metadata else {}),
         }),
@@ -223,7 +225,7 @@ def record_audit(
     actor: User | None,
     organization: Organization | None,
     target: models.Model,
-    channel: str = AuditChannel.SESSION,
+    channel: AuditChannel | AccessChannel = AuditChannel.SESSION,
     before: dict[str, object] | None = None,
     scope: AuditScope | None = None,
     metadata: dict[str, object] | None = None,
@@ -249,7 +251,7 @@ def record_audit_batch(
     actor: User | None,
     organization: Organization | None,
     targets: Iterable[models.Model],
-    channel: str = AuditChannel.SESSION,
+    channel: AuditChannel | AccessChannel = AuditChannel.SESSION,
 ) -> None:
     """Preserve one audit record per target without one database write per target."""
     listAuditRecord = []

@@ -5,22 +5,22 @@ import { getSha256, saveBlob } from "@/app/files";
 import { requestApi } from "./client";
 import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./responses";
 import { isRunSettings, cloneRunSettings, type RunSettings } from "./runSettings";
-import type {
-  PackageListEntryResponse,
-  PackageOptionEntryResponse,
-  PackageResponse,
-  PackageDetailsResponse,
-  PackageProjectGroupResponse,
-  PackageProjectGroupEntryResponse,
-  PackageProjectGroupListResponse,
-  ProjectPackageEntryResponse,
-  ProjectPackageListResponse,
-  PackageUploadResponse,
-  PackageReferenceResponse,
-  PackagePreparationResponse,
-  PackageReferenceKind as PackageReferenceKindValue,
-  PackagePreparationState as PackagePreparationStateValue,
-  PackageUploadState as PackageUploadStateValue,
+import {
+  type PackageListEntryResponse,
+  type PackageOptionEntryResponse,
+  type PackageResponse,
+  type PackageDetailsResponse,
+  type PackageProjectGroupResponse,
+  type PackageProjectGroupEntryResponse,
+  type PackageProjectGroupListResponse,
+  type ProjectPackageEntryResponse,
+  type ProjectPackageListResponse,
+  type PackageUploadResponse,
+  type PackageReferenceResponse,
+  type PackagePreparationResponse,
+  PackageReferenceKind,
+  PackagePreparationState,
+  PackageUploadState,
 } from "./generated/browserApi";
 
 export type PackageListEntry = PackageListEntryResponse;
@@ -34,34 +34,13 @@ export type ProjectPackagePage = ProjectPackageListResponse;
 export type PackageReference = PackageReferenceResponse;
 export type PackagePreparation = PackagePreparationResponse;
 export type PackageUpload = PackageUploadResponse;
-export type PackageReferenceKind = PackageReferenceKindValue;
-export const PackageReferenceKind = {
-  Schedule: "schedule",
-  Job: "job",
-  Preparation: "preparation",
-  Download: "download",
-} as const satisfies Record<string, PackageReferenceKind>;
+export type { PackageReferenceKind, PackagePreparationState, PackageUploadState };
 export const PACKAGE_REFERENCE_LABELS: Record<PackageReferenceKind, string> = {
   schedule: "Schedule",
   job: "Job",
   preparation: "Preparation Request",
   download: "Download",
 };
-export type PackagePreparationState = PackagePreparationStateValue;
-export const PackagePreparationState = {
-  Pending: "pending",
-  Preparing: "preparing",
-  Ready: "ready",
-  Failed: "failed",
-} as const satisfies Record<string, PackagePreparationState>;
-export type PackageUploadState = PackageUploadStateValue;
-export const PackageUploadState = {
-  Receiving: "receiving",
-  Completed: "completed",
-  Failed: "failed",
-  Expired: "expired",
-  Canceled: "canceled",
-} as const satisfies Record<string, PackageUploadState>;
 
 function isPackageListEntry(value: unknown): value is PackageListEntry {
   return (

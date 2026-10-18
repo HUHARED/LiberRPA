@@ -7,11 +7,12 @@ import { isDeepStrictEqual } from "node:util";
 import { compile } from "json-schema-to-typescript";
 
 const strFrontendPath = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-// The Python entry point sends the current backend schema through standard input.
+// The Python entry point sends the backend schema and shared constants through standard input.
 process.stdin.setEncoding("utf8");
-let strSchema = "";
-for await (const strChunk of process.stdin) strSchema += strChunk;
-const dictSchema = JSON.parse(strSchema);
+let strInput = "";
+for await (const strChunk of process.stdin) strInput += strChunk;
+const dictInput = JSON.parse(strInput);
+const dictSchema = dictInput.schema;
 const dictDefinitions = dictSchema.$defs ?? {};
 const dictJsonValueInput = dictDefinitions["JsonValue-Input"];
 const dictJsonValueOutput = dictDefinitions["JsonValue-Output"];
@@ -65,4 +66,67 @@ const strTypes = await compile(dictSchema, "BrowserApiContracts", {
   // The schema is self-contained; generation never resolves network or filesystem references.
   $refOptions: { resolve: { external: false } },
 });
-process.stdout.write(strTypes);
+const dictRunSettingProperty = dictDefinitions.RunSettings.properties;
+const arrConstant = [
+  `export const INT_LIST_PAGE_SIZE = ${dictInput.list_page_size};`,
+  `export const INT_MAX_RETRY_COUNT = ${dictRunSettingProperty.max_retry_count.maximum};`,
+  `export const INT_MAX_TIMEOUT_MIN = ${dictRunSettingProperty.timeout_min.maximum};`,
+];
+for (const [strConstantName, strEnumName] of [
+  ["ARR_CONFLICT_POLICY", "RunConflictPolicy"],
+  ["ARR_PRIORITY", "RunPriority"],
+  ["ARR_LOG_LEVEL", "RunLogLevel"],
+  ["ARR_ASSET_TYPE_VALUE", "AssetType"],
+  ["ARR_ORDINARY_ASSET_TYPE", "OrdinaryAssetType"],
+  ["ARR_ASSET_REFERENCE_KIND", "AssetReferenceKind"],
+  ["ARR_QUEUE_ITEM_STATUS", "QueueItemStatus"],
+  ["ARR_QUEUE_ITEM_FILTER_STATUS", "QueueItemFilterStatus"],
+  ["ARR_QUEUE_ITEM_ORDER", "QueueItemOrder"],
+  ["ARR_EXECUTOR_ASSOCIATION_STATUS", "ExecutorAssociationStatus"],
+  ["ARR_JOB_SOURCE", "JobSource"],
+  ["ARR_FILE_UPLOAD_STATE", "UploadState"],
+  ["ARR_AUDIT_CHANNEL", "AuditChannel"],
+  ["ARR_AUDIT_RESULT_VALUE", "AuditResult"],
+  ["ARR_AUDIT_STAGE", "AuditStage"],
+  ["ARR_DEPARTMENT_ROLE", "DepartmentRole"],
+  ["ARR_INVITATION_STATUS", "InvitationStatus"],
+  ["ARR_DEPARTMENT_DELETION_BLOCKER_CODE", "DepartmentDeletionBlockerCode"],
+  ["ARR_API_KEY_STATUS", "ApiKeyStatus"],
+  ["ARR_EMAIL_STATUS", "EmailStatus"],
+  ["ARR_EMAIL_REASON_CODE", "EmailReasonCode"],
+]) {
+  const strEnumValue = dictDefinitions[strEnumName].enum
+    .map((value) => `  ${JSON.stringify(value)},`)
+    .join("\n");
+  arrConstant.push(
+    `export const ${strConstantName} = [\n${strEnumValue}\n] as const satisfies readonly ${strEnumName}[];`,
+  );
+}
+for (const strEnumName of [
+  "DepartmentRole",
+  "RunEmailRecipientStatus",
+  "PackageReferenceKind",
+  "PackagePreparationState",
+  "PackageUploadState",
+  "JobState",
+  "RunStatus",
+  "RunEventKind",
+  "OutputsStatus",
+  "RecordingStatus",
+  "RunFileKind",
+  "BrowserMessageType",
+]) {
+  const strMember = dictDefinitions[strEnumName].enum
+    .map((value) => {
+      const strName = value
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join("");
+      return `  ${strName}: ${JSON.stringify(value)},`;
+    })
+    .join("\n");
+  arrConstant.push(
+    `export const ${strEnumName} = {\n${strMember}\n} as const satisfies Record<string, ${strEnumName}>;`,
+  );
+}
+process.stdout.write(`${strTypes}\n${arrConstant.join("\n")}\n`);

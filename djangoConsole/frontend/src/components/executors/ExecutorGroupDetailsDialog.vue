@@ -107,9 +107,7 @@
             <v-data-table
               :headers="ARR_MEMBER_HEADER"
               :items="groupInfo.members"
-              :items-per-page="50"
-              :items-per-page-options="[50]"
-              :hide-default-footer="groupInfo.members.length <= 50"
+              :hide-default-footer="groupInfo.members.length <= INT_LIST_PAGE_SIZE"
               :mobile-breakpoint="600"
               item-value="id"
               disable-sort>
@@ -252,11 +250,12 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { getExecutorGroupDetails, deleteExecutorGroup } from "@/api/executorGroups";
-import type {
-  ExecutorGroupRecordResponse,
-  ExecutorGroupDetailsEntryResponse,
-  ExecutorGroupWriteResponse,
-  ExecutorGroupWarningResponse,
+import {
+  INT_LIST_PAGE_SIZE,
+  type ExecutorGroupRecordResponse,
+  type ExecutorGroupDetailsEntryResponse,
+  type ExecutorGroupWriteResponse,
+  type ExecutorGroupWarningResponse,
 } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
