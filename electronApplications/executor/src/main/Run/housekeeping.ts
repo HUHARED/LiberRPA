@@ -5,15 +5,18 @@ import { dictConfigExecutor } from "../Config/executorConfig";
 import { loggerMain } from "../Logging/logger";
 import {
   deleteExpiredRunLogs,
-  enforceVideoStorageLimit,
   deleteExpiredRunVideos,
+  enforceVideoStorageLimit,
 } from "./logCleanup";
 
 const INT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 let timerCleanup: NodeJS.Timeout | undefined;
+let promiseCleanup: Promise<void> | undefined;
 
 function runHousekeeping(): void {
+  if (promiseCleanup !== undefined) return;
+
   if (
     !dictConfigExecutor.logRetentionEnabled &&
     !dictConfigExecutor.videoRetentionEnabled &&
@@ -23,19 +26,23 @@ function runHousekeeping(): void {
     return;
   }
 
-  try {
-    if (dictConfigExecutor.logRetentionEnabled) {
-      deleteExpiredRunLogs(dictConfigExecutor.logRetentionDays);
+  promiseCleanup = (async () => {
+    try {
+      if (dictConfigExecutor.logRetentionEnabled) {
+        await deleteExpiredRunLogs(dictConfigExecutor.logRetentionDays);
+      }
+      if (dictConfigExecutor.videoRetentionEnabled) {
+        await deleteExpiredRunVideos(dictConfigExecutor.videoRetentionDays);
+      }
+      if (dictConfigExecutor.videoStorageLimitEnabled) {
+        await enforceVideoStorageLimit(dictConfigExecutor.videoStorageLimitGiB);
+      }
+    } catch (e: unknown) {
+      loggerMain.error(`Run housekeeping failed: ${getErrorMessage(e)}`);
     }
-    if (dictConfigExecutor.videoRetentionEnabled) {
-      deleteExpiredRunVideos(dictConfigExecutor.videoRetentionDays);
-    }
-    if (dictConfigExecutor.videoStorageLimitEnabled) {
-      enforceVideoStorageLimit(dictConfigExecutor.videoStorageLimitGiB);
-    }
-  } catch (e: unknown) {
-    loggerMain.error(`Run housekeeping failed: ${getErrorMessage(e)}`);
-  }
+  })().finally(() => {
+    promiseCleanup = undefined;
+  });
 }
 
 export function startRunHousekeeping(): void {
@@ -47,11 +54,10 @@ export function startRunHousekeeping(): void {
   timerCleanup = setInterval(runHousekeeping, INT_CLEANUP_INTERVAL_MS);
 }
 
-export function stopRunHousekeeping(): void {
-  if (timerCleanup === undefined) {
-    return;
+export async function stopRunHousekeeping(): Promise<void> {
+  if (timerCleanup !== undefined) {
+    clearInterval(timerCleanup);
+    timerCleanup = undefined;
   }
-
-  clearInterval(timerCleanup);
-  timerCleanup = undefined;
+  await promiseCleanup;
 }

@@ -86,17 +86,20 @@ function readPackageDeletionTransaction(
   };
 }
 
-function removeFolderBestEffort(strFolderPath: string, strContext: string): boolean {
+async function removeFolderBestEffort(
+  folderPath: string,
+  context: string,
+): Promise<boolean> {
   try {
-    fs.rmSync(strFolderPath, { recursive: true, force: true });
+    await fs.promises.rm(folderPath, { recursive: true, force: true });
     return true;
   } catch (e: unknown) {
-    loggerMain.warn(`${strContext}: ${getErrorMessage(e)}`);
+    loggerMain.warn(`${context}: ${getErrorMessage(e)}`);
     return false;
   }
 }
 
-export function deleteInstalledPackage(packageId: number): void {
+export async function deleteInstalledPackage(packageId: number): Promise<void> {
   const dictPackage = dbSelectPackageDetailsById(packageId);
   if (dictPackage === undefined) {
     throw new Error(`Package not found: ${packageId}`);
@@ -170,7 +173,7 @@ export function deleteInstalledPackage(packageId: number): void {
     }
 
     if (boolRestored) {
-      removeFolderBestEffort(
+      await removeFolderBestEffort(
         strTransactionFolderPath,
         "Failed to clean rolled-back Package deletion transaction",
       );
@@ -182,7 +185,7 @@ export function deleteInstalledPackage(packageId: number): void {
     throw e;
   }
 
-  removeFolderBestEffort(
+  await removeFolderBestEffort(
     strTransactionFolderPath,
     "Failed to clean completed Package deletion transaction",
   );
@@ -191,7 +194,7 @@ export function deleteInstalledPackage(packageId: number): void {
   );
 }
 
-export function recoverPackageDeletions(): void {
+export async function recoverPackageDeletions(): Promise<void> {
   const strStagingRootPath = getDeleteStagingRootPath();
   if (!fs.existsSync(strStagingRootPath)) {
     return;
@@ -200,7 +203,7 @@ export function recoverPackageDeletions(): void {
   for (const entryObj of fs.readdirSync(strStagingRootPath, { withFileTypes: true })) {
     const strTransactionFolderPath = path.join(strStagingRootPath, entryObj.name);
     if (!entryObj.isDirectory()) {
-      removeFolderBestEffort(
+      await removeFolderBestEffort(
         strTransactionFolderPath,
         "Failed to remove invalid Package deletion staging entry",
       );
@@ -212,7 +215,7 @@ export function recoverPackageDeletions(): void {
       STR_TRANSACTION_FILE_NAME,
     );
     if (!fs.existsSync(strTransactionPath)) {
-      removeFolderBestEffort(
+      await removeFolderBestEffort(
         strTransactionFolderPath,
         "Failed to remove Package deletion staging folder without transaction",
       );
@@ -254,7 +257,7 @@ export function recoverPackageDeletions(): void {
           "Remove duplicate staged Package from deletion recovery: " +
             `${dictTransaction.projectName}-${dictTransaction.projectVersion}`,
         );
-        boolRecovered = removeFolderBestEffort(
+        boolRecovered = await removeFolderBestEffort(
           strStagedPackagePath,
           "Failed to remove duplicate staged Package during deletion recovery",
         );
@@ -274,7 +277,7 @@ export function recoverPackageDeletions(): void {
     }
 
     if (boolRecovered) {
-      removeFolderBestEffort(
+      await removeFolderBestEffort(
         strTransactionFolderPath,
         "Failed to clean recovered Package deletion transaction",
       );

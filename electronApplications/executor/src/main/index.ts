@@ -193,7 +193,8 @@ void app
       if (boolShutdownStarted) return;
       await cleanConsoleLogArchives();
       if (boolShutdownStarted) return;
-      recoverPackageDeletions();
+      await recoverPackageDeletions();
+      if (boolShutdownStarted) return;
       dbMarkUnfinishedRunsAfterRestart();
       recoverConsoleWorkAfterRestart();
       await cleanExecutorRunArguments((runId) => {
@@ -304,6 +305,7 @@ void app
   });
 
 async function shutdownExecutor(): Promise<void> {
+  const promiseHousekeeping = stopRunHousekeeping();
   stopRecoveredRunObservation();
   const promiseFileWorkers = stopFileWorkers();
   // Wait for startup recovery before closing storage or starting shutdown cleanup.
@@ -332,6 +334,7 @@ async function shutdownExecutor(): Promise<void> {
   await stopConsoleEvents();
   stopConsoleContextBridge();
   await stopConsoleAccount();
+  await promiseHousekeeping;
 
   try {
     closeDatabase();
@@ -357,7 +360,6 @@ app.on("before-quit", (event) => {
 
   boolShutdownStarted = true;
   beginRunShutdown();
-  stopRunHousekeeping();
   void shutdownExecutor();
 });
 

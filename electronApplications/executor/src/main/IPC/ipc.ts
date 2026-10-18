@@ -177,8 +177,8 @@ function createInvokeHandlerMap(ensureExecutorRunning: () => void): ExecutorInvo
       return dbSelectPackageBoundSchedules(packageId);
     },
 
-    deletePackage(packageId) {
-      deleteInstalledPackage(packageId);
+    async deletePackage(packageId) {
+      await deleteInstalledPackage(packageId);
     },
 
     // Schedules.

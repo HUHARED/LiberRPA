@@ -53,25 +53,25 @@ function canCleanRunRecording(logLocation: RunLogLocation): boolean {
   );
 }
 
-function deleteVideoFiles(logFolderPath: string): boolean {
+async function deleteVideoFiles(logFolderPath: string): Promise<boolean> {
   const strVideoFilePath = getExistingLogFilePath(logFolderPath, STR_VIDEO_FILE_NAME);
   const strSubtitleFilePath = getExistingLogFilePath(logFolderPath, STR_SUBTITLE_FILE_NAME);
 
   if (strVideoFilePath === undefined) {
     if (strSubtitleFilePath !== undefined) {
-      fs.unlinkSync(strSubtitleFilePath);
+      await fs.promises.unlink(strSubtitleFilePath);
     }
     return false;
   }
 
-  fs.unlinkSync(strVideoFilePath);
+  await fs.promises.unlink(strVideoFilePath);
   if (strSubtitleFilePath !== undefined) {
-    fs.unlinkSync(strSubtitleFilePath);
+    await fs.promises.unlink(strSubtitleFilePath);
   }
   return true;
 }
 
-export function deleteExpiredRunLogs(retentionDays: number): void {
+export async function deleteExpiredRunLogs(retentionDays: number): Promise<void> {
   const intCutoffMs = Date.now() - retentionDays * INT_MILLISECONDS_PER_DAY;
   const arrLogLocation = dbSelectLogFolderBefore(intCutoffMs);
 
@@ -79,17 +79,18 @@ export function deleteExpiredRunLogs(retentionDays: number): void {
     try {
       if (!canCleanRunRecording(logLocation)) continue;
       const strLogFolderPath = getExistingRunLogFolderPath(logLocation);
-      if (strLogFolderPath === undefined) {
-        loggerMain.debug(`No log folder: ${logLocation.log_path}`);
-      } else {
-        loggerMain.info(`Delete log folder: ${strLogFolderPath}`);
-        fs.rmSync(strLogFolderPath, { recursive: true });
-      }
-
+      // Stop pending uploads before deletion can expose a partial log directory.
       markConsoleLogsUnavailable(
         logLocation.run_id,
         "The local log retention period ended before upload completed.",
       );
+      if (strLogFolderPath === undefined) {
+        loggerMain.debug(`No log folder: ${logLocation.log_path}`);
+      } else {
+        loggerMain.info(`Delete log folder: ${strLogFolderPath}`);
+        await fs.promises.rm(strLogFolderPath, { recursive: true });
+      }
+
       dbUpdateNoLogFolderAndVideo(logLocation.id);
     } catch (e: unknown) {
       loggerMain.error(
@@ -99,7 +100,7 @@ export function deleteExpiredRunLogs(retentionDays: number): void {
   }
 }
 
-export function deleteExpiredRunVideos(retentionDays: number): void {
+export async function deleteExpiredRunVideos(retentionDays: number): Promise<void> {
   const intCutoffMs = Date.now() - retentionDays * INT_MILLISECONDS_PER_DAY;
   const arrLogLocation = dbSelectVideoBefore(intCutoffMs);
 
@@ -109,7 +110,7 @@ export function deleteExpiredRunVideos(retentionDays: number): void {
       const strLogFolderPath = getExistingRunLogFolderPath(logLocation);
       if (strLogFolderPath === undefined) {
         loggerMain.debug(`No log folder for video: ${logLocation.log_path}`);
-      } else if (deleteVideoFiles(strLogFolderPath)) {
+      } else if (await deleteVideoFiles(strLogFolderPath)) {
         loggerMain.info(`Deleted video and subtitle in folder: ${strLogFolderPath}`);
       } else {
         loggerMain.debug(`No video: ${strLogFolderPath}`);
@@ -124,7 +125,7 @@ export function deleteExpiredRunVideos(retentionDays: number): void {
   }
 }
 
-export function enforceVideoStorageLimit(storageLimitGiB: number): void {
+export async function enforceVideoStorageLimit(storageLimitGiB: number): Promise<void> {
   let floatTotalSizeGiB = 0;
   const arrLogLocation = dbSelectVideo();
 
@@ -143,7 +144,7 @@ export function enforceVideoStorageLimit(storageLimitGiB: number): void {
         STR_VIDEO_FILE_NAME,
       );
       if (strVideoFilePath === undefined) {
-        deleteVideoFiles(strLogFolderPath);
+        await deleteVideoFiles(strLogFolderPath);
         loggerMain.debug(`No video: ${strLogFolderPath}`);
         dbUpdateNoVideo(logLocation.id);
         continue;
@@ -156,7 +157,7 @@ export function enforceVideoStorageLimit(storageLimitGiB: number): void {
         continue;
       }
 
-      deleteVideoFiles(strLogFolderPath);
+      await deleteVideoFiles(strLogFolderPath);
       loggerMain.info(`Deleted video and subtitle in folder: ${strLogFolderPath}`);
       dbUpdateNoVideo(logLocation.id);
     } catch (e: unknown) {

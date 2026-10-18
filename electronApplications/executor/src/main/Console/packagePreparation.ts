@@ -186,7 +186,7 @@ async function preparePackageFiles(
       // Keep the final rename and registration in the same synchronous turn.
       dbSaveConsolePackage(strFolderName, packageInfo.packageId);
     } catch (e: unknown) {
-      fs.rmSync(packagePath, { recursive: true, force: true });
+      fs.renameSync(packagePath, strStaging);
       throw e;
     }
   } finally {
