@@ -346,7 +346,9 @@ def list_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
             dictLog: dict[str, object] = {
                 "log_id": str(log.log_id),
                 "sequence": log.sequence,
-                "timestamp": log.timestamp.isoformat(),
+                "timestamp": log.timestamp.astimezone(UTC).isoformat(
+                    timespec="milliseconds"
+                ),
                 "received_at": log.received_at.isoformat(),
                 "level": log.level,
                 "user_name": log.user_name,
