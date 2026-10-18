@@ -38,7 +38,7 @@ from operations.audit import record_audit
 from organizations.permissions import OrganizationAccessContext
 from organizations.validators import get_path_name_key
 
-from .archive import read_package_archive
+from .archive import PackageArchiveMetadata, read_package_archive
 from .cleanup import expire_uploads
 from .contracts import (
     PackageReferenceKind,
@@ -72,7 +72,7 @@ class PackageUploadValidationResult:
     sizeBytes: int
     sha256: str
     fileSignature: tuple[int, int, int, int]
-    metadata: dict
+    metadata: PackageArchiveMetadata
 
 
 def create_upload(
@@ -312,8 +312,8 @@ def complete_upload(
                 "The uploaded content changed during validation. Upload the Package again.",
             )
         metadata = validationResult.metadata
-        strNameKey = get_path_name_key(metadata["project_name"])
-        strVersionKey = get_path_name_key(metadata["project_version"])
+        strNameKey = get_path_name_key(metadata.projectName)
+        strVersionKey = get_path_name_key(metadata.projectVersion)
         if Package.objects.filter(
             department_id=upload.department_id,
             project_name_key=strNameKey,
@@ -331,20 +331,30 @@ def complete_upload(
         StoredBlob.objects.filter(pk=blobId).update(state=StoredBlobState.GARBAGE)
         return e
 
-    package = Package.objects.create(
+    package = Package(
         department_id=upload.department_id,
+        project_name=metadata.projectName,
         project_name_key=strNameKey,
+        project_version=metadata.projectVersion,
         project_version_key=strVersionKey,
+        description=metadata.description,
+        version_summary=metadata.versionSummary,
+        requires_liberrpa=metadata.requiresLiberrpa,
+        component_dependencies=metadata.componentDependencies,
+        argument_names=[entry[0] for entry in metadata.runSettings.custom_prj_args],
         blob_id=upload.blob_id,
         uploaded_by_id=access.actorId,
         uploaded_by_name=str(access.actor),
-        **metadata,
     )
+    apply_run_settings(package, metadata.runSettings)
+    package.save(force_insert=True)
     StoredBlob.objects.filter(pk=upload.blob_id).update(
         state=StoredBlobState.AVAILABLE, written_bytes=upload.size_bytes
     )
     upload.state = PackageUploadState.COMPLETED
-    upload.result = build_package_payload(package, access)
+    upload.result = build_package_payload(
+        package, access, runSettings=metadata.runSettings
+    )
     upload.save(update_fields=["state", "result"])
     record_audit(
         "packages.upload",

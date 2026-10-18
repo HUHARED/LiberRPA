@@ -8,6 +8,7 @@ import json
 import stat
 import zipfile
 import zlib
+from dataclasses import dataclass
 from typing import BinaryIO
 from uuid import UUID
 
@@ -28,9 +29,21 @@ from .contracts import (
 _INT_MAX_ENTRY_COUNT = 20000
 _INT_MAX_EXPANDED_BYTES = 2 * 1024**3
 _INT_MAX_METADATA_BYTES = 2 * 1024**2
+_ROOT_JSON_NAMES = ("flow.json", ".liberrpa-package.json", "project.flow")
 
 
-def _parse_root_json(archive: zipfile.ZipFile, name: str) -> dict:
+@dataclass(frozen=True)
+class PackageArchiveMetadata:
+    projectName: str
+    projectVersion: str
+    description: str
+    versionSummary: str
+    requiresLiberrpa: str
+    componentDependencies: dict[str, str]
+    runSettings: RunSettings
+
+
+def _parse_root_json(archive: zipfile.ZipFile, name: str) -> dict[str, object]:
     def reject_nonfinite_number(_value: str) -> None:
         raise ValueError("JSON numbers must be finite.")
 
@@ -40,8 +53,11 @@ def _parse_root_json(archive: zipfile.ZipFile, name: str) -> dict:
         raise ValidationError(f"The Package must contain {name} at its root.") from None
     if entry.file_size > _INT_MAX_METADATA_BYTES:
         raise ValidationError(f"{name} exceeds the 2 MiB metadata limit.")
+    content = archive.read(entry)
+    if len(content) != entry.file_size:
+        raise ValidationError("A ZIP entry has an inconsistent size.")
     value = json.loads(
-        archive.read(entry).decode("utf-8-sig"),
+        content.decode("utf-8-sig"),
         parse_constant=reject_nonfinite_number,
     )
     if not isinstance(value, dict):
@@ -98,7 +114,7 @@ def _normalize_version_specifier(value: object, label: str) -> str:
     return ",".join(sorted(dictSpecifier, key=lambda strItem: dictSpecifier[strItem]))
 
 
-def _read_metadata(archive: zipfile.ZipFile) -> dict:
+def _read_metadata(archive: zipfile.ZipFile) -> PackageArchiveMetadata:
     def parse_component_dependencies(value: object) -> dict[str, str]:
         if not isinstance(value, dict):
             raise ValidationError("componentDependencies must be an object.")
@@ -114,9 +130,9 @@ def _read_metadata(archive: zipfile.ZipFile) -> dict:
             )
         return dict(sorted(dictDependency.items()))
 
-    flow = _parse_root_json(archive, "flow.json")
-    manifest = _parse_root_json(archive, ".liberrpa-package.json")
-    project = _parse_root_json(archive, "project.flow")
+    flow, manifest, project = (
+        _parse_root_json(archive, strName) for strName in _ROOT_JSON_NAMES
+    )
     if (
         set(flow)
         != {
@@ -159,39 +175,34 @@ def _read_metadata(archive: zipfile.ZipFile) -> dict:
     strName = _require_text(flow["name"], "project name")
     strVersion = str(Version(_require_text(flow["version"], "version")))
     validate_windows_name(f"{strName}_{strVersion}.rpa.zip")
-    runSettings = RunSettings(
-        builtin_log_level=project["logLevel"],
-        builtin_record_video=project["recordVideo"],
-        builtin_stop_shortcut=project["stopShortcut"],
-        builtin_highlight_ui=project["highlightUi"],
-        custom_prj_args=project["customPrjArgs"],
-    )
-    return {
-        "project_name": strName,
-        "project_version": strVersion,
-        "description": _require_text(
+    runSettings = RunSettings.model_validate({
+        "builtin_log_level": project["logLevel"],
+        "builtin_record_video": project["recordVideo"],
+        "builtin_stop_shortcut": project["stopShortcut"],
+        "builtin_highlight_ui": project["highlightUi"],
+        "custom_prj_args": project["customPrjArgs"],
+    })
+    return PackageArchiveMetadata(
+        projectName=strName,
+        projectVersion=strVersion,
+        description=_require_text(
             flow["description"], "description", INT_DESCRIPTION_MAX_LENGTH, True, False
         ),
-        "version_summary": _require_text(
+        versionSummary=_require_text(
             manifest["versionSummary"],
             "version summary",
             INT_VERSION_SUMMARY_MAX_LENGTH,
             True,
         ),
-        "requires_liberrpa": _normalize_version_specifier(
+        requiresLiberrpa=_normalize_version_specifier(
             flow["requiresLiberrpa"], "requiresLiberrpa"
         ),
-        "component_dependencies": parse_component_dependencies(
-            flow["componentDependencies"]
-        ),
-        "argument_names": [
-            listArgument[0] for listArgument in runSettings.custom_prj_args
-        ],
-        **runSettings.model_dump(mode="json"),
-    }
+        componentDependencies=parse_component_dependencies(flow["componentDependencies"]),
+        runSettings=runSettings,
+    )
 
 
-def read_package_archive(handle: BinaryIO) -> dict:
+def read_package_archive(handle: BinaryIO) -> PackageArchiveMetadata:
     """Validate the uploaded archive once without extracting its executable files."""
     try:
         with zipfile.ZipFile(handle) as archive:
@@ -234,8 +245,11 @@ def read_package_archive(handle: BinaryIO) -> dict:
                     raise ValidationError(
                         "The Package exceeds its uncompressed size limit."
                     )
-            # Read each archive entry in chunks to check its CRC and size without keeping the whole uncompressed file in memory.
+            metadata = _read_metadata(archive)
+            # Root JSON files already passed CRC and size checks; scan the remaining entries in chunks.
             for entry in listEntry:
+                if entry.filename in _ROOT_JSON_NAMES:
+                    continue
                 intReadBytes = 0
                 with archive.open(entry) as entryHandle:
                     while chunk := entryHandle.read(1024 * 1024):
@@ -246,7 +260,7 @@ def read_package_archive(handle: BinaryIO) -> dict:
                             )
                 if intReadBytes != entry.file_size:
                     raise ValidationError("A ZIP entry has an inconsistent size.")
-            return _read_metadata(archive)
+            return metadata
     except (zlib.error, EOFError):
         raise ValidationError(
             "The Package archive contains damaged or incomplete data."
