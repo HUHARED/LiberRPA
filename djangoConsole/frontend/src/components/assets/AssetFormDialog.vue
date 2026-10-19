@@ -116,6 +116,8 @@
               v-if="strAssetType === 'boolean'"
               v-model="boolValue"
               :label="`Value: ${boolValue}`"
+              true-icon="mdi-check"
+              false-icon="mdi-close"
               color="primary"
               :readonly="!boolCanEditValue"
               :disabled="boolSaving" />

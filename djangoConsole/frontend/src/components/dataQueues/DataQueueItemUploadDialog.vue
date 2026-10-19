@@ -38,6 +38,7 @@
             <v-switch
               v-model="boolHasHeader"
               label="First Row Is Header"
+              true-icon="mdi-table-row"
               color="primary"
               :disabled="boolSaving" />
 

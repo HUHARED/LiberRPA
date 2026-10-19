@@ -227,6 +227,7 @@
           <v-switch
             v-model="packageProjectStore.publishToConsole"
             label="Publish to Console"
+            true-icon="mdi-cloud-upload-outline"
             color="primary"
             :disabled="projectManagerStore.busy || packageCreated"
             hide-details

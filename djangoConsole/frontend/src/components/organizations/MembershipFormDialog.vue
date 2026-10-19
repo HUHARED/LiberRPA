@@ -70,6 +70,7 @@
           <v-switch
             v-model="boolOrgAdmin"
             label="OrgAdmin"
+            true-icon="mdi-shield-account-outline"
             color="primary"
             :disabled="boolSaving"
             :error-messages="saveError?.fields.is_org_admin ?? []" />

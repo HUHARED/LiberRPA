@@ -54,6 +54,7 @@
           <v-switch
             v-model="boolOverwrite"
             label="Overwrite Existing File"
+            true-icon="mdi-file-replace-outline"
             color="primary"
             :disabled="boolLocked"
             hide-details

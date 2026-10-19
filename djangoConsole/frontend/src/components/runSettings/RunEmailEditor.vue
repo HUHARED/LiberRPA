@@ -49,6 +49,7 @@
             getFieldErrors(fieldErrors, `settings.run_email.${event.key}.enabled`)
           "
           :label="event.title"
+          true-icon="mdi-email-outline"
           :disabled="disabled"
           :readonly="readonly" />
 
