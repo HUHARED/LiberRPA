@@ -68,8 +68,11 @@ interface ConsoleStartPermit {
   monotonicDeadlineMs: number;
 }
 
+class ConsoleWorkCanceledError extends Error {}
 class ConsoleStartConflictError extends Error {}
 
+const INT_MIN_PACKAGE_RETRY_MS = 5000;
+const INT_MAX_PACKAGE_RETRY_MS = 30_000;
 const INT_MIN_PERMIT_RETRY_MS = 2000;
 const INT_MAX_PERMIT_RETRY_MS = 30_000;
 const setStoppedAssignment = new Set<string>();
@@ -83,6 +86,7 @@ let boolStopped = true;
 let boolWorkRequested = false;
 let boolContactFailureLogged = false;
 let boolPreparationRefresh = false;
+let intPreparationRetryDelayMs = INT_MIN_PACKAGE_RETRY_MS;
 let intRetryDelayMs = 2000;
 let floatWorkRetryAt = 0;
 let strWorkRetrySessionKey: string | undefined;
@@ -156,20 +160,40 @@ function parseRunAssignment(assignment: ConsoleAssignmentData): ConsoleAssignmen
   };
 }
 
-function ensureWorkMayStart(
-  record: ConsoleWorkRecord,
+function ensureConsoleWorkMayContinue(
   credential: ConsoleCredentialSnapshot,
+  record?: ConsoleWorkRecord,
 ): void {
   const currentCredential = getConsolePythonCredential();
-  if (boolStopped || setStoppedAssignment.has(record.assignment.id))
-    throw new Error("Console canceled this assignment before launch.");
+  if (boolStopped || (record && setStoppedAssignment.has(record.assignment.id)))
+    throw new ConsoleWorkCanceledError("Console canceled this work before launch.");
   if (
     !currentCredential ||
     getConsoleWorkSessionKey(currentCredential) !== getConsoleWorkSessionKey(credential)
   )
-    throw new Error("The original Console account is no longer associated.");
+    throw new ConsoleWorkCanceledError(
+      "The original Console account is no longer associated.",
+    );
   if (getConsoleAccountState().connection === ConsoleConnection.AccessUnavailable)
-    throw new Error("Console access is unavailable. This Run cannot start.");
+    throw new ConsoleWorkCanceledError(
+      "Console access is unavailable. This work cannot continue.",
+    );
+}
+
+async function waitForPackageRetry(
+  delayMs: number,
+  ensureMayContinue: () => void,
+): Promise<void> {
+  const floatRetryAt = performance.now() + delayMs;
+  while (true) {
+    ensureMayContinue();
+    const floatRemainingMs = floatRetryAt - performance.now();
+    if (floatRemainingMs <= 0) return;
+    // Check local cancellation without sending requests during the server's retry delay.
+    await new Promise<void>((resolve) =>
+      setTimeout(resolve, Math.min(floatRemainingMs, 1000)),
+    );
+  }
 }
 
 function validateStartPermitTime(permit: ConsoleStartPermit, startedAt: string): void {
@@ -222,7 +246,7 @@ async function requestStartPermit(
       function checkPermitRetry(): void {
         clearTimeout(timer);
         try {
-          ensureWorkMayStart(record, credential);
+          ensureConsoleWorkMayContinue(credential, record);
         } catch (e: unknown) {
           checkRetry = undefined;
           reject(e);
@@ -253,7 +277,7 @@ async function requestStartPermit(
 
   try {
     while (true) {
-      ensureWorkMayStart(record, credential);
+      ensureConsoleWorkMayContinue(credential, record);
       boolWorkChanged = false;
       boolStateReported = false;
       const floatRequestedAt = performance.now();
@@ -342,18 +366,35 @@ async function prepareAndStartRun(
       project_name: strProjectName,
       project_version: strProjectVersion,
     };
-    const strPackagePath = await prepareConsolePackage(
-      {
-        packageId: assignment.package_id,
-        projectName: detail.project_name,
-        projectVersion: detail.project_version,
-        sha256: strSha256,
-      },
-      detail.python_environment_name,
-      credential,
-    );
+    let strPackagePath: string;
+    let intPackageRetryDelayMs = INT_MIN_PACKAGE_RETRY_MS;
+    while (true) {
+      ensureConsoleWorkMayContinue(credential, record);
+      try {
+        strPackagePath = await prepareConsolePackage(
+          {
+            packageId: assignment.package_id,
+            projectName: detail.project_name,
+            projectVersion: detail.project_version,
+            sha256: strSha256,
+          },
+          detail.python_environment_name,
+          credential,
+        );
+        break;
+      } catch (e: unknown) {
+        if (!(e instanceof ConsoleRequestError) || e.status !== 429) throw e;
+        await waitForPackageRetry(Math.max(intPackageRetryDelayMs, e.retryAfterMs), () =>
+          ensureConsoleWorkMayContinue(credential, record),
+        );
+        intPackageRetryDelayMs = Math.min(
+          intPackageRetryDelayMs * 2,
+          INT_MAX_PACKAGE_RETRY_MS,
+        );
+      }
+    }
     boolPrepared = true;
-    ensureWorkMayStart(record, credential);
+    ensureConsoleWorkMayContinue(credential, record);
     const permit = await requestStartPermit(record, credential);
     record.state = ConsoleWorkState.Permitted;
     saveConsoleWork(record);
@@ -365,7 +406,7 @@ async function prepareAndStartRun(
       packagePath: strPackagePath,
       emailOutputKeys,
       beforeSpawn(boolOtherRunActive, startedAt) {
-        ensureWorkMayStart(record, credential);
+        ensureConsoleWorkMayContinue(credential, record);
         validateStartPermitTime(permit, startedAt);
         if (
           detail.run_conflict_policy !== RunConflictPolicy.Concurrent &&
@@ -427,6 +468,7 @@ async function prepareAndStartRun(
         not_started_reason: ConsoleNotStartedReason.LocalConflict,
       };
     } else if (
+      e instanceof ConsoleWorkCanceledError ||
       boolStopped ||
       boolPrepared ||
       record.state === ConsoleWorkState.Permitted ||
@@ -454,7 +496,7 @@ async function prepareRequestedPackages(
   credential: ConsoleCredentialSnapshot,
 ): Promise<void> {
   for (const value of values) {
-    if (boolStopped) return;
+    ensureConsoleWorkMayContinue(credential);
     const request = ensureRecord(value, "Package preparation request");
     const strId = ensureNonEmptyString(request.preparation_id, "Preparation ID");
     const snapshot = ensureRecord(request.snapshot, "Preparation snapshot");
@@ -471,9 +513,24 @@ async function prepareRequestedPackages(
         credential,
       );
     } catch (e: unknown) {
+      ensureConsoleWorkMayContinue(credential);
+      if (e instanceof ConsoleRequestError && e.status === 429) {
+        const intDelayMs = Math.max(intPreparationRetryDelayMs, e.retryAfterMs);
+        intPreparationRetryDelayMs = Math.min(
+          intPreparationRetryDelayMs * 2,
+          INT_MAX_PACKAGE_RETRY_MS,
+        );
+        await waitForPackageRetry(intDelayMs, () =>
+          ensureConsoleWorkMayContinue(credential),
+        );
+        // Re-poll after waiting so canceled or changed preparations are not replayed.
+        boolPreparationRefresh = true;
+        return;
+      }
       strReason = getErrorMessage(e);
     }
-    if (boolStopped) return;
+    ensureConsoleWorkMayContinue(credential);
+    intPreparationRetryDelayMs = INT_MIN_PACKAGE_RETRY_MS;
     await requestConsole(
       credential.consoleUrl,
       `executor/packages/preparations/${encodeURIComponent(strId)}/complete/`,
@@ -552,6 +609,7 @@ async function syncConsoleWork(
       let retryError: unknown;
       promisePreparation = prepareRequestedPackages(response.preparations, credential)
         .catch((e: unknown) => {
+          if (e instanceof ConsoleWorkCanceledError) return;
           boolFailed = true;
           retryError = e;
           loggerMain.warn(`Console Package preparation: ${getErrorMessage(e)}`);
@@ -603,6 +661,7 @@ function updateConsoleWorkRetrySession(strSessionKey: string): void {
   clearTimeout(timerRetry);
   timerRetry = undefined;
   strWorkRetrySessionKey = strSessionKey;
+  intPreparationRetryDelayMs = INT_MIN_PACKAGE_RETRY_MS;
   floatWorkRetryAt = 0;
   intRetryDelayMs = 2000;
   boolContactFailureLogged = false;
@@ -671,6 +730,7 @@ function requestConsoleWork(error?: unknown): void {
 
 export function startConsoleWork(): void {
   boolStopped = false;
+  intPreparationRetryDelayMs = INT_MIN_PACKAGE_RETRY_MS;
   intRetryDelayMs = 2000;
   floatWorkRetryAt = 0;
   strWorkRetrySessionKey = undefined;

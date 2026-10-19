@@ -46,7 +46,10 @@ def build_package_error(e: Exception) -> JsonResponse:
             statusCode=404,
         )
     if isinstance(e, FileOperationError):
-        return build_error_response(e.code, str(e), statusCode=e.status)
+        response = build_error_response(e.code, str(e), statusCode=e.status)
+        if e.status == 429:
+            response["Retry-After"] = "5"
+        return response
     if isinstance(e, ProtectedError):
         return build_error_response(
             "package_in_use", "This Package still has active references.", statusCode=409

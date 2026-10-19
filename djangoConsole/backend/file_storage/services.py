@@ -132,6 +132,10 @@ def require_upload_slot(organizationId: uuid.UUID) -> None:
     from shared_files.contracts import UploadState
     from shared_files.models import UploadSession
 
+    if settings.CONSOLE_LIMITS.maxActiveUploadsPerOrganization == 0:
+        raise FileOperationError(
+            "uploads_disabled", "Uploads are disabled for this organization.", 403
+        )
     currentTime = timezone.now()
     intUploadCount = PackageUpload.objects.filter(
         organization_id=organizationId,
@@ -157,6 +161,10 @@ def require_download_slot(
     """Count reserved and streaming downloads under the caller's organization lock."""
     from runs.models import RunFileTransfer
 
+    if settings.CONSOLE_LIMITS.maxActiveDownloadsPerOrganization == 0:
+        raise FileOperationError(
+            "downloads_disabled", "Downloads are disabled for this organization.", 403
+        )
     _expire_downloads(organizationId, proxySnapshot)
     intDownloadCount = DownloadSession.objects.filter(
         organization_id=organizationId

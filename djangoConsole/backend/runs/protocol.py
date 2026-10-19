@@ -178,7 +178,9 @@ def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> Jso
     listStop = list(
         Assignment.objects
         .filter(
-            Q(stop_requested_at__isnull=False) | Q(job__stop_requested_at__isnull=False),
+            Q(stop_requested_at__isnull=False)
+            | Q(job__stop_requested_at__isnull=False)
+            | Q(state=AssignmentState.WITHDRAWN),
             session_id=session.id,
         )
         .exclude(state=AssignmentState.FINISHED)
