@@ -108,8 +108,8 @@ class LimitsConfig(_BaseConfig):
     maxSharedFilesPerOrganization: int = Field(default=5000, ge=0)
     maxSharedFileBytes: int = Field(default=20971520, ge=0, le=20971520)
     minStorageFreeBytes: int = Field(default=5368709120, ge=0)
-    maxActiveUploadsPerOrganization: int = Field(default=4, ge=0)
-    maxActiveDownloadsPerOrganization: int = Field(default=4, ge=0)
+    maxActiveUploadsPerOrganization: int = Field(default=20, ge=0)
+    maxActiveDownloadsPerOrganization: int = Field(default=20, ge=0)
     fileReceiptRetentionDays: int = Field(default=30, ge=30, le=3650)
     maxFileReceiptsPerOrganization: int = Field(default=100000, ge=1)
 
