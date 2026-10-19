@@ -61,6 +61,7 @@ from .queries import (
     get_matching_run_ids,
     list_work,
 )
+from .overview import list_current_runs, get_run_statistics
 from .admission import accept_request
 from .services import control_job
 
@@ -238,6 +239,24 @@ def update_job(
 def list_runs(request: HttpRequest, authentication: WorkAuthentication) -> JsonResponse:
     access = _get_access(request, authentication, write=False)
     return JsonResponse(list_work(access, request.GET, runs=True))
+
+
+@_work_view
+@require_GET
+def current_runs(
+    request: HttpRequest, authentication: WorkAuthentication
+) -> JsonResponse:
+    access = _get_access(request, authentication, write=False)
+    return JsonResponse(list_current_runs(access, request.GET))
+
+
+@_work_view
+@require_GET
+def run_statistics(
+    request: HttpRequest, authentication: WorkAuthentication
+) -> JsonResponse:
+    access = _get_access(request, authentication, write=False)
+    return JsonResponse(get_run_statistics(access, request.GET))
 
 
 @_work_view

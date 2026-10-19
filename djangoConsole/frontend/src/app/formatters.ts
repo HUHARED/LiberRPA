@@ -67,6 +67,13 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GiB`;
 }
 
+export function formatDuration(seconds: number): string {
+  const intSeconds = Math.max(0, Math.floor(seconds));
+  const intHours = Math.floor(intSeconds / 3600);
+  const intMinutes = Math.floor((intSeconds % 3600) / 60);
+  return `${intHours}h ${intMinutes}m ${intSeconds % 60}s`;
+}
+
 export function formatJsonValue(value: unknown): string {
   return JSON.stringify(value, null, 2) ?? "Unavailable";
 }

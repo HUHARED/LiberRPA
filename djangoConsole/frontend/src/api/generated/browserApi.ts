@@ -112,6 +112,8 @@ export type QueueItemStatus = "unclaimed" | "claimed";
 export type RecordingStatus = "recording" | "processing" | "ready" | "unavailable";
 export type RunEmailRecipientStatus = "member" | "verified" | "pending";
 export type RunFileKind = "logs" | "video" | "subtitles";
+export type RunEndedStatus =
+  "completed" | "error" | "canceled" | "timed_out" | "interrupted";
 
 export interface BrowserApiContracts {
   AccountAccessResponse: AccountAccessResponse;
@@ -134,6 +136,7 @@ export interface BrowserApiContracts {
   BrowserEventResponse: BrowserEventResponse;
   ClearLogsRequest: ClearLogsRequest;
   CsrfResponse: CsrfResponse;
+  CurrentRunListResponse: CurrentRunListResponse;
   DepartmentCreationRequest: DepartmentCreationRequest;
   DepartmentDeletionPreviewResponse: DepartmentDeletionPreviewResponse;
   DepartmentDeletionRequest: DepartmentDeletionRequest;
@@ -226,6 +229,7 @@ export interface BrowserApiContracts {
   RunLogListResponse: RunLogListResponse;
   RunRerunResponse: RunRerunResponse;
   RunSelectionResponse: RunSelectionResponse;
+  RunStatisticsResponse: RunStatisticsResponse;
   ScheduleDefaultsResponse: ScheduleDefaultsResponse;
   ScheduleDetailsResponse: ScheduleDetailsResponse;
   ScheduleEnabledRequest: ScheduleEnabledRequest;
@@ -462,6 +466,22 @@ export interface ClearLogsRequest {
 }
 export interface CsrfResponse {
   csrf_token: string;
+}
+export interface CurrentRunListResponse {
+  page: number;
+  page_size: number;
+  runs: CurrentRunResponse[];
+  total_count: number;
+  total_pages: number;
+  updated_at: string;
+}
+export interface CurrentRunResponse {
+  executor_id: string;
+  executor_name: string;
+  id: string;
+  project_name: string;
+  project_version: string;
+  started_at: string;
 }
 export interface DepartmentCreationRequest {
   name: string;
@@ -1554,6 +1574,39 @@ export interface RunRerunResponse {
 export interface RunSelectionResponse {
   run_ids: string[];
 }
+export interface RunStatisticsResponse {
+  daily: DailyRunStatisticsResponse[];
+  date_from: string;
+  date_until: string;
+  executors: ExecutorRunStatisticsListResponse;
+  results: RunResultCountResponse[];
+  time_zone: string;
+  total_count: number;
+  total_duration_seconds: number;
+  updated_at: string;
+}
+export interface DailyRunStatisticsResponse {
+  date: string;
+  results: RunResultCountResponse[];
+}
+export interface RunResultCountResponse {
+  count: number;
+  status: RunEndedStatus;
+}
+export interface ExecutorRunStatisticsListResponse {
+  entries: ExecutorRunStatisticsResponse[];
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
+}
+export interface ExecutorRunStatisticsResponse {
+  duration_seconds: number;
+  id: string;
+  name: string;
+  results: RunResultCountResponse[];
+  total_count: number;
+}
 export interface ScheduleDefaultsResponse {
   time_zone: string;
 }
@@ -1667,6 +1720,7 @@ export interface SessionRevocationRequest {
 }
 
 export const INT_LIST_PAGE_SIZE = 50;
+export const INT_MAX_RUN_STATISTICS_DAYS = 366;
 export const INT_MAX_RETRY_COUNT = 3;
 export const INT_MAX_TIMEOUT_MIN = 35791;
 export const ARR_CONFLICT_POLICY = [

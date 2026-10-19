@@ -108,9 +108,22 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
       },
       {
         path: "/overview",
-        name: "overview",
         component: () => import("../views/OverviewView.vue"),
         meta: { title: "Overview", requiresBusiness: true },
+        children: [
+          {
+            path: "",
+            name: "overview",
+            component: () => import("@/views/overview/CurrentRunsView.vue"),
+            meta: { title: "Overview" },
+          },
+          {
+            path: "analysis",
+            name: "overview-analysis",
+            component: () => import("@/views/overview/RunAnalysisView.vue"),
+            meta: { title: "Run Analysis" },
+          },
+        ],
       },
       {
         path: "/executors",

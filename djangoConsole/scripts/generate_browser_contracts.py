@@ -150,6 +150,8 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (runContracts.JobCreationResponse, "serialization"),
     (runContracts.RunDetailsResponse, "serialization"),
     (runContracts.RunListResponse, "serialization"),
+    (runContracts.CurrentRunListResponse, "serialization"),
+    (runContracts.RunStatisticsResponse, "serialization"),
     (runContracts.RunSelectionResponse, "serialization"),
     (runContracts.RunRerunResponse, "serialization"),
     (runContracts.RunLogListResponse, "serialization"),
@@ -212,6 +214,7 @@ def main() -> int:
                 {
                     "schema": _build_browser_contract_schema(),
                     "list_page_size": INT_LIST_PAGE_SIZE,
+                    "max_run_statistics_days": runContracts.INT_MAX_RUN_STATISTICS_DAYS,
                 },
                 sort_keys=True,
             ),

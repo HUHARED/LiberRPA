@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated, Literal, Self, cast
 
@@ -89,6 +89,9 @@ type RunEndedStatus = Literal[
     RunStatus.TIMED_OUT,
     RunStatus.INTERRUPTED,
 ]
+
+
+INT_MAX_RUN_STATISTICS_DAYS = 366
 
 
 class OutputsStatus(TextChoices):
@@ -457,6 +460,54 @@ class RunDetailsResponse(JsonResponsePayload):
 
 class RunListResponse(PaginationResponse):
     runs: list[RunResponse]
+
+
+class CurrentRunResponse(JsonResponsePayload):
+    id: uuid.UUID
+    project_name: str
+    project_version: str
+    executor_id: uuid.UUID
+    executor_name: str
+    started_at: datetime
+
+
+class CurrentRunListResponse(PaginationResponse):
+    runs: list[CurrentRunResponse]
+    updated_at: datetime
+
+
+class RunResultCountResponse(JsonResponsePayload):
+    status: RunEndedStatus
+    count: int = Field(ge=0)
+
+
+class DailyRunStatisticsResponse(JsonResponsePayload):
+    date: date
+    results: list[RunResultCountResponse]
+
+
+class ExecutorRunStatisticsResponse(JsonResponsePayload):
+    id: uuid.UUID
+    name: str
+    total_count: int = Field(ge=0)
+    duration_seconds: float = Field(ge=0)
+    results: list[RunResultCountResponse]
+
+
+class ExecutorRunStatisticsListResponse(PaginationResponse):
+    entries: list[ExecutorRunStatisticsResponse]
+
+
+class RunStatisticsResponse(JsonResponsePayload):
+    date_from: date
+    date_until: date
+    time_zone: str
+    updated_at: datetime
+    total_count: int = Field(ge=0)
+    total_duration_seconds: float = Field(ge=0)
+    results: list[RunResultCountResponse]
+    daily: list[DailyRunStatisticsResponse]
+    executors: ExecutorRunStatisticsListResponse
 
 
 class RunSelectionResponse(JsonResponsePayload):
