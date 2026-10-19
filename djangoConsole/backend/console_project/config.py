@@ -21,7 +21,10 @@ from pydantic import (
     StringConstraints,
     ValidationError,
     field_validator,
+    model_validator,
 )
+
+_LOOPBACK_HOSTS = ("localhost", "127.0.0.1", "[::1]")
 
 type NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 type SingleLineText = Annotated[
@@ -52,6 +55,11 @@ class DatabaseConfig(_BaseConfig):
     name: NonEmptyText
     user: NonEmptyText
     passwordFile: NonEmptyText
+
+
+class FileTransferProxyConfig(_BaseConfig):
+    host: NonEmptyText = "127.0.0.1"
+    port: int = Field(default=9999, ge=1, le=65535)
 
 
 class LimitsConfig(_BaseConfig):
@@ -176,11 +184,20 @@ class ConsoleConfig(_BaseConfig):
     encryptionKeyFiles: list[NonEmptyText] = Field(default_factory=list)
     storageRoot: NonEmptyText = "storage"
     database: DatabaseConfig
+    fileTransferProxy: FileTransferProxyConfig | None = None
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     consoleUrl: HttpUrl
     supportEmail: EmailAddress
     smtp: SmtpConfig
+
+    @model_validator(mode="after")
+    def require_file_transfer_proxy(self) -> "ConsoleConfig":
+        if self.fileTransferProxy is None and self.consoleUrl.host not in _LOOPBACK_HOSTS:
+            raise ValueError(
+                "File transfer proxy settings are required for a public Console URL."
+            )
+        return self
 
     @field_validator("consoleUrl")
     @classmethod
@@ -195,11 +212,7 @@ class ConsoleConfig(_BaseConfig):
             raise ValueError(
                 "Console URL must be a site root without credentials, a query, or a fragment."
             )
-        if consoleUrl.scheme != "https" and consoleUrl.host not in (
-            "localhost",
-            "127.0.0.1",
-            "[::1]",
-        ):
+        if consoleUrl.scheme != "https" and consoleUrl.host not in _LOOPBACK_HOSTS:
             raise ValueError(
                 "Console URL must use HTTPS, except on the local loopback host."
             )

@@ -22,6 +22,7 @@ from file_storage.models import (
     StoredBlob,
     DownloadSession,
 )
+from file_storage.proxy import DownloadProxySnapshot
 from file_storage.services import (
     FileOperationError,
     get_blob_path,
@@ -314,7 +315,7 @@ def validate_upload_content(
     path = get_blob_path(blobId)
     try:
         # Chunks are already durable; only a newly created empty file still needs syncing.
-        with (path.open("r+b") if upload.size_bytes == 0 else path.open("rb")) as handle:
+        with path.open("r+b") if upload.size_bytes == 0 else path.open("rb") as handle:
             fileStat = os.fstat(handle.fileno())
             if fileStat.st_size < upload.size_bytes:
                 return FileOperationError(
@@ -541,10 +542,12 @@ def delete_files(
 
 
 def prepare_download(
-    access: OrganizationAccessContext, pathParts: tuple[str, ...]
+    access: OrganizationAccessContext,
+    pathParts: tuple[str, ...],
+    proxySnapshot: DownloadProxySnapshot | None,
 ) -> FileDownloadResponse:
     file, strDepartmentPath = resolve_file(access, pathParts)
-    require_download_slot(access.organization.pk)
+    require_download_slot(access.organization.pk, proxySnapshot)
     physicalPath = get_blob_path(file.blob_id)
     if not physicalPath.is_file() or physicalPath.stat().st_size != file.blob.size_bytes:
         raise FileOperationError(

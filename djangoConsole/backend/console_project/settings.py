@@ -20,6 +20,7 @@ _PATH_CONFIG = Path(
 _CONSOLE_CONFIG = read_config(_PATH_CONFIG)
 
 CONSOLE_LIMITS = _CONSOLE_CONFIG.limits
+CONSOLE_FILE_TRANSFER_PROXY = _CONSOLE_CONFIG.fileTransferProxy
 CONSOLE_STORAGE_ROOT = (_PATH_CONFIG.parent / _CONSOLE_CONFIG.storageRoot).resolve()
 CONSOLE_SECRET_CIPHER = read_secret_cipher(
     _PATH_CONFIG.parent, _CONSOLE_CONFIG.encryptionKeyFiles

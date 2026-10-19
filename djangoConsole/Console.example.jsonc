@@ -31,6 +31,12 @@
     "passwordFile": "secrets/database-password.txt"
   },
 
+  // HAProxy Runtime API for download-slot cleanup; never expose this port publicly.
+  // For proxy testing or deployment, use { "host": "127.0.0.1", "port": 9999 }.
+  // null permits direct local development only, with a loopback consoleUrl.
+  // Global upload/download bandwidth is configured in haproxy.cfg.
+  "fileTransferProxy": null,
+
   // Required email settings. Replace the example addresses and SMTP host.
   // consoleUrl is the browser-facing site root, not the internal listening address.
   // Use HTTPS; HTTP is accepted only for localhost, 127.0.0.1, or [::1].

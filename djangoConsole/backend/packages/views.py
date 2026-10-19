@@ -20,6 +20,7 @@ from file_storage.http import (
     require_no_query_parameters,
     parse_upload_chunk,
 )
+from file_storage.proxy import get_download_proxy_snapshot
 from file_storage.services import FileOperationError, release_unstarted_download
 from file_storage.streaming import SyncFileStream, AsyncFileStream
 from organizations.access import get_department_access_info
@@ -291,10 +292,13 @@ def start_download(
     payload = _parse_request(request, EmptyRequest)
     if isinstance(payload, JsonResponse):
         return payload
+    proxySnapshot = get_download_proxy_snapshot()
     with transaction.atomic():
         access = lock_file_access(request, authentication)
         return JsonResponse(
-            prepare_download(access, get_package_query(access).get(pk=packageId)),
+            prepare_download(
+                access, get_package_query(access).get(pk=packageId), proxySnapshot
+            ),
             status=201,
         )
 

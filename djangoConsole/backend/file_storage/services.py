@@ -22,6 +22,7 @@ from django.utils import timezone
 from organizations.models import Organization
 
 from .models import StorageLock, StoredBlobState, StoredBlob, DownloadSession
+from .proxy import DownloadProxySnapshot, get_download_proxy_snapshot
 
 _TRANSFER_LEASE_SECONDS = 120
 _LOGGER = logging.getLogger("console.file_storage")
@@ -103,11 +104,25 @@ def get_storage_usage(organizationId: uuid.UUID) -> dict[str, int]:
     }
 
 
-def _expire_downloads(organizationId: uuid.UUID) -> None:
-    """Reclaim expired download leases while the caller holds the organization lock."""
-    DownloadSession.objects.filter(
-        organization_id=organizationId, expires_at__lte=timezone.now()
-    ).delete()
+def _expire_downloads(
+    organizationId: uuid.UUID, proxySnapshot: DownloadProxySnapshot | None
+) -> None:
+    """Reclaim expired downloads after their proxy streams have ended, under the organization lock."""
+    from runs.models import RunFileTransfer
+
+    # A snapshot must not remove transfers that started or ended after it was taken.
+    expiredAt = proxySnapshot.capturedAt if proxySnapshot is not None else timezone.now()
+    downloads = DownloadSession.objects.filter(
+        organization_id=organizationId, expires_at__lte=expiredAt
+    )
+    transfers = RunFileTransfer.objects.filter(
+        organization_id=organizationId, expires_at__lte=expiredAt
+    )
+    if proxySnapshot is not None:
+        downloads = downloads.exclude(pk__in=proxySnapshot.activeIds)
+        transfers = transfers.exclude(pk__in=proxySnapshot.activeIds)
+    downloads.delete()
+    transfers.delete()
 
 
 def require_upload_slot(organizationId: uuid.UUID) -> None:
@@ -136,14 +151,13 @@ def require_upload_slot(organizationId: uuid.UUID) -> None:
         )
 
 
-def require_download_slot(organizationId: uuid.UUID) -> None:
+def require_download_slot(
+    organizationId: uuid.UUID, proxySnapshot: DownloadProxySnapshot | None
+) -> None:
     """Count reserved and streaming downloads under the caller's organization lock."""
     from runs.models import RunFileTransfer
 
-    _expire_downloads(organizationId)
-    RunFileTransfer.objects.filter(
-        organization_id=organizationId, expires_at__lte=timezone.now()
-    ).delete()
+    _expire_downloads(organizationId, proxySnapshot)
     intDownloadCount = DownloadSession.objects.filter(
         organization_id=organizationId
     ).count()
@@ -165,9 +179,14 @@ def get_download_expiry() -> datetime:
 @transaction.atomic
 def release_download(transferId: uuid.UUID, organizationId: uuid.UUID) -> None:
     if Organization.objects.select_for_update().filter(pk=organizationId).exists():
-        DownloadSession.objects.filter(
+        downloads = DownloadSession.objects.filter(
             pk=transferId, organization_id=organizationId
-        ).delete()
+        )
+        if settings.CONSOLE_FILE_TRANSFER_PROXY is not None:
+            # The proxy may still be sending buffered bytes after the file closes.
+            downloads.update(expires_at=timezone.now())
+        else:
+            downloads.delete()
 
 
 def release_unstarted_download(
@@ -198,23 +217,27 @@ def renew_download(transferId: uuid.UUID, organizationId: uuid.UUID) -> None:
     # An already opened transfer may finish after a role/account change.
     if not Organization.objects.select_for_update().filter(pk=organizationId).exists():
         raise FileOperationError("transfer_expired", "This download has expired.", 410)
-    intUpdatedCount = DownloadSession.objects.filter(
-        pk=transferId,
-        organization_id=organizationId,
-        started=True,
-        expires_at__gt=timezone.now(),
-    ).update(expires_at=get_download_expiry())
+    downloads = DownloadSession.objects.filter(
+        pk=transferId, organization_id=organizationId, started=True
+    )
+    if settings.CONSOLE_FILE_TRANSFER_PROXY is None:
+        downloads = downloads.filter(expires_at__gt=timezone.now())
+    intUpdatedCount = downloads.update(expires_at=get_download_expiry())
     if not intUpdatedCount:
         raise FileOperationError("transfer_expired", "This download has expired.", 410)
 
 
 @transaction.atomic
-def _collect_blob(blobId: uuid.UUID, organizationId: uuid.UUID) -> bool:
+def _collect_blob(
+    blobId: uuid.UUID,
+    organizationId: uuid.UUID,
+    proxySnapshot: DownloadProxySnapshot | None,
+) -> bool:
     """Remove committed garbage without releasing capacity until physical deletion succeeds."""
     if not Organization.objects.select_for_update().filter(pk=organizationId).exists():
         return False
     lock_storage()
-    _expire_downloads(organizationId)
+    _expire_downloads(organizationId, proxySnapshot)
     blob = StoredBlob.objects.filter(
         pk=blobId, organization_id=organizationId, state=StoredBlobState.GARBAGE
     ).first()
@@ -241,23 +264,33 @@ def _collect_blob(blobId: uuid.UUID, organizationId: uuid.UUID) -> bool:
 
 def clean_organization_storage(organizationId: uuid.UUID) -> bool:
     """Business owners must first retire their references and mark their blobs as garbage."""
+    proxySnapshot = get_download_proxy_snapshot()
     for blobId in (
         StoredBlob.objects
         .filter(organization_id=organizationId, state=StoredBlobState.GARBAGE)
         .values_list("pk", flat=True)
         .iterator()
     ):
-        _collect_blob(blobId, organizationId)
+        _collect_blob(blobId, organizationId, proxySnapshot)
     return not StoredBlob.objects.filter(organization_id=organizationId).exists()
 
 
 def cleanup_storage(limit: int = 200) -> tuple[int, int]:
-    # Bound each pass, with oldest expiry/creation first.
+    from runs.models import RunFileTransfer
+
+    proxySnapshot = get_download_proxy_snapshot()
+    expiredAt = proxySnapshot.capturedAt if proxySnapshot is not None else timezone.now()
+    downloads = DownloadSession.objects.filter(expires_at__lte=expiredAt)
+    transfers = RunFileTransfer.objects.filter(expires_at__lte=expiredAt)
+    if proxySnapshot is not None:
+        downloads = downloads.exclude(pk__in=proxySnapshot.activeIds)
+        transfers = transfers.exclude(pk__in=proxySnapshot.activeIds)
+    # Active streams must not occupy the oldest entries of every bounded cleanup pass.
     organizationIds = set(
-        DownloadSession.objects
-        .filter(expires_at__lte=timezone.now())
-        .order_by("expires_at")
-        .values_list("organization_id", flat=True)[:limit]
+        downloads.order_by("expires_at").values_list("organization_id", flat=True)[:limit]
+    )
+    organizationIds.update(
+        transfers.order_by("expires_at").values_list("organization_id", flat=True)[:limit]
     )
     for organizationId in organizationIds:
         with transaction.atomic():
@@ -267,7 +300,7 @@ def cleanup_storage(limit: int = 200) -> tuple[int, int]:
                 .filter(pk=organizationId)
                 .exists()
             ):
-                _expire_downloads(organizationId)
+                _expire_downloads(organizationId, proxySnapshot)
     intDeletedCount = intFailedCount = 0
     candidates = list(
         StoredBlob.objects
@@ -277,7 +310,7 @@ def cleanup_storage(limit: int = 200) -> tuple[int, int]:
     )
     for blobId, organizationId in candidates:
         try:
-            intDeletedCount += int(_collect_blob(blobId, organizationId))
+            intDeletedCount += int(_collect_blob(blobId, organizationId, proxySnapshot))
         except (OSError, ProtectedError):
             intFailedCount += 1
             _LOGGER.exception("Stored file cleanup failed; quota remains charged.")

@@ -56,6 +56,7 @@ from executors.session_state import (
     get_executor_sessions,
     is_executor_session_current,
 )
+from file_storage.proxy import get_download_proxy_snapshot
 from file_storage.services import FileOperationError, require_download_slot
 from organizations.http import get_request_access
 from organizations.permissions import AccessChannel
@@ -66,7 +67,6 @@ from .queries import get_visible_runs
 from .control_notifications import notify_executor_control
 
 _INT_CHUNK_BYTES = 64 * 1024
-_INT_BYTES_PER_SECOND = 5 * 1024 * 1024
 _INT_PREPARATION_SECONDS = 60
 _INT_TRANSFER_SECONDS = 30 * 60
 _INT_IDLE_SECONDS = 60
@@ -77,7 +77,6 @@ _DICT_MAX_FILE_BYTES: dict[RunFileKind, int] = {
 }
 _DICT_TICKET: dict[uuid.UUID, "TransferTicket"] = {}
 _LOCK_TICKET = threading.Lock()
-_DICT_RATE_TIME: dict[uuid.UUID, float] = {}
 
 
 class TransferState(StrEnum):
@@ -217,18 +216,18 @@ def _discard_ticket(ticket: TransferTicket) -> None:
         ticket.canceledEvent.set()
         ticket.readyEvent.set()
         ticket.consumerEvent.set()
-    RunFileTransfer.objects.filter(pk=ticket.id).delete()
+    transfers = RunFileTransfer.objects.filter(pk=ticket.id)
+    if settings.CONSOLE_FILE_TRANSFER_PROXY is not None:
+        # Keep the download slot while the proxy finishes its outgoing stream.
+        transfers.update(expires_at=timezone.now())
+    else:
+        transfers.delete()
 
     def remove_ticket() -> None:
         with _LOCK_TICKET:
             _DICT_TICKET.pop(ticket.id, None)
-            if not any(
-                other.organizationId == ticket.organizationId
-                for other in _DICT_TICKET.values()
-            ):
-                _DICT_RATE_TIME.pop(ticket.organizationId, None)
 
-    # Keep canceled tickets retryable if the database delete or its transaction fails.
+    # Keep canceled tickets retryable if the database update or its transaction fails.
     transaction.on_commit(remove_ticket)
 
 
@@ -280,13 +279,14 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
     try:
         # Keep completed cleanup even if the new download request is later rejected.
         _expire_tickets()
+        proxySnapshot = get_download_proxy_snapshot()
         with transaction.atomic():
             access = get_request_access(request, forUpdate=True)
             run = get_visible_runs(access).get(pk=runId)
             fileAvailability = build_run_file_availability(run)[payload.kind]
             if not fileAvailability["available"]:
                 raise ValidationError(fileAvailability["reason"])
-            require_download_slot(access.organization.pk)
+            require_download_slot(access.organization.pk, proxySnapshot)
             transfer = RunFileTransfer.objects.create(
                 organization=access.organization,
                 run=run,
@@ -326,7 +326,7 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
     except ValidationError as e:
         return build_error_response("file_unavailable", e.messages[0], statusCode=409)
     except FileOperationError as e:
-        return build_error_response("transfer_capacity", str(e), statusCode=429)
+        return build_error_response(e.code, str(e), statusCode=e.status)
     finally:
         if ticket is not None and not boolCommitted:
             ticket.canceledEvent.set()
@@ -654,14 +654,6 @@ async def _download_file(
                         _INT_IDLE_SECONDS,
                     )
                     break
-                with _LOCK_TICKET:
-                    floatStart = max(
-                        time.monotonic(), _DICT_RATE_TIME.get(ticket.organizationId, 0)
-                    )
-                    _DICT_RATE_TIME[ticket.organizationId] = (
-                        floatStart + len(content) / _INT_BYTES_PER_SECOND
-                    )
-                await asyncio.sleep(max(0, floatStart - time.monotonic()))
                 await asyncio.wait_for(
                     send({
                         "type": "http.response.body",

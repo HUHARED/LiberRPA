@@ -13,6 +13,7 @@ from typing import BinaryIO
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.utils import timezone
 
 from file_storage.models import (
@@ -21,6 +22,7 @@ from file_storage.models import (
     StoredBlob,
     DownloadSession,
 )
+from file_storage.proxy import DownloadProxySnapshot
 from file_storage.services import (
     FileOperationError,
     get_blob_path,
@@ -425,8 +427,12 @@ def save_package_settings(
     )
 
 
-def prepare_download(access: OrganizationAccessContext, package: Package) -> dict:
-    require_download_slot(access.organization.pk)
+def prepare_download(
+    access: OrganizationAccessContext,
+    package: Package,
+    proxySnapshot: DownloadProxySnapshot | None,
+) -> dict:
+    require_download_slot(access.organization.pk, proxySnapshot)
     path = get_blob_path(package.blob_id)
     if not path.is_file() or path.stat().st_size != package.blob.size_bytes:
         raise FileOperationError(
@@ -525,7 +531,10 @@ def get_package_references(package: Package) -> list[dict[str, str]]:
         .select_related("executor")
         .order_by("executor__name", "python_environment_name", "pk")
     )
-    # An unused download authorization still protects the content it is allowed to open.
+    # An unused authorization and an open proxy stream still protect the Package.
+    downloadFilter = Q(expires_at__gt=timezone.now())
+    if settings.CONSOLE_FILE_TRANSFER_PROXY is not None:
+        downloadFilter |= Q(started=True)
     listReference.extend(
         {
             "kind": PackageReferenceKind.DOWNLOAD,
@@ -533,7 +542,7 @@ def get_package_references(package: Package) -> list[dict[str, str]]:
             "name": transfer.name,
         }
         for transfer in DownloadSession.objects.filter(
-            blob_id=package.blob_id, expires_at__gt=timezone.now()
+            downloadFilter, blob_id=package.blob_id
         ).order_by("expires_at", "pk")
     )
     return listReference

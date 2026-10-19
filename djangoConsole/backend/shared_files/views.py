@@ -19,6 +19,7 @@ from file_storage.http import (
     require_no_query_parameters,
     parse_upload_chunk,
 )
+from file_storage.proxy import get_download_proxy_snapshot
 from file_storage.services import FileOperationError, release_unstarted_download
 from file_storage.streaming import SyncFileStream, AsyncFileStream
 from organizations.validators import parse_resource_path
@@ -187,9 +188,12 @@ def create_file_download(
     if isinstance(payload, JsonResponse):
         return payload
     pathParts = parse_resource_path(payload.path)
+    proxySnapshot = get_download_proxy_snapshot()
     with transaction.atomic():
         access = lock_file_access(request, authentication)
-        return build_file_response(prepare_download(access, pathParts), statusCode=201)
+        return build_file_response(
+            prepare_download(access, pathParts, proxySnapshot), statusCode=201
+        )
 
 
 @require_POST
