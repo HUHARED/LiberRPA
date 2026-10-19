@@ -39,6 +39,7 @@ from organizations.permissions import (
     get_current_membership,
     resolve_organization_access,
 )
+from organizations.rate_limits import check_request_budget
 
 from .contracts import (
     AssetType,
@@ -154,6 +155,7 @@ def _session_asset_view[**P](
             return build_authentication_required_response()
         try:
             membership = get_current_membership(actorId=cast(User, request.user).id)
+            check_request_budget(request, membership.organization_id)
             return view(request, membership, *args, **kwargs)
         except (
             PermissionDenied,

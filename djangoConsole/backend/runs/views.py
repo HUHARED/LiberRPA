@@ -34,6 +34,7 @@ from console_project.http import (
 )
 from organizations.http import get_request_membership, lock_request_write_access
 from organizations.models import Membership
+from organizations.rate_limits import RequestBudget, check_request_budget, request_budget
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -170,6 +171,7 @@ def _work_view[**P](
 
 @_work_view
 @require_http_methods(["GET", "POST"])
+@request_budget(RequestBudget.DEFERRED, methods=("POST",))
 def list_or_create_jobs(
     request: HttpRequest,
     authentication: WorkAuthentication,
@@ -182,6 +184,17 @@ def list_or_create_jobs(
     )
     if isinstance(payload, JsonResponse):
         return payload
+    organizationId = (
+        authentication.access.organization.pk
+        if isinstance(authentication, ApiKeyAuthenticationContext)
+        else authentication.organization_id
+    )
+    check_request_budget(
+        request,
+        organizationId,
+        budget=RequestBudget.WRITE,
+        cost=len(payload.executor_ids) if payload.executor_ids else 1,
+    )
     with transaction.atomic():
         access = _get_access(request, authentication, write=True)
         jobRequest, boolCreated = accept_request(access, payload)
@@ -210,6 +223,7 @@ def job_detail(
 
 @_work_view
 @require_POST
+@request_budget(RequestBudget.CONTROL)
 def update_job(
     request: HttpRequest,
     authentication: WorkAuthentication,
@@ -294,6 +308,7 @@ def run_detail(
 
 @_work_view
 @require_POST
+@request_budget(RequestBudget.CONTROL)
 def stop_run(
     request: HttpRequest,
     authentication: WorkAuthentication,

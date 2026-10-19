@@ -21,6 +21,8 @@ from console_project.http import (
 from organizations.access import get_account_access_info
 from organizations.http import build_account_access_payload, get_request_access
 
+from organizations.rate_limits import RequestBudget, request_budget
+
 from .contracts import SessionUserResponse, ProfileUpdateRequest, ProfileWriteResponse
 from .models import User
 from .session_revocation import SessionInvalidatedError
@@ -40,6 +42,7 @@ def _build_profile_response(user: User) -> ProfileWriteResponse:
 
 @never_cache
 @require_http_methods(["GET", "POST"])
+@request_budget(RequestBudget.INDEPENDENT)
 def get_or_update_profile(request: HttpRequest) -> JsonResponse:
     """Read the signed-in account's profile or save only its two editable fields."""
     try:

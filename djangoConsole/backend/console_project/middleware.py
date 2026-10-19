@@ -12,17 +12,36 @@ from typing import cast
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
-from django.http import HttpRequest, HttpResponseBase
+from django.http import HttpRequest, HttpResponseBase, JsonResponse
+from django.utils.cache import add_never_cache_headers
 from django.utils.decorators import sync_and_async_middleware
+from django.utils.deprecation import MiddlewareMixin
 
 from operations.audit_http import record_failed_request
+from organizations.rate_limits import RequestBudgetError
 
+from .http import build_error_response
 from .logging import request_log_context
 
 _LOGGER = logging.getLogger("console.http")
 
 type _SyncResponseHandler = Callable[[HttpRequest], HttpResponseBase]
 type _AsyncResponseHandler = Callable[[HttpRequest], Awaitable[HttpResponseBase]]
+
+
+class OrganizationRequestBudgetMiddleware(MiddlewareMixin):
+    def process_exception(
+        self, _request: HttpRequest, exception: Exception
+    ) -> JsonResponse | None:
+        if not isinstance(exception, RequestBudgetError):
+            return None
+        response = build_error_response(
+            exception.code, str(exception), statusCode=exception.status
+        )
+        if exception.retryAfterSeconds:
+            response["Retry-After"] = str(exception.retryAfterSeconds)
+        add_never_cache_headers(response)
+        return response
 
 
 def _record_request_result(

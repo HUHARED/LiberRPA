@@ -58,11 +58,12 @@ _DICT_WRITE_ACTION = {
 
 
 def record_failed_request(request: HttpRequest, response: HttpResponseBase) -> None:
-    """Record authenticated write failures after the view's business transaction ended."""
+    """Record business failures; rate refusals stay in runtime diagnostics without audit writes."""
     if (
         request.method != "POST"
         or response.status_code < 400
         or not request.resolver_match
+        or response.status_code == 429
     ):
         return
     strAction = _DICT_WRITE_ACTION.get(request.resolver_match.url_name or "")

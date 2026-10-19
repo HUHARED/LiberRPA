@@ -29,6 +29,7 @@ from .contracts import (
 from .models import Organization
 from .http import lock_request_write_access
 from .permissions import AccessChannel, get_current_membership
+from .rate_limits import check_request_budget
 from .services import get_organization_settings, update_organization_settings
 
 _INT_MAX_SETTINGS_BODY_BYTES = 32 * 1024
@@ -55,6 +56,7 @@ def get_or_update_organization_settings(request: HttpRequest) -> JsonResponse:
             return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
+        check_request_budget(request, membership.organization_id)
         if request.method == "POST":
             # Allow a complete 2,000-character note, including escaped Unicode text.
             settingsRequest = parse_json_request(

@@ -36,6 +36,7 @@ from .member_queries import MemberInfo, get_member_details, get_member_list
 from .models import Membership
 from .http import lock_request_write_access
 from .permissions import AccessChannel, get_current_membership
+from .rate_limits import check_request_budget
 from .member_services import update_membership
 
 _INT_MAX_MEMBERSHIP_BODY_BYTES = 64 * 1024
@@ -125,6 +126,7 @@ def list_members(request: HttpRequest) -> JsonResponse:
             return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
+        check_request_budget(request, membership.organization_id)
         pageNumberResult = _get_page_number(request)
         if isinstance(pageNumberResult, JsonResponse):
             return pageNumberResult
@@ -170,6 +172,7 @@ def get_or_update_member(request: HttpRequest, userId: uuid.UUID) -> JsonRespons
             return build_authentication_required_response()
         user = cast(User, request.user)
         currentMembership = get_current_membership(actorId=user.id)
+        check_request_budget(request, currentMembership.organization_id)
         if request.method == "POST":
             membershipRequest = parse_json_request(
                 request,

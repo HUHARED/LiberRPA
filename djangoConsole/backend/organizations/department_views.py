@@ -38,6 +38,7 @@ from .contracts import (
 from .models import Department
 from .http import lock_request_write_access
 from .permissions import AccessChannel, get_current_membership
+from .rate_limits import check_request_budget
 from .department_queries import (
     DepartmentInfo,
     get_department_list,
@@ -137,6 +138,7 @@ def list_or_create_departments(request: HttpRequest) -> JsonResponse:
             return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
+        check_request_budget(request, membership.organization_id)
         if request.method == "POST":
             departmentRequest = parse_json_request(
                 request,
@@ -200,6 +202,7 @@ def get_or_update_department(
             return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
+        check_request_budget(request, membership.organization_id)
         if request.method == "POST":
             departmentRequest = parse_json_request(
                 request,
@@ -293,6 +296,7 @@ def get_or_delete_department(
             return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
+        check_request_budget(request, membership.organization_id)
         if request.method == "POST":
             deletionRequest = parse_json_request(request, DepartmentDeletionRequest)
             if isinstance(deletionRequest, JsonResponse):

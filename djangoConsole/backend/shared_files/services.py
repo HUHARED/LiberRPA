@@ -315,7 +315,7 @@ def validate_upload_content(
     path = get_blob_path(blobId)
     try:
         # Chunks are already durable; only a newly created empty file still needs syncing.
-        with path.open("r+b") if upload.size_bytes == 0 else path.open("rb") as handle:
+        with (path.open("r+b") if upload.size_bytes == 0 else path.open("rb")) as handle:
             fileStat = os.fstat(handle.fileno())
             if fileStat.st_size < upload.size_bytes:
                 return FileOperationError(
@@ -459,13 +459,10 @@ def complete_upload(
 def delete_files(
     access: OrganizationAccessContext,
     payload: FileDeleteRequest,
-    paths: list[tuple[str, ...]],
+    pathPartsByNormalizedPath: dict[tuple[str, ...], tuple[str, ...]],
     *,
     apiKeyId: uuid.UUID | None = None,
 ) -> FileDeleteResponse:
-    pathPartsByNormalizedPath = {
-        tuple(get_path_name_key(strPart) for strPart in parts): parts for parts in paths
-    }
     strRequestDigest = _get_request_digest(sorted(pathPartsByNormalizedPath))
     receipt = FileDeletionReceipt.objects.filter(
         organization=access.organization,

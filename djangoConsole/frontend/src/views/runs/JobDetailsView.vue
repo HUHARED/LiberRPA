@@ -161,6 +161,7 @@ import {
 import { formatDateTime } from "@/app/formatters";
 
 import { useSessionStore } from "@/stores/sessionStore";
+import { useRetryDelay } from "@/composables/useRetryDelay";
 
 const props = defineProps<{ jobId: string }>();
 const sessionStore = useSessionStore();
@@ -169,6 +170,7 @@ const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC"
 const job = shallowRef<JobDetails | null>(null);
 const boolLoading = ref(false);
 const strError = ref("");
+const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 let timer: ReturnType<typeof setInterval> | undefined;
 let intLoadRevision = 0;
 
@@ -194,9 +196,17 @@ async function load(): Promise<void> {
   strError.value = "";
   try {
     const response = await getJob(props.jobId);
-    if (intRevision === intLoadRevision) job.value = response;
+    if (intRevision === intLoadRevision) {
+      job.value = response;
+      setRetryDelay(0);
+    }
   } catch (e) {
-    if (intRevision === intLoadRevision) strError.value = getApiError(e).message;
+    if (intRevision === intLoadRevision) {
+      const error = getApiError(e);
+      strError.value = error.message;
+      if (error.statusCode === 429 && (error.retryAfterSeconds ?? 0) > 0)
+        setRetryDelay(error.retryAfterSeconds);
+    }
   } finally {
     if (intRevision === intLoadRevision) boolLoading.value = false;
   }
@@ -213,7 +223,12 @@ watch(
 
 onMounted(() => {
   timer = setInterval(() => {
-    if (!document.hidden && !boolLoading.value && job.value?.state !== JobState.Finished)
+    if (
+      !document.hidden &&
+      !boolLoading.value &&
+      intRetrySeconds.value === 0 &&
+      job.value?.state !== JobState.Finished
+    )
       void load();
   }, 10000);
 });

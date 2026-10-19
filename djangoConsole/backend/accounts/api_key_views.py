@@ -31,7 +31,8 @@ from console_project.http import (
 )
 from organizations.http import get_request_access
 from organizations.models import Membership
-from organizations.permissions import AccessChannel
+from organizations.permissions import AccessChannel, get_current_membership
+from organizations.rate_limits import RequestBudget, check_request_budget, request_budget
 
 from .api_keys import (
     get_api_key_status,
@@ -126,6 +127,7 @@ def _build_api_key_error_response(e: Exception) -> JsonResponse:
     return build_service_unavailable_response()
 
 
+@request_budget(RequestBudget.INDEPENDENT)
 @never_cache
 @require_http_methods(["GET", "POST"])
 @sensitive_variables()
@@ -145,6 +147,11 @@ def list_or_create_api_keys(
         if not request.user.is_authenticated:
             return build_authentication_required_response()
         user = cast(User, request.user)
+        if userId is not None:
+            membership = get_current_membership(actorId=user.id)
+            check_request_budget(
+                request, membership.organization_id, budget=RequestBudget.READ
+            )
         if request.method == "POST":
             keyRequest = parse_json_request(
                 request, ApiKeyCreateRequest, maxBodyBytes=_INT_MAX_API_KEY_BODY_BYTES
@@ -213,6 +220,7 @@ def list_or_create_api_keys(
         return _build_api_key_error_response(e)
 
 
+@request_budget(RequestBudget.INDEPENDENT)
 @never_cache
 @require_POST
 @sensitive_variables()
@@ -246,6 +254,7 @@ def edit_api_key_notes(request: HttpRequest, apiKeyId: uuid.UUID) -> JsonRespons
         return _build_api_key_error_response(e)
 
 
+@request_budget(RequestBudget.INDEPENDENT)
 @never_cache
 @require_POST
 @sensitive_variables()

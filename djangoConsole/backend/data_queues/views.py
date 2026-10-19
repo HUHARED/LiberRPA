@@ -15,6 +15,7 @@ from console_project.http import parse_page_number
 from organizations.http import parse_department_resource_filters
 from organizations.models import Membership
 from organizations.permissions import AccessChannel, resolve_organization_access
+from organizations.rate_limits import RequestBudget, check_request_budget, request_budget
 
 from .contracts import (
     QueueItemFilterStatus,
@@ -193,6 +194,7 @@ def get_queue_item(
 
 @require_POST
 @session_queue_view
+@request_budget(RequestBudget.DEFERRED)
 def upload_queue_items(
     request: HttpRequest,
     membership: Membership,
@@ -202,6 +204,12 @@ def upload_queue_items(
     if isinstance(parsed, JsonResponse):
         return parsed
     queueReference, payload = parsed
+    check_request_budget(
+        request,
+        membership.organization_id,
+        budget=RequestBudget.WRITE,
+        cost=len(payload.items),
+    )
     with transaction.atomic():
         access = lock_queue_session_access(request, membership)
         return build_queue_response(upload_items(access, queueReference, payload))
@@ -209,6 +217,7 @@ def upload_queue_items(
 
 @require_POST
 @session_queue_view
+@request_budget(RequestBudget.DEFERRED)
 def reset_queue_items(
     request: HttpRequest,
     membership: Membership,
@@ -218,6 +227,12 @@ def reset_queue_items(
     if isinstance(parsed, JsonResponse):
         return parsed
     queueReference, payload = parsed
+    check_request_budget(
+        request,
+        membership.organization_id,
+        budget=RequestBudget.WRITE,
+        cost=len(set(payload.item_ids)),
+    )
     with transaction.atomic():
         access = lock_queue_session_access(request, membership)
         return build_queue_response(reset_items(access, queueReference, payload))
@@ -225,6 +240,7 @@ def reset_queue_items(
 
 @require_POST
 @session_queue_view
+@request_budget(RequestBudget.DEFERRED)
 def delete_queue_items(
     request: HttpRequest,
     membership: Membership,
@@ -236,6 +252,12 @@ def delete_queue_items(
     queueReference, payload = parsed
     if payload.item_ids is None:
         raise QueueRequestError("Select explicit item IDs in the browser.")
+    check_request_budget(
+        request,
+        membership.organization_id,
+        budget=RequestBudget.WRITE,
+        cost=len(set(payload.item_ids)),
+    )
     with transaction.atomic():
         access = lock_queue_session_access(request, membership)
         return build_queue_response(delete_items(access, queueReference, payload))

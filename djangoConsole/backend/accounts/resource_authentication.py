@@ -21,6 +21,11 @@ from executors.client_sessions import (
     get_locked_executor_session,
     open_executor_client_request,
 )
+from organizations.rate_limits import (
+    RequestBudget,
+    check_request_budget,
+    get_request_budget,
+)
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -164,12 +169,17 @@ def authenticate_resource_request(
     strAuthorization = request.headers.get("Authorization", "")
     strClientAddress = request.META.get("REMOTE_ADDR", "")
     if _get_credential_channel(strAuthorization) == AccessChannel.API_KEY:
-        intRetryAfter = apply_api_key_authentication_rate_limit(strClientAddress)
+        intRetryAfter = apply_api_key_authentication_rate_limit(
+            strClientAddress,
+            control=get_request_budget(request) == RequestBudget.CONTROL,
+        )
     else:
         intRetryAfter = apply_native_resource_authentication_rate_limit(strClientAddress)
     if intRetryAfter:
         return build_rate_limited_response(intRetryAfter)
     try:
-        return authenticate_resource(strAuthorization)
+        authentication = authenticate_resource(strAuthorization)
     except (InvalidApiKeyError, InvalidResourceCredentialError):
         return build_resource_authentication_required_response()
+    check_request_budget(request, authentication.access.organization.pk)
+    return authentication

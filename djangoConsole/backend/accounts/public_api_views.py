@@ -18,6 +18,7 @@ from console_project.http import (
 )
 from organizations.access import get_department_access_info
 from organizations.contracts import DepartmentRole
+from organizations.rate_limits import check_request_budget
 
 from .api_key_authentication import InvalidApiKeyError, authenticate_api_key
 from .rate_limits import apply_api_key_authentication_rate_limit
@@ -43,6 +44,7 @@ def get_api_key_access(request: HttpRequest) -> JsonResponse:
 
         authentication = authenticate_api_key(request.headers.get("Authorization", ""))
         access = authentication.access
+        check_request_budget(request, access.organization.pk)
         tupleDepartmentAccessInfo = get_department_access_info(access)
         return JsonResponse({
             "api_key": {

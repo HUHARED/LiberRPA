@@ -36,6 +36,7 @@ from organizations.permissions import (
     resolve_organization_access,
     require_organization_admin,
 )
+from organizations.rate_limits import RequestBudget, request_budget
 
 from .contracts import (
     RecipientCreationRequest,
@@ -93,6 +94,7 @@ def _notification_payload(notification: Notification, *, details: bool = False) 
     return dictPayload
 
 
+@request_budget(RequestBudget.INDEPENDENT)
 @never_cache
 @require_http_methods(["GET"])
 @_handle_errors
@@ -112,6 +114,7 @@ def list_notifications(request: HttpRequest) -> JsonResponse:
     })
 
 
+@request_budget(RequestBudget.INDEPENDENT)
 @never_cache
 @require_http_methods(["GET"])
 @_handle_errors
@@ -133,6 +136,7 @@ def notification_details(request: HttpRequest, notificationId: uuid.UUID) -> Jso
     })
 
 
+@request_budget(RequestBudget.INDEPENDENT)
 @never_cache
 @require_POST
 @_handle_errors
@@ -288,6 +292,7 @@ def change_recipient(
         return JsonResponse({"recipient": _recipient_payload(recipient)})
 
 
+@request_budget(RequestBudget.INDEPENDENT)
 @never_cache
 @require_http_methods(["GET", "POST"])
 @_handle_errors

@@ -391,6 +391,7 @@ import {
 } from "@/app/formatters";
 
 import { useSessionStore } from "@/stores/sessionStore";
+import { useRetryDelay } from "@/composables/useRetryDelay";
 
 const props = defineProps<{ runId: string }>();
 const sessionStore = useSessionStore();
@@ -402,6 +403,7 @@ const boolLoading = ref(false);
 const boolBusy = ref(false);
 const boolDownloading = ref(false);
 const strError = ref("");
+const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 const rerunInfo = ref<Awaited<ReturnType<typeof getRerun>> | null>(null);
 let timer: ReturnType<typeof setInterval> | undefined;
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
@@ -427,9 +429,17 @@ async function load(): Promise<void> {
   strError.value = "";
   try {
     const response = await getRun(props.runId);
-    if (intRevision === intLoadRevision) run.value = response;
+    if (intRevision === intLoadRevision) {
+      run.value = response;
+      setRetryDelay(0);
+    }
   } catch (e) {
-    if (intRevision === intLoadRevision) strError.value = getApiError(e).message;
+    if (intRevision === intLoadRevision) {
+      const error = getApiError(e);
+      strError.value = error.message;
+      if (error.statusCode === 429 && (error.retryAfterSeconds ?? 0) > 0)
+        setRetryDelay(error.retryAfterSeconds);
+    }
   } finally {
     if (intRevision === intLoadRevision) boolLoading.value = false;
   }
@@ -497,6 +507,7 @@ onMounted(() => {
     if (
       !document.hidden &&
       !boolLoading.value &&
+      intRetrySeconds.value === 0 &&
       run.value &&
       (run.value.status === RunStatus.Running ||
         (run.value.run_snapshot.builtin_record_video &&

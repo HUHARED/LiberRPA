@@ -13,6 +13,7 @@ from accounts.resource_authentication import (
     lock_resource_write_access,
 )
 from organizations.validators import parse_resource_path
+from organizations.rate_limits import RequestBudget, check_request_budget, request_budget
 
 from .contracts import (
     QueueUploadRequest,
@@ -33,6 +34,7 @@ from .http import (
 
 @require_POST
 @api_queue_view
+@request_budget(RequestBudget.READ)
 def query_queue_items(
     request: HttpRequest,
     authentication: ResourceAuthenticationContext,
@@ -49,6 +51,7 @@ def query_queue_items(
 
 @require_POST
 @api_queue_view
+@request_budget(RequestBudget.DEFERRED)
 def upload_queue_items(
     request: HttpRequest,
     authentication: ResourceAuthenticationContext,
@@ -57,6 +60,12 @@ def upload_queue_items(
     if isinstance(parsed, JsonResponse):
         return parsed
     queueReference, payload = parsed
+    check_request_budget(
+        request,
+        authentication.access.organization.pk,
+        budget=RequestBudget.WRITE,
+        cost=len(payload.items),
+    )
     with transaction.atomic():
         access = lock_resource_write_access(authentication)
         return build_queue_response(
@@ -68,6 +77,7 @@ def upload_queue_items(
 
 @require_POST
 @api_queue_view
+@request_budget(RequestBudget.DEFERRED)
 def claim_queue_items(
     request: HttpRequest,
     authentication: ResourceAuthenticationContext,
@@ -76,6 +86,12 @@ def claim_queue_items(
     if isinstance(parsed, JsonResponse):
         return parsed
     queueReference, payload = parsed
+    check_request_budget(
+        request,
+        authentication.access.organization.pk,
+        budget=RequestBudget.WRITE,
+        cost=payload.count,
+    )
     with transaction.atomic():
         access = lock_resource_write_access(authentication)
         return build_queue_response(
@@ -87,6 +103,7 @@ def claim_queue_items(
 
 @require_POST
 @api_queue_view
+@request_budget(RequestBudget.DEFERRED)
 def reset_queue_items(
     request: HttpRequest,
     authentication: ResourceAuthenticationContext,
@@ -95,6 +112,12 @@ def reset_queue_items(
     if isinstance(parsed, JsonResponse):
         return parsed
     queueReference, payload = parsed
+    check_request_budget(
+        request,
+        authentication.access.organization.pk,
+        budget=RequestBudget.WRITE,
+        cost=len(set(payload.item_ids)),
+    )
     with transaction.atomic():
         access = lock_resource_write_access(authentication)
         return build_queue_response(
@@ -106,6 +129,7 @@ def reset_queue_items(
 
 @require_POST
 @api_queue_view
+@request_budget(RequestBudget.DEFERRED)
 def delete_queue_items(
     request: HttpRequest,
     authentication: ResourceAuthenticationContext,
@@ -114,6 +138,14 @@ def delete_queue_items(
     if isinstance(parsed, JsonResponse):
         return parsed
     queueReference, payload = parsed
+    check_request_budget(
+        request,
+        authentication.access.organization.pk,
+        budget=RequestBudget.WRITE,
+        cost=len(set(payload.item_ids))
+        if payload.item_ids is not None
+        else payload.count,
+    )
     with transaction.atomic():
         access = lock_resource_write_access(authentication)
         return build_queue_response(

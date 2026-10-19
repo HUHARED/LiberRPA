@@ -63,6 +63,10 @@ class FileTransferProxyConfig(_BaseConfig):
 
 
 class LimitsConfig(_BaseConfig):
+    # Shared across accounts and credential channels, independently for each organization.
+    organizationReadRequestsPerMinute: int = Field(default=1200, ge=0, le=2147483647)
+    organizationWriteObjectsPerMinute: int = Field(default=600, ge=0, le=2147483647)
+
     # Organization capacity.
     maxMembersPerOrganization: int = Field(default=50, ge=0)
     maxDepartmentsPerOrganization: int = Field(default=20, ge=0)
@@ -137,7 +141,7 @@ class LimitsConfig(_BaseConfig):
     loginRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
     loginRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
-    # Bearer authentication, independent of interactive login and credential creation.
+    # Bearer resource and execution-control authentication use separate counters with these limits.
     apiKeyRequestsPerSource: int = Field(default=2400, ge=0, le=2147483647)
     apiKeyRequestWindowSeconds: int = Field(default=60, ge=1, le=86400)
 

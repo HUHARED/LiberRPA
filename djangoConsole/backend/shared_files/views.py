@@ -22,7 +22,8 @@ from file_storage.http import (
 from file_storage.proxy import get_download_proxy_snapshot
 from file_storage.services import FileOperationError, release_unstarted_download
 from file_storage.streaming import SyncFileStream, AsyncFileStream
-from organizations.validators import parse_resource_path
+from organizations.validators import get_path_name_key, parse_resource_path
+from organizations.rate_limits import RequestBudget, check_request_budget, request_budget
 
 from .contracts import (
     UploadState,
@@ -58,6 +59,7 @@ from .http import (
 
 
 @require_POST
+@request_budget(RequestBudget.READ)
 def list_shared_files(
     request: HttpRequest, authentication: FileAuthentication
 ) -> HttpResponse:
@@ -74,6 +76,7 @@ def list_shared_files(
 
 
 @require_POST
+@request_budget(RequestBudget.READ)
 def query_shared_file(
     request: HttpRequest, authentication: FileAuthentication
 ) -> HttpResponse:
@@ -109,6 +112,7 @@ def get_file_upload(
 
 
 @require_http_methods(["PUT"])
+@request_budget(RequestBudget.INDEPENDENT)
 def append_file_chunk(
     request: HttpRequest,
     authentication: FileAuthentication,
@@ -124,6 +128,7 @@ def append_file_chunk(
 
 
 @require_POST
+@request_budget(RequestBudget.INDEPENDENT)
 def complete_file_upload(
     request: HttpRequest, authentication: FileAuthentication, uploadId: uuid.UUID
 ) -> HttpResponse:
@@ -151,6 +156,7 @@ def complete_file_upload(
 
 
 @require_POST
+@request_budget(RequestBudget.INDEPENDENT)
 def cancel_file_upload(
     request: HttpRequest, authentication: FileAuthentication, uploadId: uuid.UUID
 ) -> HttpResponse:
@@ -164,13 +170,24 @@ def cancel_file_upload(
 
 
 @require_POST
+@request_budget(RequestBudget.DEFERRED)
 def delete_shared_files(
     request: HttpRequest, authentication: FileAuthentication
 ) -> HttpResponse:
     payload = parse_file_request(request, FileDeleteRequest)
     if isinstance(payload, JsonResponse):
         return payload
-    paths = [parse_resource_path(strPath) for strPath in payload.paths]
+    # Reuse canonical paths for the object budget and the entire deletion batch.
+    paths = {
+        tuple(get_path_name_key(part) for part in parts): parts
+        for parts in (parse_resource_path(path) for path in payload.paths)
+    }
+    check_request_budget(
+        request,
+        get_file_access(authentication).organization.pk,
+        budget=RequestBudget.WRITE,
+        cost=len(paths),
+    )
     with transaction.atomic():
         access = lock_file_access(request, authentication)
         return build_file_response(
@@ -181,6 +198,7 @@ def delete_shared_files(
 
 
 @require_POST
+@request_budget(RequestBudget.READ)
 def create_file_download(
     request: HttpRequest, authentication: FileAuthentication
 ) -> HttpResponse:
@@ -197,6 +215,7 @@ def create_file_download(
 
 
 @require_POST
+@request_budget(RequestBudget.INDEPENDENT)
 def cancel_file_download(
     request: HttpRequest, authentication: FileAuthentication, transferId: uuid.UUID
 ) -> HttpResponse:
@@ -210,6 +229,7 @@ def cancel_file_download(
 
 
 @require_GET
+@request_budget(RequestBudget.INDEPENDENT)
 def download_file_content(
     request: HttpRequest, authentication: FileAuthentication, transferId: uuid.UUID
 ) -> StreamingHttpResponse:

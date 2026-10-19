@@ -212,6 +212,7 @@ import { PRIORITY_LABELS, JOB_STATE_LABELS, JOB_STATE_COLORS } from "@/app/runLa
 import { formatDateTime } from "@/app/formatters";
 
 import { useSessionStore } from "@/stores/sessionStore";
+import { useRetryDelay } from "@/composables/useRetryDelay";
 
 const sessionStore = useSessionStore();
 const route = useRoute();
@@ -266,6 +267,7 @@ const appliedFilters = computed<JobFilters>(() => ({
 const page = shallowRef<JobPage | null>(null);
 const boolLoading = ref(false);
 const strError = ref("");
+const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 let refreshTimer: ReturnType<typeof setInterval> | undefined;
 let intLoadRevision = 0;
 
@@ -281,9 +283,17 @@ async function load(): Promise<void> {
       },
       Number(route.query.page) || 1,
     );
-    if (intRevision === intLoadRevision) page.value = response;
+    if (intRevision === intLoadRevision) {
+      page.value = response;
+      setRetryDelay(0);
+    }
   } catch (e) {
-    if (intRevision === intLoadRevision) strError.value = getApiError(e).message;
+    if (intRevision === intLoadRevision) {
+      const error = getApiError(e);
+      strError.value = error.message;
+      if (error.statusCode === 429 && (error.retryAfterSeconds ?? 0) > 0)
+        setRetryDelay(error.retryAfterSeconds);
+    }
   } finally {
     if (intRevision === intLoadRevision) boolLoading.value = false;
   }
@@ -343,7 +353,8 @@ watch(
 
 onMounted(() => {
   refreshTimer = setInterval(() => {
-    if (!document.hidden && !boolLoading.value) void load();
+    if (!document.hidden && !boolLoading.value && intRetrySeconds.value === 0)
+      void load();
   }, 10000);
 });
 

@@ -32,6 +32,7 @@ from console_project.validators import validate_json_string
 from operations.audit import record_audit_batch
 from organizations.http import get_request_access
 from organizations.permissions import AccessChannel
+from organizations.rate_limits import RequestBudget, check_request_budget, request_budget
 
 from .contracts import JobState, ClearLogsRequest
 from .models import Run, RunLog
@@ -161,6 +162,7 @@ def _parse_run_log(value: dict[str, JsonValue], run: Run, logId: uuid.UUID) -> R
 @csrf_exempt
 @never_cache
 @require_POST
+@request_budget(RequestBudget.INDEPENDENT)
 def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
     def parse_log_object(fieldPairs: list[tuple[str, JsonValue]]) -> dict[str, JsonValue]:
         dictField: dict[str, JsonValue] = {}
@@ -416,6 +418,7 @@ def list_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
 
 @never_cache
 @require_POST
+@request_budget(RequestBudget.DEFERRED)
 def clear_logs(request: HttpRequest) -> HttpResponse:
     payload = parse_json_request(
         request, ClearLogsRequest, maxBodyBytes=_INT_UPLOAD_BYTES
@@ -423,9 +426,16 @@ def clear_logs(request: HttpRequest) -> HttpResponse:
     if isinstance(payload, JsonResponse):
         return payload
     try:
+        access = get_request_access(request)
+        listRunId = list(dict.fromkeys(payload.run_ids))
+        check_request_budget(
+            request,
+            access.organization.pk,
+            budget=RequestBudget.WRITE,
+            cost=len(listRunId),
+        )
         with transaction.atomic():
             access = get_request_access(request, forUpdate=True)
-            listRunId = list(dict.fromkeys(payload.run_ids))
             # Load only clearing metadata, not every selected Run's inputs, outputs and assignment.
             dictRun = {
                 run.pk: run

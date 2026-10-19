@@ -145,6 +145,7 @@ import type { CurrentRunListResponse } from "@/api/generated/browserApi";
 
 import { formatDateTime, formatDuration } from "@/app/formatters";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useRetryDelay } from "@/composables/useRetryDelay";
 
 const ARR_HEADER = [
   { title: "Project", key: "project_name" },
@@ -165,6 +166,7 @@ let appliedFilters: OverviewFilters = { departmentIds: [], projectName: "" };
 const page = shallowRef<CurrentRunListResponse | null>(null);
 const boolLoading = ref(false);
 const strError = ref("");
+const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 const boolAutoRefresh = ref(false);
 let intLoadRevision = 0;
 let intCurrentPage = 1;
@@ -187,8 +189,14 @@ async function load(pageNumber = intCurrentPage): Promise<void> {
     page.value = response;
     intCurrentPage = response.page;
     arrDepartment.value = departments;
+    setRetryDelay(0);
   } catch (e) {
-    if (intRevision === intLoadRevision) strError.value = getApiError(e).message;
+    if (intRevision === intLoadRevision) {
+      const error = getApiError(e);
+      strError.value = error.message;
+      if (error.statusCode === 429 && (error.retryAfterSeconds ?? 0) > 0)
+        setRetryDelay(error.retryAfterSeconds);
+    }
   } finally {
     if (intRevision === intLoadRevision) boolLoading.value = false;
   }
@@ -213,7 +221,9 @@ function updateRefreshTimer(): void {
   intRefreshTimer = undefined;
   if (!boolActive || !boolAutoRefresh.value || document.visibilityState !== "visible")
     return;
-  intRefreshTimer = setInterval(() => void load(), INT_REFRESH_INTERVAL_MS);
+  intRefreshTimer = setInterval(() => {
+    if (intRetrySeconds.value === 0) void load();
+  }, INT_REFRESH_INTERVAL_MS);
 }
 
 watch(boolAutoRefresh, updateRefreshTimer);
@@ -225,7 +235,7 @@ onMounted(() => {
 onActivated(() => {
   boolActive = true;
   updateRefreshTimer();
-  void load();
+  if (intRetrySeconds.value === 0) void load();
 });
 
 onDeactivated(() => {

@@ -33,6 +33,8 @@ from organizations.models import Organization, Membership
 from organizations.access import get_account_access_info
 from organizations.http import get_request_access, build_account_access_payload
 
+from organizations.rate_limits import RequestBudget, request_budget
+
 from .contracts import (
     BrowserMessageType,
     LoginRequest,
@@ -200,6 +202,7 @@ def sign_out(request: HttpRequest) -> JsonResponse:
 @require_POST
 @sensitive_post_parameters()
 @sensitive_variables()
+@request_budget(RequestBudget.INDEPENDENT)
 def sign_out_other_sessions(request: HttpRequest) -> JsonResponse:
     """Revoke other web sessions while keeping this session and its original expiry."""
     try:

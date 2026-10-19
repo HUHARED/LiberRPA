@@ -26,7 +26,8 @@ from console_project.http import (
 )
 from organizations.http import get_request_access
 from organizations.models import Membership
-from organizations.permissions import AccessChannel
+from organizations.permissions import AccessChannel, get_current_membership
+from organizations.rate_limits import RequestBudget, check_request_budget, request_budget
 
 from .account_deletion import (
     AccountDeletionInfo,
@@ -69,6 +70,7 @@ def _build_deletion_validation_response(validationError: ValidationError) -> Jso
     )
 
 
+@request_budget(RequestBudget.INDEPENDENT)
 @never_cache
 @require_http_methods(["GET", "POST"])
 @sensitive_post_parameters()
@@ -91,6 +93,11 @@ def get_or_delete_account(
 
         targetId = user.id if userId is None else userId
         if request.method == "GET":
+            if userId is not None:
+                membership = get_current_membership(actorId=user.id)
+                check_request_budget(
+                    request, membership.organization_id, budget=RequestBudget.READ
+                )
             deletionInfo = get_account_deletion_info(
                 actorId=user.id, channel=AccessChannel.SESSION, userId=targetId
             )

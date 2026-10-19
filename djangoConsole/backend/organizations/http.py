@@ -25,6 +25,7 @@ from .permissions import (
     get_current_membership,
     resolve_organization_access,
 )
+from .rate_limits import check_request_budget
 
 
 class DepartmentResourceListParameters(TypedDict):
@@ -36,7 +37,9 @@ class DepartmentResourceListParameters(TypedDict):
 def get_request_membership(request: HttpRequest) -> Membership | JsonResponse:
     if not request.user.is_authenticated:
         return build_authentication_required_response()
-    return get_current_membership(actorId=cast(User, request.user).id)
+    membership = get_current_membership(actorId=cast(User, request.user).id)
+    check_request_budget(request, membership.organization_id)
+    return membership
 
 
 @sensitive_variables()

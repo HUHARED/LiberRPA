@@ -27,6 +27,7 @@ from organizations.access import get_department_access_info
 from organizations.http import parse_department_resource_filters
 from organizations.contracts import DepartmentRole
 from organizations.permissions import OrganizationAccessContext
+from organizations.rate_limits import RequestBudget, request_budget
 
 from .contracts import (
     EmptyRequest,
@@ -180,6 +181,7 @@ def update_settings(
 
 
 @require_POST
+@request_budget(RequestBudget.INDEPENDENT)
 def cancel_preparation(
     request: HttpRequest, authentication: FileAuthentication, packageId: uuid.UUID
 ) -> JsonResponse:
@@ -233,6 +235,7 @@ def upload_detail(
 
 
 @require_http_methods(["PUT"])
+@request_budget(RequestBudget.INDEPENDENT)
 def upload_chunk(
     request: HttpRequest,
     authentication: FileAuthentication,
@@ -248,6 +251,7 @@ def upload_chunk(
 
 
 @require_POST
+@request_budget(RequestBudget.INDEPENDENT)
 def finish_upload(
     request: HttpRequest, authentication: FileAuthentication, uploadId: uuid.UUID
 ) -> JsonResponse:
@@ -272,6 +276,7 @@ def finish_upload(
 
 
 @require_POST
+@request_budget(RequestBudget.INDEPENDENT)
 def abort_upload(
     request: HttpRequest, authentication: FileAuthentication, uploadId: uuid.UUID
 ) -> JsonResponse:
@@ -286,6 +291,7 @@ def abort_upload(
 
 
 @require_POST
+@request_budget(RequestBudget.READ)
 def start_download(
     request: HttpRequest, authentication: FileAuthentication, packageId: uuid.UUID
 ) -> JsonResponse:
@@ -304,6 +310,7 @@ def start_download(
 
 
 @require_GET
+@request_budget(RequestBudget.INDEPENDENT)
 def download_content(
     request: HttpRequest, authentication: FileAuthentication, transferId: uuid.UUID
 ) -> StreamingHttpResponse:
@@ -339,6 +346,7 @@ def download_content(
 
 
 @require_POST
+@request_budget(RequestBudget.INDEPENDENT)
 def preparation_result(
     request: HttpRequest, authentication: FileAuthentication, preparationId: uuid.UUID
 ) -> JsonResponse:

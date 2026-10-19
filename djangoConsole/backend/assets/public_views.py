@@ -35,6 +35,7 @@ from console_project.http import (
     parse_json_request,
 )
 from organizations.models import Department
+from organizations.rate_limits import RequestBudget, request_budget
 from organizations.validators import parse_resource_path
 
 from .contracts import (
@@ -144,6 +145,7 @@ def _build_asset_response(payload: JsonResponsePayload) -> HttpResponse:
 
 @require_POST
 @_api_asset_view
+@request_budget(RequestBudget.READ)
 def get_asset_value(
     request: HttpRequest, authentication: ResourceAuthenticationContext
 ) -> HttpResponse:
@@ -175,6 +177,7 @@ def set_asset_value(
 
 @require_POST
 @_api_asset_view
+@request_budget(RequestBudget.READ)
 def get_asset_secret_text(
     request: HttpRequest, authentication: ResourceAuthenticationContext
 ) -> HttpResponse:
@@ -192,6 +195,7 @@ def get_asset_secret_text(
 
 @require_POST
 @_api_asset_view
+@request_budget(RequestBudget.READ)
 def get_asset_credential(
     request: HttpRequest, authentication: ResourceAuthenticationContext
 ) -> HttpResponse:

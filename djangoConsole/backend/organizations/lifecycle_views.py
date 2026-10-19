@@ -35,6 +35,7 @@ from .permissions import (
     is_organization_business_available,
     get_current_membership,
 )
+from .rate_limits import RequestBudget, check_request_budget, request_budget
 
 
 class OrganizationDeletionRequest(JsonRequest):
@@ -95,6 +96,7 @@ def _handle_organization_deletion(
             return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
+        check_request_budget(request, membership.organization_id)
         if request.method == "GET":
             return _build_organization_deletion_response(
                 membership.organization, isOrgAdmin=membership.is_org_admin
@@ -158,6 +160,7 @@ def _handle_organization_deletion(
         return build_service_unavailable_response()
 
 
+@request_budget(RequestBudget.INDEPENDENT)
 @never_cache
 @require_http_methods(["GET", "POST"])
 @sensitive_post_parameters()
@@ -167,6 +170,7 @@ def get_or_schedule_organization_deletion(request: HttpRequest) -> JsonResponse:
     return _handle_organization_deletion(request, cancelDeletion=False)
 
 
+@request_budget(RequestBudget.INDEPENDENT)
 @never_cache
 @require_POST
 @sensitive_post_parameters()

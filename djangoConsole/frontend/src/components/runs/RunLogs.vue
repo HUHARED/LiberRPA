@@ -183,6 +183,7 @@ import { type LogLevel, ARR_LOG_LEVEL } from "@/api/runSettings";
 import { getApiError } from "@/api/errors";
 
 import { formatDateTime, formatFileSize, formatJsonValue } from "@/app/formatters";
+import { useRetryDelay } from "@/composables/useRetryDelay";
 
 const props = defineProps<{
   runId: string;
@@ -224,6 +225,7 @@ const intPage = ref(1);
 const boolFollow = ref(props.running);
 const boolLoading = ref(false);
 const strError = ref("");
+const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 const boolHasMore = ref(false);
 const boolCleared = ref(false);
 const boolComplete = ref(false);
@@ -280,6 +282,7 @@ async function load(mode: "initial" | "older" | "newer"): Promise<void> {
           ? { after: intAfter }
           : {},
     );
+    setRetryDelay(0);
     boolCleared.value = result.cleared;
     boolComplete.value = result.complete;
     strUnavailableReason.value = result.unavailable_reason;
@@ -327,7 +330,10 @@ async function load(mode: "initial" | "older" | "newer"): Promise<void> {
     arrLog.value = arrBounded;
     intLoadedBytes.value = intBytes;
   } catch (e) {
-    strError.value = getApiError(e).message;
+    const error = getApiError(e);
+    strError.value = error.message;
+    if (error.statusCode === 429 && (error.retryAfterSeconds ?? 0) > 0)
+      setRetryDelay(error.retryAfterSeconds);
   } finally {
     boolLoading.value = false;
   }
@@ -364,7 +370,13 @@ function refresh(): void {
 onMounted(() => {
   void load("initial");
   timer = setInterval(() => {
-    if (boolFollow.value && !boolLatestFinished && props.active && !document.hidden)
+    if (
+      boolFollow.value &&
+      !boolLatestFinished &&
+      props.active &&
+      !document.hidden &&
+      intRetrySeconds.value === 0
+    )
       void load("newer");
   }, 2000);
 });

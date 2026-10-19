@@ -62,6 +62,11 @@
     "maxAuditRecordsPerOrganization": 100000,
     "maxPlatformAuditRecords": 100000,
 
+    // Ordinary business traffic uses separate organization-wide, fixed 60-second windows.
+    // Batch writes count requested objects; 0 disables the corresponding ordinary operations.
+    "organizationReadRequestsPerMinute": 1200,
+    "organizationWriteObjectsPerMinute": 600,
+
     // Organization capacity.
     // Existing members and unexpired pending invitations count toward this limit.
     // Administrators and inactive members also count.
@@ -175,7 +180,8 @@
     // Fixed windows recover automatically; login failures do not disable an account.
     "loginRequestWindowSeconds": 600,
 
-    // Bearer authentication attempts share one source-IP allowance across all keys.
+    // Bearer resource requests share one source-IP allowance across all keys.
+    // Execution control uses an independent source counter with the same limits.
     // Successful, malformed, and unknown credentials count; 0 blocks Bearer requests.
     // This source guard is separate from organization business budgets and interactive login.
     "apiKeyRequestsPerSource": 2400,

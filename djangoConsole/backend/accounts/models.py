@@ -313,10 +313,10 @@ class EmailChangeRequest(models.Model):
         ]
 
 
-class AuthenticationRequestLimit(models.Model):
-    """A shared request counter for one IP address, registration token, or login email."""
+class RequestRateLimit(models.Model):
+    """A shared fixed-window counter for authentication attempts or organization work."""
 
-    # Namespaced keyed digests identify counters without storing IP addresses, tokens, or emails.
-    source_hash = models.CharField(max_length=64, primary_key=True)
+    # Namespaced keyed digests identify counters without storing their original identifiers.
+    key_hash = models.CharField(max_length=64, primary_key=True)
     request_count = models.PositiveIntegerField(default=0)
     expires_at = models.DateTimeField(db_index=True)

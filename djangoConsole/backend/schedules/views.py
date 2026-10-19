@@ -37,6 +37,7 @@ from organizations.permissions import (
     resolve_organization_access,
     get_authorized_departments,
 )
+from organizations.rate_limits import RequestBudget, request_budget
 from packages.contracts import RunSettings
 from packages.runtime import parse_run_settings
 
@@ -335,6 +336,7 @@ def delete_schedule_record(request: HttpRequest, scheduleId: uuid.UUID) -> JsonR
         })
 
 
+@request_budget(RequestBudget.READ, methods=("POST",))
 @never_cache
 @require_POST
 @_handle_errors

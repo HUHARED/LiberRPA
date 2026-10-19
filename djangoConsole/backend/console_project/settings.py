@@ -104,6 +104,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 MIDDLEWARE = [
     "console_project.middleware.request_logging",
+    "console_project.middleware.OrganizationRequestBudgetMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",

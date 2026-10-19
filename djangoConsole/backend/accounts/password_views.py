@@ -23,6 +23,8 @@ from console_project.http import (
 )
 from organizations.http import get_request_access
 
+from organizations.rate_limits import RequestBudget, request_budget
+
 from .contracts import PasswordChangeRequest
 from .models import User
 from .session_revocation import SessionInvalidatedError
@@ -34,6 +36,7 @@ from .rate_limits import apply_password_change_rate_limit
 @require_POST
 @sensitive_post_parameters()
 @sensitive_variables()
+@request_budget(RequestBudget.INDEPENDENT)
 def change_account_password(request: HttpRequest) -> JsonResponse:
     """Change the current account's password and require every old web session to sign in again."""
     try:

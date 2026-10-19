@@ -60,6 +60,7 @@ from file_storage.proxy import get_download_proxy_snapshot
 from file_storage.services import FileOperationError, require_download_slot
 from organizations.http import get_request_access
 from organizations.permissions import AccessChannel
+from organizations.rate_limits import RequestBudget, request_budget
 
 from .contracts import RecordingStatus, RunFileKind, RunFileRequest
 from .models import Run, RunFileTransfer
@@ -270,6 +271,7 @@ def get_pending_transfers(sessionId: uuid.UUID) -> list[PendingRunFileTransfer]:
 
 
 @require_POST
+@request_budget(RequestBudget.READ)
 def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
     payload = parse_json_request(request, RunFileRequest)
     if isinstance(payload, JsonResponse):
@@ -277,6 +279,8 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
     ticket: TransferTicket | None = None
     boolCommitted = False
     try:
+        # Charge the new download before acquiring its reservation transaction.
+        get_request_access(request)
         # Keep completed cleanup even if the new download request is later rejected.
         _expire_tickets()
         proxySnapshot = get_download_proxy_snapshot()
@@ -359,6 +363,7 @@ def _authorize_source(authorizationHeader: str, ticket: TransferTicket) -> None:
 
 @csrf_exempt
 @require_POST
+@request_budget(RequestBudget.INDEPENDENT)
 def set_file_ready(request: HttpRequest, transferId: uuid.UUID) -> HttpResponse:
     authentication = authenticate_resource_request(request)
     if isinstance(authentication, JsonResponse):

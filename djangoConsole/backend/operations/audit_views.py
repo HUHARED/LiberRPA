@@ -30,6 +30,7 @@ from console_project.http import (
 )
 from console_project.validators import validate_time_zone
 from organizations.permissions import AccessChannel, get_current_membership
+from organizations.rate_limits import check_request_budget
 
 from .audit_queries import (
     AuditListFilters,
@@ -218,6 +219,7 @@ def list_organization_audit(request: HttpRequest) -> JsonResponse:
             return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
+        check_request_budget(request, membership.organization_id)
         # Only parsing failures belong to the client; query and response errors do not.
         try:
             filters = _parse_audit_filters(request.GET, user.time_zone)
@@ -275,6 +277,7 @@ def get_organization_audit_filters(request: HttpRequest) -> JsonResponse:
             return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
+        check_request_budget(request, membership.organization_id)
         options = get_audit_filter_options(
             actorId=user.id,
             organizationId=membership.organization_id,
@@ -304,6 +307,7 @@ def get_organization_audit_details(
             return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
+        check_request_budget(request, membership.organization_id)
         record = get_audit_details(
             actorId=user.id,
             organizationId=membership.organization_id,

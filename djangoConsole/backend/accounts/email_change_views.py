@@ -23,6 +23,8 @@ from console_project.http import (
 )
 from organizations.http import get_request_access
 
+from organizations.rate_limits import RequestBudget, request_budget
+
 from .contracts import (
     EmailChangeEmailRequest,
     EmailChangeTokenRequest,
@@ -64,6 +66,7 @@ def _build_email_change_validation_response(
 @require_POST
 @sensitive_post_parameters()
 @sensitive_variables()
+@request_budget(RequestBudget.INDEPENDENT)
 def queue_email_change_verification(request: HttpRequest) -> JsonResponse:
     """Authorize a new destination using the current account's session and password."""
     try:
