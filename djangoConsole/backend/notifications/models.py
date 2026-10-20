@@ -48,6 +48,36 @@ class EmailType(models.TextChoices):
     )
 
 
+class EmailWorkerStatus(models.TextChoices):
+    STARTING = "starting", "Starting"
+    RUNNING = "running", "Running"
+    STOPPED = "stopped", "Stopped"
+    FAILED = "failed", "Failed"
+
+
+class EmailWorkerState(models.Model):
+    """Latest activity of the worker that owns the exclusive email session."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    status = models.CharField(
+        max_length=max(len(value) for value in EmailWorkerStatus.values),
+        choices=EmailWorkerStatus.choices,
+        default=EmailWorkerStatus.STARTING,
+    )
+    checked_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(id=1), name="email_worker_state_singleton"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=EmailWorkerStatus.values),
+                name="email_worker_status_valid",
+            ),
+        ]
+
+
 class EmailDispatchState(models.Model):
     """Shared SMTP rate allowance; the row lock also serializes budget reservations."""
 

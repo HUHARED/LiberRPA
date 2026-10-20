@@ -11,6 +11,9 @@ from .delivery import EmailDeliveryResult, deliver_email
 from .contracts import EmailStatus, EmailReasonCode
 from .models import EmailType, EmailDelivery
 
+INT_EMAIL_WORKER_REPORT_SECONDS = 30
+INT_EMAIL_WORKER_MAX_AGE_SECONDS = 2 * INT_EMAIL_WORKER_REPORT_SECONDS
+
 
 def recover_interrupted_email_deliveries() -> int:
     """Close leftover attempts after acquiring the exclusive worker session.

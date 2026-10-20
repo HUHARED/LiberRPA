@@ -16,6 +16,8 @@ from django.utils import timezone
 
 from runs.dispatch_control import require_control_service
 from schedules.models import SchedulerState
+from notifications.models import EmailWorkerStatus, EmailWorkerState
+from notifications.worker import INT_EMAIL_WORKER_MAX_AGE_SECONDS
 
 from .contracts import (
     InstanceHealthStatus,
@@ -87,6 +89,38 @@ def load_instance_summary() -> InstanceSummaryResponse:
             strSchedulerMessage = "Scheduler status could not be read."
             _LOGGER.warning("Instance scheduler check failed: %s", type(e).__name__)
 
+    emailStatus = InstanceHealthStatus.UNKNOWN
+    emailCheckedAt = None
+    strEmailMessage = "The database check failed; email worker status is unavailable."
+    if databaseStatus == InstanceHealthStatus.HEALTHY:
+        try:
+            emailWorker = EmailWorkerState.objects.filter(pk=1).first()
+            currentTime = timezone.now()
+            if emailWorker is None:
+                strEmailMessage = "No email worker activity is available."
+            else:
+                emailCheckedAt = emailWorker.checked_at
+                if emailCheckedAt > currentTime:
+                    strEmailMessage = "The email worker activity time is in the future."
+                elif currentTime - emailCheckedAt > timedelta(
+                    seconds=INT_EMAIL_WORKER_MAX_AGE_SECONDS
+                ):
+                    strEmailMessage = "No recent email worker activity is available."
+                elif emailWorker.status == EmailWorkerStatus.STARTING:
+                    strEmailMessage = "Email worker is starting."
+                elif emailWorker.status == EmailWorkerStatus.RUNNING:
+                    emailStatus = InstanceHealthStatus.HEALTHY
+                    strEmailMessage = "Email worker has recent activity."
+                elif emailWorker.status == EmailWorkerStatus.STOPPED:
+                    emailStatus = InstanceHealthStatus.WARNING
+                    strEmailMessage = "Email worker stopped."
+                elif emailWorker.status == EmailWorkerStatus.FAILED:
+                    emailStatus = InstanceHealthStatus.ERROR
+                    strEmailMessage = "Email worker stopped after an error."
+        except DatabaseError as e:
+            strEmailMessage = "Email worker status could not be read."
+            _LOGGER.warning("Instance email worker check failed: %s", type(e).__name__)
+
     listComponent = [
         InstanceComponentResponse(
             component=InstanceComponent.DATABASE,
@@ -100,9 +134,14 @@ def load_instance_summary() -> InstanceSummaryResponse:
             checked_at=schedulerCheckedAt,
             message=strSchedulerMessage,
         ),
+        InstanceComponentResponse(
+            component=InstanceComponent.EMAIL,
+            status=emailStatus,
+            checked_at=emailCheckedAt,
+            message=strEmailMessage,
+        ),
     ]
     for component in (
-        InstanceComponent.EMAIL,
         InstanceComponent.CLEANUP,
         InstanceComponent.BACKUP,
     ):
