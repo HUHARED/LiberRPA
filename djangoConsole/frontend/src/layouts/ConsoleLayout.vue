@@ -39,6 +39,11 @@
         :active="route.path.startsWith('/platform/instance-status')"
         color="primary" />
       <v-list-item
+        title="Maintenance"
+        prepend-icon="mdi-wrench-outline"
+        to="/platform/maintenance"
+        color="primary" />
+      <v-list-item
         title="Platform Audit Log"
         prepend-icon="mdi-history"
         to="/platform/audit-log"

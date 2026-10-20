@@ -96,6 +96,8 @@ export type RunConflictPolicy = "skip" | "wait" | "concurrent";
 export type OutputsStatus = "waiting" | "complete" | "partial" | "unavailable";
 export type RunStatus =
   "running" | "completed" | "error" | "canceled" | "timed_out" | "interrupted";
+export type MaintenanceAction = "enter" | "resume";
+export type ServiceState = "normal" | "maintenance";
 export type OrganizationLimit =
   | "maxMembersPerOrganization"
   | "maxDepartmentsPerOrganization"
@@ -220,6 +222,8 @@ export interface BrowserApiContracts {
   JobDetailsResponse: JobDetailsResponse;
   JobListResponse: JobListResponse;
   LoginRequest: LoginRequest;
+  MaintenanceRequest: MaintenanceRequest;
+  MaintenanceResponse: MaintenanceResponse;
   MemberDetailsResponse: MemberDetailsResponse;
   MemberListResponse: MemberListResponse;
   MembershipUpdateRequest: MembershipUpdateRequest;
@@ -263,6 +267,7 @@ export interface BrowserApiContracts {
   RecipientCreationRequest: RecipientCreationRequest;
   RecipientNotesRequest: RecipientNotesRequest;
   RecipientTokenRequest: RecipientTokenRequest;
+  RunActivityResponse: RunActivityResponse;
   RunDepartmentListResponse: RunDepartmentListResponse;
   RunDetailsResponse: RunDetailsResponse;
   RunDownloadResponse: RunDownloadResponse;
@@ -1197,6 +1202,19 @@ export interface LoginRequest {
   password: string;
   remember_me?: boolean;
 }
+export interface MaintenanceRequest {
+  action: MaintenanceAction;
+}
+export interface MaintenanceResponse {
+  active_jobs: number;
+  can_resume: boolean;
+  entered_at: string | null;
+  jobs_needing_review: number;
+  resume_block_reason: string;
+  running_runs: number;
+  state: ServiceState;
+  updated_at: string;
+}
 export interface MemberDetailsResponse {
   member: MemberResponse;
 }
@@ -1691,6 +1709,18 @@ export interface RecipientNotesRequest {
 }
 export interface RecipientTokenRequest {
   token: string;
+}
+export interface RunActivityResponse {
+  end_date: string;
+  hours: RunActivityHourResponse[];
+  incomplete_run_count: number;
+  start_date: string;
+  time_zone: string;
+  updated_at: string;
+}
+export interface RunActivityHourResponse {
+  hour: number;
+  run_count: number;
 }
 export interface RunDepartmentListResponse {
   departments: RunDepartmentResponse[];
@@ -2191,6 +2221,10 @@ export const ARR_INSTANCE_HISTORY_RANGE = [
   "7d",
   "15d",
 ] as const satisfies readonly InstanceHistoryRange[];
+export const ARR_SERVICE_STATE = [
+  "normal",
+  "maintenance",
+] as const satisfies readonly ServiceState[];
 export const DepartmentRole = {
   Developer: "developer",
   Operator: "operator",
@@ -2304,3 +2338,11 @@ export const PlatformOrganizationStatus = {
   DeletionScheduled: "deletion_scheduled",
   DeletionInProgress: "deletion_in_progress",
 } as const satisfies Record<string, PlatformOrganizationStatus>;
+export const ServiceState = {
+  Normal: "normal",
+  Maintenance: "maintenance",
+} as const satisfies Record<string, ServiceState>;
+export const MaintenanceAction = {
+  Enter: "enter",
+  Resume: "resume",
+} as const satisfies Record<string, MaintenanceAction>;
