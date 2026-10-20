@@ -6,7 +6,7 @@ groups:
       - record: liberrpa_host_cpu_percent
         expr: >-
           clamp(100 * (1 - avg by (job, instance)
-          (rate(node_cpu_seconds_total{job="liberrpa-host", mode="idle"}[5m]))), 0, 100)
+          (irate(node_cpu_seconds_total{job="liberrpa-host", mode="idle"}[5m]))), 0, 100)
           and on (job, instance) (up{job="liberrpa-host"} == 1)
         labels:
           metric: cpu_percent
@@ -21,14 +21,14 @@ groups:
 
       - record: liberrpa_host_network_receive_bytes_per_second
         expr: >-
-          rate(node_network_receive_bytes_total{job="liberrpa-host", device!="lo"}[5m])
+          irate(node_network_receive_bytes_total{job="liberrpa-host", device!="lo"}[5m])
           and on (job, instance) (up{job="liberrpa-host"} == 1)
         labels:
           metric: network_receive_bytes_per_second
 
       - record: liberrpa_host_network_transmit_bytes_per_second
         expr: >-
-          rate(node_network_transmit_bytes_total{job="liberrpa-host", device!="lo"}[5m])
+          irate(node_network_transmit_bytes_total{job="liberrpa-host", device!="lo"}[5m])
           and on (job, instance) (up{job="liberrpa-host"} == 1)
         labels:
           metric: network_transmit_bytes_per_second

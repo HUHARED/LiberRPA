@@ -89,8 +89,8 @@
     <h2 class="text-h6 mb-2">History · {{ MAP_RANGE_LABEL[instanceStatus.range] }}</h2>
     <p class="text-body-2 text-medium-emphasis mb-4">
       Each point shows the highest sampled value in a
-      {{ instanceStatus.interval_seconds / 60 }}-minute interval. CPU and network values use
-      5-minute averages.
+      {{ instanceStatus.interval_seconds / 60 }}-minute interval. CPU and network values are
+      averages between the latest two samples, usually one minute apart.
     </p>
 
     <v-row :aria-busy="boolLoading">
