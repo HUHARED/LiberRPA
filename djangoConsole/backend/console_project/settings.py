@@ -11,12 +11,14 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 
 from .config import read_config_snapshot
+from .recovery import require_completed_restore
 from .logging import build_logging_config
 
 _PATH_CONSOLE = Path(__file__).resolve().parents[2]
 _PATH_CONFIG = Path(
     os.environ.get("LIBERRPA_CONSOLE_CONFIG", _PATH_CONSOLE / ".local/Console.jsonc")
 ).resolve()
+require_completed_restore(_PATH_CONFIG)
 CONSOLE_CONFIG_PATH = _PATH_CONFIG
 CONSOLE_CONFIG_SNAPSHOT = read_config_snapshot(_PATH_CONFIG)
 _CONSOLE_CONFIG = CONSOLE_CONFIG_SNAPSHOT.config

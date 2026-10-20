@@ -9,6 +9,8 @@ from django.db import connection
 from django.db.models import Count, Q
 from django.utils import timezone
 
+from console_project.recovery import is_restored_service_pending_review
+
 from runs.contracts import JobState, RunStatus
 from runs.models import Job, Run
 from runs.dispatch_control import require_control_service
@@ -41,7 +43,9 @@ def lock_maintenance_state(*, forUpdate: bool = False) -> MaintenanceState | Non
 
 def require_service_normal() -> None:
     state = lock_maintenance_state()
-    if state is not None and state.entered_at is not None:
+    if is_restored_service_pending_review() or (
+        state is not None and state.entered_at is not None
+    ):
         raise ServiceMaintenanceError()
 
 
@@ -61,18 +65,19 @@ def get_resume_block_reason() -> str:
 def load_maintenance_status() -> MaintenanceResponse:
     state = MaintenanceState.objects.filter(pk=1).first()
     enteredAt = state.entered_at if state is not None else None
-    strResumeBlockReason = get_resume_block_reason() if enteredAt is not None else ""
+    boolMaintenance = enteredAt is not None or is_restored_service_pending_review()
+    strResumeBlockReason = get_resume_block_reason() if boolMaintenance else ""
     dictJobCount = Job.objects.filter(closed_at__isnull=True).aggregate(
         active=Count("pk", filter=~Q(state=JobState.FINISHED)),
         review=Count("pk", filter=Q(state=JobState.NEEDS_REVIEW)),
     )
     return MaintenanceResponse(
-        state=ServiceState.NORMAL if enteredAt is None else ServiceState.MAINTENANCE,
+        state=ServiceState.MAINTENANCE if boolMaintenance else ServiceState.NORMAL,
         entered_at=enteredAt,
         active_jobs=dictJobCount["active"],
         running_runs=Run.objects.filter(status=RunStatus.RUNNING).count(),
         jobs_needing_review=dictJobCount["review"],
-        can_resume=enteredAt is not None and not strResumeBlockReason,
+        can_resume=boolMaintenance and not strResumeBlockReason,
         resume_block_reason=strResumeBlockReason,
         updated_at=timezone.now(),
     )

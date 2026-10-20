@@ -15,13 +15,21 @@ from django.views.decorators.http import require_GET, require_http_methods
 from pydantic import ValidationError as ContractValidationError
 from pydantic_core import PydanticSerializationError
 
-from accounts.session_revocation import SessionInvalidatedError
+from console_project.recovery import (
+    is_restored_service_pending_review,
+    complete_restored_service_review,
+)
+
 from console_project.http import (
     build_error_response,
     build_authentication_required_response,
     build_service_unavailable_response,
     parse_json_request,
 )
+
+from accounts.session_revocation import SessionInvalidatedError
+from schedules.cron import get_next_trigger
+from schedules.models import Schedule, SchedulerState
 
 from .access import get_platform_actor
 from .audit import get_audit_snapshot, record_audit
@@ -59,7 +67,10 @@ def get_or_update_maintenance(request: HttpRequest) -> JsonResponse:
                 if state is None:
                     state = MaintenanceState.objects.create(pk=1)
                 boolEnter = payload.action == MaintenanceAction.ENTER
-                if boolEnter != (state.entered_at is not None):
+                boolRestored = is_restored_service_pending_review()
+                if boolEnter != (state.entered_at is not None) or (
+                    boolRestored and not boolEnter
+                ):
                     if not boolEnter:
                         strReason = get_resume_block_reason()
                         if strReason:
@@ -67,6 +78,24 @@ def get_or_update_maintenance(request: HttpRequest) -> JsonResponse:
                     dictBefore = get_audit_snapshot(state)
                     state.entered_at = timezone.now() if boolEnter else None
                     state.save(update_fields=["entered_at"])
+                    if boolRestored and not boolEnter:
+                        # The file barrier still blocks admission until this transaction commits.
+                        resumedAt = timezone.now()
+                        for schedule in Schedule.objects.select_for_update().filter(
+                            enabled=True, deleted_at__isnull=True
+                        ).iterator():
+                            schedule.next_trigger_at = get_next_trigger(
+                                schedule.cron,
+                                schedule.time_zone,
+                                schedule.active_from,
+                                schedule.active_until,
+                                resumedAt,
+                            )
+                            schedule.save(update_fields=["next_trigger_at"])
+                        SchedulerState.objects.update_or_create(
+                            pk=1, defaults={"scanned_at": resumedAt}
+                        )
+                        transaction.on_commit(complete_restored_service_review)
                     record_audit(
                         "maintenance.enter" if boolEnter else "maintenance.resume",
                         actor=actor,
@@ -91,7 +120,7 @@ def get_or_update_maintenance(request: HttpRequest) -> JsonResponse:
         return build_error_response(
             e.code or "invalid_maintenance_action", " ".join(e.messages), statusCode=409
         )
-    except (ImproperlyConfigured, DatabaseError):
+    except (ImproperlyConfigured, DatabaseError, OSError):
         return build_service_unavailable_response()
     except (ContractValidationError, PydanticSerializationError):
         _LOGGER.exception("Could not build the maintenance response.")

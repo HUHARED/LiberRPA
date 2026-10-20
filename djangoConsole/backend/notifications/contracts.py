@@ -74,6 +74,7 @@ class EmailReasonCode(TextChoices):
     SMTP_NOT_ACCEPTED = "smtp_not_accepted", "SMTP not accepted"
     EMAIL_WORKER_INTERRUPTED = "email_worker_interrupted", "Email worker interrupted"
     ORGANIZATION_DELETED = "organization_deleted", "Organization deleted"
+    INSTANCE_RESTORED = "instance_restored", "Stopped after backup restore"
 
 
 INT_RUN_EMAIL_MAX_BYTES = 64 * 1024

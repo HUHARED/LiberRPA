@@ -12,6 +12,7 @@ from django.db import DatabaseError
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
+from console_project.recovery import is_restored_service_pending_review
 from console_project.workers import (
     SCHEDULE_WORKER_LOCK_ID,
     WorkerAlreadyRunningError,
@@ -53,7 +54,7 @@ class Command(BaseCommand):
                         boolReady = (
                             control.recovery_until is None
                             or control.recovery_until <= timezone.now()
-                        ) and not MaintenanceState.objects.filter(
+                        ) and not is_restored_service_pending_review() and not MaintenanceState.objects.filter(
                             pk=1, entered_at__isnull=False
                         ).exists()
                     except ValidationError:
