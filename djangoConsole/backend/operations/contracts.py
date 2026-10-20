@@ -218,6 +218,44 @@ class ServiceSettingsResponse(JsonResponsePayload):
     support_email: str
 
 
+class InstanceHealthStatus(TextChoices):
+    HEALTHY = "healthy", "Healthy"
+    WARNING = "warning", "Warning"
+    ERROR = "error", "Error"
+    UNKNOWN = "unknown", "Unknown"
+
+
+class InstanceComponent(TextChoices):
+    DATABASE = "database", "Database"
+    SCHEDULER = "scheduler", "Scheduler"
+    EMAIL = "email", "Email"
+    CLEANUP = "cleanup", "Cleanup"
+    BACKUP = "backup", "Backup"
+
+
+class InstanceComponentResponse(JsonResponsePayload):
+    component: InstanceComponent
+    status: InstanceHealthStatus
+    checked_at: datetime | None
+    message: str
+
+
+class InstanceStorageResponse(JsonResponsePayload):
+    total_bytes: int | None
+    used_bytes: int | None
+    free_bytes: int | None
+    status: InstanceHealthStatus
+    checked_at: datetime
+    message: str
+
+
+class InstanceSummaryResponse(JsonResponsePayload):
+    updated_at: datetime
+    time_zone: str
+    components: list[InstanceComponentResponse]
+    storage: InstanceStorageResponse
+
+
 class InstanceHistoryRange(TextChoices):
     HOUR = "1h", "Last Hour"
     DAY = "24h", "Last 24 Hours"

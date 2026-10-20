@@ -176,7 +176,8 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     # Platform service settings.
     (auditContracts.ServiceSettingsRequest, "validation"),
     (auditContracts.ServiceSettingsResponse, "serialization"),
-    # Platform host monitoring.
+    # Platform instance status and host monitoring.
+    (auditContracts.InstanceSummaryResponse, "serialization"),
     (auditContracts.InstanceStatusResponse, "serialization"),
     # Platform email diagnostics.
     (auditContracts.EmailIssueListResponse, "serialization"),

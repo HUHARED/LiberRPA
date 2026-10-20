@@ -73,6 +73,8 @@ export type FilePath = string;
 export type FileRequestUuid = string;
 export type UploadState = "receiving" | "completed" | "failed" | "expired" | "canceled";
 export type InstanceHistoryRange = "1h" | "24h" | "7d" | "15d";
+export type InstanceComponent = "database" | "scheduler" | "email" | "cleanup" | "backup";
+export type InstanceHealthStatus = "healthy" | "warning" | "error" | "unknown";
 export type InvitationStatus = "pending" | "expired" | "accepted" | "revoked";
 export type JobControlAction = "cancel" | "stop" | "close";
 export type RunPriority = "high" | "normal" | "low";
@@ -205,6 +207,7 @@ export interface BrowserApiContracts {
   FileUploadResponse: FileUploadResponse;
   FileUsageResponse: FileUsageResponse;
   InstanceStatusResponse: InstanceStatusResponse;
+  InstanceSummaryResponse: InstanceSummaryResponse;
   InvitationCompletionRequest: InvitationCompletionRequest;
   InvitationCreateRequest: InvitationCreateRequest;
   InvitationDetailsResponse: InvitationDetailsResponse;
@@ -924,6 +927,26 @@ export interface InstanceHistorySampleResponse {
   network_receive_bytes_per_second: number | null;
   network_transmit_bytes_per_second: number | null;
   timestamp: string;
+}
+export interface InstanceSummaryResponse {
+  components: InstanceComponentResponse[];
+  storage: InstanceStorageResponse;
+  time_zone: string;
+  updated_at: string;
+}
+export interface InstanceComponentResponse {
+  checked_at: string | null;
+  component: InstanceComponent;
+  message: string;
+  status: InstanceHealthStatus;
+}
+export interface InstanceStorageResponse {
+  checked_at: string;
+  free_bytes: number | null;
+  message: string;
+  status: InstanceHealthStatus;
+  total_bytes: number | null;
+  used_bytes: number | null;
 }
 export interface InvitationCompletionRequest {
   password: string;
@@ -2149,6 +2172,19 @@ export const ARR_PLATFORM_ORGANIZATION_STATUS = [
   "deletion_scheduled",
   "deletion_in_progress",
 ] as const satisfies readonly PlatformOrganizationStatus[];
+export const ARR_INSTANCE_HEALTH_STATUS = [
+  "healthy",
+  "warning",
+  "error",
+  "unknown",
+] as const satisfies readonly InstanceHealthStatus[];
+export const ARR_INSTANCE_COMPONENT = [
+  "database",
+  "scheduler",
+  "email",
+  "cleanup",
+  "backup",
+] as const satisfies readonly InstanceComponent[];
 export const ARR_INSTANCE_HISTORY_RANGE = [
   "1h",
   "24h",

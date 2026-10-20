@@ -7,10 +7,101 @@
       variant="tonal"
       prepend-icon="mdi-refresh"
       :loading="boolLoading"
-      @click="loadInstanceStatus">
+      @click="loadOverview">
       Refresh
     </v-btn>
   </div>
+
+  <v-alert v-if="accessError" type="error" variant="tonal" class="mb-4" role="alert">
+    {{ accessError.message }}
+  </v-alert>
+
+  <v-progress-linear v-if="boolSummaryLoading" indeterminate class="mb-4" />
+
+  <v-alert v-if="summaryError" type="error" variant="tonal" class="mb-4" role="alert">
+    {{ summaryError.message }}
+    <p v-if="instanceSummary" class="mt-2">
+      Previously loaded component and disk information is shown and may be out of date.
+    </p>
+  </v-alert>
+
+  <template v-if="instanceSummary">
+    <p class="text-body-2 mb-2">Instance Time Zone: {{ instanceSummary.time_zone }}</p>
+    <p class="text-body-2 text-medium-emphasis mb-4">
+      Updated at {{ formatDateTime(instanceSummary.updated_at, instanceSummary.time_zone) }}
+    </p>
+
+    <h3 class="text-h6 mb-2">Components</h3>
+    <v-table class="mb-4" :aria-busy="boolSummaryLoading">
+      <thead>
+        <tr>
+          <th scope="col">Component</th>
+          <th scope="col">Status</th>
+          <th scope="col">Checked At</th>
+          <th scope="col">Message</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="component in instanceSummary.components" :key="component.component">
+          <th scope="row">{{ MAP_COMPONENT_LABEL[component.component] }}</th>
+          <td>
+            <v-chip
+              :color="MAP_STATUS_COLOR[component.status]"
+              size="small"
+              variant="tonal">
+              {{ MAP_STATUS_LABEL[component.status] }}
+            </v-chip>
+          </td>
+          <td class="text-no-wrap">
+            {{ formatDateTime(component.checked_at, instanceSummary.time_zone) }}
+          </td>
+          <td>{{ component.message }}</td>
+        </tr>
+      </tbody>
+    </v-table>
+
+    <h3 class="text-h6 mb-2">Disk Space</h3>
+    <p class="text-body-2 text-medium-emphasis mb-2">
+      Disk containing Console file storage. Checked at
+      {{ formatDateTime(instanceSummary.storage.checked_at, instanceSummary.time_zone) }}
+    </p>
+    <v-table class="mb-2" :aria-busy="boolSummaryLoading">
+      <thead>
+        <tr>
+          <th scope="col">Storage</th>
+          <th scope="col">Total</th>
+          <th scope="col">Used</th>
+          <th scope="col">Free</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">File Storage</th>
+          <td class="text-no-wrap">
+            {{ formatStorageBytes(instanceSummary.storage.total_bytes) }}
+          </td>
+          <td class="text-no-wrap">
+            {{ formatStorageBytes(instanceSummary.storage.used_bytes) }}
+          </td>
+          <td class="text-no-wrap">
+            {{ formatStorageBytes(instanceSummary.storage.free_bytes) }}
+          </td>
+          <td>
+            <v-chip
+              :color="MAP_STATUS_COLOR[instanceSummary.storage.status]"
+              size="small"
+              variant="tonal">
+              {{ MAP_STATUS_LABEL[instanceSummary.storage.status] }}
+            </v-chip>
+          </td>
+        </tr>
+      </tbody>
+    </v-table>
+    <p class="text-body-2 mb-6">{{ instanceSummary.storage.message }}</p>
+  </template>
+
+  <h3 class="text-h6 mb-3">Host Monitoring</h3>
 
   <v-card variant="outlined" class="mb-4">
     <v-card-text>
@@ -20,7 +111,7 @@
             <v-select
               v-model="historyRange"
               :items="ARR_RANGE_OPTION"
-              :disabled="boolLoading"
+              :disabled="boolMetricsLoading || accessError !== null"
               label="Time Range"
               variant="outlined"
               hide-details />
@@ -30,7 +121,7 @@
             <v-select
               v-model="strNetworkInterface"
               :items="instanceStatus?.network_interfaces ?? []"
-              :disabled="boolLoading || !instanceStatus?.network_interfaces.length"
+              :disabled="boolMetricsLoading || !instanceStatus?.network_interfaces.length"
               label="Network Interface"
               variant="outlined"
               hide-details />
@@ -38,7 +129,11 @@
         </v-row>
 
         <div class="d-flex justify-end mt-4">
-          <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
+          <v-btn
+            type="submit"
+            color="primary"
+            variant="tonal"
+            :disabled="boolMetricsLoading || accessError !== null">
             Apply
           </v-btn>
         </div>
@@ -62,7 +157,7 @@
   </v-alert>
 
   <template v-else-if="instanceStatus">
-    <h2 class="text-h6 mb-2">Current Metrics</h2>
+    <h4 class="text-subtitle-1 mb-2">Current Metrics</h4>
     <p class="text-body-2 text-medium-emphasis mb-3">
       Collected at {{ formatDateTime(instanceStatus.collected_at, strTimeZone) }}
     </p>
@@ -75,7 +170,7 @@
       Current host metrics are unavailable. Earlier samples may still be shown below.
     </v-alert>
 
-    <v-row class="mb-4" :aria-busy="boolLoading">
+    <v-row class="mb-4" :aria-busy="boolMetricsLoading">
       <v-col v-for="metric in arrCurrentMetric" :key="metric.title" cols="12" sm="6" lg="3">
         <v-card variant="outlined" height="100%">
           <v-card-text>
@@ -86,14 +181,16 @@
       </v-col>
     </v-row>
 
-    <h2 class="text-h6 mb-2">History · {{ MAP_RANGE_LABEL[instanceStatus.range] }}</h2>
+    <h4 class="text-subtitle-1 mb-2">
+      History · {{ MAP_RANGE_LABEL[instanceStatus.range] }}
+    </h4>
     <p class="text-body-2 text-medium-emphasis mb-4">
       Each point shows the highest sampled value in a
       {{ instanceStatus.interval_seconds / 60 }}-minute interval. CPU and network values are
       averages between the latest two samples, usually one minute apart.
     </p>
 
-    <v-row :aria-busy="boolLoading">
+    <v-row :aria-busy="boolMetricsLoading">
       <v-col cols="12" lg="6">
         <v-card variant="outlined">
           <v-card-title>CPU &amp; Memory</v-card-title>
@@ -167,8 +264,11 @@ import {
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
-import { getInstanceStatus } from "@/api/instanceStatus";
+import { getInstanceSummary, getInstanceStatus } from "@/api/instanceStatus";
 import {
+  type InstanceHealthStatus,
+  type InstanceComponent,
+  type InstanceSummaryResponse,
   ARR_INSTANCE_HISTORY_RANGE,
   type InstanceHistoryRange,
   type InstanceStatusResponse,
@@ -177,6 +277,26 @@ import {
 import { formatDateTime, formatDateTimeInput, formatFileSize } from "@/app/formatters";
 
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Legend);
+
+const MAP_COMPONENT_LABEL: Record<InstanceComponent, string> = {
+  database: "Database",
+  scheduler: "Scheduler",
+  email: "Email",
+  cleanup: "Cleanup",
+  backup: "Backup",
+};
+const MAP_STATUS_LABEL: Record<InstanceHealthStatus, string> = {
+  healthy: "Healthy",
+  warning: "Warning",
+  error: "Error",
+  unknown: "Unknown",
+};
+const MAP_STATUS_COLOR: Record<InstanceHealthStatus, string> = {
+  healthy: "success",
+  warning: "warning",
+  error: "error",
+  unknown: "secondary",
+};
 
 const MAP_RANGE_LABEL: Record<InstanceHistoryRange, string> = {
   "1h": "Last Hour",
@@ -199,11 +319,19 @@ let appliedFilters = {
   networkInterface: strNetworkInterface.value,
 };
 
+const instanceSummary = shallowRef<InstanceSummaryResponse | null>(null);
+const summaryError = shallowRef<ApiError | null>(null);
+const boolSummaryLoading = ref(false);
+let intSummaryRevision = 0;
+
 const instanceStatus = shallowRef<InstanceStatusResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const strUpdatedAt = ref<string | null>(null);
-const boolLoading = ref(false);
+const boolMetricsLoading = ref(false);
 let intRequestRevision = 0;
+
+const accessError = shallowRef<ApiError | null>(null);
+const boolLoading = computed(() => boolSummaryLoading.value || boolMetricsLoading.value);
 
 const arrCurrentMetric = computed(() => {
   const metrics = instanceStatus.value?.current;
@@ -284,6 +412,10 @@ const networkChartData = computed<ChartData<"line">>(() => ({
 const usageChartOptions = computed(() => getChartOptions(true));
 const networkChartOptions = computed(() => getChartOptions(false));
 
+function formatStorageBytes(bytes: number | null): string {
+  return bytes === null ? "—" : formatFileSize(bytes);
+}
+
 function formatThroughput(value: number | null): string {
   return value === null ? "—" : `${formatFileSize(Math.round(value))}/s`;
 }
@@ -315,9 +447,45 @@ function getChartOptions(percent: boolean): ChartOptions<"line"> {
   };
 }
 
+async function clearAccessDeniedState(error: ApiError): Promise<void> {
+  intSummaryRevision += 1;
+  intRequestRevision += 1;
+  instanceSummary.value = null;
+  instanceStatus.value = null;
+  strUpdatedAt.value = null;
+  summaryError.value = null;
+  requestError.value = null;
+  boolSummaryLoading.value = false;
+  boolMetricsLoading.value = false;
+  accessError.value = error;
+  if (error.statusCode === 403) await sessionStore.refreshSession();
+}
+
+async function loadInstanceSummary(): Promise<void> {
+  const intCurrentRevision = ++intSummaryRevision;
+  boolSummaryLoading.value = true;
+  summaryError.value = null;
+
+  try {
+    const response = await getInstanceSummary();
+    if (intCurrentRevision !== intSummaryRevision) return;
+    instanceSummary.value = response;
+  } catch (e) {
+    if (intCurrentRevision !== intSummaryRevision) return;
+    const error = getApiError(e);
+    if ([401, 403].includes(error.statusCode)) {
+      await clearAccessDeniedState(error);
+    } else {
+      summaryError.value = error;
+    }
+  } finally {
+    if (intCurrentRevision === intSummaryRevision) boolSummaryLoading.value = false;
+  }
+}
+
 async function loadInstanceStatus(): Promise<void> {
   const intCurrentRevision = ++intRequestRevision;
-  boolLoading.value = true;
+  boolMetricsLoading.value = true;
   requestError.value = null;
 
   try {
@@ -334,17 +502,22 @@ async function loadInstanceStatus(): Promise<void> {
       range: response.range,
       networkInterface: response.network_interface,
     };
-  } catch (error) {
+  } catch (e) {
     if (intCurrentRevision !== intRequestRevision) return;
-    requestError.value = getApiError(error);
-    if ([401, 403].includes(requestError.value.statusCode)) {
-      instanceStatus.value = null;
-      strUpdatedAt.value = null;
-      if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
+    const error = getApiError(e);
+    if ([401, 403].includes(error.statusCode)) {
+      await clearAccessDeniedState(error);
+    } else {
+      requestError.value = error;
     }
   } finally {
-    if (intCurrentRevision === intRequestRevision) boolLoading.value = false;
+    if (intCurrentRevision === intRequestRevision) boolMetricsLoading.value = false;
   }
+}
+
+async function loadOverview(): Promise<void> {
+  accessError.value = null;
+  await Promise.all([loadInstanceSummary(), loadInstanceStatus()]);
 }
 
 function applyFilters(): void {
@@ -355,8 +528,9 @@ function applyFilters(): void {
   void loadInstanceStatus();
 }
 
-onMounted(() => void loadInstanceStatus());
+onMounted(() => void loadOverview());
 onBeforeUnmount(() => {
+  intSummaryRevision += 1;
   intRequestRevision += 1;
 });
 </script>
