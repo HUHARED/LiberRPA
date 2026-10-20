@@ -55,7 +55,7 @@ def _get_account_deletion_membership(
     require_organization_admin(access)
 
     membershipQuery = Membership.objects.select_related("user").filter(
-        organization=access.organization
+        organization=access.organization, user__is_platform_admin=False
     )
     if forUpdate:
         membershipQuery = membershipQuery.select_for_update(of=("self", "user"))

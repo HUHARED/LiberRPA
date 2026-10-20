@@ -10,7 +10,8 @@ from uuid import UUID
 from django.db.models import TextChoices
 from pydantic import Field
 
-from console_project.contracts import JsonResponsePayload, PaginationResponse
+from console_project.contracts import JsonRequest, JsonResponsePayload, PaginationResponse
+from organizations.limits import OrganizationLimit, LimitUnit
 
 
 class AuditChannel(TextChoices):
@@ -82,3 +83,79 @@ class AuditDetailsRecordResponse(AuditRecordResponse):
 
 class AuditDetailsResponse(JsonResponsePayload):
     record: AuditDetailsRecordResponse
+
+
+class PlatformOrganizationStatus(TextChoices):
+    ACTIVE = "active", "Active"
+    SUSPENDED = "suspended", "Suspended"
+    DELETION_SCHEDULED = "deletion_scheduled", "Deletion Scheduled"
+    DELETION_IN_PROGRESS = "deletion_in_progress", "Deletion in Progress"
+
+
+class PlatformAdministratorResponse(JsonResponsePayload):
+    id: UUID
+    name: str
+    email: str
+
+
+class PlatformOrganizationResponse(JsonResponsePayload):
+    id: UUID
+    name: str
+    notes: str
+    created_at: datetime
+    administrators: list[PlatformAdministratorResponse]
+    suspended_at: datetime | None
+    deletion_requested_at: datetime | None
+    deletion_started_at: datetime | None
+
+
+class PlatformOrganizationListResponse(JsonResponsePayload):
+    organizations: list[PlatformOrganizationResponse]
+    pagination: PaginationResponse
+
+
+class PlatformOrganizationFilters(JsonRequest):
+    page: int = Field(default=1, ge=1)
+    name: str = Field(default="", max_length=200)
+    organization_id: UUID | None = None
+    status: list[PlatformOrganizationStatus] = Field(default_factory=list, max_length=4)
+
+
+class OrganizationLimitResponse(JsonResponsePayload):
+    key: OrganizationLimit
+    label: str
+    unit: LimitUnit
+    used: int | None
+    reserved: int | None
+    limit: int
+    default_limit: int
+    override: int | None
+    minimum: int
+    maximum: int | None
+
+
+class OrganizationLimitIdentityResponse(JsonResponsePayload):
+    id: UUID
+    name: str
+
+
+class OrganizationRetentionResponse(JsonResponsePayload):
+    run_log_days: int
+    run_log_max_days: int
+    run_history_days: int
+    audit_days: int
+
+
+class OrganizationLimitsResponse(JsonResponsePayload):
+    organization: OrganizationLimitIdentityResponse
+    limits: list[OrganizationLimitResponse]
+    version: str
+    updated_at: datetime
+    retention: OrganizationRetentionResponse
+    usage_warning: str | None
+
+
+class OrganizationLimitsRequest(JsonRequest):
+    version: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]+$")
+    # The service validates the allowlisted keys and each limit's deployment rules once.
+    overrides: dict[str, int]

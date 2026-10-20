@@ -8,15 +8,25 @@ import uuid
 from typing import cast
 
 from django.conf import settings
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxLengthValidator, ProhibitNullCharactersValidator
+from django.core.validators import (
+    MaxLengthValidator,
+    MinValueValidator,
+    MaxValueValidator,
+    ProhibitNullCharactersValidator,
+)
 from django.db import models
+from django.db.models.expressions import CombinedExpression
 from django.db.models.functions import Lower, Trim
+from django.db.models.lookups import Exact
 from django.utils import timezone
 
+from console_project.constants import INT_MAX_RUN_LOG_RETENTION_DAYS
 from console_project.validators import validate_time_zone
 
 from .contracts import DepartmentRole
+from .limits import OrganizationLimit, validate_limit_overrides
 from .validators import validate_path_segment
 
 
@@ -36,6 +46,17 @@ class Organization(models.Model):
         validators=[MaxLengthValidator(2000), ProhibitNullCharactersValidator()],
     )
     created_at = models.DateTimeField(default=timezone.now, editable=False)
+    limit_overrides = models.JSONField(
+        default=dict, blank=True, validators=[validate_limit_overrides]
+    )
+
+    run_log_retention_days = models.PositiveSmallIntegerField(
+        default=INT_MAX_RUN_LOG_RETENTION_DAYS,
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(INT_MAX_RUN_LOG_RETENTION_DAYS),
+        ],
+    )
 
     # Service suspension is independent of the deletion lifecycle.
     suspended_at = models.DateTimeField(null=True, blank=True, editable=False)
@@ -53,6 +74,40 @@ class Organization(models.Model):
             ),
         ]
         constraints = [
+            models.CheckConstraint(
+                condition=models.Q(
+                    run_log_retention_days__gte=1,
+                    run_log_retention_days__lte=INT_MAX_RUN_LOG_RETENTION_DAYS,
+                ),
+                name="organization_log_retention_valid",
+                violation_error_message=(
+                    f"Run Log Retention must be between 1 and {INT_MAX_RUN_LOG_RETENTION_DAYS} days."
+                ),
+            ),
+            models.CheckConstraint(
+                condition=Exact(
+                    models.Func(
+                        models.F("limit_overrides"),
+                        function="jsonb_typeof",
+                        output_field=models.CharField(),
+                    ),
+                    models.Value("object"),
+                )
+                & Exact(
+                    CombinedExpression(
+                        models.F("limit_overrides"),
+                        "-",
+                        models.Value(
+                            OrganizationLimit.values,
+                            output_field=ArrayField(models.TextField()),
+                        ),
+                        output_field=models.JSONField(),
+                    ),
+                    models.Value({}, output_field=models.JSONField()),
+                ),
+                name="organization_limit_overrides_valid",
+                violation_error_message="Organization limits must contain only supported override keys.",
+            ),
             models.CheckConstraint(
                 condition=(
                     models.Q(

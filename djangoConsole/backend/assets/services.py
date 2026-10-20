@@ -19,6 +19,7 @@ from console_project.contracts import JsonValue
 from console_project.validators import validate_json_value
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
+from organizations.limits import get_organization_limits
 from organizations.validators import get_path_name_key, normalize_path_name
 from organizations.permissions import (
     OrganizationAccessContext,
@@ -131,7 +132,7 @@ def create_asset(
     department = get_authorized_departments(
         access, requiredRole=DepartmentRole.DEVELOPER
     ).get(pk=departmentId)
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    limits = get_organization_limits(access.organization)
     if (
         Asset.objects.filter(department__organization=access.organization).count()
         >= limits.maxAssetsPerOrganization

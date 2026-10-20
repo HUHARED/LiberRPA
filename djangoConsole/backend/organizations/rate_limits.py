@@ -9,12 +9,13 @@ from collections.abc import Callable
 from enum import StrEnum
 from typing import cast
 
-from django.conf import settings
 from django.http import HttpRequest
 from django.utils.crypto import salted_hmac
 
-from console_project.config import LimitsConfig
 from console_project.rate_limits import apply_request_rate_limit
+
+from .models import Organization
+from .limits import get_organization_limits
 
 _STR_POLICY_ATTRIBUTE = "_console_request_budget"
 _STR_CHECKED_ATTRIBUTE = "_console_budget_checked"
@@ -74,9 +75,15 @@ def get_request_budget(request: HttpRequest) -> RequestBudget:
     )
 
 
+def get_request_budget_key(organizationId: uuid.UUID, budget: RequestBudget) -> str:
+    return salted_hmac(
+        f"organizations.requests.{budget.value}", str(organizationId), algorithm="sha256"
+    ).hexdigest()
+
+
 def check_request_budget(
     request: HttpRequest,
-    organizationId: uuid.UUID,
+    organization: Organization,
     *,
     budget: RequestBudget | None = None,
     cost: int = 1,
@@ -97,7 +104,7 @@ def check_request_budget(
     ):
         return
 
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    limits = get_organization_limits(organization)
     intLimit = (
         limits.organizationReadRequestsPerMinute
         if budget == RequestBudget.READ
@@ -117,11 +124,11 @@ def check_request_budget(
             status=400,
         )
 
-    strKeyHash = salted_hmac(
-        f"organizations.requests.{budget.value}", str(organizationId), algorithm="sha256"
-    ).hexdigest()
     intRetryAfter = apply_request_rate_limit(
-        strKeyHash, maxRequests=intLimit, windowSeconds=60, cost=cost
+        get_request_budget_key(organization.pk, budget),
+        maxRequests=intLimit,
+        windowSeconds=60,
+        cost=cost,
     )
     if intRetryAfter:
         raise RequestBudgetError(

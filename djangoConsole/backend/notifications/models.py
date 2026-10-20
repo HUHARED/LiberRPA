@@ -8,6 +8,7 @@ import uuid
 
 from django.db import models
 from django.db.models.functions import Lower, Trim
+from django.db.models.lookups import Exact
 from django.utils import timezone
 
 from .contracts import EmailStatus, EmailReasonCode, RunEmailRecipientStatus
@@ -27,6 +28,10 @@ class EmailType(models.TextChoices):
     ORGANIZATION_DELETION_NOTICE = (
         "organization_deletion_notice",
         "Organization deletion notice",
+    )
+    ORGANIZATION_LIMITS_NOTICE = (
+        "organization_limits_notice",
+        "Organization limits notice",
     )
 
 
@@ -124,6 +129,7 @@ class EmailDelivery(models.Model):
                             EmailType.EMAIL_CHANGE_VERIFICATION,
                             EmailType.EMAIL_CHANGE_NOTICE,
                             EmailType.ORGANIZATION_DELETION_NOTICE,
+                            EmailType.ORGANIZATION_LIMITS_NOTICE,
                         ],
                         invitation__isnull=True,
                         invitation_request_id__isnull=True,
@@ -230,6 +236,33 @@ class OrganizationDeletionNotice(models.Model):
     )
     organization_id = models.UUIDField(editable=False)
     organization_name = models.CharField(max_length=200, editable=False)
+
+
+class OrganizationLimitsNotice(models.Model):
+    """Committed limit changes and their sources, independent of later defaults or edits."""
+
+    delivery_id: uuid.UUID
+    delivery = models.OneToOneField(
+        EmailDelivery, on_delete=models.CASCADE, primary_key=True, related_name="+"
+    )
+    organization_id = models.UUIDField(editable=False)
+    organization_name = models.CharField(max_length=200, editable=False)
+    changes = models.JSONField(editable=False)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Exact(
+                    models.Func(
+                        models.F("changes"),
+                        function="jsonb_typeof",
+                        output_field=models.CharField(),
+                    ),
+                    models.Value("object"),
+                ),
+                name="organization_limits_notice_changes_object",
+            ),
+        ]
 
 
 class RunEmailRecipient(models.Model):

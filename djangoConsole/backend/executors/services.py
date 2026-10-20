@@ -5,16 +5,14 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from typing import cast
 
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
-from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
+from organizations.limits import get_organization_limits
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -60,7 +58,7 @@ def create_executor(
     require_executor_management(access, department.id)
     executor = Executor(department=department, name=name.strip(), notes=notes)
     executor.full_clean()
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    limits = get_organization_limits(access.organization)
     # Paused and unassociated records consume capacity; deleted identities do not.
     if (
         Executor.objects.filter(

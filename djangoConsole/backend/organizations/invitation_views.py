@@ -19,6 +19,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
+from accounts.models import User
 from accounts.session_revocation import SessionInvalidatedError
 from accounts.rate_limits import (
     apply_invitation_email_rate_limit,
@@ -337,6 +338,12 @@ def check_invitation_link(request: HttpRequest) -> JsonResponse:
 @_handle_invitation_errors
 @sensitive_variables()
 def complete_invited_registration(request: HttpRequest) -> JsonResponse:
+    if request.user.is_authenticated and cast(User, request.user).is_platform_admin:
+        return build_error_response(
+            "business_registration_unavailable",
+            "Platform accounts cannot register business accounts.",
+            statusCode=403,
+        )
     invitationRequest = parse_json_request(request, InvitationCompletionRequest)
     if isinstance(invitationRequest, JsonResponse):
         return invitationRequest

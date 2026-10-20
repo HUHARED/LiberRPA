@@ -9,19 +9,18 @@ import hashlib
 import json
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
-from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 
 from accounts.models import User
-from console_project.config import LimitsConfig
 from console_project.contracts import JsonValue
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
 
 from organizations.contracts import DepartmentRole
 from organizations.models import Organization
+from organizations.limits import get_organization_limits
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
@@ -90,12 +89,12 @@ def _get_existing_request(
 
 
 def _consume_admission_budget(
-    organizationId: uuid.UUID, count: int, currentTime: datetime
+    organization: Organization, count: int, currentTime: datetime
 ) -> None:
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    limits = get_organization_limits(organization)
     if (
         Job.objects
-        .filter(request__organization_id=organizationId)
+        .filter(request__organization=organization)
         .exclude(state=JobState.FINISHED)
         .count()
         + count
@@ -105,7 +104,7 @@ def _consume_admission_budget(
             "The organization has reached its active Job limit.", code="active_job_limit"
         )
     budget, boolCreated = JobAdmissionBudget.objects.get_or_create(
-        organization_id=organizationId,
+        organization=organization,
         defaults={"tokens": float(limits.newJobsBurst), "updated_at": currentTime},
     )
     floatTokens = min(
@@ -199,7 +198,7 @@ def _create_request(
             code="target_unavailable",
         )
     intCount = 1 if group else len(listExecutor)
-    _consume_admission_budget(organization.pk, intCount, currentTime)
+    _consume_admission_budget(organization, intCount, currentTime)
     jobRequest = JobRequest.objects.create(
         organization=organization,
         department=department,

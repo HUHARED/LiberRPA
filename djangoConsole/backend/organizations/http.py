@@ -38,7 +38,7 @@ def get_request_membership(request: HttpRequest) -> Membership | JsonResponse:
     if not request.user.is_authenticated:
         return build_authentication_required_response()
     membership = get_current_membership(actorId=cast(User, request.user).id)
-    check_request_budget(request, membership.organization_id)
+    check_request_budget(request, membership.organization)
     return membership
 
 

@@ -38,6 +38,7 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     # Account sessions, profile, email and API keys.
     (accountContracts.BrowserEventResponse, "serialization"),
     (accountContracts.LoginRequest, "validation"),
+    (accountContracts.PlatformLoginRequest, "validation"),
     (accountContracts.SessionResponse, "serialization"),
     (accountContracts.CsrfResponse, "serialization"),
     (accountContracts.ProfileUpdateRequest, "validation"),
@@ -57,6 +58,7 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     # Organization access, departments, members and invitations.
     (organizationContracts.AccountAccessResponse, "serialization"),
     (organizationContracts.OrganizationSettingsRequest, "validation"),
+    (organizationContracts.OrganizationRetentionRequest, "validation"),
     (organizationContracts.OrganizationSettingsResponse, "serialization"),
     (organizationContracts.DepartmentUpdateRequest, "validation"),
     (organizationContracts.DepartmentCreationRequest, "validation"),
@@ -164,6 +166,11 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (notificationContracts.RecipientTokenRequest, "validation"),
     (notificationContracts.RunEmailRecipientListResponse, "serialization"),
     (notificationContracts.RunEmailVerificationResponse, "serialization"),
+    # Organization quota management.
+    (auditContracts.PlatformOrganizationFilters, "validation"),
+    (auditContracts.PlatformOrganizationListResponse, "serialization"),
+    (auditContracts.OrganizationLimitsRequest, "validation"),
+    (auditContracts.OrganizationLimitsResponse, "serialization"),
     # Audit history.
     (auditContracts.AuditListResponse, "serialization"),
     (auditContracts.AuditFilterOptionsResponse, "serialization"),

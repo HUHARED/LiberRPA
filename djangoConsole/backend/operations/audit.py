@@ -40,6 +40,7 @@ _DICT_SNAPSHOT_FIELD = {
         "name",
         "default_time_zone",
         "notes",
+        "run_log_retention_days",
         "deletion_requested_at",
         "deletion_due_at",
         "deletion_started_at",

@@ -153,7 +153,7 @@ def session_queue_view[**P](
             return build_authentication_required_response()
         try:
             membership = get_current_membership(actorId=cast(User, request.user).id)
-            check_request_budget(request, membership.organization_id)
+            check_request_budget(request, membership.organization)
             return view(request, membership, *args, **kwargs)
         except _HANDLED_ERRORS as e:
             return _build_queue_error_response(e)

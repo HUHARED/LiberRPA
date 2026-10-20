@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from django.core.exceptions import ValidationError
 
 from .contracts import JsonValue
-from .constants import INT_WINDOWS_NAME_MAX_LENGTH
+from .constants import INT_MAX_JSON_INTEGER, INT_WINDOWS_NAME_MAX_LENGTH
 
 _SET_RESERVED_WINDOWS_NAME = {
     "CON",
@@ -60,12 +60,13 @@ def validate_json_value(value: JsonValue) -> None:
         # Customized depth.
         if depth > 64:
             raise ValueError("JSON must not exceed 64 levels of nesting.")
-        if type(child) is int and abs(child) > 2**53 - 1:
+        if type(child) is int and abs(child) > INT_MAX_JSON_INTEGER:
             raise ValueError(
-                "Integers must be between -9007199254740991 and 9007199254740991.",
+                f"Integers must be between {-INT_MAX_JSON_INTEGER} and {INT_MAX_JSON_INTEGER}.",
             )
         if type(child) is float and (
-            not math.isfinite(child) or (child.is_integer() and abs(child) > 2**53 - 1)
+            not math.isfinite(child)
+            or (child.is_integer() and abs(child) > INT_MAX_JSON_INTEGER)
         ):
             raise ValueError(
                 "Use finite numbers and integers within the safe integer range.",

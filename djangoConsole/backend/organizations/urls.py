@@ -31,9 +31,21 @@ from .member_views import (
     get_or_update_member,
     list_members,
 )
-from .views import get_or_update_organization_settings
+from .views import (
+    get_or_update_organization_settings,
+    get_current_organization_usage,
+    update_current_organization_retention,
+)
 
 urlpatterns = [
+    path(
+        "organization/usage/", get_current_organization_usage, name="organization-usage"
+    ),
+    path(
+        "organization/retention/",
+        update_current_organization_retention,
+        name="organization-retention",
+    ),
     path("auth/invitation/check/", check_invitation_link, name="invitation-check"),
     path(
         "auth/invitation/complete/",

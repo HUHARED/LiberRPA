@@ -13,6 +13,7 @@ import {
   type AccountAccessResponse,
   type DepartmentAccessResponse,
   type LoginRequest,
+  type PlatformLoginRequest,
   type SessionUserResponse,
   type SessionResponse,
 } from "./generated/browserApi";
@@ -22,16 +23,20 @@ export function parseSessionUserResponse(payload: unknown): SessionUserResponse 
     !isRecord(payload) ||
     typeof payload.id !== "string" ||
     typeof payload.email !== "string" ||
+    typeof payload.platform_login !== "string" ||
     typeof payload.username !== "string" ||
     typeof payload.time_zone !== "string" ||
-    !payload.time_zone
+    !payload.time_zone ||
+    typeof payload.is_platform_admin !== "boolean"
   )
     return rejectInvalidResponse();
   return {
     id: payload.id,
     email: payload.email,
+    platform_login: payload.platform_login,
     username: payload.username,
     time_zone: payload.time_zone,
+    is_platform_admin: payload.is_platform_admin,
   };
 }
 
@@ -122,6 +127,21 @@ export async function signIn(
   const loginRequest: LoginRequest = { email, password, remember_me: rememberMe };
   return parseSessionResponse(
     await requestApi("/auth/login/", { method: "POST", body: loginRequest }),
+  );
+}
+
+export async function signInPlatform(
+  platformLogin: string,
+  password: string,
+  rememberMe: boolean,
+): Promise<SessionResponse> {
+  const loginRequest: PlatformLoginRequest = {
+    platform_login: platformLogin,
+    password,
+    remember_me: rememberMe,
+  };
+  return parseSessionResponse(
+    await requestApi("/platform/auth/login/", { method: "POST", body: loginRequest }),
   );
 }
 

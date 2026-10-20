@@ -13,7 +13,9 @@
     <v-tab value="run-email-recipients" :to="{ name: 'run-email-recipients' }">
       Run Email Recipients
     </v-tab>
-    <v-tab value="usage-retention" disabled>Usage &amp; Retention</v-tab>
+    <v-tab value="usage-retention" :to="{ name: 'organization-usage' }">
+      Usage &amp; Retention
+    </v-tab>
     <v-tab value="audit-log" :to="{ name: 'audit-log' }">Audit Log</v-tab>
   </v-tabs>
   <RouterView />
@@ -29,6 +31,7 @@ const strActiveTab = computed(() => {
   if (route.name === "departments" || route.name === "department-details")
     return "departments";
   if (route.name === "run-email-recipients") return "run-email-recipients";
+  if (route.name === "organization-usage") return "usage-retention";
   if (route.name === "audit-log") return "audit-log";
   return "general";
 });

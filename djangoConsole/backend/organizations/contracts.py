@@ -75,6 +75,10 @@ class OrganizationSettingsRequest(JsonRequest):
     notes: str
 
 
+class OrganizationRetentionRequest(JsonRequest):
+    run_log_days: int
+
+
 class OrganizationSettingsRecordResponse(JsonResponsePayload):
     id: UUID
     name: str

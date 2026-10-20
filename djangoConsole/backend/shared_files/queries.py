@@ -117,7 +117,7 @@ def get_file_list(
         ],
         department_path=strDepartmentPath,
         usage=FileUsageResponse(
-            **get_storage_usage(access.organization.pk),
+            **get_storage_usage(access.organization),
             max_file_bytes=settings.CONSOLE_LIMITS.maxSharedFileBytes,
         ),
         page=page.number,

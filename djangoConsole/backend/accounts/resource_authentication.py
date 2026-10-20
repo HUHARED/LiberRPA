@@ -181,5 +181,5 @@ def authenticate_resource_request(
         authentication = authenticate_resource(strAuthorization)
     except (InvalidApiKeyError, InvalidResourceCredentialError):
         return build_resource_authentication_required_response()
-    check_request_budget(request, authentication.access.organization.pk)
+    check_request_budget(request, authentication.access.organization)
     return authentication

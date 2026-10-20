@@ -29,6 +29,7 @@ from .profile_views import get_or_update_profile
 from .public_api_views import get_api_key_access
 from .session_views import (
     sign_in,
+    sign_in_platform,
     get_current_session,
     get_current_access,
     sign_out,
@@ -58,6 +59,7 @@ urlpatterns = [
     path("v1/access/", get_api_key_access, name="api-v1-access"),
     path("auth/csrf/", get_csrf_token, name="auth-csrf"),
     path("auth/login/", sign_in, name="auth-login"),
+    path("platform/auth/login/", sign_in_platform, name="platform-auth-login"),
     path("auth/session/", get_current_session, name="auth-session"),
     path("auth/access/", get_current_access, name="auth-access"),
     path("auth/profile/", get_or_update_profile, name="auth-profile"),

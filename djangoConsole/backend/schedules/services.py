@@ -7,7 +7,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import uuid
 from datetime import datetime
 
-from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Value
 from django.db.models.functions import Lower
@@ -17,6 +16,7 @@ from console_project.validators import parse_zoned_time
 from executors.models import Executor, ExecutorGroup
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
+from organizations.limits import get_organization_limits
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -114,10 +114,11 @@ def save_schedule(
     )
     dictBefore = {} if schedule is None else get_audit_snapshot(schedule)
     if schedule is None:
+        limits = get_organization_limits(access.organization)
         intCount = Schedule.objects.filter(
             department__organization=access.organization, deleted_at__isnull=True
         ).count()
-        if intCount >= settings.CONSOLE_LIMITS.maxSchedulesPerOrganization:
+        if intCount >= limits.maxSchedulesPerOrganization:
             raise ValidationError(
                 "This organization has reached its Schedule limit.",
                 code="schedule_count_limit",

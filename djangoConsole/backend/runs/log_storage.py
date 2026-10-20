@@ -8,9 +8,11 @@ import uuid
 from collections.abc import Sequence
 from datetime import datetime
 
-from django.conf import settings
 from django.db.models import QuerySet
 from django.utils import timezone
+
+from organizations.models import Organization
+from organizations.limits import get_organization_limits
 
 from .contracts import JobState
 from .models import Run, RunLog, RunLogUsage
@@ -55,9 +57,11 @@ def get_clearable_log_runs(organizationId: uuid.UUID) -> QuerySet[Run]:
     )
 
 
-def make_run_log_space(usage: RunLogUsage, run: Run, addedBytes: int) -> bool:
+def make_run_log_space(
+    organization: Organization, usage: RunLogUsage, run: Run, addedBytes: int
+) -> bool:
     """Clear only enough old logs to store this batch; delete nothing if that cannot free enough space."""
-    limits = settings.CONSOLE_LIMITS
+    limits = get_organization_limits(organization)
     intAddedGroups = int(run.log_bytes == 0)
     intRequiredBytes = usage.used_bytes + addedBytes
     intRequiredGroups = usage.group_count + intAddedGroups

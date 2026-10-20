@@ -8,6 +8,8 @@ from enum import StrEnum
 
 
 INT_LIST_PAGE_SIZE = 50
+INT_MAX_JSON_INTEGER = 2**53 - 1
+INT_MAX_RUN_LOG_RETENTION_DAYS = 720
 
 # NOTE: User.__str__() needs up to 407 characters (150 username + 254 email + 3 separators); keep the existing 420-character capacity.
 INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH = 420

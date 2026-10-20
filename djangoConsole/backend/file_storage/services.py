@@ -19,6 +19,7 @@ from django.db.models import F, Sum
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
+from organizations.limits import get_organization_limits
 from organizations.models import Organization
 
 from .models import StorageLock, StoredBlobState, StoredBlob, DownloadSession
@@ -87,11 +88,12 @@ def check_disk_capacity(additionalBytes: int = 0) -> None:
         )
 
 
-def get_storage_usage(organizationId: uuid.UUID) -> dict[str, int]:
+def get_storage_usage(organization: Organization) -> dict[str, int]:
+    limits = get_organization_limits(organization)
     totals = {
         row["state"]: row["total"]
         for row in StoredBlob.objects
-        .filter(organization_id=organizationId)
+        .filter(organization=organization)
         .values("state")
         .annotate(total=Sum("size_bytes"))
     }
@@ -100,7 +102,7 @@ def get_storage_usage(organizationId: uuid.UUID) -> dict[str, int]:
         + totals.get(StoredBlobState.GARBAGE, 0),
         "reserved_bytes": totals.get(StoredBlobState.RECEIVING, 0),
         "pending_cleanup_bytes": totals.get(StoredBlobState.GARBAGE, 0),
-        "limit_bytes": settings.CONSOLE_LIMITS.maxStoredBytesPerOrganization,
+        "limit_bytes": limits.maxStoredBytesPerOrganization,
     }
 
 
@@ -125,29 +127,30 @@ def _expire_downloads(
     transfers.delete()
 
 
-def require_upload_slot(organizationId: uuid.UUID) -> None:
+def require_upload_slot(organization: Organization) -> None:
     """Count active incoming uploads under the caller's organization lock."""
     from packages.contracts import PackageUploadState
     from packages.models import PackageUpload
     from shared_files.contracts import UploadState
     from shared_files.models import UploadSession
 
-    if settings.CONSOLE_LIMITS.maxActiveUploadsPerOrganization == 0:
+    limits = get_organization_limits(organization)
+    if limits.maxActiveUploadsPerOrganization == 0:
         raise FileOperationError(
             "uploads_disabled", "Uploads are disabled for this organization.", 403
         )
     currentTime = timezone.now()
     intUploadCount = PackageUpload.objects.filter(
-        organization_id=organizationId,
+        organization=organization,
         state=PackageUploadState.RECEIVING,
         expires_at__gt=currentTime,
     ).count()
     intUploadCount += UploadSession.objects.filter(
-        organization_id=organizationId,
+        organization=organization,
         state=UploadState.RECEIVING,
         expires_at__gt=currentTime,
     ).count()
-    if intUploadCount >= settings.CONSOLE_LIMITS.maxActiveUploadsPerOrganization:
+    if intUploadCount >= limits.maxActiveUploadsPerOrganization:
         raise FileOperationError(
             "too_many_transfers",
             "The organization upload limit has been reached. Please try again later.",
@@ -156,23 +159,20 @@ def require_upload_slot(organizationId: uuid.UUID) -> None:
 
 
 def require_download_slot(
-    organizationId: uuid.UUID, proxySnapshot: DownloadProxySnapshot | None
+    organization: Organization, proxySnapshot: DownloadProxySnapshot | None
 ) -> None:
     """Count reserved and streaming downloads under the caller's organization lock."""
     from runs.models import RunFileTransfer
 
-    if settings.CONSOLE_LIMITS.maxActiveDownloadsPerOrganization == 0:
+    limits = get_organization_limits(organization)
+    if limits.maxActiveDownloadsPerOrganization == 0:
         raise FileOperationError(
             "downloads_disabled", "Downloads are disabled for this organization.", 403
         )
-    _expire_downloads(organizationId, proxySnapshot)
-    intDownloadCount = DownloadSession.objects.filter(
-        organization_id=organizationId
-    ).count()
-    intDownloadCount += RunFileTransfer.objects.filter(
-        organization_id=organizationId
-    ).count()
-    if intDownloadCount >= settings.CONSOLE_LIMITS.maxActiveDownloadsPerOrganization:
+    _expire_downloads(organization.pk, proxySnapshot)
+    intDownloadCount = DownloadSession.objects.filter(organization=organization).count()
+    intDownloadCount += RunFileTransfer.objects.filter(organization=organization).count()
+    if intDownloadCount >= limits.maxActiveDownloadsPerOrganization:
         raise FileOperationError(
             "too_many_transfers",
             "The organization download limit has been reached. Please try again later.",

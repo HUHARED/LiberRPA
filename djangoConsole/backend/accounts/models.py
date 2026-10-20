@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import uuid
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+from django.core.exceptions import ValidationError
 from django.core.validators import (
     MaxLengthValidator,
     ProhibitNullCharactersValidator,
@@ -24,16 +25,22 @@ from .passwords import validate_new_password
 
 class UserManager(BaseUserManager["User"]):
     @classmethod
+    def normalize_login(cls, login: str) -> str:
+        # Normalize both identifier formats without combining their account namespaces.
+        return AbstractBaseUser.normalize_username(login).strip().lower()
+
+    @classmethod
     def normalize_email(cls, email: str) -> str:
-        # Reuse Django's Unicode normalization; email casing is not significant here.
-        return AbstractBaseUser.normalize_username(email).strip().lower()
+        return cls.normalize_login(email)
 
     def get_by_natural_key(self, username: str) -> "User":
-        # Django calls the login identifier "username", even for email login.
-        return self.get(email=self.normalize_email(username))
+        # Django calls the login identifier "username", regardless of its account field.
+        return self.get(email=self.normalize_email(username), is_platform_admin=False)
 
     async def aget_by_natural_key(self, username: str) -> "User":
-        return await self.aget(email=self.normalize_email(username))
+        return await self.aget(
+            email=self.normalize_email(username), is_platform_admin=False
+        )
 
     def create_user(
         self,
@@ -44,8 +51,11 @@ class UserManager(BaseUserManager["User"]):
         time_zone: str = "UTC",
     ) -> "User":
         """Create an account record; callers handle verified registration and membership."""
+        strEmail = self.normalize_email(email)
+        if not strEmail:
+            raise ValidationError({"email": "An email address is required."})
         user = self.model(
-            email=self.normalize_email(email),
+            email=strEmail,
             username=username.strip(),
             time_zone=time_zone,
         )
@@ -65,7 +75,15 @@ class User(AbstractBaseUser):
     """Account identity; organization and department permissions are separate."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True, blank=True, default="")
+    platform_login = models.CharField(
+        max_length=254,
+        blank=True,
+        default="",
+        validators=[
+            RegexValidator(r"^[^\x00-\x1f\x7f-\x9f]+$", "Enter a single-line login name.")
+        ],
+    )
     username = models.CharField(
         max_length=150, validators=[ProhibitNullCharactersValidator()]
     )
@@ -74,6 +92,7 @@ class User(AbstractBaseUser):
     )
     # Reserved for platform suspension, not an ordinary member-management switch.
     is_active = models.BooleanField(default=True)
+    is_platform_admin = models.BooleanField(default=False)
     session_version = models.PositiveBigIntegerField(default=0, editable=False)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
 
@@ -85,13 +104,33 @@ class User(AbstractBaseUser):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(email=Lower(Trim("email"))) & ~models.Q(email=""),
+                condition=models.Q(email=Lower(Trim("email"))),
                 name="accounts_user_email_canonical",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(platform_login=Lower(Trim("platform_login"))),
+                name="accounts_user_login_canonical",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(is_platform_admin=True, email="")
+                    & ~models.Q(platform_login="")
+                )
+                | (
+                    models.Q(is_platform_admin=False, platform_login="")
+                    & ~models.Q(email="")
+                ),
+                name="accounts_user_identity_valid",
+            ),
+            models.UniqueConstraint(
+                fields=["is_platform_admin"],
+                condition=models.Q(is_platform_admin=True),
+                name="accounts_one_platform_admin",
             ),
         ]
 
     def __str__(self) -> str:
-        return f"{self.username} ({self.email})"
+        return f"{self.username} ({self.platform_login or self.email})"
 
     def _get_session_auth_hash(self, secret: str | None = None) -> str:
         """Include the revocation version in Django's normal and fallback session hashes."""

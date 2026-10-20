@@ -6,13 +6,13 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from datetime import timedelta
 
-from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, Exists, OuterRef, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from organizations.models import Organization
+from organizations.limits import get_organization_limits, get_run_log_retention_days
 from notifications.contracts import EmailStatus, EmailReasonCode
 from notifications.models import EmailDelivery
 from schedules.models import ScheduleTrigger
@@ -34,12 +34,13 @@ def cleanup_run_data(limit: int = 200) -> tuple[int, int]:
     intJobsRemoved = 0
     intLogsCleared = 0
     currentTime = timezone.now()
-    limits = settings.CONSOLE_LIMITS
     receiptCutoff = currentTime - timedelta(days=_INT_RECEIPT_RETENTION_DAYS)
-    historyCutoff = currentTime - timedelta(days=limits.runHistoryRetentionDays)
-    for organizationId in Organization.objects.values_list("id", flat=True).iterator(
+    for organization in Organization.objects.only("id", "limit_overrides").iterator(
         chunk_size=100
     ):
+        organizationId = organization.pk
+        limits = get_organization_limits(organization)
+        historyCutoff = currentTime - timedelta(days=limits.runHistoryRetentionDays)
         # Actual history and explicit Close use ordinary retention. No-Run receipts have their own window.
         finishedCandidates = (
             Job.objects
@@ -80,7 +81,12 @@ def cleanup_run_data(limit: int = 200) -> tuple[int, int]:
                 .order_by("id")
                 .values_list("id", flat=True)
             )
-            Organization.objects.select_for_update().get(pk=organizationId)
+            organization = Organization.objects.select_for_update().get(pk=organizationId)
+            limits = get_organization_limits(organization)
+            historyCutoff = currentTime - timedelta(days=limits.runHistoryRetentionDays)
+            logCutoff = currentTime - timedelta(
+                days=get_run_log_retention_days(organization)
+            )
             usage = get_or_create_run_log_usage(organizationId)
             intBytes = usage.used_bytes
             intGroups = usage.group_count
@@ -89,9 +95,7 @@ def cleanup_run_data(limit: int = 200) -> tuple[int, int]:
                 retentionStart = run.job.closed_at or run.job.ended_at
                 if retentionStart is None:
                     continue
-                boolOld = retentionStart < currentTime - timedelta(
-                    days=limits.runLogRetentionDays
-                )
+                boolOld = retentionStart < logCutoff
                 if (
                     not boolOld
                     and intBytes <= limits.maxRunLogBytesPerOrganization

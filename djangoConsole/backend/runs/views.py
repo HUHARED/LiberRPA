@@ -184,14 +184,14 @@ def list_or_create_jobs(
     )
     if isinstance(payload, JsonResponse):
         return payload
-    organizationId = (
-        authentication.access.organization.pk
+    organization = (
+        authentication.access.organization
         if isinstance(authentication, ApiKeyAuthenticationContext)
-        else authentication.organization_id
+        else authentication.organization
     )
     check_request_budget(
         request,
-        organizationId,
+        organization,
         budget=RequestBudget.WRITE,
         cost=len(payload.executor_ids) if payload.executor_ids else 1,
     )

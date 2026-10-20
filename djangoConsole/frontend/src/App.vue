@@ -10,7 +10,9 @@
     </AuthLayout>
 
     <div
-      v-else-if="sessionStore.authenticated || route.meta.public"
+      v-else-if="
+        (sessionStore.authenticated || route.meta.public) && !authenticatedRedirect
+      "
       :key="sessionStore.authenticated ? sessionStore.session?.user.id : 'anonymous'"
       :inert="sessionStore.unavailable"
       class="d-flex flex-column flex-grow-1">
@@ -47,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTheme } from "vuetify";
 
@@ -55,7 +57,7 @@ import { useSessionStore } from "./stores/sessionStore";
 import { usePreferencesStore } from "./stores/preferencesStore";
 import { useSessionLifecycle } from "./composables/useSessionLifecycle";
 
-import { getSafeReturnPath, getSignInLocation } from "./app/navigation";
+import { getAuthenticatedRedirect, getSignInLocation } from "./app/navigation";
 
 import ConnectionState from "@/components/common/ConnectionState.vue";
 import AuthLayout from "./layouts/AuthLayout.vue";
@@ -68,6 +70,11 @@ const route = useRoute();
 const theme = useTheme();
 const intCurrentYear = new Date().getFullYear();
 const boolRetrying = ref(false);
+const authenticatedRedirect = computed(() =>
+  sessionStore.authenticated && sessionStore.session
+    ? getAuthenticatedRedirect(route, sessionStore.session.user, sessionStore.access)
+    : undefined,
+);
 useSessionLifecycle();
 
 watch(() => preferencesStore.theme, theme.change, { immediate: true });
@@ -76,6 +83,7 @@ watch(
   [
     () => sessionStore.status,
     () => sessionStore.access,
+    () => sessionStore.session?.user.is_platform_admin,
     () => sessionStore.unavailable,
     () => route.fullPath,
   ],
@@ -83,20 +91,11 @@ watch(
     if (sessionStore.unavailable) return;
 
     if (sessionStore.status === "anonymous" && route.matched.length && !route.meta.public) {
-      void router.replace(getSignInLocation(route.fullPath));
-    } else if (sessionStore.authenticated) {
-      if (route.name === "sign-in")
-        void router.replace(getSafeReturnPath(route.query.returnTo));
-      else if (route.meta.requiresBusiness && !sessionStore.access?.business_available) {
-        void router.replace({ name: "organization-status" });
-      } else if (route.meta.requiresOrgAdmin && !sessionStore.access?.is_org_admin) {
-        void router.replace({ name: "overview" });
-      } else if (
-        route.name === "organization-status" &&
-        sessionStore.access?.business_available
-      ) {
-        void router.replace({ name: "overview" });
-      }
+      void router.replace(
+        getSignInLocation(route.fullPath, sessionStore.boolPlatformSignIn),
+      );
+    } else if (authenticatedRedirect.value) {
+      void router.replace(authenticatedRedirect.value);
     }
   },
 );

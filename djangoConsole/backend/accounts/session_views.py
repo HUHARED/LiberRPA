@@ -8,7 +8,13 @@ from datetime import timedelta
 from typing import cast
 
 from django.conf import settings
-from django.contrib.auth import HASH_SESSION_KEY, authenticate, login, logout
+from django.contrib.auth import (
+    HASH_SESSION_KEY,
+    authenticate,
+    check_password_with_timing_attack_mitigation,
+    login,
+    logout,
+)
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.backends.base import UpdateError
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
@@ -38,6 +44,7 @@ from organizations.rate_limits import RequestBudget, request_budget
 from .contracts import (
     BrowserMessageType,
     LoginRequest,
+    PlatformLoginRequest,
     SessionUserResponse,
     SessionResponse,
     SessionRevocationRequest,
@@ -57,7 +64,9 @@ def _build_session_response(request: HttpRequest, user: User) -> JsonResponse:
             id=user.id,
             email=user.email,
             username=user.username,
+            platform_login=user.platform_login,
             time_zone=user.time_zone,
+            is_platform_admin=user.is_platform_admin,
         ),
         expires_at=request.session.get_expiry_date(),
         csrf_token=get_token(request),
@@ -68,6 +77,8 @@ def _build_session_response(request: HttpRequest, user: User) -> JsonResponse:
 
 def _lock_session_audit_organization(user: User) -> Organization | None:
     """Serialize session auditing with organization cleanup without granting business access."""
+    if user.is_platform_admin:
+        return None
     organizationId = (
         Membership.objects
         .filter(user_id=user.pk)
@@ -79,39 +90,12 @@ def _lock_session_audit_organization(user: User) -> Organization | None:
     return Organization.objects.select_for_update().filter(pk=organizationId).first()
 
 
-@never_cache
-@require_POST
 @sensitive_variables()
-def sign_in(request: HttpRequest) -> JsonResponse:
-    """Authenticate by email and establish a web session with a fixed expiry."""
-    loginRequest = parse_json_request(request, LoginRequest)
-    if isinstance(loginRequest, JsonResponse):
-        return loginRequest
-
+def _establish_session(
+    request: HttpRequest, user: User, *, rememberMe: bool
+) -> JsonResponse:
+    """Persist either account type's authorized web session and audit together."""
     try:
-        strNormalizedEmail = UserManager.normalize_email(loginRequest.email)
-        intRetryAfterSeconds = apply_login_rate_limit(
-            request.META.get("REMOTE_ADDR", ""), normalizedEmail=strNormalizedEmail
-        )
-        if intRetryAfterSeconds:
-            return build_rate_limited_response(intRetryAfterSeconds)
-
-        # Django verifies passwords, rejects inactive users, and mitigates timing differences.
-        user = cast(
-            User | None,
-            authenticate(
-                request,
-                email=strNormalizedEmail,
-                password=loginRequest.password.get_secret_value(),
-            ),
-        )
-        if user is None:
-            return build_error_response(
-                "invalid_credentials",
-                "The email or password is incorrect.",
-                statusCode=401,
-            )
-
         with transaction.atomic():
             # Keep the same organization-before-account lock order as security writes.
             organization = _lock_session_audit_organization(user)
@@ -119,7 +103,7 @@ def sign_in(request: HttpRequest) -> JsonResponse:
             login(request, user)
             sessionLifetime = (
                 _REMEMBERED_SESSION_LIFETIME
-                if loginRequest.remember_me
+                if rememberMe
                 else timedelta(seconds=settings.SESSION_COOKIE_AGE)
             )
             # Save the authorized session and audit together before reporting success.
@@ -140,6 +124,82 @@ def sign_in(request: HttpRequest) -> JsonResponse:
         # Clean in-memory login whose transaction failed.
         request.session = type(request.session)()
         request.user = AnonymousUser()
+        return build_service_unavailable_response()
+
+
+@never_cache
+@require_POST
+@sensitive_variables()
+def sign_in(request: HttpRequest) -> JsonResponse:
+    """Authenticate an ordinary account by email through Django's configured backend."""
+    loginRequest = parse_json_request(request, LoginRequest)
+    if isinstance(loginRequest, JsonResponse):
+        return loginRequest
+
+    try:
+        strNormalizedEmail = UserManager.normalize_email(loginRequest.email)
+        intRetryAfterSeconds = apply_login_rate_limit(
+            request.META.get("REMOTE_ADDR", ""), normalizedAccount=strNormalizedEmail
+        )
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
+
+        # Django verifies passwords, rejects inactive users, and mitigates timing differences.
+        user = cast(
+            User | None,
+            authenticate(
+                request,
+                email=strNormalizedEmail,
+                password=loginRequest.password.get_secret_value(),
+            ),
+        )
+        if user is None:
+            return build_error_response(
+                "invalid_credentials",
+                "The email or password is incorrect.",
+                statusCode=401,
+            )
+        return _establish_session(request, user, rememberMe=loginRequest.remember_me)
+    except (ImproperlyConfigured, DatabaseError):
+        return build_service_unavailable_response()
+
+
+@never_cache
+@require_POST
+@sensitive_variables()
+def sign_in_platform(request: HttpRequest) -> JsonResponse:
+    """Authenticate the platform administrator through its separate login endpoint."""
+    loginRequest = parse_json_request(request, PlatformLoginRequest)
+    if isinstance(loginRequest, JsonResponse):
+        return loginRequest
+
+    try:
+        strPlatformLogin = UserManager.normalize_login(loginRequest.platform_login)
+        intRetryAfterSeconds = apply_login_rate_limit(
+            request.META.get("REMOTE_ADDR", ""),
+            normalizedAccount=strPlatformLogin,
+            platformAdmin=True,
+        )
+        if intRetryAfterSeconds:
+            return build_rate_limited_response(intRetryAfterSeconds)
+
+        user = User.objects.filter(
+            is_platform_admin=True, platform_login=strPlatformLogin
+        ).first()
+        if (
+            not check_password_with_timing_attack_mitigation(
+                user, loginRequest.password.get_secret_value()
+            )
+            or user is None
+            or not user.is_active
+        ):
+            return build_error_response(
+                "invalid_credentials",
+                "The login name or password is incorrect.",
+                statusCode=401,
+            )
+        return _establish_session(request, user, rememberMe=loginRequest.remember_me)
+    except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()
 
 

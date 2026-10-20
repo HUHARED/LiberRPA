@@ -44,7 +44,7 @@ def get_api_key_access(request: HttpRequest) -> JsonResponse:
 
         authentication = authenticate_api_key(request.headers.get("Authorization", ""))
         access = authentication.access
-        check_request_budget(request, access.organization.pk)
+        check_request_budget(request, access.organization)
         tupleDepartmentAccessInfo = get_department_access_info(access)
         return JsonResponse({
             "api_key": {

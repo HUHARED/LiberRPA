@@ -22,6 +22,7 @@ from console_project.config import LimitsConfig
 from console_project.validators import validate_json_value
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
+from organizations.limits import get_organization_limits
 from organizations.validators import get_path_name_key, normalize_path_name
 from organizations.permissions import (
     OrganizationAccessContext,
@@ -66,7 +67,7 @@ def create_queue(
         access,
         requiredRole=DepartmentRole.DEVELOPER,
     ).get(pk=departmentId)
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    limits = get_organization_limits(access.organization)
     if (
         DataQueue.objects.filter(
             department__organization=access.organization,
@@ -259,7 +260,7 @@ def upload_items(
     *,
     apiKeyId: uuid.UUID | None = None,
 ) -> QueueMutationResponse:
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    limits = get_organization_limits(access.organization)
     serializedItems: list[tuple[str, int]] = []
     for intIndex, value in enumerate(payload.items):
         try:
@@ -409,7 +410,9 @@ def reset_items(
             if statusById.get(itemId) == QueueItemStatus.UNCLAIMED
         )
         result.item_ids.extend(
-            itemId for itemId in itemIds if statusById.get(itemId) == QueueItemStatus.CLAIMED
+            itemId
+            for itemId in itemIds
+            if statusById.get(itemId) == QueueItemStatus.CLAIMED
         )
         QueueItem.objects.filter(
             queue=queue,

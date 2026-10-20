@@ -95,6 +95,9 @@ for (const [strConstantName, strEnumName] of [
   ["ARR_API_KEY_STATUS", "ApiKeyStatus"],
   ["ARR_EMAIL_STATUS", "EmailStatus"],
   ["ARR_EMAIL_REASON_CODE", "EmailReasonCode"],
+  ["ARR_ORGANIZATION_LIMIT", "OrganizationLimit"],
+  ["ARR_LIMIT_UNIT", "LimitUnit"],
+  ["ARR_PLATFORM_ORGANIZATION_STATUS", "PlatformOrganizationStatus"],
 ]) {
   const strEnumValue = dictDefinitions[strEnumName].enum
     .map((value) => `  ${JSON.stringify(value)},`)
@@ -116,6 +119,9 @@ for (const strEnumName of [
   "RecordingStatus",
   "RunFileKind",
   "BrowserMessageType",
+  "OrganizationLimit",
+  "LimitUnit",
+  "PlatformOrganizationStatus",
 ]) {
   const strMember = dictDefinitions[strEnumName].enum
     .map((value) => {

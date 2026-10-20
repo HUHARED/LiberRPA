@@ -11,8 +11,22 @@ from .audit_views import (
     get_organization_audit_filters,
     get_organization_audit_details,
 )
+from .organization_views import (
+    list_platform_organizations,
+    get_or_update_organization_limits,
+)
 
 urlpatterns = [
+    path(
+        "platform/organizations/",
+        list_platform_organizations,
+        name="platform-organizations",
+    ),
+    path(
+        "platform/organizations/<uuid:organizationId>/limits/",
+        get_or_update_organization_limits,
+        name="platform-organization-limits",
+    ),
     path("organization/audit/", list_organization_audit, name="organization-audit"),
     path(
         "organization/audit/filters/",

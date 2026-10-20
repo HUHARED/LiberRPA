@@ -184,7 +184,7 @@ def delete_shared_files(
     }
     check_request_budget(
         request,
-        get_file_access(authentication).organization.pk,
+        get_file_access(authentication).organization,
         budget=RequestBudget.WRITE,
         cost=len(paths),
     )

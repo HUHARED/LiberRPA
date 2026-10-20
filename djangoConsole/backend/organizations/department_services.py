@@ -13,6 +13,7 @@ from django.core.exceptions import ValidationError
 from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
 
+from .limits import get_organization_limits
 from .models import Organization, Department
 from .validators import get_path_name_key, normalize_path_name
 from .permissions import OrganizationAccessContext, require_organization_admin
@@ -112,7 +113,7 @@ def _create_department_record(
     )
     _prepare_department_values(department)
 
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    limits = get_organization_limits(organization)
     if (
         Department.objects.filter(
             organization=organization, deleted_at__isnull=True

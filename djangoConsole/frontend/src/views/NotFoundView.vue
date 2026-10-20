@@ -16,8 +16,16 @@
           sessionStore.authenticated ? 'mdi-view-dashboard-outline' : undefined
         "
         :append-icon="sessionStore.authenticated ? undefined : 'mdi-arrow-right'"
-        :to="sessionStore.authenticated ? '/overview' : '/sign-in'">
-        {{ sessionStore.authenticated ? "Open Workspace" : "Sign In" }}
+        :to="
+          sessionStore.authenticated
+            ? sessionStore.session?.user.is_platform_admin
+              ? '/platform/organizations'
+              : '/overview'
+            : sessionStore.boolPlatformSignIn
+              ? '/platform/sign-in'
+              : '/sign-in'
+        ">
+        {{ sessionStore.authenticated ? "Open Console" : "Sign In" }}
       </v-btn>
     </v-container>
   </AuthLayout>

@@ -14,7 +14,27 @@
       </v-list-item>
       <v-divider />
     </template>
-    <v-list tag="nav" nav density="compact" aria-label="Workspace navigation">
+    <v-list
+      v-if="sessionStore.session?.user.is_platform_admin"
+      tag="nav"
+      nav
+      density="compact"
+      aria-label="Platform navigation">
+      <v-list-subheader>Platform</v-list-subheader>
+      <v-list-item
+        title="Organizations"
+        prepend-icon="mdi-office-building-cog-outline"
+        to="/platform/organizations"
+        :active="route.path.startsWith('/platform/organizations')"
+        color="primary" />
+    </v-list>
+
+    <v-list
+      v-if="!sessionStore.session?.user.is_platform_admin && sessionStore.access"
+      tag="nav"
+      nav
+      density="compact"
+      aria-label="Workspace navigation">
       <v-list-subheader>Workspace</v-list-subheader>
       <v-list-item
         v-for="navigationItem in arrNavigation"
@@ -39,11 +59,21 @@
       aria-label="Open navigation"
       @click="boolDrawerOpen = true" />
     <v-app-bar-title class="text-body-1">
-      <v-icon icon="mdi-office-building-outline" class="mr-2" />
-      {{ sessionStore.access?.organization.name ?? "Organization" }}
+      <v-icon
+        :icon="
+          sessionStore.session?.user.is_platform_admin
+            ? 'mdi-office-building-cog-outline'
+            : 'mdi-office-building-outline'
+        "
+        class="mr-2" />
+      {{
+        sessionStore.session?.user.is_platform_admin
+          ? "Platform"
+          : (sessionStore.access?.organization.name ?? "LiberRPA Console")
+      }}
     </v-app-bar-title>
     <template #append>
-      <NotificationsPanel />
+      <NotificationsPanel v-if="!sessionStore.session?.user.is_platform_admin" />
       <v-menu location="bottom end">
         <template #activator="{ props }">
           <v-btn variant="text" v-bind="props" class="mr-2" aria-label="Open account menu">
@@ -57,14 +87,30 @@
         <v-list min-width="248" density="compact">
           <v-list-item
             :title="strDisplayName"
-            :subtitle="sessionStore.session?.user.email" />
+            :subtitle="
+              sessionStore.session?.user.is_platform_admin
+                ? 'Platform Administrator'
+                : sessionStore.session?.user.email
+            " />
           <v-divider class="my-2" />
           <v-list-item
+            v-if="
+              !sessionStore.session?.user.is_platform_admin &&
+              sessionStore.access?.business_available
+            "
             to="/my-profile"
             title="My Profile"
             prepend-icon="mdi-account-circle-outline" />
-          <v-list-item to="/api-keys" title="API Keys" prepend-icon="mdi-key-outline" />
           <v-list-item
+            v-if="
+              !sessionStore.session?.user.is_platform_admin &&
+              sessionStore.access?.business_available
+            "
+            to="/api-keys"
+            title="API Keys"
+            prepend-icon="mdi-key-outline" />
+          <v-list-item
+            v-if="!sessionStore.session?.user.is_platform_admin"
             to="/help"
             title="Help & About"
             prepend-icon="mdi-help-circle-outline" />
@@ -156,10 +202,12 @@ const boolDesktop = computed(() => display.mdAndUp.value);
 const boolDrawerOpen = ref(boolDesktop.value);
 const signOutError = shallowRef<ApiError | null>(null);
 const strDisplayName = computed(() =>
-  getDisplayName(
-    sessionStore.session?.user.username ?? "",
-    sessionStore.session?.user.email ?? "",
-  ),
+  sessionStore.session?.user.is_platform_admin
+    ? sessionStore.session.user.platform_login
+    : getDisplayName(
+        sessionStore.session?.user.username ?? "",
+        sessionStore.session?.user.email ?? "",
+      ),
 );
 const strAvatarInitial = computed(
   () => Array.from(strDisplayName.value.trim())[0]?.toLocaleUpperCase() ?? "?",

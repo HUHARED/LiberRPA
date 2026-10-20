@@ -155,7 +155,7 @@ def _session_asset_view[**P](
             return build_authentication_required_response()
         try:
             membership = get_current_membership(actorId=cast(User, request.user).id)
-            check_request_budget(request, membership.organization_id)
+            check_request_budget(request, membership.organization)
             return view(request, membership, *args, **kwargs)
         except (
             PermissionDenied,

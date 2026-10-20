@@ -290,7 +290,7 @@ def create_file_transfer(request: HttpRequest, runId: uuid.UUID) -> HttpResponse
             fileAvailability = build_run_file_availability(run)[payload.kind]
             if not fileAvailability["available"]:
                 raise ValidationError(fileAvailability["reason"])
-            require_download_slot(access.organization.pk, proxySnapshot)
+            require_download_slot(access.organization, proxySnapshot)
             transfer = RunFileTransfer.objects.create(
                 organization=access.organization,
                 run=run,

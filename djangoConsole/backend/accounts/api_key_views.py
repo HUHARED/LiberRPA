@@ -150,7 +150,7 @@ def list_or_create_api_keys(
         if userId is not None:
             membership = get_current_membership(actorId=user.id)
             check_request_budget(
-                request, membership.organization_id, budget=RequestBudget.READ
+                request, membership.organization, budget=RequestBudget.READ
             )
         if request.method == "POST":
             keyRequest = parse_json_request(

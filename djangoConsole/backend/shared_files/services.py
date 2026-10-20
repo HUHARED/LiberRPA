@@ -42,6 +42,8 @@ from organizations.department_queries import (
     get_department_path,
 )
 from organizations.contracts import DepartmentRole
+from organizations.limits import get_organization_limits
+from organizations.models import Organization
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -116,12 +118,12 @@ def _prune_receipts_and_require_capacity(access: OrganizationAccessContext) -> N
 
 
 def _require_file_capacity(
-    organizationId: uuid.UUID, existingFile: SharedFile | None
+    organization: Organization, existingFile: SharedFile | None
 ) -> None:
     if (
         existingFile is None
-        and SharedFile.objects.filter(department__organization_id=organizationId).count()
-        >= settings.CONSOLE_LIMITS.maxSharedFilesPerOrganization
+        and SharedFile.objects.filter(department__organization=organization).count()
+        >= get_organization_limits(organization).maxSharedFilesPerOrganization
     ):
         raise FileOperationError(
             "shared_file_limit", "The organization has reached its shared file limit."
@@ -168,12 +170,12 @@ def create_upload(
             "file_exists",
             "A file with this name already exists. Enable Overwrite Existing File to replace it.",
         )
-    _require_file_capacity(access.organization.pk, existingFile)
+    _require_file_capacity(access.organization, existingFile)
     expire_uploads(access.organization.pk)
     _prune_receipts_and_require_capacity(access)
-    require_upload_slot(access.organization.pk)
+    require_upload_slot(access.organization)
     lock_storage()
-    usage = get_storage_usage(access.organization.pk)
+    usage = get_storage_usage(access.organization)
     if (
         usage["used_bytes"] + usage["reserved_bytes"] + payload.size_bytes
         > usage["limit_bytes"]
@@ -315,7 +317,7 @@ def validate_upload_content(
     path = get_blob_path(blobId)
     try:
         # Chunks are already durable; only a newly created empty file still needs syncing.
-        with (path.open("r+b") if upload.size_bytes == 0 else path.open("rb")) as handle:
+        with path.open("r+b") if upload.size_bytes == 0 else path.open("rb") as handle:
             fileStat = os.fstat(handle.fileno())
             if fileStat.st_size < upload.size_bytes:
                 return FileOperationError(
@@ -407,7 +409,7 @@ def complete_upload(
                 "file_exists",
                 "A file with this name was created during this upload. Enable Overwrite Existing File to replace it.",
             )
-        _require_file_capacity(access.organization.pk, existingFile)
+        _require_file_capacity(access.organization, existingFile)
     except FileOperationError as e:
         if e.status >= 500:
             raise
@@ -544,7 +546,7 @@ def prepare_download(
     proxySnapshot: DownloadProxySnapshot | None,
 ) -> FileDownloadResponse:
     file, strDepartmentPath = resolve_file(access, pathParts)
-    require_download_slot(access.organization.pk, proxySnapshot)
+    require_download_slot(access.organization, proxySnapshot)
     physicalPath = get_blob_path(file.blob_id)
     if not physicalPath.is_file() or physicalPath.stat().st_size != file.blob.size_bytes:
         raise FileOperationError(

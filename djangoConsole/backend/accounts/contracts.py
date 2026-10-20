@@ -31,6 +31,12 @@ class LoginRequest(JsonRequest):
     remember_me: bool = False
 
 
+class PlatformLoginRequest(JsonRequest):
+    platform_login: str
+    password: SecretStr
+    remember_me: bool = False
+
+
 class UserResponse(JsonResponsePayload):
     id: UUID
     email: str
@@ -38,7 +44,9 @@ class UserResponse(JsonResponsePayload):
 
 
 class SessionUserResponse(UserResponse):
+    platform_login: str
     time_zone: str
+    is_platform_admin: bool
 
 
 class SessionResponse(JsonResponsePayload):

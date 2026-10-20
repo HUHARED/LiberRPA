@@ -123,18 +123,21 @@ def apply_registration_token_rate_limit(clientAddress: str, *, token: str) -> in
 
 
 @sensitive_variables()
-def apply_login_rate_limit(clientAddress: str, *, normalizedEmail: str) -> int:
+def apply_login_rate_limit(
+    clientAddress: str, *, normalizedAccount: str, platformAdmin: bool = False
+) -> int:
     """Count login attempts before password hashing, including unknown accounts.
 
-    The caller supplies the canonical email and the HTTP server's actual client address.
+    The caller supplies the canonical account and the HTTP server's actual client address.
+    Both login endpoints share source limits and keep their account budgets separate.
     Limits are independent from registration and are not reset by successful login.
     """
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     return _apply_source_and_subject_rate_limits(
         clientAddress,
         scope="accounts.login",
-        subject=normalizedEmail,
-        subjectKind="account",
+        subject=normalizedAccount,
+        subjectKind="platform_login" if platformAdmin else "email",
         maxSourceRequests=limits.loginRequestsPerSource,
         maxSubjectRequests=limits.loginRequestsPerAccount,
         windowSeconds=limits.loginRequestWindowSeconds,

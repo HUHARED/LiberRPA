@@ -62,7 +62,7 @@ def upload_queue_items(
     queueReference, payload = parsed
     check_request_budget(
         request,
-        authentication.access.organization.pk,
+        authentication.access.organization,
         budget=RequestBudget.WRITE,
         cost=len(payload.items),
     )
@@ -88,7 +88,7 @@ def claim_queue_items(
     queueReference, payload = parsed
     check_request_budget(
         request,
-        authentication.access.organization.pk,
+        authentication.access.organization,
         budget=RequestBudget.WRITE,
         cost=payload.count,
     )
@@ -114,7 +114,7 @@ def reset_queue_items(
     queueReference, payload = parsed
     check_request_budget(
         request,
-        authentication.access.organization.pk,
+        authentication.access.organization,
         budget=RequestBudget.WRITE,
         cost=len(set(payload.item_ids)),
     )
@@ -140,7 +140,7 @@ def delete_queue_items(
     queueReference, payload = parsed
     check_request_budget(
         request,
-        authentication.access.organization.pk,
+        authentication.access.organization,
         budget=RequestBudget.WRITE,
         cost=len(set(payload.item_ids))
         if payload.item_ids is not None

@@ -166,7 +166,7 @@ def complete_organization_deletion(
     strOrganizationName = organization.name
     listAccount = list(
         Membership.objects
-        .filter(organization_id=organizationId)
+        .filter(organization_id=organizationId, user__is_platform_admin=False)
         .order_by("user_id")
         .values_list("user_id", "user__email")
     )
@@ -190,6 +190,7 @@ def complete_organization_deletion(
     DataQueue.objects.filter(department__organization_id=organizationId).delete()
     # Account deletion cascades memberships, department roles, API keys, and private recovery/change proofs.
     User.objects.filter(pk__in=[userId for userId, _strEmail in listAccount]).delete()
+    Membership.objects.filter(organization_id=organizationId).delete()
     _delete_organization_departments(organizationId)
     AuditRecord.objects.filter(
         scope=AuditScope.ORGANIZATION, organization_id=organizationId

@@ -96,7 +96,7 @@ def get_or_delete_account(
             if userId is not None:
                 membership = get_current_membership(actorId=user.id)
                 check_request_budget(
-                    request, membership.organization_id, budget=RequestBudget.READ
+                    request, membership.organization, budget=RequestBudget.READ
                 )
             deletionInfo = get_account_deletion_info(
                 actorId=user.id, channel=AccessChannel.SESSION, userId=targetId

@@ -35,7 +35,9 @@ def _build_profile_response(user: User) -> ProfileWriteResponse:
             id=user.id,
             email=user.email,
             username=user.username,
+            platform_login=user.platform_login,
             time_zone=user.time_zone,
+            is_platform_admin=user.is_platform_admin,
         )
     )
 

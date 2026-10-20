@@ -19,7 +19,6 @@ from django.utils.crypto import constant_time_compare, salted_hmac
 from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
-from executors.session_state import revoke_user_executor_sessions
 from operations.audit import record_audit
 from notifications.contracts import EmailStatus
 from notifications.models import EmailDelivery, EmailType
@@ -28,9 +27,8 @@ from organizations.permissions import (
     lock_account_for_password_reset,
 )
 
-from .api_keys import revoke_active_api_keys
-from .editor_sessions import revoke_user_editor_sessions
 from .models import PasswordResetRequest, User, UserManager
+from .password_changes import save_password_change
 from .passwords import validate_new_password
 
 _PASSWORD_RESET_TOKEN_LIFETIME = timedelta(hours=1)
@@ -74,6 +72,7 @@ def _has_current_reset_credentials(
 ) -> bool:
     return (
         user.is_active
+        and not user.is_platform_admin
         and user.has_usable_password()
         and resetRequest.user_id == user.id
         and any(
@@ -124,7 +123,10 @@ def request_password_reset_email(email: str) -> None:
     )
     delivery.full_clean(validate_unique=False, validate_constraints=False)
     userId = (
-        User.objects.filter(email=delivery.recipient).values_list("id", flat=True).first()
+        User.objects
+        .filter(email=delivery.recipient, is_platform_admin=False)
+        .values_list("id", flat=True)
+        .first()
     )
     if userId is None:
         return
@@ -133,7 +135,11 @@ def request_password_reset_email(email: str) -> None:
     except PermissionDenied:
         return
     # The account may have changed its email while this request was waiting for its lock.
-    if user.email != delivery.recipient or not user.has_usable_password():
+    if (
+        user.is_platform_admin
+        or user.email != delivery.recipient
+        or not user.has_usable_password()
+    ):
         return
 
     previousDelivery = (
@@ -253,10 +259,7 @@ def complete_password_reset(*, token: str, newPassword: str) -> User:
     user.set_password(newPassword)
     # Password hashing or a lock wait may have crossed the link's expiry boundary.
     _require_reset_token_unexpired(resetRequest)
-    user.save(update_fields=["password"])
-    revoke_active_api_keys(userId=user.id)
-    revoke_user_executor_sessions(user.id)
-    revoke_user_editor_sessions(user.id)
+    save_password_change(user)
     record_audit(
         "account.reset_password",
         actor=user,
@@ -264,5 +267,4 @@ def complete_password_reset(*, token: str, newPassword: str) -> User:
         target=user,
     )
     resetRequest.delete()
-    # NOTE: Email-change proofs are bound to the old password hash and are now invalid.
     return user

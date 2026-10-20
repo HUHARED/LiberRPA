@@ -99,7 +99,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-        "OPTIONS": {"user_attributes": ["email", "username"]},
+        "OPTIONS": {"user_attributes": ["email", "platform_login", "username"]},
     },
 ]
 MIDDLEWARE = [

@@ -126,7 +126,7 @@ def list_members(request: HttpRequest) -> JsonResponse:
             return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
-        check_request_budget(request, membership.organization_id)
+        check_request_budget(request, membership.organization)
         pageNumberResult = _get_page_number(request)
         if isinstance(pageNumberResult, JsonResponse):
             return pageNumberResult
@@ -172,7 +172,7 @@ def get_or_update_member(request: HttpRequest, userId: uuid.UUID) -> JsonRespons
             return build_authentication_required_response()
         user = cast(User, request.user)
         currentMembership = get_current_membership(actorId=user.id)
-        check_request_budget(request, currentMembership.organization_id)
+        check_request_budget(request, currentMembership.organization)
         if request.method == "POST":
             membershipRequest = parse_json_request(
                 request,

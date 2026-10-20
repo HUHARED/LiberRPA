@@ -37,6 +37,7 @@ from file_storage.services import (
 )
 
 from operations.audit import record_audit
+from organizations.limits import get_organization_limits
 from organizations.permissions import OrganizationAccessContext
 from organizations.validators import get_path_name_key
 
@@ -108,9 +109,9 @@ def create_upload(
         raise FileOperationError(
             "upload_receipt_limit", "The upload request history is full."
         )
-    require_upload_slot(access.organization.pk)
+    require_upload_slot(access.organization)
     lock_storage()
-    usage = get_storage_usage(access.organization.pk)
+    usage = get_storage_usage(access.organization)
     if (
         usage["used_bytes"] + usage["reserved_bytes"] + payload.size_bytes
         > usage["limit_bytes"]
@@ -256,10 +257,11 @@ def complete_upload(
     """Save the package after rechecking upload access while the organization is locked."""
 
     def validate_package_capacity(projectNameKey: str) -> None:
+        limits = get_organization_limits(access.organization)
         intPackageCount = Package.objects.filter(
             department_id=upload.department_id, project_name_key=projectNameKey
         ).count()
-        if intPackageCount >= settings.CONSOLE_LIMITS.maxPackagesPerProject:
+        if intPackageCount >= limits.maxPackagesPerProject:
             raise FileOperationError(
                 "package_limit", "This project has reached its package limit."
             )
@@ -270,7 +272,7 @@ def complete_upload(
             .values("department_id", "project_name_key")
             .distinct()
             .count()
-            >= settings.CONSOLE_LIMITS.maxProjectsPerOrganization
+            >= limits.maxProjectsPerOrganization
         ):
             raise FileOperationError(
                 "package_project_limit",
@@ -432,7 +434,7 @@ def prepare_download(
     package: Package,
     proxySnapshot: DownloadProxySnapshot | None,
 ) -> dict:
-    require_download_slot(access.organization.pk, proxySnapshot)
+    require_download_slot(access.organization, proxySnapshot)
     path = get_blob_path(package.blob_id)
     if not path.is_file() or path.stat().st_size != package.blob.size_bytes:
         raise FileOperationError(

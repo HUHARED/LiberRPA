@@ -17,6 +17,7 @@ from django.db.models import Case, CharField, Exists, OuterRef, QuerySet, Value,
 from django.utils import timezone
 
 from operations.audit import record_audit
+from organizations.limits import get_organization_limits
 from organizations.models import Organization, Membership
 from organizations.permissions import (
     OrganizationAccessContext,
@@ -94,11 +95,12 @@ def create_recipient(
         raise ValidationError(
             "This email address is already registered for this organization."
         )
+    limits = get_organization_limits(access.organization)
     if (
         get_recipient_query(access.organization.pk)
         .exclude(status=RunEmailRecipientStatus.MEMBER)
         .count()
-        >= settings.CONSOLE_LIMITS.maxRunEmailAddressesPerOrganization
+        >= limits.maxRunEmailAddressesPerOrganization
     ):
         raise ValidationError(
             "This organization has reached its Run email address limit."

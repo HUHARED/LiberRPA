@@ -32,6 +32,7 @@ from organizations.emails import (
     build_invitation_email,
     build_organization_deletion_notice,
 )
+from organizations.limit_emails import build_organization_limits_notice
 
 from .contracts import EmailStatus, EmailReasonCode
 from .models import (
@@ -39,6 +40,7 @@ from .models import (
     EmailDispatchState,
     EmailDelivery,
     OrganizationDeletionNotice,
+    OrganizationLimitsNotice,
     RunEmailEvent,
     RunEmailReference,
 )
@@ -288,6 +290,13 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
                 except OrganizationDeletionNotice.DoesNotExist:
                     return _mark_email_not_sent(
                         delivery, reasonCode=EmailReasonCode.DELETION_NOTICE_MISSING
+                    )
+            case EmailType.ORGANIZATION_LIMITS_NOTICE:
+                try:
+                    emailMessage = build_organization_limits_notice(delivery)
+                except OrganizationLimitsNotice.DoesNotExist:
+                    return _mark_email_not_sent(
+                        delivery, reasonCode=EmailReasonCode.LIMITS_NOTICE_MISSING
                     )
             case _:
                 raise ValueError("Unsupported email type.")

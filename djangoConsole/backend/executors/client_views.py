@@ -164,7 +164,7 @@ def sign_in_executor(request: HttpRequest) -> JsonResponse:
     try:
         strNormalizedEmail = UserManager.normalize_email(loginRequest.email)
         intRetryAfterSeconds = apply_login_rate_limit(
-            request.META.get("REMOTE_ADDR", ""), normalizedEmail=strNormalizedEmail
+            request.META.get("REMOTE_ADDR", ""), normalizedAccount=strNormalizedEmail
         )
         if intRetryAfterSeconds:
             return build_rate_limited_response(intRetryAfterSeconds)

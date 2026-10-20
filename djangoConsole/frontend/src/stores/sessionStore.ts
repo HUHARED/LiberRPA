@@ -2,12 +2,20 @@
 
 import { defineStore } from "pinia";
 
-import { getCurrentSession, getAccountAccess, signIn, signOut } from "../api/account";
+import {
+  getCurrentSession,
+  getAccountAccess,
+  signIn,
+  signInPlatform,
+  signOut,
+} from "../api/account";
 import { setCsrfToken } from "../api/client";
 import { ApiError, getApiError } from "../api/errors";
 
 import type {
   AccountAccessResponse,
+  LoginRequest,
+  PlatformLoginRequest,
   SessionUserResponse,
   SessionResponse,
 } from "../api/generated/browserApi";
@@ -36,6 +44,7 @@ export const useSessionStore = defineStore("session", {
       access: null as AccountAccessResponse | null,
       status: "unknown" as "unknown" | "authenticated" | "anonymous",
       notice: null as SessionNotice,
+      boolPlatformSignIn: false as boolean,
       issue: null as ApiError | null,
       unavailable: false as boolean,
       busy: false as boolean,
@@ -81,12 +90,16 @@ export const useSessionStore = defineStore("session", {
     },
 
     applySession(currentSession: SessionResponse): void {
-      if (this.session?.user.id !== currentSession.user.id) {
+      if (
+        this.session?.user.id !== currentSession.user.id ||
+        this.session?.user.is_platform_admin !== currentSession.user.is_platform_admin
+      ) {
         // A different account must not inherit the previous account's mounted pages.
         if (this.status === "authenticated") this.status = "unknown";
 
         this.access = null;
       }
+      this.boolPlatformSignIn = currentSession.user.is_platform_admin;
       this.session = {
         user: currentSession.user,
         expires_at: currentSession.expires_at,
@@ -105,7 +118,9 @@ export const useSessionStore = defineStore("session", {
           if (intCurrentRevision !== this.intRevision) return;
 
           this.applySession(currentSession);
-          const currentAccess = await getAccountAccess();
+          const currentAccess = currentSession.user.is_platform_admin
+            ? null
+            : await getAccountAccess();
           if (intCurrentRevision !== this.intRevision) return;
 
           this.access = currentAccess;
@@ -148,11 +163,7 @@ export const useSessionStore = defineStore("session", {
       if (this.status === "unknown") await this.refreshSession();
     },
 
-    async signInAccount(
-      email: string,
-      password: string,
-      rememberMe: boolean,
-    ): Promise<void> {
+    async signInAccount(credentials: LoginRequest | PlatformLoginRequest): Promise<void> {
       if (this.busy) throw new ApiError("A sign-in request is already in progress.");
 
       this.busy = true;
@@ -160,12 +171,20 @@ export const useSessionStore = defineStore("session", {
       mapRefreshTask.delete(this.$state);
       const intCurrentRevision = this.intRevision;
       try {
-        const currentSession = await signIn(email, password, rememberMe);
+        const boolRememberMe = credentials.remember_me ?? false;
+        const currentSession =
+          "platform_login" in credentials
+            ? await signInPlatform(
+                credentials.platform_login,
+                credentials.password,
+                boolRememberMe,
+              )
+            : await signIn(credentials.email, credentials.password, boolRememberMe);
         if (intCurrentRevision !== this.intRevision) return;
 
         this.applySession(currentSession);
         announceSessionChange();
-        // Verify that the browser accepted the session cookie before opening the workspace.
+        // Verify that the browser accepted the session cookie before opening Console.
         await this.refreshSession();
       } finally {
         this.busy = false;

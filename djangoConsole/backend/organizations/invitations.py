@@ -28,6 +28,7 @@ from notifications.recipients import register_member_recipient
 from operations.audit import get_audit_snapshot, record_audit
 
 from .contracts import DepartmentRole, InvitationStatus
+from .limits import get_organization_limits
 from .models import (
     Organization,
     Membership,
@@ -88,16 +89,11 @@ def get_invitation_status(invitation: MemberInvitation) -> InvitationStatus:
     )
 
 
-def _require_member_capacity(
-    organizationId: uuid.UUID, *, invitationId: uuid.UUID | None = None
-) -> None:
-    # TODO: Apply organization-specific member limits when quota overrides are implemented.
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    pendingQuery = _get_pending_invitations(organizationId)
-    if invitationId is not None:
-        pendingQuery = pendingQuery.exclude(pk=invitationId)
-    # NOTE: Inactive members still count. Acceptance replaces its own reservation.
-    intUsedCount = Membership.objects.filter(organization_id=organizationId).count()
+def _require_member_capacity(organization: Organization) -> None:
+    limits = get_organization_limits(organization)
+    pendingQuery = _get_pending_invitations(organization.pk)
+    # NOTE: Inactive members and effective invitation reservations both consume capacity.
+    intUsedCount = Membership.objects.filter(organization=organization).count()
     if intUsedCount + pendingQuery.count() >= limits.maxMembersPerOrganization:
         raise InvitationConflictError(
             "member_limit_reached", "The member limit has been reached."
@@ -194,7 +190,7 @@ def create_member_invitation(
             "An invitation is already pending for this address.",
         )
     _require_recipient_cooldown(organization.id, invitation.email)
-    _require_member_capacity(organization.id)
+    _require_member_capacity(organization)
     invitation.save(force_insert=True)
     InvitationDepartmentRole.objects.bulk_create([
         InvitationDepartmentRole(
@@ -241,7 +237,8 @@ def resend_member_invitation(
             "A newer invitation is already pending for this address.",
         )
     _require_recipient_cooldown(organization.id, invitation.email)
-    _require_member_capacity(organization.id, invitationId=invitation.id)
+    if invitation.expires_at <= timezone.now():
+        _require_member_capacity(organization)
     dictAuditBefore = get_audit_snapshot(invitation)
     invitation.requested_at = timezone.now()
     invitation.expires_at = invitation.requested_at + _INVITATION_LIFETIME
@@ -300,11 +297,11 @@ def _require_invitation_pending(invitation: MemberInvitation) -> None:
 def _require_invitation_eligible(
     invitation: MemberInvitation, organization: Organization
 ) -> None:
+    """Recheck eligibility without charging an already reserved member seat again."""
     _require_invitation_pending(invitation)
     require_organization_business_available(organization)
     _require_unregistered_email(invitation.email)
     _validate_department_roles(organization.id, _get_invitation_roles(invitation))
-    _require_member_capacity(organization.id, invitationId=invitation.id)
 
 
 @sensitive_variables()

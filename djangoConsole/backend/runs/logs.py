@@ -274,7 +274,7 @@ def upload_logs(request: HttpRequest, runId: uuid.UUID) -> HttpResponse:
             if listRunLog:
                 usage = get_or_create_run_log_usage(access.organization.id)
                 intAddedBytes = sum(runLog.byte_count for runLog in listRunLog)
-                if not make_run_log_space(usage, run, intAddedBytes):
+                if not make_run_log_space(access.organization, usage, run, intAddedBytes):
                     return build_error_response(
                         "run_log_capacity",
                         "Log capacity is exhausted and no eligible history can free enough space.",
@@ -430,7 +430,7 @@ def clear_logs(request: HttpRequest) -> HttpResponse:
         listRunId = list(dict.fromkeys(payload.run_ids))
         check_request_budget(
             request,
-            access.organization.pk,
+            access.organization,
             budget=RequestBudget.WRITE,
             cost=len(listRunId),
         )

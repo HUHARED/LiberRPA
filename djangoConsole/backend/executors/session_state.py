@@ -74,6 +74,7 @@ def is_executor_session_current(
     if (
         session.expires_at <= currentTime
         or not user.is_active
+        or user.is_platform_admin
         or not constant_time_compare(session.auth_hash, user.get_session_auth_hash())
     ):
         return False

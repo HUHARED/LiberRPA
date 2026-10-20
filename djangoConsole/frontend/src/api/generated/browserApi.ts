@@ -59,6 +59,7 @@ export type EmailReasonCode =
   | "password_reset_not_eligible"
   | "email_change_not_eligible"
   | "deletion_notice_missing"
+  | "limits_notice_missing"
   | "smtp_authentication_failed"
   | "smtp_not_supported"
   | "smtp_tls_failed"
@@ -93,6 +94,32 @@ export type RunConflictPolicy = "skip" | "wait" | "concurrent";
 export type OutputsStatus = "waiting" | "complete" | "partial" | "unavailable";
 export type RunStatus =
   "running" | "completed" | "error" | "canceled" | "timed_out" | "interrupted";
+export type OrganizationLimit =
+  | "maxMembersPerOrganization"
+  | "maxDepartmentsPerOrganization"
+  | "maxExecutorsPerOrganization"
+  | "maxExecutorGroupsPerOrganization"
+  | "maxProjectsPerOrganization"
+  | "maxPackagesPerProject"
+  | "maxSchedulesPerOrganization"
+  | "maxAssetsPerOrganization"
+  | "maxDataQueuesPerOrganization"
+  | "maxSharedFilesPerOrganization"
+  | "maxRunEmailAddressesPerOrganization"
+  | "maxStoredBytesPerOrganization"
+  | "maxQueueItemsPerOrganization"
+  | "maxQueueDataBytesPerOrganization"
+  | "maxRunLogBytesPerOrganization"
+  | "maxRunLogGroupsPerOrganization"
+  | "maxRunHistoryPerOrganization"
+  | "maxActiveJobsPerOrganization"
+  | "newJobsPerMinute"
+  | "newJobsBurst"
+  | "organizationReadRequestsPerMinute"
+  | "organizationWriteObjectsPerMinute"
+  | "maxActiveUploadsPerOrganization"
+  | "maxActiveDownloadsPerOrganization";
+export type LimitUnit = "count" | "bytes" | "per_minute";
 export type PackageReferenceKind = "schedule" | "job" | "preparation" | "download";
 export type RunLogLevel1 = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 export type RunPriority1 = "high" | "normal" | "low";
@@ -100,6 +127,8 @@ export type RunConflictPolicy1 = "skip" | "wait" | "concurrent";
 export type RequestUuid = string;
 export type PackageUploadState =
   "receiving" | "completed" | "failed" | "expired" | "canceled";
+export type PlatformOrganizationStatus =
+  "active" | "suspended" | "deletion_scheduled" | "deletion_in_progress";
 export type QueueRequestUuid = string;
 /**
  * @minItems 1
@@ -190,6 +219,9 @@ export interface BrowserApiContracts {
   MembershipUpdateRequest: MembershipUpdateRequest;
   MembershipWriteResponse: MembershipWriteResponse;
   MessageResponse: MessageResponse;
+  OrganizationLimitsRequest: OrganizationLimitsRequest;
+  OrganizationLimitsResponse: OrganizationLimitsResponse;
+  OrganizationRetentionRequest: OrganizationRetentionRequest;
   OrganizationSettingsRequest: OrganizationSettingsRequest;
   OrganizationSettingsResponse: OrganizationSettingsResponse;
   PackageDetailsResponse: PackageDetailsResponse;
@@ -202,6 +234,9 @@ export interface BrowserApiContracts {
   PackageUploadRequest: PackageUploadRequest;
   PackageUploadResponse: PackageUploadResponse;
   PasswordChangeRequest: PasswordChangeRequest;
+  PlatformLoginRequest: PlatformLoginRequest;
+  PlatformOrganizationFilters: PlatformOrganizationFilters;
+  PlatformOrganizationListResponse: PlatformOrganizationListResponse;
   ProfileUpdateRequest: ProfileUpdateRequest;
   ProfileWriteResponse: ProfileWriteResponse;
   ProjectPackageListResponse: ProjectPackageListResponse;
@@ -1112,6 +1147,45 @@ export interface MembershipRecordResponse {
 export interface MessageResponse {
   message: string;
 }
+export interface OrganizationLimitsRequest {
+  overrides: {
+    [k: string]: number;
+  };
+  version: string;
+}
+export interface OrganizationLimitsResponse {
+  limits: OrganizationLimitResponse[];
+  organization: OrganizationLimitIdentityResponse;
+  retention: OrganizationRetentionResponse;
+  updated_at: string;
+  usage_warning: string | null;
+  version: string;
+}
+export interface OrganizationLimitResponse {
+  default_limit: number;
+  key: OrganizationLimit;
+  label: string;
+  limit: number;
+  maximum: number | null;
+  minimum: number;
+  override: number | null;
+  reserved: number | null;
+  unit: LimitUnit;
+  used: number | null;
+}
+export interface OrganizationLimitIdentityResponse {
+  id: string;
+  name: string;
+}
+export interface OrganizationRetentionResponse {
+  audit_days: number;
+  run_history_days: number;
+  run_log_days: number;
+  run_log_max_days: number;
+}
+export interface OrganizationRetentionRequest {
+  run_log_days: number;
+}
 export interface OrganizationSettingsRequest {
   default_time_zone: string;
   name: string;
@@ -1293,6 +1367,49 @@ export interface PasswordChangeRequest {
   current_password: string;
   new_password: string;
 }
+export interface PlatformLoginRequest {
+  password: string;
+  platform_login: string;
+  remember_me?: boolean;
+}
+export interface PlatformOrganizationFilters {
+  name?: string;
+  organization_id?: string | null;
+  page?: number;
+  /**
+   * @maxItems 4
+   */
+  status?:
+    | []
+    | [PlatformOrganizationStatus]
+    | [PlatformOrganizationStatus, PlatformOrganizationStatus]
+    | [PlatformOrganizationStatus, PlatformOrganizationStatus, PlatformOrganizationStatus]
+    | [
+        PlatformOrganizationStatus,
+        PlatformOrganizationStatus,
+        PlatformOrganizationStatus,
+        PlatformOrganizationStatus
+      ];
+}
+export interface PlatformOrganizationListResponse {
+  organizations: PlatformOrganizationResponse[];
+  pagination: PaginationResponse;
+}
+export interface PlatformOrganizationResponse {
+  administrators: PlatformAdministratorResponse[];
+  created_at: string;
+  deletion_requested_at: string | null;
+  deletion_started_at: string | null;
+  id: string;
+  name: string;
+  notes: string;
+  suspended_at: string | null;
+}
+export interface PlatformAdministratorResponse {
+  email: string;
+  id: string;
+  name: string;
+}
 export interface ProfileUpdateRequest {
   time_zone: string;
   username: string;
@@ -1303,6 +1420,8 @@ export interface ProfileWriteResponse {
 export interface SessionUserResponse {
   email: string;
   id: string;
+  is_platform_admin: boolean;
+  platform_login: string;
   time_zone: string;
   username: string;
 }
@@ -1859,6 +1978,7 @@ export const ARR_EMAIL_REASON_CODE = [
   "password_reset_not_eligible",
   "email_change_not_eligible",
   "deletion_notice_missing",
+  "limits_notice_missing",
   "smtp_authentication_failed",
   "smtp_not_supported",
   "smtp_tls_failed",
@@ -1871,6 +1991,43 @@ export const ARR_EMAIL_REASON_CODE = [
   "email_worker_interrupted",
   "organization_deleted",
 ] as const satisfies readonly EmailReasonCode[];
+export const ARR_ORGANIZATION_LIMIT = [
+  "maxMembersPerOrganization",
+  "maxDepartmentsPerOrganization",
+  "maxExecutorsPerOrganization",
+  "maxExecutorGroupsPerOrganization",
+  "maxProjectsPerOrganization",
+  "maxPackagesPerProject",
+  "maxSchedulesPerOrganization",
+  "maxAssetsPerOrganization",
+  "maxDataQueuesPerOrganization",
+  "maxSharedFilesPerOrganization",
+  "maxRunEmailAddressesPerOrganization",
+  "maxStoredBytesPerOrganization",
+  "maxQueueItemsPerOrganization",
+  "maxQueueDataBytesPerOrganization",
+  "maxRunLogBytesPerOrganization",
+  "maxRunLogGroupsPerOrganization",
+  "maxRunHistoryPerOrganization",
+  "maxActiveJobsPerOrganization",
+  "newJobsPerMinute",
+  "newJobsBurst",
+  "organizationReadRequestsPerMinute",
+  "organizationWriteObjectsPerMinute",
+  "maxActiveUploadsPerOrganization",
+  "maxActiveDownloadsPerOrganization",
+] as const satisfies readonly OrganizationLimit[];
+export const ARR_LIMIT_UNIT = [
+  "count",
+  "bytes",
+  "per_minute",
+] as const satisfies readonly LimitUnit[];
+export const ARR_PLATFORM_ORGANIZATION_STATUS = [
+  "active",
+  "suspended",
+  "deletion_scheduled",
+  "deletion_in_progress",
+] as const satisfies readonly PlatformOrganizationStatus[];
 export const DepartmentRole = {
   Developer: "developer",
   Operator: "operator",
@@ -1947,3 +2104,40 @@ export const BrowserMessageType = {
   SessionChanged: "session_changed",
   NotificationsChanged: "notifications_changed",
 } as const satisfies Record<string, BrowserMessageType>;
+export const OrganizationLimit = {
+  MaxMembersPerOrganization: "maxMembersPerOrganization",
+  MaxDepartmentsPerOrganization: "maxDepartmentsPerOrganization",
+  MaxExecutorsPerOrganization: "maxExecutorsPerOrganization",
+  MaxExecutorGroupsPerOrganization: "maxExecutorGroupsPerOrganization",
+  MaxProjectsPerOrganization: "maxProjectsPerOrganization",
+  MaxPackagesPerProject: "maxPackagesPerProject",
+  MaxSchedulesPerOrganization: "maxSchedulesPerOrganization",
+  MaxAssetsPerOrganization: "maxAssetsPerOrganization",
+  MaxDataQueuesPerOrganization: "maxDataQueuesPerOrganization",
+  MaxSharedFilesPerOrganization: "maxSharedFilesPerOrganization",
+  MaxRunEmailAddressesPerOrganization: "maxRunEmailAddressesPerOrganization",
+  MaxStoredBytesPerOrganization: "maxStoredBytesPerOrganization",
+  MaxQueueItemsPerOrganization: "maxQueueItemsPerOrganization",
+  MaxQueueDataBytesPerOrganization: "maxQueueDataBytesPerOrganization",
+  MaxRunLogBytesPerOrganization: "maxRunLogBytesPerOrganization",
+  MaxRunLogGroupsPerOrganization: "maxRunLogGroupsPerOrganization",
+  MaxRunHistoryPerOrganization: "maxRunHistoryPerOrganization",
+  MaxActiveJobsPerOrganization: "maxActiveJobsPerOrganization",
+  NewJobsPerMinute: "newJobsPerMinute",
+  NewJobsBurst: "newJobsBurst",
+  OrganizationReadRequestsPerMinute: "organizationReadRequestsPerMinute",
+  OrganizationWriteObjectsPerMinute: "organizationWriteObjectsPerMinute",
+  MaxActiveUploadsPerOrganization: "maxActiveUploadsPerOrganization",
+  MaxActiveDownloadsPerOrganization: "maxActiveDownloadsPerOrganization",
+} as const satisfies Record<string, OrganizationLimit>;
+export const LimitUnit = {
+  Count: "count",
+  Bytes: "bytes",
+  PerMinute: "per_minute",
+} as const satisfies Record<string, LimitUnit>;
+export const PlatformOrganizationStatus = {
+  Active: "active",
+  Suspended: "suspended",
+  DeletionScheduled: "deletion_scheduled",
+  DeletionInProgress: "deletion_in_progress",
+} as const satisfies Record<string, PlatformOrganizationStatus>;

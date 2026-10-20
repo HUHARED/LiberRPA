@@ -63,7 +63,9 @@ def require_organization_business_available(organization: Organization) -> None:
 
 
 def _get_active_memberships(actorId: uuid.UUID) -> QuerySet[Membership]:
-    return Membership.objects.filter(user_id=actorId, user__is_active=True)
+    return Membership.objects.filter(
+        user_id=actorId, user__is_active=True, user__is_platform_admin=False
+    )
 
 
 def get_current_membership(*, actorId: uuid.UUID) -> Membership:
@@ -197,7 +199,12 @@ def has_other_active_organization_admin(
     """
     return (
         Membership.objects
-        .filter(organization_id=organizationId, is_org_admin=True, user__is_active=True)
+        .filter(
+            organization_id=organizationId,
+            is_org_admin=True,
+            user__is_active=True,
+            user__is_platform_admin=False,
+        )
         .exclude(user_id=userId)
         .exists()
     )

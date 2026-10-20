@@ -5,7 +5,7 @@ import type { Router, RouterHistory } from "vue-router";
 
 import { useSessionStore } from "../stores/sessionStore";
 
-import { getSafeReturnPath, getSignInLocation } from "./navigation";
+import { getAuthenticatedRedirect, getSignInLocation } from "./navigation";
 
 export function createAppRouter(history: RouterHistory = createWebHistory()): Router {
   const router = createRouter({
@@ -35,6 +35,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         name: "sign-in",
         component: () => import("@/views/accounts/SignInView.vue"),
         meta: { title: "Sign In", public: true },
+      },
+      {
+        path: "/platform/sign-in",
+        name: "platform-sign-in",
+        component: () => import("@/views/platform/SignInView.vue"),
+        meta: { title: "Platform Sign In", public: true },
       },
       {
         path: "/forgot-password",
@@ -213,6 +219,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
             meta: { title: "General" },
           },
           {
+            path: "usage-retention",
+            name: "organization-usage",
+            component: () => import("@/views/organizations/OrganizationUsageView.vue"),
+            meta: { title: "Usage & Retention" },
+          },
+          {
             path: "audit-log",
             name: "audit-log",
             component: () => import("@/views/audit/AuditLogView.vue"),
@@ -245,6 +257,19 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
             meta: { title: "Department Details" },
           },
         ],
+      },
+      {
+        path: "/platform/organizations",
+        name: "platform-organizations",
+        component: () => import("@/views/platform/OrganizationsView.vue"),
+        meta: { title: "Organizations", requiresPlatformAdmin: true },
+      },
+      {
+        path: "/platform/organizations/:organizationId/limits",
+        name: "platform-organization-limits",
+        component: () => import("@/views/platform/OrganizationLimitsView.vue"),
+        props: true,
+        meta: { title: "Usage & Limits", requiresPlatformAdmin: true },
       },
       {
         path: "/my-profile",
@@ -298,18 +323,11 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
     if (sessionStore.unavailable) return from.matched.length === 0;
 
     if (sessionStore.status === "anonymous" && !to.meta.public) {
-      return getSignInLocation(to.fullPath);
+      return getSignInLocation(to.fullPath, sessionStore.boolPlatformSignIn);
     }
 
-    if (sessionStore.authenticated) {
-      if (to.name === "sign-in") return getSafeReturnPath(to.query.returnTo);
-      if (to.meta.requiresBusiness && !sessionStore.access?.business_available)
-        return { name: "organization-status" };
-      if (to.meta.requiresOrgAdmin && !sessionStore.access?.is_org_admin)
-        return { name: "overview" };
-      if (to.name === "organization-status" && sessionStore.access?.business_available)
-        return { name: "overview" };
-    }
+    if (sessionStore.authenticated && sessionStore.session)
+      return getAuthenticatedRedirect(to, sessionStore.session.user, sessionStore.access);
     return true;
   });
 

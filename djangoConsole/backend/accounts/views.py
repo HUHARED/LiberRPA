@@ -4,6 +4,8 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+from typing import cast
+
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import DatabaseError
@@ -23,6 +25,7 @@ from console_project.http import (
 )
 
 from .contracts import CsrfResponse
+from .models import User
 from .rate_limits import (
     apply_registration_email_rate_limit,
     apply_registration_token_rate_limit,
@@ -96,6 +99,12 @@ def get_csrf_token(request: HttpRequest) -> JsonResponse:
 @sensitive_variables()
 def queue_registration_email(request: HttpRequest) -> JsonResponse:
     """Accept a CSRF-protected request without exposing account or delivery state."""
+    if request.user.is_authenticated and cast(User, request.user).is_platform_admin:
+        return build_error_response(
+            "business_registration_unavailable",
+            "Platform accounts cannot register business accounts.",
+            statusCode=403,
+        )
     registrationRequest = parse_json_request(request, RegistrationEmailRequest)
     if isinstance(registrationRequest, JsonResponse):
         return registrationRequest
@@ -154,6 +163,12 @@ def check_registration_link(request: HttpRequest) -> JsonResponse:
 @sensitive_variables()
 def complete_registration(request: HttpRequest) -> JsonResponse:
     """Atomically create the account and organization using the token's fixed email."""
+    if request.user.is_authenticated and cast(User, request.user).is_platform_admin:
+        return build_error_response(
+            "business_registration_unavailable",
+            "Platform accounts cannot register business accounts.",
+            statusCode=403,
+        )
     registrationRequest = parse_json_request(request, RegistrationCompletionRequest)
     if isinstance(registrationRequest, JsonResponse):
         return registrationRequest

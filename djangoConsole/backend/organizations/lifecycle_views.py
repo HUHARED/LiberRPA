@@ -96,7 +96,7 @@ def _handle_organization_deletion(
             return build_authentication_required_response()
         user = cast(User, request.user)
         membership = get_current_membership(actorId=user.id)
-        check_request_budget(request, membership.organization_id)
+        check_request_budget(request, membership.organization)
         if request.method == "GET":
             return _build_organization_deletion_response(
                 membership.organization, isOrgAdmin=membership.is_org_admin

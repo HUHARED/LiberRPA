@@ -145,7 +145,9 @@ def list_queue_items(
             len(request.GET.getlist(strKey)) != 1 for strKey in request.GET
         ):
             raise ValueError
-        status = QueueItemFilterStatus(request.GET.get("status", QueueItemFilterStatus.ALL))
+        status = QueueItemFilterStatus(
+            request.GET.get("status", QueueItemFilterStatus.ALL)
+        )
         order = QueueItemOrder(request.GET.get("order", QueueItemOrder.OLDEST_FIRST))
         itemId = uuid.UUID(request.GET["item_id"]) if request.GET.get("item_id") else None
         intPageNumber = parse_page_number(request.GET)
@@ -206,7 +208,7 @@ def upload_queue_items(
     queueReference, payload = parsed
     check_request_budget(
         request,
-        membership.organization_id,
+        membership.organization,
         budget=RequestBudget.WRITE,
         cost=len(payload.items),
     )
@@ -229,7 +231,7 @@ def reset_queue_items(
     queueReference, payload = parsed
     check_request_budget(
         request,
-        membership.organization_id,
+        membership.organization,
         budget=RequestBudget.WRITE,
         cost=len(set(payload.item_ids)),
     )
@@ -254,7 +256,7 @@ def delete_queue_items(
         raise QueueRequestError("Select explicit item IDs in the browser.")
     check_request_budget(
         request,
-        membership.organization_id,
+        membership.organization,
         budget=RequestBudget.WRITE,
         cost=len(set(payload.item_ids)),
     )

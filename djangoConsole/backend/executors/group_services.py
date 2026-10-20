@@ -6,16 +6,14 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 from dataclasses import dataclass
-from typing import cast
 
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
-from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
+from organizations.limits import get_organization_limits
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -95,7 +93,7 @@ def create_executor_group(
     group = ExecutorGroup(department=department, name=name.strip(), notes=notes)
     group.full_clean()
     _validate_group_members(group, executorIds)
-    limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    limits = get_organization_limits(access.organization)
     if (
         ExecutorGroup.objects.filter(
             department__organization=access.organization, deleted_at__isnull=True

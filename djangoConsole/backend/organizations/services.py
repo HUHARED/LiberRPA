@@ -5,7 +5,12 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
+from typing import cast
 
+from django.conf import settings
+from django.core.exceptions import ValidationError
+
+from console_project.config import LimitsConfig
 from operations.audit import get_audit_snapshot, record_audit
 
 from .models import Organization
@@ -63,3 +68,30 @@ def update_organization_settings(
         before=dictAuditBefore,
     )
     return organization
+
+
+def update_organization_retention(
+    *, access: OrganizationAccessContext, runLogDays: int
+) -> None:
+    """Save log retention using the caller's locked organization and current session."""
+    require_organization_admin(access)
+    intMaximum = cast(LimitsConfig, settings.CONSOLE_LIMITS).runLogRetentionDays
+    if not 1 <= runLogDays <= intMaximum:
+        raise ValidationError({
+            "run_log_days": f"Enter a whole number from 1 to {intMaximum}."
+        })
+    organization = access.organization
+    if organization.run_log_retention_days == runLogDays:
+        return
+
+    dictAuditBefore = get_audit_snapshot(organization)
+    organization.run_log_retention_days = runLogDays
+    organization.save(update_fields=["run_log_retention_days"])
+    record_audit(
+        "organization.update_retention",
+        actor=access.actor,
+        organization=organization,
+        target=organization,
+        channel=access.channel,
+        before=dictAuditBefore,
+    )
