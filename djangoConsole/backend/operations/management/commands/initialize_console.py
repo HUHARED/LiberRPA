@@ -12,7 +12,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError, transaction
 from django.views.decorators.debug import sensitive_variables
 
-from accounts.models import User, UserManager
+from accounts.models import STR_PLATFORM_ADMIN_LOGIN, User
 from accounts.passwords import validate_new_password
 from operations.audit import record_audit
 
@@ -27,11 +27,8 @@ class Command(BaseCommand):
             raise CommandError("Console already has a platform administrator.")
 
         try:
-            strLogin = UserManager.normalize_login(input("Platform login name: "))
-            if not strLogin:
-                raise CommandError("Enter a login name.")
             user = User(
-                platform_login=strLogin,
+                platform_login=STR_PLATFORM_ADMIN_LOGIN,
                 username="Platform Administrator",
                 is_platform_admin=True,
             )
@@ -73,4 +70,8 @@ class Command(BaseCommand):
                 ) from None
             raise
 
-        self.stdout.write(self.style.SUCCESS("Platform administrator created."))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Platform administrator '{STR_PLATFORM_ADMIN_LOGIN}' created."
+            )
+        )

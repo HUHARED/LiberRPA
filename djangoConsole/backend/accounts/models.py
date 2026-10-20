@@ -22,6 +22,8 @@ from console_project.validators import validate_time_zone
 
 from .passwords import validate_new_password
 
+STR_PLATFORM_ADMIN_LOGIN = "admin"
+
 
 class UserManager(BaseUserManager["User"]):
     @classmethod
@@ -108,13 +110,10 @@ class User(AbstractBaseUser):
                 name="accounts_user_email_canonical",
             ),
             models.CheckConstraint(
-                condition=models.Q(platform_login=Lower(Trim("platform_login"))),
-                name="accounts_user_login_canonical",
-            ),
-            models.CheckConstraint(
-                condition=(
-                    models.Q(is_platform_admin=True, email="")
-                    & ~models.Q(platform_login="")
+                condition=models.Q(
+                    is_platform_admin=True,
+                    email="",
+                    platform_login=STR_PLATFORM_ADMIN_LOGIN,
                 )
                 | (
                     models.Q(is_platform_admin=False, platform_login="")
