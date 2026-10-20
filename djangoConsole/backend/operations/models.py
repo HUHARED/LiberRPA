@@ -34,6 +34,58 @@ class ServiceSettings(models.Model):
         return "Console service settings"
 
 
+class CleanupTask(models.TextChoices):
+    FILE_STORAGE = "file_storage", "File Storage"
+    RUN_DATA = "run_data", "Run Data"
+    EMAIL_HISTORY = "email_history", "Email History"
+    AUDIT_HISTORY = "audit_history", "Audit History"
+    API_KEYS = "api_keys", "API Keys"
+
+
+class CleanupStatus(models.TextChoices):
+    RUNNING = "running", "Running"
+    SUCCEEDED = "succeeded", "Succeeded"
+    FAILED = "failed", "Failed"
+
+
+class CleanupState(models.Model):
+    """Latest started attempt for each routine cleanup task, without execution history."""
+
+    task = models.CharField(
+        primary_key=True,
+        max_length=max(len(value) for value in CleanupTask.values),
+        choices=CleanupTask.choices,
+    )
+    attempt_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    started_at = models.DateTimeField(default=timezone.now)
+    finished_at = models.DateTimeField(null=True)
+    status = models.CharField(
+        max_length=max(len(value) for value in CleanupStatus.values),
+        choices=CleanupStatus.choices,
+        default=CleanupStatus.RUNNING,
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(task__in=CleanupTask.values),
+                name="cleanup_task_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=CleanupStatus.values),
+                name="cleanup_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status=CleanupStatus.RUNNING, finished_at__isnull=True)
+                | models.Q(
+                    status__in=(CleanupStatus.SUCCEEDED, CleanupStatus.FAILED),
+                    finished_at__isnull=False,
+                ),
+                name="cleanup_finished_at_matches_status",
+            ),
+        ]
+
+
 class AuditScope(models.TextChoices):
     ORGANIZATION = "organization", "Organization"
     PLATFORM = "platform", "Platform"

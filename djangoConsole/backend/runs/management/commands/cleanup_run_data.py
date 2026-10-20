@@ -8,11 +8,18 @@ from typing import cast
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
+from operations.models import CleanupTask
+from operations.cleanup import record_cleanup
+
 from runs.retention import cleanup_run_data
 
 
 class Command(BaseCommand):
-    help = "Remove expired Run History and central logs without changing active work."
+    help = (
+        "Remove expired Run History and central logs without changing active work. "
+        "Run at least once per hour."
+    )
+    requires_migrations_checks = True
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--limit", type=int, default=200)
@@ -21,7 +28,9 @@ class Command(BaseCommand):
         intLimit = cast(int, options["limit"])
         if not 1 <= intLimit <= 10000:
             raise CommandError("Use --limit between 1 and 10000.")
-        intJobs, intLogs = cleanup_run_data(intLimit)
+
+        with record_cleanup(CleanupTask.RUN_DATA):
+            intJobs, intLogs = cleanup_run_data(intLimit)
         self.stdout.write(
             f"Removed {intJobs} finished Jobs and cleared {intLogs} log groups."
         )

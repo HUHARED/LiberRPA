@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import logging
 import shutil
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from django.conf import settings
@@ -26,6 +26,9 @@ from .contracts import (
     InstanceStorageResponse,
     InstanceSummaryResponse,
 )
+
+from .models import CleanupTask, CleanupStatus, CleanupState
+from .cleanup import DICT_CLEANUP_MAX_AGE_SECONDS
 
 _LOGGER = logging.getLogger("console.operations")
 _INT_SCHEDULE_SCAN_MAX_AGE_SECONDS = 60
@@ -121,6 +124,70 @@ def load_instance_summary() -> InstanceSummaryResponse:
             strEmailMessage = "Email worker status could not be read."
             _LOGGER.warning("Instance email worker check failed: %s", type(e).__name__)
 
+    cleanupStatus = InstanceHealthStatus.UNKNOWN
+    cleanupCheckedAt = None
+    strCleanupMessage = "The database check failed; cleanup status is unavailable."
+    if databaseStatus == InstanceHealthStatus.HEALTHY:
+        try:
+            dictCleanupState = {state.task: state for state in CleanupState.objects.all()}
+            currentTime = timezone.now()
+            dictCleanupEvidence: dict[
+                InstanceHealthStatus, list[tuple[str, datetime | None]]
+            ] = {status: [] for status in InstanceHealthStatus}
+            for task in CleanupTask:
+                cleanupState = dictCleanupState.get(task)
+                if cleanupState is None:
+                    dictCleanupEvidence[InstanceHealthStatus.UNKNOWN].append(
+                        (str(task.label), None)
+                    )
+                    continue
+                evidenceAt = cleanupState.finished_at or cleanupState.started_at
+                if (
+                    cleanupState.started_at > currentTime
+                    or evidenceAt > currentTime
+                    or evidenceAt < cleanupState.started_at
+                    or currentTime - evidenceAt
+                    > timedelta(seconds=DICT_CLEANUP_MAX_AGE_SECONDS[task])
+                ):
+                    taskStatus = InstanceHealthStatus.UNKNOWN
+                elif cleanupState.status == CleanupStatus.FAILED:
+                    taskStatus = InstanceHealthStatus.ERROR
+                elif cleanupState.status == CleanupStatus.RUNNING:
+                    taskStatus = InstanceHealthStatus.WARNING
+                else:
+                    taskStatus = InstanceHealthStatus.HEALTHY
+                dictCleanupEvidence[taskStatus].append((str(task.label), evidenceAt))
+
+            for status in (
+                InstanceHealthStatus.ERROR,
+                InstanceHealthStatus.UNKNOWN,
+                InstanceHealthStatus.WARNING,
+                InstanceHealthStatus.HEALTHY,
+            ):
+                listEvidence = dictCleanupEvidence[status]
+                if not listEvidence:
+                    continue
+                cleanupStatus = status
+                listEvidenceTime = [checkedAt for _, checkedAt in listEvidence]
+                cleanupCheckedAt = (
+                    None
+                    if any(checkedAt is None for checkedAt in listEvidenceTime)
+                    else min(checkedAt for checkedAt in listEvidenceTime if checkedAt is not None)
+                )
+                strTaskNames = ", ".join(strName for strName, _ in listEvidence)
+                if status == InstanceHealthStatus.ERROR:
+                    strCleanupMessage = f"Cleanup failed: {strTaskNames}."
+                elif status == InstanceHealthStatus.UNKNOWN:
+                    strCleanupMessage = f"No recent cleanup result: {strTaskNames}."
+                elif status == InstanceHealthStatus.WARNING:
+                    strCleanupMessage = f"Cleanup in progress: {strTaskNames}."
+                else:
+                    strCleanupMessage = "Recent routine cleanup runs completed successfully."
+                break
+        except DatabaseError as e:
+            strCleanupMessage = "Cleanup status could not be read."
+            _LOGGER.warning("Instance cleanup check failed: %s", type(e).__name__)
+
     listComponent = [
         InstanceComponentResponse(
             component=InstanceComponent.DATABASE,
@@ -140,19 +207,19 @@ def load_instance_summary() -> InstanceSummaryResponse:
             checked_at=emailCheckedAt,
             message=strEmailMessage,
         ),
+        InstanceComponentResponse(
+            component=InstanceComponent.CLEANUP,
+            status=cleanupStatus,
+            checked_at=cleanupCheckedAt,
+            message=strCleanupMessage,
+        ),
+        InstanceComponentResponse(
+            component=InstanceComponent.BACKUP,
+            status=InstanceHealthStatus.UNKNOWN,
+            checked_at=None,
+            message="No health check is available.",
+        ),
     ]
-    for component in (
-        InstanceComponent.CLEANUP,
-        InstanceComponent.BACKUP,
-    ):
-        listComponent.append(
-            InstanceComponentResponse(
-                component=component,
-                status=InstanceHealthStatus.UNKNOWN,
-                checked_at=None,
-                message="No health check is available.",
-            )
-        )
 
     intStorageTotal: int | None = None
     intStorageUsed: int | None = None

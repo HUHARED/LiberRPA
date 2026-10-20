@@ -7,16 +7,23 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError
 
+from operations.models import CleanupTask
+from operations.cleanup import record_cleanup
+
 from accounts.api_keys import prune_inactive_api_keys
 
 
 class Command(BaseCommand):
-    help = "Delete inactive API key metadata beyond the configured age and count limits."
+    help = (
+        "Delete inactive API key metadata beyond the configured age and count limits. "
+        "Run at least once per hour."
+    )
     requires_migrations_checks = True
 
     def handle(self, *_args: object, **_options: object) -> None:
         try:
-            intDeletedCount = prune_inactive_api_keys()
+            with record_cleanup(CleanupTask.API_KEYS):
+                intDeletedCount = prune_inactive_api_keys()
         except DatabaseError:
             raise CommandError(
                 "API key cleanup stopped after a database error; it can be rerun."

@@ -37,8 +37,6 @@ def _delete_in_batches(records: QuerySet[EmailDelivery], batchSize: int) -> int:
 
 def prune_email_deliveries(*, batchSize: int = 1000) -> int:
     """Prune completed history by organization while preserving live accounting and proofs."""
-    if not 1 <= batchSize <= 10000:
-        raise ValueError("Batch size must be between 1 and 10000.")
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     currentTime = timezone.now()
     instanceDayStart = timezone.localtime(

@@ -49,8 +49,6 @@ def _prune_scope(records: QuerySet[AuditRecord], limit: int, batchSize: int) -> 
 
 def prune_audit_records(*, batchSize: int = 1000) -> int:
     """Apply age and independent per-organization/platform count limits in small batches."""
-    if not 1 <= batchSize <= 10000:
-        raise ValueError("Batch size must be between 1 and 10000.")
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     intDeletedCount = _delete_in_batches(
         AuditRecord.objects.filter(

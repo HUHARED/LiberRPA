@@ -9,13 +9,19 @@ import logging
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import DatabaseError
 
+from operations.models import CleanupTask
+from operations.cleanup import record_cleanup
+
 from notifications.email_retention import prune_email_deliveries
 
 _LOGGER = logging.getLogger("console.email_retention")
 
 
 class Command(BaseCommand):
-    help = "Prune expired and excess completed email deliveries."
+    help = (
+        "Prune expired and excess completed email deliveries. "
+        "Run at least once per hour."
+    )
     requires_migrations_checks = True
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -23,9 +29,12 @@ class Command(BaseCommand):
 
     def handle(self, *_args: object, **options: object) -> None:
         try:
-            intDeletedCount = prune_email_deliveries(
-                batchSize=int(str(options["batch_size"]))
-            )
+            intBatchSize = int(str(options["batch_size"]))
+            if not 1 <= intBatchSize <= 10000:
+                raise ValueError("Batch size must be between 1 and 10000.")
+
+            with record_cleanup(CleanupTask.EMAIL_HISTORY):
+                intDeletedCount = prune_email_deliveries(batchSize=intBatchSize)
         except ValueError as e:
             raise CommandError(str(e)) from None
         except DatabaseError:
