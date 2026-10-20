@@ -28,6 +28,11 @@
         :active="route.path.startsWith('/platform/organizations')"
         color="primary" />
       <v-list-item
+        title="Service Settings"
+        prepend-icon="mdi-cog-outline"
+        to="/platform/service-settings"
+        color="primary" />
+      <v-list-item
         title="Instance Status"
         prepend-icon="mdi-server-outline"
         to="/platform/instance-status"

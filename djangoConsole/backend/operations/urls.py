@@ -11,6 +11,7 @@ from .audit_views import (
     get_organization_audit_filters,
     get_organization_audit_details,
 )
+from .service_settings_views import get_or_update_service_settings
 from .instance_views import get_instance_status
 from .email_views import list_email_issues, get_email_issue_filters
 from .organization_views import (
@@ -19,6 +20,11 @@ from .organization_views import (
 )
 
 urlpatterns = [
+    path(
+        "platform/service-settings/",
+        get_or_update_service_settings,
+        name="platform-service-settings",
+    ),
     path("platform/email-issues/", list_email_issues, name="platform-email-issues"),
     path(
         "platform/email-issues/filters/",

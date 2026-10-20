@@ -275,6 +275,8 @@ export interface BrowserApiContracts {
   SchedulePreviewResponse: SchedulePreviewResponse;
   ScheduleSaveRequest: ScheduleSaveRequest;
   ScheduleTimeRequest: ScheduleTimeRequest;
+  ServiceSettingsRequest: ServiceSettingsRequest;
+  ServiceSettingsResponse: ServiceSettingsResponse;
   SessionResponse: SessionResponse;
   SessionRevocationRequest: SessionRevocationRequest;
 }
@@ -1888,6 +1890,14 @@ export interface ScheduleTimeRequest {
   active_until: string;
   cron: string;
   time_zone: string;
+}
+export interface ServiceSettingsRequest {
+  allow_organization_creation: boolean;
+}
+export interface ServiceSettingsResponse {
+  allow_organization_creation: boolean;
+  console_url: string;
+  support_email: string;
 }
 export interface SessionResponse {
   csrf_token: string;

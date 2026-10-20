@@ -25,7 +25,7 @@ from organizations.models import (
 from organizations.permissions import AccessChannel
 
 from .contracts import AuditChannel, AuditResult, AuditStage
-from .models import AuditScope, AuditRecord
+from .models import ServiceSettings, AuditScope, AuditRecord
 
 _INT_MAX_OBJECT_NAME_LENGTH = cast(
     models.CharField, AuditRecord._meta.get_field("object_name")
@@ -72,6 +72,7 @@ _DICT_SNAPSHOT_FIELD = {
     "assets.asset": ("name", "department_id", "asset_type", "notes"),
     "data_queues.dataqueue": ("name", "department_id", "notes"),
     "shared_files.sharedfile": ("name", "department_id", "blob_id"),
+    "operations.servicesettings": ("allow_organization_creation",),
     "schedules.schedule": (
         "name",
         "department_id",
@@ -169,7 +170,7 @@ def _build_audit_record(
     """Build verified identity snapshots in the caller's business transaction.
 
     The caller supplies the authenticated actor and the operation's organization.
-    It must already hold the organization lock, or have created the organization in this transaction.
+    Organization operations must already hold its lock, or have created it in this transaction.
     Registration, recovery, logout, and system cleanup retain their own authorization rules.
     This function neither resolves identity nor acquires business locks; audit failures propagate.
     """
@@ -190,7 +191,7 @@ def _build_audit_record(
         str(target.user)
         if isinstance(target, Membership)
         else str(target)
-        if isinstance(target, User)
+        if isinstance(target, (User, ServiceSettings))
         else str(getattr(target, "name", getattr(target, "email", target.pk)))
     )
     return AuditRecord(

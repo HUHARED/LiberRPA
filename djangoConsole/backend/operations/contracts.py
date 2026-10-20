@@ -162,6 +162,16 @@ class OrganizationLimitsRequest(JsonRequest):
     overrides: dict[str, int]
 
 
+class ServiceSettingsRequest(JsonRequest):
+    allow_organization_creation: bool
+
+
+class ServiceSettingsResponse(JsonResponsePayload):
+    allow_organization_creation: bool
+    console_url: str
+    support_email: str
+
+
 class InstanceHistoryRange(TextChoices):
     HOUR = "1h", "Last Hour"
     DAY = "24h", "Last 24 Hours"
