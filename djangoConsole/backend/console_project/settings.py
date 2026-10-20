@@ -10,28 +10,29 @@ from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
-from .config import read_config, read_secret_file, read_secret_cipher
+from .config import read_config_snapshot
 from .logging import build_logging_config
 
 _PATH_CONSOLE = Path(__file__).resolve().parents[2]
 _PATH_CONFIG = Path(
     os.environ.get("LIBERRPA_CONSOLE_CONFIG", _PATH_CONSOLE / ".local/Console.jsonc")
 ).resolve()
-_CONSOLE_CONFIG = read_config(_PATH_CONFIG)
+CONSOLE_CONFIG_PATH = _PATH_CONFIG
+CONSOLE_CONFIG_SNAPSHOT = read_config_snapshot(_PATH_CONFIG)
+_CONSOLE_CONFIG = CONSOLE_CONFIG_SNAPSHOT.config
 
 CONSOLE_LIMITS = _CONSOLE_CONFIG.limits
 CONSOLE_FILE_TRANSFER_PROXY = _CONSOLE_CONFIG.fileTransferProxy
 CONSOLE_MONITORING = _CONSOLE_CONFIG.monitoring
+CONSOLE_BACKUP = _CONSOLE_CONFIG.backup
 CONSOLE_STORAGE_ROOT = (_PATH_CONFIG.parent / _CONSOLE_CONFIG.storageRoot).resolve()
-CONSOLE_SECRET_CIPHER = read_secret_cipher(
-    _PATH_CONFIG.parent, _CONSOLE_CONFIG.encryptionKeyFiles
-)
+CONSOLE_SECRET_CIPHER = CONSOLE_CONFIG_SNAPSHOT.read_secret_cipher()
 CONSOLE_LOG_REQUESTS = _CONSOLE_CONFIG.logging.requests
 CONSOLE_URL = str(_CONSOLE_CONFIG.consoleUrl).rstrip("/")
 CONSOLE_SUPPORT_EMAIL = _CONSOLE_CONFIG.supportEmail
 
 # region Django settings
-SECRET_KEY = read_secret_file(_PATH_CONFIG.parent / _CONSOLE_CONFIG.secretKeyFile)
+SECRET_KEY = CONSOLE_CONFIG_SNAPSHOT.read_secret(_CONSOLE_CONFIG.secretKeyFile)
 if len(SECRET_KEY) < 50:
     raise ImproperlyConfigured(
         "The Django secret key must contain at least 50 characters."
@@ -54,9 +55,7 @@ MAILERS = {
             "host": _CONSOLE_CONFIG.smtp.host,
             "port": _CONSOLE_CONFIG.smtp.port,
             "username": _CONSOLE_CONFIG.smtp.user,
-            "password": read_secret_file(
-                _PATH_CONFIG.parent / _CONSOLE_CONFIG.smtp.passwordFile
-            ),
+            "password": CONSOLE_CONFIG_SNAPSHOT.read_secret(_CONSOLE_CONFIG.smtp.passwordFile),
             "use_ssl": _CONSOLE_CONFIG.smtp.security == "ssl",
             "use_tls": _CONSOLE_CONFIG.smtp.security == "starttls",
             "timeout": _CONSOLE_CONFIG.smtp.timeoutSeconds,
@@ -119,9 +118,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": _CONSOLE_CONFIG.database.name,
         "USER": _CONSOLE_CONFIG.database.user,
-        "PASSWORD": read_secret_file(
-            _PATH_CONFIG.parent / _CONSOLE_CONFIG.database.passwordFile
-        ),
+        "PASSWORD": CONSOLE_CONFIG_SNAPSHOT.read_secret(_CONSOLE_CONFIG.database.passwordFile),
         "HOST": _CONSOLE_CONFIG.database.host,
         "PORT": _CONSOLE_CONFIG.database.port,
         # ASGI requests should not keep Django's persistent database connections open.

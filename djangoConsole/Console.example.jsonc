@@ -41,6 +41,12 @@
   // Use { "prometheusUrl": "http://127.0.0.1:9090" } when monitoring is deployed.
   "monitoring": null,
 
+  // Optional online backups. Install matching PostgreSQL client tools when enabled.
+  // Use { "location": "../backups", "dailyTime": "03:00", "notificationEmail": "admin@example.com" }.
+  // Paths are relative to this configuration file; times use the instance time zone.
+  // The backup location must be separate from storage and configuration directories.
+  "backup": null,
+
   // Required email settings. Replace the example addresses and SMTP host.
   // consoleUrl is the browser-facing site root, not the internal listening address.
   // Use HTTPS; HTTP is accepted only for localhost, 127.0.0.1, or [::1].

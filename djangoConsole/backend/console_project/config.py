@@ -4,6 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -211,6 +212,12 @@ class SmtpConfig(_BaseConfig):
     timeoutSeconds: int = Field(default=10, ge=1)
 
 
+class BackupConfig(_BaseConfig):
+    location: NonEmptyText
+    dailyTime: Annotated[str, StringConstraints(pattern=r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")] = "03:00"
+    notificationEmail: EmailAddress
+
+
 class LoggingConfig(_BaseConfig):
     level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "DEBUG"
     requests: bool = True
@@ -225,6 +232,7 @@ class ConsoleConfig(_BaseConfig):
     database: DatabaseConfig
     fileTransferProxy: FileTransferProxyConfig | None = None
     monitoring: MonitoringConfig | None = None
+    backup: BackupConfig | None = None
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     consoleUrl: HttpUrl
@@ -259,17 +267,11 @@ class ConsoleConfig(_BaseConfig):
         return consoleUrl
 
 
-def read_config(configPath: Path) -> ConsoleConfig:
+def parse_config(content: bytes, configPath: Path) -> ConsoleConfig:
+    """Validate the exact configuration bytes used by startup or a backup bundle."""
     try:
-        strConfig = configPath.read_text(encoding="utf-8-sig")
-    except (OSError, UnicodeError) as e:
-        raise ImproperlyConfigured(
-            f"Cannot read Console configuration: {configPath}"
-        ) from e
-
-    try:
-        dictConfig = json5.loads(strConfig, allow_duplicate_keys=False)
-    except ValueError:
+        dictConfig = json5.loads(content.decode("utf-8-sig"), allow_duplicate_keys=False)
+    except (ValueError, UnicodeError):
         raise ImproperlyConfigured(
             f"Invalid JSONC or duplicate configuration keys: {configPath}"
         ) from None
@@ -280,28 +282,52 @@ def read_config(configPath: Path) -> ConsoleConfig:
         raise ImproperlyConfigured(f"Invalid Console configuration: {e}") from None
 
 
-def read_secret_file(secretPath: Path) -> str:
-    try:
-        # Remove text-file line endings without changing spaces in a password.
-        strSecretValue = secretPath.read_text(encoding="utf-8-sig").rstrip("\r\n")
-    except (OSError, UnicodeError) as e:
-        raise ImproperlyConfigured(f"Cannot read secret file: {secretPath}") from e
+@dataclass(frozen=True)
+class ConsoleConfigSnapshot:
+    configPath: Path
+    config: ConsoleConfig
+    content: bytes
+    secrets: dict[str, bytes] = field(repr=False)
 
-    if not strSecretValue.strip():
-        raise ImproperlyConfigured(f"Secret file is empty: {secretPath}")
-    return strSecretValue
-
-
-def read_secret_cipher(configDirectory: Path, keyFiles: list[str]) -> MultiFernet | None:
-    """Load the primary encryption key followed by retained decryption keys."""
-    if not keyFiles:
-        return None
-    listCipher: list[Fernet] = []
-    for strKeyFile in keyFiles:
+    def read_secret(self, fileName: str) -> str:
         try:
-            listCipher.append(Fernet(read_secret_file(configDirectory / strKeyFile)))
-        except (ValueError, UnicodeError):
-            raise ImproperlyConfigured(
-                f"Invalid encryption key file: {strKeyFile}"
-            ) from None
-    return MultiFernet(listCipher)
+            strSecretValue = self.secrets[fileName].decode("utf-8-sig").rstrip("\r\n")
+        except UnicodeError:
+            raise ImproperlyConfigured(f"Cannot read secret file: {fileName}") from None
+        if not strSecretValue.strip():
+            raise ImproperlyConfigured(f"Secret file is empty: {fileName}")
+        return strSecretValue
+
+    def read_secret_cipher(self) -> MultiFernet | None:
+        """Use the same fixed key bytes for running services and their backups."""
+        if not self.config.encryptionKeyFiles:
+            return None
+        listCipher: list[Fernet] = []
+        for strKeyFile in self.config.encryptionKeyFiles:
+            try:
+                listCipher.append(Fernet(self.read_secret(strKeyFile)))
+            except (ValueError, UnicodeError):
+                raise ImproperlyConfigured(
+                    f"Invalid encryption key file: {strKeyFile}"
+                ) from None
+        return MultiFernet(listCipher)
+
+
+def read_config_snapshot(configPath: Path) -> ConsoleConfigSnapshot:
+    try:
+        content = configPath.read_bytes()
+    except OSError as e:
+        raise ImproperlyConfigured(f"Cannot read Console configuration: {configPath}") from e
+    config = parse_config(content, configPath)
+    dictSecret: dict[str, bytes] = {}
+    for strFileName in dict.fromkeys([
+        config.secretKeyFile,
+        config.database.passwordFile,
+        config.smtp.passwordFile,
+        *config.encryptionKeyFiles,
+    ]):
+        try:
+            dictSecret[strFileName] = (configPath.parent / strFileName).read_bytes()
+        except OSError as e:
+            raise ImproperlyConfigured(f"Cannot read secret file: {strFileName}") from e
+    return ConsoleConfigSnapshot(configPath, config, content, dictSecret)

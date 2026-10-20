@@ -19,6 +19,8 @@ from django.db.models import F, Sum
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
+from console_project.local_locks import LocalLockUnavailableError, hold_local_lock
+
 from organizations.limits import get_organization_limits
 from organizations.models import Organization
 
@@ -251,23 +253,29 @@ def _collect_blob(
     ).first()
     if blob is None or DownloadSession.objects.filter(blob=blob).exists():
         return False
-    path = get_blob_path(blob.pk)
-    # Let Django check all PROTECT references before touching disk, without knowing their models.
-    blob.delete()
-    # An unlink/fsync failure rolls back the row deletion and keeps its capacity charged.
-    path.unlink(missing_ok=True)
-    if path.parent.exists():
-        sync_directory(path.parent)
-    # Empty shard cleanup must not prevent releasing the deleted file's capacity.
     try:
-        path.parent.rmdir()
-        sync_directory(path.parent.parent)
-    except OSError as e:
-        if e.errno not in (errno.ENOENT, errno.ENOTEMPTY, errno.EEXIST):
-            _LOGGER.warning(
-                "Empty storage directory cleanup failed: %s", path.parent, exc_info=True
-            )
-    return True
+        with hold_local_lock(Path(settings.CONSOLE_STORAGE_ROOT) / ".backup.lock"):
+            path = get_blob_path(blob.pk)
+            # Let Django check all PROTECT references before touching disk, without knowing their models.
+            blob.delete()
+            # An unlink/fsync failure rolls back the row deletion and keeps its capacity charged.
+            path.unlink(missing_ok=True)
+            if path.parent.exists():
+                sync_directory(path.parent)
+            # Empty shard cleanup must not prevent releasing the deleted file's capacity.
+            try:
+                path.parent.rmdir()
+                sync_directory(path.parent.parent)
+            except OSError as e:
+                if e.errno not in (errno.ENOENT, errno.ENOTEMPTY, errno.EEXIST):
+                    _LOGGER.warning(
+                        "Empty storage directory cleanup failed: %s", path.parent, exc_info=True
+                    )
+            return True
+    except LocalLockUnavailableError:
+        # An online backup protects immutable files until its actual copying process ends.
+        return False
+
 
 
 def clean_organization_storage(organizationId: uuid.UUID) -> bool:
