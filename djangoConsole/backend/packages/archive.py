@@ -51,8 +51,8 @@ def _parse_root_json(archive: zipfile.ZipFile, name: str) -> dict[str, object]:
         entry = archive.getinfo(name)
     except KeyError:
         raise ValidationError(f"The Package must contain {name} at its root.") from None
-    if entry.file_size > _INT_MAX_METADATA_BYTES:
-        raise ValidationError(f"{name} exceeds the 2 MiB metadata limit.")
+    if name != "project.flow" and entry.file_size > _INT_MAX_METADATA_BYTES:
+        raise ValidationError(f"{name} exceeds the 2 MiB limit.")
     content = archive.read(entry)
     if len(content) != entry.file_size:
         raise ValidationError("A ZIP entry has an inconsistent size.")
