@@ -1,0 +1,44 @@
+services:
+  console:
+    build: .
+    image: liberrpa-console:local
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 3m
+    ports:
+      # A trusted HTTPS reverse proxy on this host is the only public entry point.
+      - "127.0.0.1:52100:52100"
+    volumes:
+      - type: bind
+        source: /srv/liberrpa-console
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/liberrpa-console-backups
+        target: /backup
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /run
+    healthcheck:
+      test: ["CMD", "python", "/app/deployment/runtime.py", "health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    logging:
+      driver: local
+      options:
+        max-size: "50m"
+        max-file: "10"
+    networks:
+      - console
+
+networks:
+  console:
+    # Keep the gateway aligned with the trusted upstream in deployment/haproxy.cfg.
+    ipam:
+      config:
+        - subnet: 172.30.252.0/28
+          gateway: 172.30.252.1

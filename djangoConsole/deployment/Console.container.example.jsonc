@@ -1,0 +1,34 @@
+{
+  // Edit this template before passing it to the explicit initialize command.
+  "debug": false,
+  "allowedHosts": ["console.example.com"],
+  "consoleUrl": "https://console.example.com",
+  "supportEmail": "support@example.com",
+  "logging": { "level": "INFO", "requests": true },
+  "secretKeyFile": "../secrets/django-secret-key.txt",
+  "encryptionKeyFiles": ["../secrets/encryption-key.txt"],
+  "storageRoot": "../storage",
+  "database": {
+    "host": "127.0.0.1",
+    "port": 5432,
+    "name": "liberrpa_console",
+    "user": "liberrpa_console",
+    "passwordFile": "../secrets/database-password.txt"
+  },
+  "fileTransferProxy": { "host": "127.0.0.1", "port": 9999 },
+  "monitoring": null,
+  // Enable after mounting and checking a separate backup location.
+  // Example: { "location": "/backup", "dailyTime": "03:00", "notificationEmail": "admin@example.com" }
+  "backup": null,
+  "smtp": {
+    "host": "smtp.example.com",
+    "port": 465,
+    "security": "ssl",
+    "user": "notifications@example.com",
+    "passwordFile": "../secrets/smtp-password.txt",
+    "fromEmail": "notifications@example.com",
+    "fromName": "LiberRPA Console",
+    "timeoutSeconds": 10
+  },
+  "limits": {}
+}

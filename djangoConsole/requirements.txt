@@ -1,0 +1,10 @@
+Django==6.1.2
+uvicorn==0.54.0
+pydantic==2.14.1
+psycopg==3.3.6
+json5==0.17.3
+cryptography==50.0.2
+packaging==26.3
+croniter==6.2.4
+websockets==17.2
+supervisor==4.3.0
