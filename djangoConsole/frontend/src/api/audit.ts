@@ -132,6 +132,7 @@ export function parseAuditDetailsResponse(payload: unknown): AuditDetailsRespons
     !isNullableString(record.department_id) ||
     !isNullableString(record.request_id) ||
     strStage === undefined ||
+    !isNullableString(record.reason) ||
     !isNullableString(record.reason_code) ||
     !(
       record.http_status === null ||
@@ -156,6 +157,7 @@ export function parseAuditDetailsResponse(payload: unknown): AuditDetailsRespons
       department_id: record.department_id,
       request_id: record.request_id,
       stage: strStage,
+      reason: record.reason,
       reason_code: record.reason_code,
       http_status: record.http_status,
       changes: record.changes,
@@ -192,9 +194,16 @@ export async function getAuditList(
 
 export async function getAuditFilterOptions(
   platform = false,
+  organizationId?: string,
 ): Promise<AuditFilterOptionsResponse | PlatformAuditFilterOptionsResponse> {
+  const strQuery =
+    platform && organizationId
+      ? `?${new URLSearchParams({ organization_id: organizationId })}`
+      : "";
   return parseAuditFilterOptionsResponse(
-    await requestApi(`/${platform ? "platform" : "organization"}/audit/filters/`),
+    await requestApi(
+      `/${platform ? "platform" : "organization"}/audit/filters/${strQuery}`,
+    ),
     platform,
   );
 }

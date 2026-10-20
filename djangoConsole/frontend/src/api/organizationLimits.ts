@@ -20,7 +20,10 @@ import {
   type OrganizationLimitsRequest,
   type OrganizationLimitsResponse,
   type OrganizationRetentionRequest,
+  type PlatformOrganizationResponse,
   type PlatformOrganizationListResponse,
+  type PlatformOrganizationDetailsResponse,
+  type OrganizationServiceRequest,
   type PlatformOrganizationStatus,
 } from "./generated/browserApi";
 
@@ -73,50 +76,67 @@ export function parseOrganizationLimitsResponse(
   };
 }
 
+function parsePlatformOrganizationResponse(payload: unknown): PlatformOrganizationResponse {
+  if (
+    !isRecord(payload) ||
+    typeof payload.id !== "string" ||
+    typeof payload.name !== "string" ||
+    typeof payload.notes !== "string" ||
+    !isDateString(payload.created_at) ||
+    !isNullableDateString(payload.suspended_at) ||
+    !isNullableDateString(payload.deletion_requested_at) ||
+    !isNullableDateString(payload.deletion_started_at) ||
+    !Array.isArray(payload.administrators)
+  )
+    return rejectInvalidResponse();
+
+  const arrAdministrator = payload.administrators.map((administrator: unknown) => {
+    if (
+      !isRecord(administrator) ||
+      typeof administrator.id !== "string" ||
+      typeof administrator.name !== "string" ||
+      typeof administrator.email !== "string"
+    )
+      return rejectInvalidResponse();
+    return { id: administrator.id, name: administrator.name, email: administrator.email };
+  });
+  return {
+    id: payload.id,
+    name: payload.name,
+    notes: payload.notes,
+    created_at: payload.created_at,
+    suspended_at: payload.suspended_at,
+    deletion_requested_at: payload.deletion_requested_at,
+    deletion_started_at: payload.deletion_started_at,
+    administrators: arrAdministrator,
+  };
+}
+
 export function parsePlatformOrganizationListResponse(
   payload: unknown,
 ): PlatformOrganizationListResponse {
   if (!isRecord(payload) || !Array.isArray(payload.organizations))
     return rejectInvalidResponse();
-
-  const arrOrganization = payload.organizations.map((organization: unknown) => {
-    if (
-      !isRecord(organization) ||
-      typeof organization.id !== "string" ||
-      typeof organization.name !== "string" ||
-      typeof organization.notes !== "string" ||
-      !isDateString(organization.created_at) ||
-      !isNullableDateString(organization.suspended_at) ||
-      !isNullableDateString(organization.deletion_requested_at) ||
-      !isNullableDateString(organization.deletion_started_at) ||
-      !Array.isArray(organization.administrators)
-    )
-      return rejectInvalidResponse();
-
-    const arrAdministrator = organization.administrators.map((administrator: unknown) => {
-      if (
-        !isRecord(administrator) ||
-        typeof administrator.id !== "string" ||
-        typeof administrator.name !== "string" ||
-        typeof administrator.email !== "string"
-      )
-        return rejectInvalidResponse();
-      return { id: administrator.id, name: administrator.name, email: administrator.email };
-    });
-    return {
-      id: organization.id,
-      name: organization.name,
-      notes: organization.notes,
-      created_at: organization.created_at,
-      suspended_at: organization.suspended_at,
-      deletion_requested_at: organization.deletion_requested_at,
-      deletion_started_at: organization.deletion_started_at,
-      administrators: arrAdministrator,
-    };
-  });
   return {
-    organizations: arrOrganization,
+    organizations: payload.organizations.map(parsePlatformOrganizationResponse),
     pagination: parsePaginationResponse(payload.pagination),
+  };
+}
+
+export function parsePlatformOrganizationDetailsResponse(
+  payload: unknown,
+): PlatformOrganizationDetailsResponse {
+  const organization = parsePlatformOrganizationResponse(payload);
+  if (
+    !isRecord(payload) ||
+    typeof payload.default_time_zone !== "string" ||
+    !isNullableDateString(payload.deletion_due_at)
+  )
+    return rejectInvalidResponse();
+  return {
+    ...organization,
+    default_time_zone: payload.default_time_zone,
+    deletion_due_at: payload.deletion_due_at,
   };
 }
 
@@ -143,6 +163,29 @@ export async function getPlatformOrganizationList(
   for (const strStatus of filters.statuses) parameters.append("status", strStatus);
   return parsePlatformOrganizationListResponse(
     await requestApi(`/platform/organizations/?${parameters}`),
+  );
+}
+
+export async function getPlatformOrganizationDetails(
+  organizationId: string,
+): Promise<PlatformOrganizationDetailsResponse> {
+  return parsePlatformOrganizationDetailsResponse(
+    await requestApi(`/platform/organizations/${encodeURIComponent(organizationId)}/`),
+  );
+}
+
+export async function updateOrganizationService(
+  organizationId: string,
+  request: OrganizationServiceRequest,
+): Promise<PlatformOrganizationDetailsResponse> {
+  return parsePlatformOrganizationDetailsResponse(
+    await requestApi(
+      `/platform/organizations/${encodeURIComponent(organizationId)}/service/`,
+      {
+        method: "POST",
+        body: request,
+      },
+    ),
   );
 }
 

@@ -265,11 +265,35 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         meta: { title: "Organizations", requiresPlatformAdmin: true },
       },
       {
-        path: "/platform/organizations/:organizationId/limits",
-        name: "platform-organization-limits",
-        component: () => import("@/views/platform/OrganizationLimitsView.vue"),
+        path: "/platform/organizations/:organizationId",
+        component: () => import("@/views/platform/OrganizationDetailsView.vue"),
         props: true,
-        meta: { title: "Usage & Limits", requiresPlatformAdmin: true },
+        meta: { title: "Organization Details", requiresPlatformAdmin: true },
+        children: [
+          {
+            path: "",
+            name: "platform-organization-details",
+            component: () => import("@/views/platform/OrganizationOverviewView.vue"),
+            props: true,
+          },
+          {
+            path: "limits",
+            name: "platform-organization-limits",
+            component: () => import("@/views/platform/OrganizationLimitsView.vue"),
+            props: true,
+            meta: { title: "Usage & Limits" },
+          },
+          {
+            path: "audit-log",
+            name: "platform-organization-audit",
+            component: () => import("@/views/audit/AuditLogView.vue"),
+            props: (route) => ({
+              platform: true,
+              organizationId: route.params.organizationId,
+            }),
+            meta: { title: "Organization Audit Log" },
+          },
+        ],
       },
       {
         path: "/platform/service-settings",

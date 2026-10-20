@@ -70,6 +70,7 @@ const dictRunSettingProperty = dictDefinitions.RunSettings.properties;
 const arrConstant = [
   `export const INT_LIST_PAGE_SIZE = ${dictInput.list_page_size};`,
   `export const INT_MAX_RUN_STATISTICS_DAYS = ${dictInput.max_run_statistics_days};`,
+  `export const INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH = ${dictInput.max_organization_service_reason_length};`,
   `export const INT_MAX_RETRY_COUNT = ${dictRunSettingProperty.max_retry_count.maximum};`,
   `export const INT_MAX_TIMEOUT_MIN = ${dictRunSettingProperty.timeout_min.maximum};`,
 ];
@@ -98,6 +99,7 @@ for (const [strConstantName, strEnumName] of [
   ["ARR_ORGANIZATION_LIMIT", "OrganizationLimit"],
   ["ARR_LIMIT_UNIT", "LimitUnit"],
   ["ARR_PLATFORM_ORGANIZATION_STATUS", "PlatformOrganizationStatus"],
+  ["ARR_INSTANCE_HISTORY_RANGE", "InstanceHistoryRange"],
 ]) {
   const strEnumValue = dictDefinitions[strEnumName].enum
     .map((value) => `  ${JSON.stringify(value)},`)

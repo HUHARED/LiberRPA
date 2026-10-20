@@ -1,16 +1,9 @@
 <!-- FileName: OrganizationLimitsView.vue -->
 <template>
   <div class="d-flex flex-wrap align-center justify-space-between ga-4 mb-4">
-    <h1 class="text-h5">Usage &amp; Limits</h1>
+    <h2 class="text-h6">Usage &amp; Limits</h2>
 
     <div class="d-flex flex-wrap ga-2">
-      <v-btn
-        :to="{ name: 'platform-organizations' }"
-        variant="text"
-        prepend-icon="mdi-arrow-left"
-        :disabled="dialogMode !== null">
-        Back to Organizations
-      </v-btn>
       <v-btn
         variant="tonal"
         prepend-icon="mdi-refresh"

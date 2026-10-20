@@ -77,7 +77,7 @@
       <template #item.name="{ item }">
         <RouterLink
           :to="{
-            name: 'platform-organization-limits',
+            name: 'platform-organization-details',
             params: { organizationId: item.id },
           }"
           class="table-text text-primary text-decoration-none">
@@ -144,7 +144,7 @@
       <template #item.actions="{ item }">
         <v-btn
           :to="{
-            name: 'platform-organization-limits',
+            name: 'platform-organization-details',
             params: { organizationId: item.id },
           }"
           :aria-label="`View ${item.name}`"

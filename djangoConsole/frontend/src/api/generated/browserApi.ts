@@ -225,6 +225,7 @@ export interface BrowserApiContracts {
   OrganizationLimitsRequest: OrganizationLimitsRequest;
   OrganizationLimitsResponse: OrganizationLimitsResponse;
   OrganizationRetentionRequest: OrganizationRetentionRequest;
+  OrganizationServiceRequest: OrganizationServiceRequest;
   OrganizationSettingsRequest: OrganizationSettingsRequest;
   OrganizationSettingsResponse: OrganizationSettingsResponse;
   PackageDetailsResponse: PackageDetailsResponse;
@@ -240,6 +241,7 @@ export interface BrowserApiContracts {
   PlatformAuditFilterOptionsResponse: PlatformAuditFilterOptionsResponse;
   PlatformAuditListResponse: PlatformAuditListResponse;
   PlatformLoginRequest: PlatformLoginRequest;
+  PlatformOrganizationDetailsResponse: PlatformOrganizationDetailsResponse;
   PlatformOrganizationFilters: PlatformOrganizationFilters;
   PlatformOrganizationListResponse: PlatformOrganizationListResponse;
   ProfileUpdateRequest: ProfileUpdateRequest;
@@ -454,6 +456,7 @@ export interface AuditDetailsRecordResponse {
   object_type: string;
   organization_id: string | null;
   organization_name: string;
+  reason: string | null;
   reason_code: string | null;
   request_id: string | null;
   result: AuditResult;
@@ -1250,6 +1253,12 @@ export interface OrganizationRetentionResponse {
 export interface OrganizationRetentionRequest {
   run_log_days: number;
 }
+export interface OrganizationServiceRequest {
+  expected_deletion_requested_at: string | null;
+  expected_suspended_at: string | null;
+  reason: string;
+  suspended: boolean;
+}
 export interface OrganizationSettingsRequest {
   default_time_zone: string;
   name: string;
@@ -1464,6 +1473,23 @@ export interface PlatformLoginRequest {
   platform_login: string;
   remember_me?: boolean;
 }
+export interface PlatformOrganizationDetailsResponse {
+  administrators: PlatformAdministratorResponse[];
+  created_at: string;
+  default_time_zone: string;
+  deletion_due_at: string | null;
+  deletion_requested_at: string | null;
+  deletion_started_at: string | null;
+  id: string;
+  name: string;
+  notes: string;
+  suspended_at: string | null;
+}
+export interface PlatformAdministratorResponse {
+  email: string;
+  id: string;
+  name: string;
+}
 export interface PlatformOrganizationFilters {
   name?: string;
   organization_id?: string | null;
@@ -1496,11 +1522,6 @@ export interface PlatformOrganizationResponse {
   name: string;
   notes: string;
   suspended_at: string | null;
-}
-export interface PlatformAdministratorResponse {
-  email: string;
-  id: string;
-  name: string;
 }
 export interface ProfileUpdateRequest {
   time_zone: string;
@@ -1940,6 +1961,7 @@ export interface SessionRevocationRequest {
 
 export const INT_LIST_PAGE_SIZE = 50;
 export const INT_MAX_RUN_STATISTICS_DAYS = 366;
+export const INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH = 500;
 export const INT_MAX_RETRY_COUNT = 3;
 export const INT_MAX_TIMEOUT_MIN = 35791;
 export const ARR_CONFLICT_POLICY = [

@@ -126,8 +126,15 @@
           </p>
 
           <dl
-            v-if="record.reason_code || record.http_status !== null"
+            v-if="record.reason || record.reason_code || record.http_status !== null"
             class="detail-fields mt-4">
+            <div v-if="record.reason">
+              <dt class="text-caption text-medium-emphasis">
+                {{ record.result === "failed" ? "Failure Reason" : "Reason" }}
+              </dt>
+              <dd class="text-pre-wrap text-anywhere">{{ record.reason }}</dd>
+            </div>
+
             <div v-if="record.reason_code">
               <dt class="text-caption text-medium-emphasis">
                 {{ record.result === "failed" ? "Failure Reason Code" : "Reason Code" }}

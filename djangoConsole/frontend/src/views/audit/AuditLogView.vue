@@ -2,7 +2,9 @@
 <template>
   <v-row align="center" class="mb-4">
     <v-col>
-      <h1 v-if="props.platform" class="text-h5 mb-2">Platform Audit Log</h1>
+      <h1 v-if="props.platform && !props.organizationId" class="text-h5 mb-2">
+        Platform Audit Log
+      </h1>
       <h2 v-else class="text-h6 mb-2">Audit Log</h2>
 
       <p v-if="!props.platform" class="text-medium-emphasis">
@@ -73,7 +75,7 @@
               :disabled="boolLoading" />
           </v-col>
 
-          <v-col v-if="props.platform" cols="12" sm="6" lg="3">
+          <v-col v-if="props.platform && !props.organizationId" cols="12" sm="6" lg="3">
             <v-autocomplete
               v-model="draftFilters.organizationIds"
               :items="arrOrganizationOption"
@@ -90,7 +92,7 @@
               :disabled="boolLoading" />
           </v-col>
 
-          <v-col v-else cols="12" sm="6" lg="3">
+          <v-col v-if="!props.platform" cols="12" sm="6" lg="3">
             <v-autocomplete
               v-model="draftFilters.modules"
               :items="arrModuleOption"
@@ -307,7 +309,9 @@ import {
 import { AUDIT_CHANNEL_LABEL, ARR_AUDIT_RESULT, formatAuditLabel } from "@/app/audit";
 import { formatDateTime } from "@/app/formatters";
 
-const props = withDefaults(defineProps<{ platform?: boolean }>(), { platform: false });
+const props = withDefaults(defineProps<{ platform?: boolean; organizationId?: string }>(), {
+  platform: false,
+});
 
 const arrHeader = computed(() => [
   { title: "Time", key: "created_at", minWidth: 180 },
@@ -395,7 +399,9 @@ function buildFilters(): AuditListFilters {
     timeZone: strTimeZone.value,
     actorIds: [...draftFilters.actorIds],
     modules: [...draftFilters.modules],
-    organizationIds: [...draftFilters.organizationIds],
+    organizationIds: props.organizationId
+      ? [props.organizationId]
+      : [...draftFilters.organizationIds],
     actions: [...draftFilters.actions],
     results: [...draftFilters.results],
   };
@@ -414,7 +420,7 @@ async function loadRecords(
     const [page, options] = await Promise.all([
       getAuditList(appliedFilters, pageNumber, props.platform),
       reloadOptions || !filterOptions.value
-        ? getAuditFilterOptions(props.platform)
+        ? getAuditFilterOptions(props.platform, props.organizationId)
         : filterOptions.value,
     ]);
     if (intCurrentRevision !== intListRevision) return;
@@ -462,8 +468,11 @@ function resetFilters(): void {
 }
 
 watch(
-  [() => props.platform, strTimeZone, boolHasAccess],
-  ([platform, timeZone], [previousPlatform]) => {
+  [() => props.platform, strTimeZone, boolHasAccess, () => props.organizationId],
+  (
+    [platform, timeZone, , organizationId],
+    [previousPlatform, , , previousOrganizationId],
+  ) => {
     intListRevision += 1;
     boolLoading.value = false;
     recordPage.value = null;
@@ -471,7 +480,7 @@ watch(
     requestError.value = null;
     strDetailsId.value = null;
     strUpdatedAt.value = null;
-    if (platform !== previousPlatform) {
+    if (platform !== previousPlatform || organizationId !== previousOrganizationId) {
       resetFilters();
       return;
     }
