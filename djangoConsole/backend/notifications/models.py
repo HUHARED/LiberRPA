@@ -47,6 +47,8 @@ class EmailType(models.TextChoices):
         "Organization resumed notice",
     )
 
+    BACKUP_FAILURE_NOTICE = "backup_failure_notice", "Backup failure notice"
+    BACKUP_RECOVERY_NOTICE = "backup_recovery_notice", "Backup recovery notice"
 
 class EmailWorkerStatus(models.TextChoices):
     STARTING = "starting", "Starting"
@@ -183,6 +185,8 @@ class EmailDelivery(models.Model):
                             EmailType.ORGANIZATION_LIMITS_NOTICE,
                             EmailType.ORGANIZATION_SUSPENDED_NOTICE,
                             EmailType.ORGANIZATION_RESUMED_NOTICE,
+                            EmailType.BACKUP_FAILURE_NOTICE,
+                            EmailType.BACKUP_RECOVERY_NOTICE,
                         ],
                         invitation__isnull=True,
                         invitation_request_id__isnull=True,

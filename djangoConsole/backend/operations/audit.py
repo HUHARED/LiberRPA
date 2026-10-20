@@ -26,6 +26,7 @@ from organizations.permissions import AccessChannel
 
 from .contracts import AuditChannel, AuditResult, AuditStage
 from .models import ServiceSettings, MaintenanceState, AuditScope, AuditRecord
+from .backup_models import BackupRecord
 
 _INT_MAX_OBJECT_NAME_LENGTH = cast(
     models.CharField, AuditRecord._meta.get_field("object_name")
@@ -168,6 +169,8 @@ def _build_audit_record(
     before: dict[str, object] | None = None,
     scope: AuditScope | None = None,
     metadata: dict[str, object] | None = None,
+    stage: AuditStage = AuditStage.OPERATION,
+    result: AuditResult = AuditResult.SUCCEEDED,
 ) -> AuditRecord | None:
     """Build verified identity snapshots in the caller's business transaction.
 
@@ -193,7 +196,7 @@ def _build_audit_record(
         str(target.user)
         if isinstance(target, Membership)
         else str(target)
-        if isinstance(target, (User, ServiceSettings, MaintenanceState))
+        if isinstance(target, (User, ServiceSettings, MaintenanceState, BackupRecord))
         else str(getattr(target, "name", getattr(target, "email", target.pk)))
     )
     return AuditRecord(
@@ -213,9 +216,9 @@ def _build_audit_record(
         department_id=target.pk
         if target._meta.label_lower == "organizations.department"
         else getattr(target, "department_id", None),
-        result=AuditResult.SUCCEEDED,
+        result=result,
         details=_bound_details({
-            "stage": AuditStage.OPERATION,
+            "stage": stage,
             "changes": dictChange,
             **({"metadata": metadata} if metadata else {}),
         }),
@@ -233,6 +236,8 @@ def record_audit(
     before: dict[str, object] | None = None,
     scope: AuditScope | None = None,
     metadata: dict[str, object] | None = None,
+    stage: AuditStage = AuditStage.OPERATION,
+    result: AuditResult = AuditResult.SUCCEEDED,
 ) -> None:
     auditRecord = _build_audit_record(
         action,
@@ -243,6 +248,8 @@ def record_audit(
         before=before,
         scope=scope,
         metadata=metadata,
+        stage=stage,
+        result=result,
     )
     if auditRecord is not None:
         auditRecord.save(force_insert=True)

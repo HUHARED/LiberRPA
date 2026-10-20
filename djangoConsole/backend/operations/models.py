@@ -179,3 +179,7 @@ class AuditRecord(models.Model):
                 name="audit_stage_valid",
             ),
         ]
+
+
+# Django discovers backup models through this application model module.
+from .backup_models import BackupState, BackupRecord
