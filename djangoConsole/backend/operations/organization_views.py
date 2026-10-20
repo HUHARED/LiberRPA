@@ -4,16 +4,21 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import logging
 import uuid
+from typing import cast
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage, Paginator
 from django.db import DatabaseError, transaction
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, QuerySet
 from django.http import HttpRequest, JsonResponse
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.debug import sensitive_post_parameters
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from pydantic import ValidationError as ContractValidationError
+from pydantic_core import PydanticSerializationError
 
 from accounts.session_revocation import SessionInvalidatedError
 from console_project.constants import INT_LIST_PAGE_SIZE
@@ -28,19 +33,101 @@ from console_project.http import (
 from organizations.models import Organization, Membership
 from organizations.limits import validate_limit_overrides, get_organization_limits
 from organizations.limit_emails import queue_organization_limits_notices
+from organizations.service_emails import queue_organization_service_notices
+from organizations.lifecycle import skip_expired_schedule_triggers
 from organizations.usage import get_limits_version, get_organization_usage
+from runs.contracts import JobState
+from runs.models import Job
+from runs.services import revoke_job_source_access
 
 from .access import get_platform_actor
-from .audit import record_audit
+from .audit import get_audit_snapshot, record_audit
 from .contracts import (
     PlatformOrganizationStatus,
     PlatformOrganizationFilters,
     PlatformAdministratorResponse,
     PlatformOrganizationResponse,
+    PlatformOrganizationDetailsResponse,
+    OrganizationServiceRequest,
     PlatformOrganizationListResponse,
     OrganizationLimitsRequest,
 )
 from .models import AuditScope
+
+
+_LOGGER = logging.getLogger("console.operations")
+
+
+def _get_platform_organization_query() -> QuerySet[Organization]:
+    return Organization.objects.prefetch_related(
+        Prefetch(
+            "memberships",
+            queryset=Membership.objects
+            .filter(is_org_admin=True, user__is_active=True, user__is_platform_admin=False)
+            .select_related("user")
+            .order_by("user_id"),
+            to_attr="platformAdministrators",
+        )
+    )
+
+
+def _build_platform_organization_payload(organization: Organization) -> dict[str, object]:
+    return {
+        "id": organization.pk,
+        "name": organization.name,
+        "notes": organization.notes,
+        "created_at": organization.created_at,
+        "administrators": [
+            PlatformAdministratorResponse(
+                id=membership.user_id,
+                name=membership.user.username,
+                email=membership.user.email,
+            )
+            for membership in cast(
+                list[Membership], getattr(organization, "platformAdministrators")
+            )
+        ],
+        "suspended_at": organization.suspended_at,
+        "deletion_requested_at": organization.deletion_requested_at,
+        "deletion_started_at": organization.deletion_started_at,
+    }
+
+
+def _build_platform_organization_details(organization: Organization) -> JsonResponse:
+    return JsonResponse(
+        PlatformOrganizationDetailsResponse.model_validate({
+            **_build_platform_organization_payload(organization),
+            "default_time_zone": organization.default_time_zone,
+            "deletion_due_at": organization.deletion_due_at,
+        }).model_dump(mode="json")
+    )
+
+
+def _build_platform_organization_error(e: Exception) -> JsonResponse:
+    if isinstance(e, SessionInvalidatedError):
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
+        )
+    if isinstance(e, PermissionDenied):
+        return build_error_response(
+            "platform_access_required",
+            "Platform administrator access is required.",
+            statusCode=403,
+        )
+    if isinstance(e, Organization.DoesNotExist):
+        return build_error_response(
+            "organization_not_found",
+            "This organization is no longer available.",
+            statusCode=404,
+        )
+    if isinstance(e, (ContractValidationError, PydanticSerializationError)):
+        _LOGGER.exception("Could not build the organization details response.")
+        return build_error_response(
+            "internal_server_error",
+            "The service could not build a valid response.",
+            statusCode=500,
+        )
+    return build_service_unavailable_response()
 
 
 @never_cache
@@ -66,7 +153,9 @@ def list_platform_organizations(request: HttpRequest) -> JsonResponse:
                 PlatformOrganizationStatus(value) for value in query.getlist("status")
             ],
         )
-        organizations = Organization.objects.filter(name__icontains=filters.name)
+        organizations = _get_platform_organization_query().filter(
+            name__icontains=filters.name
+        )
         if filters.organization_id is not None:
             organizations = organizations.filter(pk=filters.organization_id)
         if filters.status:
@@ -88,35 +177,13 @@ def list_platform_organizations(request: HttpRequest) -> JsonResponse:
                         conditions |= Q(deletion_started_at__isnull=False)
             organizations = organizations.filter(conditions)
         page = Paginator(
-            organizations.order_by("name", "id").prefetch_related(
-                Prefetch(
-                    "memberships",
-                    queryset=Membership.objects
-                    .filter(is_org_admin=True, user__is_active=True)
-                    .select_related("user")
-                    .order_by("user_id"),
-                )
-            ),
+            organizations.order_by("name", "id"),
             INT_LIST_PAGE_SIZE,
         ).page(filters.page)
         response = PlatformOrganizationListResponse(
             organizations=[
-                PlatformOrganizationResponse(
-                    id=organization.pk,
-                    name=organization.name,
-                    notes=organization.notes,
-                    created_at=organization.created_at,
-                    administrators=[
-                        PlatformAdministratorResponse(
-                            id=membership.user_id,
-                            name=membership.user.username,
-                            email=membership.user.email,
-                        )
-                        for membership in organization.memberships.all()
-                    ],
-                    suspended_at=organization.suspended_at,
-                    deletion_requested_at=organization.deletion_requested_at,
-                    deletion_started_at=organization.deletion_started_at,
+                PlatformOrganizationResponse.model_validate(
+                    _build_platform_organization_payload(organization)
                 )
                 for organization in page
             ],
@@ -142,6 +209,118 @@ def list_platform_organizations(request: HttpRequest) -> JsonResponse:
         )
     except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()
+
+
+@never_cache
+@require_GET
+def get_platform_organization(
+    request: HttpRequest, organizationId: uuid.UUID
+) -> JsonResponse:
+    """Read operating metadata without granting access to the organization's business data."""
+    try:
+        if not request.user.is_authenticated:
+            return build_authentication_required_response()
+        get_platform_actor(request)
+        if request.GET:
+            return build_error_response(
+                "invalid_request",
+                "This request does not accept query parameters.",
+                statusCode=400,
+            )
+        organization = _get_platform_organization_query().get(pk=organizationId)
+        return _build_platform_organization_details(organization)
+    except (
+        PermissionDenied,
+        Organization.DoesNotExist,
+        ContractValidationError,
+        PydanticSerializationError,
+        ImproperlyConfigured,
+        DatabaseError,
+    ) as e:
+        return _build_platform_organization_error(e)
+
+
+@never_cache
+@require_POST
+@sensitive_post_parameters()
+def update_organization_service(
+    request: HttpRequest, organizationId: uuid.UUID
+) -> JsonResponse:
+    """Apply a confirmed service transition, preserving deletion and real process evidence."""
+    try:
+        if not request.user.is_authenticated:
+            return build_authentication_required_response()
+        get_platform_actor(request)
+        if request.GET:
+            return build_error_response(
+                "invalid_request",
+                "This request does not accept query parameters.",
+                statusCode=400,
+            )
+        payload = parse_json_request(request, OrganizationServiceRequest)
+        if isinstance(payload, JsonResponse):
+            return payload
+        with transaction.atomic():
+            organization = _get_platform_organization_query().select_for_update().get(
+                pk=organizationId
+            )
+            actor = get_platform_actor(request, forUpdate=True)
+            if organization.deletion_started_at is not None:
+                return build_error_response(
+                    "organization_deleting",
+                    "Organization deletion is already in progress.",
+                    statusCode=409,
+                )
+            if payload.suspended == (organization.suspended_at is not None):
+                return _build_platform_organization_details(organization)
+            if (
+                payload.expected_suspended_at != organization.suspended_at
+                or (
+                    payload.expected_deletion_requested_at
+                    != organization.deletion_requested_at
+                )
+            ):
+                return build_error_response(
+                    "organization_state_changed",
+                    "The organization state has changed. Refresh and review it before continuing.",
+                    statusCode=409,
+                )
+            currentTime = timezone.now()
+            dictAuditBefore = get_audit_snapshot(organization)
+            organization.suspended_at = currentTime if payload.suspended else None
+            organization.save(update_fields=["suspended_at"])
+            if payload.suspended:
+                # Withdraw unstarted work without claiming an issued permit or Run has stopped.
+                for job in (
+                    Job.objects
+                    .filter(request__organization=organization)
+                    .exclude(state=JobState.FINISHED)
+                    .select_related("request")
+                ):
+                    revoke_job_source_access(job, currentTime)
+            else:
+                skip_expired_schedule_triggers(organization, currentTime)
+            record_audit(
+                "organization.suspend" if payload.suspended else "organization.resume",
+                actor=actor,
+                organization=organization,
+                target=organization,
+                scope=AuditScope.PLATFORM,
+                before=dictAuditBefore,
+                metadata={"reason": payload.reason},
+            )
+            queue_organization_service_notices(organization)
+            return _build_platform_organization_details(organization)
+    except (
+        SessionInvalidatedError,
+        PermissionDenied,
+        Organization.DoesNotExist,
+        ContractValidationError,
+        PydanticSerializationError,
+        ImproperlyConfigured,
+        DatabaseError,
+    ) as e:
+        return _build_platform_organization_error(e)
 
 
 @never_cache

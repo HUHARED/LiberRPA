@@ -33,6 +33,7 @@ from organizations.emails import (
     build_organization_deletion_notice,
 )
 from organizations.limit_emails import build_organization_limits_notice
+from organizations.service_emails import build_organization_service_notice
 
 from .contracts import EmailStatus, EmailReasonCode
 from .models import (
@@ -292,6 +293,11 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
                     return _mark_email_not_sent(
                         delivery, reasonCode=EmailReasonCode.LIMITS_NOTICE_MISSING
                     )
+            case (
+                EmailType.ORGANIZATION_SUSPENDED_NOTICE
+                | EmailType.ORGANIZATION_RESUMED_NOTICE
+            ):
+                emailMessage = build_organization_service_notice(delivery)
             case _:
                 raise ValueError("Unsupported email type.")
 

@@ -38,6 +38,14 @@ class EmailType(models.TextChoices):
         "organization_limits_notice",
         "Organization limits notice",
     )
+    ORGANIZATION_SUSPENDED_NOTICE = (
+        "organization_suspended_notice",
+        "Organization suspended notice",
+    )
+    ORGANIZATION_RESUMED_NOTICE = (
+        "organization_resumed_notice",
+        "Organization resumed notice",
+    )
 
 
 class EmailDispatchState(models.Model):
@@ -143,6 +151,8 @@ class EmailDelivery(models.Model):
                             EmailType.EMAIL_CHANGE_NOTICE,
                             EmailType.ORGANIZATION_DELETION_NOTICE,
                             EmailType.ORGANIZATION_LIMITS_NOTICE,
+                            EmailType.ORGANIZATION_SUSPENDED_NOTICE,
+                            EmailType.ORGANIZATION_RESUMED_NOTICE,
                         ],
                         invitation__isnull=True,
                         invitation_request_id__isnull=True,

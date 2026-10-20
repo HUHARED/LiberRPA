@@ -5,10 +5,11 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from datetime import date, datetime
+from typing import Annotated
 from uuid import UUID
 
 from django.db.models import TextChoices
-from pydantic import Field
+from pydantic import AwareDatetime, Field, StringConstraints
 
 from console_project.contracts import JsonRequest, JsonResponsePayload, PaginationResponse
 from organizations.limits import OrganizationLimit, LimitUnit
@@ -97,6 +98,7 @@ class AuditDetailsRecordResponse(AuditRecordResponse):
     department_id: UUID | None
     request_id: UUID | None
     stage: AuditStage = Field(strict=False)
+    reason: str | None
     reason_code: str | None
     http_status: int | None
     changes: list[AuditChangeResponse]
@@ -129,6 +131,29 @@ class PlatformOrganizationResponse(JsonResponsePayload):
     suspended_at: datetime | None
     deletion_requested_at: datetime | None
     deletion_started_at: datetime | None
+
+
+INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH = 500
+
+
+class PlatformOrganizationDetailsResponse(PlatformOrganizationResponse):
+    default_time_zone: str
+    deletion_due_at: datetime | None
+
+
+class OrganizationServiceRequest(JsonRequest):
+    suspended: bool
+    reason: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+            max_length=INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH,
+            pattern=r"^[^\x00]+$",
+        ),
+    ]
+    expected_suspended_at: Annotated[AwareDatetime, Field(strict=False)] | None
+    expected_deletion_requested_at: Annotated[AwareDatetime, Field(strict=False)] | None
 
 
 class PlatformOrganizationListResponse(JsonResponsePayload):

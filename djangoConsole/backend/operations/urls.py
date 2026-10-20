@@ -17,6 +17,8 @@ from .instance_views import get_instance_status
 from .email_views import list_email_issues, get_email_issue_filters
 from .organization_views import (
     list_platform_organizations,
+    get_platform_organization,
+    update_organization_service,
     get_or_update_organization_limits,
 )
 
@@ -41,6 +43,16 @@ urlpatterns = [
         "platform/organizations/",
         list_platform_organizations,
         name="platform-organizations",
+    ),
+    path(
+        "platform/organizations/<uuid:organizationId>/",
+        get_platform_organization,
+        name="platform-organization-details",
+    ),
+    path(
+        "platform/organizations/<uuid:organizationId>/service/",
+        update_organization_service,
+        name="platform-organization-service",
     ),
     path(
         "platform/organizations/<uuid:organizationId>/limits/",

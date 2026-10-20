@@ -251,6 +251,10 @@ def _build_details_payload(record: AuditRecord) -> dict[str, object]:
         "department_id": record.department_id,
         "request_id": record.request_id,
         "stage": details.get("stage", AuditStage.OPERATION),
+        "reason": details.get("metadata", {}).get("reason")
+        if record.scope == AuditScope.PLATFORM
+        and record.action in ("organization.suspend", "organization.resume")
+        else None,
         "reason_code": details.get("reason_code"),
         "http_status": details.get("http_status"),
         "changes": listChange,
@@ -361,11 +365,21 @@ def get_audit_filters(
             return build_authentication_required_response()
         _, auditQuery = _get_authorized_audit_query(request, scope)
         if request.GET:
-            return build_error_response(
-                "invalid_audit_filters",
-                "This request does not accept query parameters.",
-                statusCode=400,
-            )
+            try:
+                if (
+                    scope != AuditScope.PLATFORM
+                    or set(request.GET) != {"organization_id"}
+                    or len(request.GET.getlist("organization_id")) != 1
+                ):
+                    raise ValueError
+                organizationId = uuid.UUID(request.GET["organization_id"])
+            except ValueError:
+                return build_error_response(
+                    "invalid_audit_filters",
+                    "Send one valid organization ID or no query parameters.",
+                    statusCode=400,
+                )
+            auditQuery = auditQuery.filter(organization_id=organizationId)
         options = get_audit_filter_options(
             auditQuery=auditQuery, platform=scope == AuditScope.PLATFORM
         )
