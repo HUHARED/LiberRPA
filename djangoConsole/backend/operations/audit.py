@@ -25,7 +25,7 @@ from organizations.models import (
 from organizations.permissions import AccessChannel
 
 from .contracts import AuditChannel, AuditResult, AuditStage
-from .models import ServiceSettings, AuditScope, AuditRecord
+from .models import ServiceSettings, MaintenanceState, AuditScope, AuditRecord
 
 _INT_MAX_OBJECT_NAME_LENGTH = cast(
     models.CharField, AuditRecord._meta.get_field("object_name")
@@ -74,6 +74,7 @@ _DICT_SNAPSHOT_FIELD = {
     "data_queues.dataqueue": ("name", "department_id", "notes"),
     "shared_files.sharedfile": ("name", "department_id", "blob_id"),
     "operations.servicesettings": ("allow_organization_creation",),
+    "operations.maintenancestate": ("entered_at",),
     "schedules.schedule": (
         "name",
         "department_id",
@@ -192,7 +193,7 @@ def _build_audit_record(
         str(target.user)
         if isinstance(target, Membership)
         else str(target)
-        if isinstance(target, (User, ServiceSettings))
+        if isinstance(target, (User, ServiceSettings, MaintenanceState))
         else str(getattr(target, "name", getattr(target, "email", target.pk)))
     )
     return AuditRecord(

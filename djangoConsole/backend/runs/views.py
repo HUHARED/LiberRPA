@@ -42,6 +42,7 @@ from organizations.permissions import (
 )
 from organizations.validators import get_path_name_key
 from operations.audit import record_audit
+from operations.maintenance import ServiceMaintenanceError
 from packages.models import Package
 
 from .contracts import (
@@ -85,7 +86,7 @@ def _build_error(e: Exception) -> JsonResponse:
         return build_error_response(
             getattr(e, "code", None) or "invalid_run_request",
             "; ".join(e.messages) if isinstance(e, ValidationError) else str(e),
-            statusCode=400,
+            statusCode=503 if isinstance(e, ServiceMaintenanceError) else 400,
             fields=e.message_dict
             if isinstance(e, ValidationError) and hasattr(e, "message_dict")
             else None,

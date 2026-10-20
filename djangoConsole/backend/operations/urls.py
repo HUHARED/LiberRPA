@@ -13,6 +13,7 @@ from .audit_views import (
 )
 from .models import AuditScope
 from .service_settings_views import get_or_update_service_settings
+from .maintenance_views import get_or_update_maintenance, get_run_activity
 from .instance_views import get_instance_summary, get_instance_status
 from .email_views import list_email_issues, get_email_issue_filters
 from .organization_views import (
@@ -23,6 +24,12 @@ from .organization_views import (
 )
 
 urlpatterns = [
+    path("platform/maintenance/", get_or_update_maintenance, name="platform-maintenance"),
+    path(
+        "platform/maintenance/run-activity/",
+        get_run_activity,
+        name="platform-run-activity",
+    ),
     path(
         "platform/service-settings/",
         get_or_update_service_settings,

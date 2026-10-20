@@ -47,6 +47,8 @@ from .contracts import (
     WorkEventsRequest,
 )
 from .models import ExecutorWorkState, Assignment, Run, RunEvent
+from operations.maintenance import ServiceMaintenanceError
+
 from .dispatch import get_start_evidence_not_before, issue_start_permit
 from .events import receive_event
 
@@ -355,7 +357,7 @@ def executor_work_endpoint(request: HttpRequest, action: str) -> JsonResponse:
         return build_error_response(
             getattr(e, "code", None) or "invalid_executor_work",
             "; ".join(e.messages),
-            statusCode=409,
+            statusCode=503 if isinstance(e, ServiceMaintenanceError) else 409,
         )
     except DatabaseError:
         _LOGGER.exception("Executor control request could not commit.")

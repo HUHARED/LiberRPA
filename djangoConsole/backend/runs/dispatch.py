@@ -24,6 +24,7 @@ from organizations.models import Organization
 from organizations.permissions import require_organization_business_available
 
 from packages.contracts import PackagePreparationState, RunConflictPolicy
+from operations.maintenance import ServiceMaintenanceError, require_service_normal
 
 from .contracts import JobState, AssignmentState, ACTIVE_ASSIGNMENT_STATES
 from .models import Job, ExecutorWorkState, Assignment, DispatchControl
@@ -402,6 +403,11 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
             sourceDepartmentIdsByActor=dictSourceDepartmentIdsByActor,
             session=dictAssignmentSession.get(assignment.executor_id),
         )
+    # Keep existing permissions and actual execution under review while new work is paused.
+    try:
+        require_service_normal()
+    except ServiceMaintenanceError:
+        return
     # Updating assignments can return Jobs to Waiting; read the queue after those updates.
     listJob = list(
         Job.objects
@@ -489,6 +495,8 @@ def issue_start_permit(session: ExecutorSession, assignmentId: uuid.UUID) -> Ass
         raise ValidationError(
             "This assignment no longer permits a start.", code="assignment_closed"
         )
+    if not boolStartPermitIssued:
+        require_service_normal()
     if not assignment.executor.dispatch_enabled:
         raise ValidationError("Console Dispatch is paused.", code="dispatch_paused")
     if not has_job_source_access(job):

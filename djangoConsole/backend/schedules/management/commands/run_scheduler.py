@@ -19,6 +19,7 @@ from console_project.workers import (
     stop_on_signals,
 )
 from runs.dispatch_control import require_control_service
+from operations.models import MaintenanceState
 from schedules.worker import ScheduleScanWindow, scan_schedules
 
 _LOGGER = logging.getLogger("console.scheduler")
@@ -52,14 +53,16 @@ class Command(BaseCommand):
                         boolReady = (
                             control.recovery_until is None
                             or control.recovery_until <= timezone.now()
-                        )
+                        ) and not MaintenanceState.objects.filter(
+                            pk=1, entered_at__isnull=False
+                        ).exists()
                     except ValidationError:
                         boolReady = False
                     if not boolReady:
                         scanWindow = None
                         if options["once"]:
                             _LOGGER.info(
-                                "Schedule triggers are waiting for run control recovery."
+                                "Schedule triggers are paused for maintenance or run control recovery."
                             )
                             break
                         stopEvent.wait(0.5)

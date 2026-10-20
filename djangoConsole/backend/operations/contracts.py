@@ -218,6 +218,45 @@ class ServiceSettingsResponse(JsonResponsePayload):
     support_email: str
 
 
+class ServiceState(TextChoices):
+    NORMAL = "normal", "Normal"
+    MAINTENANCE = "maintenance", "Maintenance"
+
+
+class MaintenanceAction(TextChoices):
+    ENTER = "enter", "Enter Maintenance"
+    RESUME = "resume", "Resume Service"
+
+
+class MaintenanceRequest(JsonRequest):
+    action: MaintenanceAction = Field(strict=False)
+
+
+class MaintenanceResponse(JsonResponsePayload):
+    state: ServiceState = Field(strict=False)
+    entered_at: datetime | None
+    active_jobs: int
+    running_runs: int
+    jobs_needing_review: int
+    can_resume: bool
+    resume_block_reason: str
+    updated_at: datetime
+
+
+class RunActivityHourResponse(JsonResponsePayload):
+    hour: int = Field(ge=0, le=23)
+    run_count: int = Field(ge=0)
+
+
+class RunActivityResponse(JsonResponsePayload):
+    time_zone: str
+    start_date: date
+    end_date: date
+    updated_at: datetime
+    hours: list[RunActivityHourResponse]
+    incomplete_run_count: int = Field(ge=0)
+
+
 class InstanceHealthStatus(TextChoices):
     HEALTHY = "healthy", "Healthy"
     WARNING = "warning", "Warning"

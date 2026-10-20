@@ -14,6 +14,7 @@ from django.utils import timezone
 
 from organizations.models import Organization
 from organizations.permissions import is_organization_business_available
+from operations.maintenance import ServiceMaintenanceError, require_service_normal
 
 from runs.contracts import JobSource
 from runs.admission import accept_schedule_trigger
@@ -69,6 +70,7 @@ def _process_trigger(
         )
         if organization is None:
             return
+        require_service_normal()
         schedule = Schedule.objects.select_for_update().filter(pk=scheduleId).first()
         if (
             schedule is None
@@ -168,15 +170,23 @@ def scan_schedules(
         if nextTrigger is None:
             break
         organizationId, scheduleId, scheduledAt = nextTrigger
-        _process_trigger(
-            organizationId,
-            scheduleId,
-            scheduledAt,
-            scanWindow=scanWindow,
-        )
+        try:
+            _process_trigger(
+                organizationId,
+                scheduleId,
+                scheduledAt,
+                scanWindow=scanWindow,
+            )
+        except ServiceMaintenanceError:
+            return None
     scanUntil = scanWindow.until or scanStartedAt
     if query.filter(next_trigger_at__lte=scanUntil).exists():
         return scanWindow
     # Save the original scan end time, not the later time when batch processing finishes.
-    SchedulerState.objects.update_or_create(pk=1, defaults={"scanned_at": scanUntil})
+    with transaction.atomic():
+        try:
+            require_service_normal()
+        except ServiceMaintenanceError:
+            return None
+        SchedulerState.objects.update_or_create(pk=1, defaults={"scanned_at": scanUntil})
     return None

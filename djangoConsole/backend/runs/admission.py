@@ -42,6 +42,8 @@ from packages.runtime import parse_run_settings, get_run_snapshot
 
 from .contracts import JobSource, JobState, JobCreationRequest
 from .models import JobRequest, Job, JobAdmissionBudget
+from operations.maintenance import require_service_normal
+
 from .dispatch_control import require_control_service
 
 if TYPE_CHECKING:
@@ -144,6 +146,7 @@ def _create_request(
     department = package.department
     currentTime = timezone.now()
     require_control_service(currentTime)
+    require_service_normal()
     dictSnapshot = get_run_snapshot(package, runSettings)
     if groupId:
         group = ExecutorGroup.objects.get(

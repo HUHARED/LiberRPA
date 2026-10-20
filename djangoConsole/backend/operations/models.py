@@ -34,6 +34,21 @@ class ServiceSettings(models.Model):
         return "Console service settings"
 
 
+class MaintenanceState(models.Model):
+    """One persisted maintenance boundary, independent of business work and worker health."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    entered_at = models.DateTimeField(null=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(id=1), name="maintenance_singleton")
+        ]
+
+    def __str__(self) -> str:
+        return "Service maintenance"
+
+
 class CleanupTask(models.TextChoices):
     FILE_STORAGE = "file_storage", "File Storage"
     RUN_DATA = "run_data", "Run Data"
