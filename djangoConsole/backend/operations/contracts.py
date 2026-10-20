@@ -288,7 +288,17 @@ class InstanceStorageResponse(JsonResponsePayload):
     message: str
 
 
+class InstanceBackupResponse(JsonResponsePayload):
+    ended_at: datetime
+    data_as_of: datetime
+    size_bytes: int
+
+
 class InstanceSummaryResponse(JsonResponsePayload):
+    version: str
+    service_state: ServiceState | None
+    maintenance_entered_at: datetime | None
+    last_successful_backup: InstanceBackupResponse | None
     updated_at: datetime
     time_zone: str
     components: list[InstanceComponentResponse]

@@ -14,21 +14,27 @@ from django.core.exceptions import ValidationError
 from django.db import DatabaseError, connection
 from django.utils import timezone
 
+from console_project.version import STR_CONSOLE_VERSION
+from console_project.recovery import is_restored_service_pending_review
+
 from runs.dispatch_control import require_control_service
 from schedules.models import SchedulerState
 from notifications.models import EmailWorkerStatus, EmailWorkerState
 from notifications.worker import INT_EMAIL_WORKER_MAX_AGE_SECONDS
 
 from .contracts import (
+    ServiceState,
     InstanceHealthStatus,
     InstanceComponent,
     InstanceComponentResponse,
     InstanceStorageResponse,
+    InstanceBackupResponse,
     InstanceSummaryResponse,
 )
 
-from .models import CleanupTask, CleanupStatus, CleanupState
+from .models import MaintenanceState, CleanupTask, CleanupStatus, CleanupState
 from .cleanup import DICT_CLEANUP_MAX_AGE_SECONDS
+from .backup_worker import load_backup_status
 
 _LOGGER = logging.getLogger("console.operations")
 _INT_SCHEDULE_SCAN_MAX_AGE_SECONDS = 60
@@ -47,6 +53,20 @@ def load_instance_summary() -> InstanceSummaryResponse:
         strDatabaseMessage = "Database query failed."
         _LOGGER.warning("Instance database check failed: %s", type(e).__name__)
     databaseCheckedAt = timezone.now()
+
+    serviceState = None
+    maintenanceEnteredAt = None
+    if databaseStatus == InstanceHealthStatus.HEALTHY:
+        try:
+            maintenance = MaintenanceState.objects.filter(pk=1).first()
+            maintenanceEnteredAt = None if maintenance is None else maintenance.entered_at
+            serviceState = (
+                ServiceState.MAINTENANCE
+                if maintenanceEnteredAt is not None or is_restored_service_pending_review()
+                else ServiceState.NORMAL
+            )
+        except (DatabaseError, OSError) as e:
+            _LOGGER.warning("Instance maintenance state could not be read: %s", type(e).__name__)
 
     schedulerStatus = InstanceHealthStatus.UNKNOWN
     schedulerCheckedAt = None
@@ -82,7 +102,11 @@ def load_instance_summary() -> InstanceSummaryResponse:
                 elif currentTime - schedulerCheckedAt > timedelta(
                     seconds=_INT_SCHEDULE_SCAN_MAX_AGE_SECONDS
                 ):
-                    strSchedulerMessage = "No schedule scan covers the last minute."
+                    strSchedulerMessage = (
+                        "Schedule triggers are paused for maintenance."
+                        if serviceState == ServiceState.MAINTENANCE
+                        else "No schedule scan covers the last minute."
+                    )
                 else:
                     schedulerStatus = InstanceHealthStatus.HEALTHY
                     strSchedulerMessage = (
@@ -188,6 +212,32 @@ def load_instance_summary() -> InstanceSummaryResponse:
             strCleanupMessage = "Cleanup status could not be read."
             _LOGGER.warning("Instance cleanup check failed: %s", type(e).__name__)
 
+    backupStatus = InstanceHealthStatus.UNKNOWN
+    backupCheckedAt = None
+    strBackupMessage = "The database check failed; backup status is unavailable."
+    lastSuccessfulBackup = None
+    if databaseStatus == InstanceHealthStatus.HEALTHY:
+        try:
+            backup = load_backup_status()
+            backupStatus = backup.health_status
+            backupCheckedAt = backup.checked_at
+            strBackupMessage = backup.health_message
+            lastSuccess = backup.last_success
+            if (
+                lastSuccess is not None
+                and lastSuccess.ended_at is not None
+                and lastSuccess.data_as_of is not None
+                and lastSuccess.size_bytes is not None
+            ):
+                lastSuccessfulBackup = InstanceBackupResponse(
+                    ended_at=lastSuccess.ended_at,
+                    data_as_of=lastSuccess.data_as_of,
+                    size_bytes=lastSuccess.size_bytes,
+                )
+        except (DatabaseError, OSError) as e:
+            strBackupMessage = "Backup status could not be read."
+            _LOGGER.warning("Instance backup status could not be read: %s", type(e).__name__)
+
     listComponent = [
         InstanceComponentResponse(
             component=InstanceComponent.DATABASE,
@@ -215,9 +265,9 @@ def load_instance_summary() -> InstanceSummaryResponse:
         ),
         InstanceComponentResponse(
             component=InstanceComponent.BACKUP,
-            status=InstanceHealthStatus.UNKNOWN,
-            checked_at=None,
-            message="No health check is available.",
+            status=backupStatus,
+            checked_at=backupCheckedAt,
+            message=strBackupMessage,
         ),
     ]
 
@@ -249,6 +299,10 @@ def load_instance_summary() -> InstanceSummaryResponse:
     storageCheckedAt = timezone.now()
 
     return InstanceSummaryResponse(
+        version=STR_CONSOLE_VERSION,
+        service_state=serviceState,
+        maintenance_entered_at=maintenanceEnteredAt,
+        last_successful_backup=lastSuccessfulBackup,
         updated_at=timezone.now(),
         time_zone=settings.TIME_ZONE,
         components=listComponent,

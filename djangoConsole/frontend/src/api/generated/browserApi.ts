@@ -24,6 +24,10 @@ export type AssetReferenceKind = "package" | "schedule";
 export type AuditChannel = "session" | "editor" | "executor" | "api_key" | "system";
 export type AuditResult = "succeeded" | "failed";
 export type AuditStage = "operation" | "request";
+export type BackupSource = "manual" | "scheduled";
+export type BackupStage = "snapshot" | "database" | "files" | "verifying" | "finalizing";
+export type BackupStatus = "pending" | "running" | "succeeded" | "failed" | "skipped";
+export type InstanceHealthStatus = "healthy" | "warning" | "error" | "unknown";
 export type BrowserMessageType = "ready" | "session_changed" | "notifications_changed";
 export type DepartmentDeletionBlockerCode =
   | "child_departments"
@@ -66,7 +70,8 @@ export type EmailReasonCode =
   | "smtp_result_unknown"
   | "smtp_not_accepted"
   | "email_worker_interrupted"
-  | "organization_deleted";
+  | "organization_deleted"
+  | "instance_restored";
 export type ExecutorAssociationStatus = "unassociated" | "online" | "offline";
 export type PackagePreparationState = "pending" | "preparing" | "ready" | "failed";
 export type FilePath = string;
@@ -74,7 +79,7 @@ export type FileRequestUuid = string;
 export type UploadState = "receiving" | "completed" | "failed" | "expired" | "canceled";
 export type InstanceHistoryRange = "1h" | "24h" | "7d" | "15d";
 export type InstanceComponent = "database" | "scheduler" | "email" | "cleanup" | "backup";
-export type InstanceHealthStatus = "healthy" | "warning" | "error" | "unknown";
+export type ServiceState = "normal" | "maintenance";
 export type InvitationStatus = "pending" | "expired" | "accepted" | "revoked";
 export type JobControlAction = "cancel" | "stop" | "close";
 export type RunPriority = "high" | "normal" | "low";
@@ -97,7 +102,6 @@ export type OutputsStatus = "waiting" | "complete" | "partial" | "unavailable";
 export type RunStatus =
   "running" | "completed" | "error" | "canceled" | "timed_out" | "interrupted";
 export type MaintenanceAction = "enter" | "resume";
-export type ServiceState = "normal" | "maintenance";
 export type OrganizationLimit =
   | "maxMembersPerOrganization"
   | "maxDepartmentsPerOrganization"
@@ -166,6 +170,7 @@ export interface BrowserApiContracts {
   AuditDetailsResponse: AuditDetailsResponse;
   AuditFilterOptionsResponse: AuditFilterOptionsResponse;
   AuditListResponse: AuditListResponse;
+  BackupStatusResponse: BackupStatusResponse;
   BrowserEventResponse: BrowserEventResponse;
   ClearLogsRequest: ClearLogsRequest;
   CsrfResponse: CsrfResponse;
@@ -506,6 +511,35 @@ export interface AuditRecordResponse {
   object_name: string;
   object_type: string;
   result: AuditResult;
+}
+export interface BackupStatusResponse {
+  blocked_reason: string;
+  can_start: boolean;
+  checked_at: string | null;
+  configured: boolean;
+  current: BackupRecordResponse | null;
+  daily_time: string | null;
+  health_message: string;
+  health_status: InstanceHealthStatus;
+  last_success: BackupRecordResponse | null;
+  latest_result: BackupRecordResponse | null;
+  location: string | null;
+  retention_count: number;
+  time_zone: string;
+  updated_at: string;
+}
+export interface BackupRecordResponse {
+  cleanup_error: string;
+  created_at: string;
+  data_as_of: string | null;
+  details: string;
+  ended_at: string | null;
+  id: string;
+  size_bytes: number | null;
+  source: BackupSource;
+  stage: BackupStage | null;
+  started_at: string | null;
+  status: BackupStatus;
 }
 export interface BrowserEventResponse {
   type: BrowserMessageType;
@@ -935,15 +969,24 @@ export interface InstanceHistorySampleResponse {
 }
 export interface InstanceSummaryResponse {
   components: InstanceComponentResponse[];
+  last_successful_backup: InstanceBackupResponse | null;
+  maintenance_entered_at: string | null;
+  service_state: ServiceState | null;
   storage: InstanceStorageResponse;
   time_zone: string;
   updated_at: string;
+  version: string;
 }
 export interface InstanceComponentResponse {
   checked_at: string | null;
   component: InstanceComponent;
   message: string;
   status: InstanceHealthStatus;
+}
+export interface InstanceBackupResponse {
+  data_as_of: string;
+  ended_at: string;
+  size_bytes: number;
 }
 export interface InstanceStorageResponse {
   checked_at: string;
@@ -2164,6 +2207,7 @@ export const ARR_EMAIL_REASON_CODE = [
   "smtp_not_accepted",
   "email_worker_interrupted",
   "organization_deleted",
+  "instance_restored",
 ] as const satisfies readonly EmailReasonCode[];
 export const ARR_ORGANIZATION_LIMIT = [
   "maxMembersPerOrganization",
@@ -2225,6 +2269,24 @@ export const ARR_SERVICE_STATE = [
   "normal",
   "maintenance",
 ] as const satisfies readonly ServiceState[];
+export const ARR_BACKUP_STAGE = [
+  "snapshot",
+  "database",
+  "files",
+  "verifying",
+  "finalizing",
+] as const satisfies readonly BackupStage[];
+export const ARR_BACKUP_SOURCE = [
+  "manual",
+  "scheduled",
+] as const satisfies readonly BackupSource[];
+export const ARR_BACKUP_STATUS = [
+  "pending",
+  "running",
+  "succeeded",
+  "failed",
+  "skipped",
+] as const satisfies readonly BackupStatus[];
 export const DepartmentRole = {
   Developer: "developer",
   Operator: "operator",
@@ -2346,3 +2408,10 @@ export const MaintenanceAction = {
   Enter: "enter",
   Resume: "resume",
 } as const satisfies Record<string, MaintenanceAction>;
+export const BackupStatus = {
+  Pending: "pending",
+  Running: "running",
+  Succeeded: "succeeded",
+  Failed: "failed",
+  Skipped: "skipped",
+} as const satisfies Record<string, BackupStatus>;

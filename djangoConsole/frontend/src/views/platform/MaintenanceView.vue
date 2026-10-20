@@ -7,7 +7,7 @@
       variant="tonal"
       prepend-icon="mdi-refresh"
       :loading="boolLoading"
-      :disabled="boolSaving || sessionStore.busy || !boolCanManage"
+      :disabled="boolSaving || boolRequestingBackup || sessionStore.busy || !boolCanManage"
       @click="loadPage">
       Refresh
     </v-btn>
@@ -119,6 +119,236 @@
     </v-card-actions>
   </v-card>
 
+  <v-card variant="outlined" class="mb-6">
+    <v-card-title>Backups</v-card-title>
+
+    <v-card-text>
+      <v-progress-linear v-if="boolBackupsLoading" indeterminate class="mb-4" />
+
+      <v-alert v-if="backupError" type="error" variant="tonal" class="mb-4" role="alert">
+        {{ backupError.message }}
+        <p v-if="backupStatus" class="mt-2">
+          Previously loaded backup information is shown and may be out of date.
+        </p>
+      </v-alert>
+
+      <v-alert
+        v-if="backupRequestError"
+        type="error"
+        variant="tonal"
+        class="mb-4"
+        role="alert">
+        Backup request was not confirmed. {{ backupRequestError.message }}
+        Refresh to check whether a backup is in progress.
+      </v-alert>
+
+      <template v-if="backupStatus">
+        <v-alert v-if="!backupStatus.configured" type="info" variant="tonal">
+          Backups are not configured. Set the backup location and schedule in Console.jsonc.
+        </v-alert>
+
+        <template v-else>
+          <v-row class="mb-3">
+            <v-col cols="12" lg="6">
+              <v-text-field
+                :model-value="backupStatus.location ?? '—'"
+                label="Backup Location"
+                variant="underlined"
+                readonly
+                hide-details />
+            </v-col>
+
+            <v-col cols="12" sm="6" lg="3">
+              <v-text-field
+                :model-value="
+                  backupStatus.daily_time ? `Daily at ${backupStatus.daily_time}` : '—'
+                "
+                label="Backup Schedule"
+                variant="underlined"
+                readonly
+                hide-details />
+            </v-col>
+
+            <v-col cols="12" sm="6" lg="3">
+              <v-text-field
+                :model-value="`${backupStatus.retention_count} successful backups`"
+                label="Retention"
+                variant="underlined"
+                readonly
+                hide-details />
+            </v-col>
+          </v-row>
+          <p class="text-body-2 text-medium-emphasis mb-3">
+            Location and schedule are managed in Console.jsonc. Instance Time Zone:
+            {{ backupStatus.time_zone }}
+          </p>
+          <p class="text-body-2 mb-2">{{ backupStatus.health_message }}</p>
+          <p class="text-body-2 text-medium-emphasis mb-4">
+            Checked at
+            {{ formatDateTime(backupStatus.checked_at, backupStatus.time_zone) }} · Updated
+            at {{ formatDateTime(backupStatus.updated_at, backupStatus.time_zone) }}
+          </p>
+
+          <h3 class="text-subtitle-1 mb-2">Current Backup</h3>
+          <template v-if="backupStatus.current">
+            <v-table class="mb-3">
+              <thead>
+                <tr>
+                  <th scope="col">Status</th>
+                  <th scope="col">Stage</th>
+                  <th scope="col">Started At</th>
+                  <th scope="col">Data As Of</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{{ MAP_BACKUP_STATUS_LABEL[backupStatus.current.status] }}</td>
+                  <td>
+                    {{
+                      backupStatus.current.stage
+                        ? MAP_BACKUP_STAGE_LABEL[backupStatus.current.stage]
+                        : "—"
+                    }}
+                  </td>
+                  <td class="text-no-wrap">
+                    {{
+                      formatDateTime(
+                        backupStatus.current.started_at,
+                        backupStatus.time_zone,
+                      )
+                    }}
+                  </td>
+                  <td class="text-no-wrap">
+                    {{
+                      formatDateTime(
+                        backupStatus.current.data_as_of,
+                        backupStatus.time_zone,
+                      )
+                    }}
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+            <p v-if="backupStatus.current.details" class="text-body-2 mb-4">
+              {{ backupStatus.current.details }}
+            </p>
+          </template>
+          <p v-else class="text-body-2 text-medium-emphasis mb-4">No backup in progress.</p>
+
+          <h3 class="text-subtitle-1 mb-2">Latest Result</h3>
+          <template v-if="backupStatus.latest_result">
+            <v-table class="mb-3">
+              <thead>
+                <tr>
+                  <th scope="col">Status</th>
+                  <th scope="col">Data As Of</th>
+                  <th scope="col">Started At</th>
+                  <th scope="col">Ended At</th>
+                  <th scope="col">Size</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{{ MAP_BACKUP_STATUS_LABEL[backupStatus.latest_result.status] }}</td>
+                  <td class="text-no-wrap">
+                    {{
+                      formatDateTime(
+                        backupStatus.latest_result.data_as_of,
+                        backupStatus.time_zone,
+                      )
+                    }}
+                  </td>
+                  <td class="text-no-wrap">
+                    {{
+                      formatDateTime(
+                        backupStatus.latest_result.started_at,
+                        backupStatus.time_zone,
+                      )
+                    }}
+                  </td>
+                  <td class="text-no-wrap">
+                    {{
+                      formatDateTime(
+                        backupStatus.latest_result.ended_at,
+                        backupStatus.time_zone,
+                      )
+                    }}
+                  </td>
+                  <td class="text-no-wrap">
+                    {{
+                      backupStatus.latest_result.size_bytes === null
+                        ? "—"
+                        : formatFileSize(backupStatus.latest_result.size_bytes)
+                    }}
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+            <p v-if="backupStatus.latest_result.details" class="text-body-2 mb-3">
+              {{ backupStatus.latest_result.details }}
+            </p>
+            <v-alert
+              v-if="backupStatus.latest_result.cleanup_error"
+              type="warning"
+              variant="tonal"
+              class="mb-4">
+              Old backup cleanup: {{ backupStatus.latest_result.cleanup_error }}
+            </v-alert>
+          </template>
+          <p v-else class="text-body-2 text-medium-emphasis mb-4">No backup result yet.</p>
+
+          <h3 class="text-subtitle-1 mb-2">Last Successful Backup</h3>
+          <p v-if="backupStatus.last_success" class="text-body-2 mb-3">
+            Completed at
+            {{
+              formatDateTime(backupStatus.last_success.ended_at, backupStatus.time_zone)
+            }}
+            · Data as of
+            {{
+              formatDateTime(backupStatus.last_success.data_as_of, backupStatus.time_zone)
+            }}
+            ·
+            {{
+              backupStatus.last_success.size_bytes === null
+                ? "—"
+                : formatFileSize(backupStatus.last_success.size_bytes)
+            }}
+          </p>
+          <p v-else class="text-body-2 text-medium-emphasis mb-3">
+            No successful backup is available.
+          </p>
+          <p class="text-body-2 text-medium-emphasis mb-3">
+            Data As Of is the time represented by the backup.
+          </p>
+
+          <v-alert
+            v-if="
+              !backupStatus.current &&
+              !backupStatus.can_start &&
+              backupStatus.blocked_reason
+            "
+            type="warning"
+            variant="tonal">
+            {{ backupStatus.blocked_reason }}
+          </v-alert>
+        </template>
+      </template>
+    </v-card-text>
+
+    <v-card-actions v-if="backupStatus?.configured">
+      <v-spacer />
+      <v-btn
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-backup-restore"
+        :loading="boolRequestingBackup"
+        :disabled="boolBackupBlocked"
+        @click="startBackup">
+        {{ backupStatus.current ? "Backing up…" : "Back Up Now" }}
+      </v-btn>
+    </v-card-actions>
+  </v-card>
+
   <v-card variant="outlined">
     <v-card-title>Run Activity by Hour</v-card-title>
 
@@ -149,8 +379,8 @@
           type="warning"
           variant="tonal"
           class="mb-4">
-          {{ runActivity.incomplete_run_count }} runs with incomplete times are not
-          included.
+          {{ runActivity.incomplete_run_count }} retained runs have no confirmed end time
+          and are excluded.
         </v-alert>
 
         <v-table :aria-busy="boolActivityLoading">
@@ -221,27 +451,48 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
+import { useDocumentVisibility, useIntervalFn } from "@vueuse/core";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { getMaintenance, updateMaintenance, getRunActivity } from "@/api/maintenance";
+import { getBackups, requestBackup } from "@/api/backups";
 import {
   ServiceState,
   MaintenanceAction,
   type MaintenanceResponse,
   type RunActivityResponse,
+  type BackupStage,
+  type BackupStatus,
+  type BackupStatusResponse,
 } from "@/api/generated/browserApi";
 
-import { formatDateTime } from "@/app/formatters";
+import { formatDateTime, formatFileSize } from "@/app/formatters";
 
 const MAP_SERVICE_STATE_LABEL: Record<ServiceState, string> = {
   normal: "Normal",
   maintenance: "Maintenance",
 };
 
+const MAP_BACKUP_STATUS_LABEL: Record<BackupStatus, string> = {
+  pending: "Queued",
+  running: "Running",
+  succeeded: "Succeeded",
+  failed: "Failed",
+  skipped: "Skipped",
+};
+const MAP_BACKUP_STAGE_LABEL: Record<BackupStage, string> = {
+  snapshot: "Preparing snapshot",
+  database: "Exporting database",
+  files: "Copying files",
+  verifying: "Verifying backup",
+  finalizing: "Completing backup",
+};
+
 const sessionStore = useSessionStore();
+const visibility = useDocumentVisibility();
 const boolCanManage = computed(() => sessionStore.session?.user.is_platform_admin === true);
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 
@@ -249,6 +500,13 @@ const maintenance = shallowRef<MaintenanceResponse | null>(null);
 const maintenanceError = shallowRef<ApiError | null>(null);
 const boolMaintenanceLoading = ref(false);
 let intMaintenanceRevision = 0;
+
+const backupStatus = shallowRef<BackupStatusResponse | null>(null);
+const backupError = shallowRef<ApiError | null>(null);
+const backupRequestError = shallowRef<ApiError | null>(null);
+const boolBackupsLoading = ref(false);
+const boolRequestingBackup = ref(false);
+let intBackupRevision = 0;
 
 const runActivity = shallowRef<RunActivityResponse | null>(null);
 const activityError = shallowRef<ApiError | null>(null);
@@ -261,7 +519,8 @@ const strSuccess = ref("");
 const boolSaving = ref(false);
 const accessError = shallowRef<ApiError | null>(null);
 const boolLoading = computed(
-  () => boolMaintenanceLoading.value || boolActivityLoading.value,
+  () =>
+    boolMaintenanceLoading.value || boolBackupsLoading.value || boolActivityLoading.value,
 );
 const boolActionBlocked = computed(
   () =>
@@ -273,12 +532,43 @@ const boolActionBlocked = computed(
     saveError.value !== null ||
     accessError.value !== null,
 );
+const boolBackupBlocked = computed(
+  () =>
+    boolBackupsLoading.value ||
+    boolRequestingBackup.value ||
+    sessionStore.busy ||
+    !boolCanManage.value ||
+    !backupStatus.value?.can_start ||
+    backupStatus.value.current !== null ||
+    backupError.value !== null ||
+    backupRequestError.value !== null ||
+    accessError.value !== null,
+);
 let boolUnmounted = false;
+const { pause: pauseBackupRefresh, resume: resumeBackupRefresh } = useIntervalFn(
+  () => void loadBackups(),
+  5000,
+  { immediate: false },
+);
+const boolPollBackups = computed(
+  () =>
+    visibility.value === "visible" &&
+    boolCanManage.value &&
+    accessError.value === null &&
+    backupStatus.value?.current != null &&
+    !boolRequestingBackup.value,
+);
 
 async function clearAccessDeniedState(error: ApiError): Promise<void> {
   intMaintenanceRevision += 1;
   intActivityRevision += 1;
+  intBackupRevision += 1;
+  pauseBackupRefresh();
   maintenance.value = null;
+  backupStatus.value = null;
+  backupError.value = null;
+  backupRequestError.value = null;
+  boolBackupsLoading.value = false;
   runActivity.value = null;
   maintenanceError.value = null;
   activityError.value = null;
@@ -310,6 +600,53 @@ async function loadMaintenance(): Promise<void> {
   }
 }
 
+async function loadBackups(): Promise<void> {
+  if (
+    boolUnmounted ||
+    boolBackupsLoading.value ||
+    boolRequestingBackup.value ||
+    !boolCanManage.value ||
+    accessError.value !== null
+  )
+    return;
+  const intCurrentRevision = ++intBackupRevision;
+  boolBackupsLoading.value = true;
+  backupError.value = null;
+  try {
+    const response = await getBackups();
+    if (boolUnmounted || intCurrentRevision !== intBackupRevision) return;
+    backupStatus.value = response;
+    backupRequestError.value = null;
+  } catch (e) {
+    if (boolUnmounted || intCurrentRevision !== intBackupRevision) return;
+    const error = getApiError(e);
+    if ([401, 403].includes(error.statusCode)) await clearAccessDeniedState(error);
+    else backupError.value = error;
+  } finally {
+    if (!boolUnmounted && intCurrentRevision === intBackupRevision)
+      boolBackupsLoading.value = false;
+  }
+}
+
+async function startBackup(): Promise<void> {
+  if (boolUnmounted || boolBackupBlocked.value) return;
+  const intCurrentRevision = ++intBackupRevision;
+  boolRequestingBackup.value = true;
+  backupRequestError.value = null;
+  try {
+    const response = await requestBackup();
+    if (boolUnmounted || intCurrentRevision !== intBackupRevision) return;
+    backupStatus.value = response;
+  } catch (e) {
+    if (boolUnmounted || intCurrentRevision !== intBackupRevision) return;
+    const error = getApiError(e);
+    if ([401, 403].includes(error.statusCode)) await clearAccessDeniedState(error);
+    else backupRequestError.value = error;
+  } finally {
+    if (!boolUnmounted) boolRequestingBackup.value = false;
+  }
+}
+
 async function loadActivity(): Promise<void> {
   const intCurrentRevision = ++intActivityRevision;
   boolActivityLoading.value = true;
@@ -330,12 +667,18 @@ async function loadActivity(): Promise<void> {
 }
 
 async function loadPage(): Promise<void> {
-  if (boolUnmounted || boolLoading.value || boolSaving.value || !boolCanManage.value)
+  if (
+    boolUnmounted ||
+    boolLoading.value ||
+    boolSaving.value ||
+    boolRequestingBackup.value ||
+    !boolCanManage.value
+  )
     return;
   accessError.value = null;
   saveError.value = null;
   strSuccess.value = "";
-  await Promise.all([loadMaintenance(), loadActivity()]);
+  await Promise.all([loadMaintenance(), loadBackups(), loadActivity()]);
 }
 
 function openConfirmation(action: MaintenanceAction): void {
@@ -389,9 +732,20 @@ async function saveMaintenance(): Promise<void> {
   }
 }
 
+watch(boolPollBackups, (boolPolling) => {
+  if (boolPolling) resumeBackupRefresh();
+  else pauseBackupRefresh();
+});
+
+watch(visibility, (state, previousState) => {
+  if (state === "visible" && previousState !== "visible") void loadBackups();
+});
+
 onMounted(() => void loadPage());
 onBeforeUnmount(() => {
   boolUnmounted = true;
+  pauseBackupRefresh();
+  intBackupRevision += 1;
   intMaintenanceRevision += 1;
   intActivityRevision += 1;
 });

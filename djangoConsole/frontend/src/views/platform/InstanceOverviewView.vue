@@ -26,6 +26,21 @@
   </v-alert>
 
   <template v-if="instanceSummary">
+    <p class="text-body-2 mb-2">Version: {{ instanceSummary.version }}</p>
+    <p class="text-body-2 mb-2">
+      Service State:
+      {{
+        instanceSummary.service_state === null
+          ? "Unknown"
+          : MAP_SERVICE_STATE_LABEL[instanceSummary.service_state]
+      }}
+    </p>
+    <p v-if="instanceSummary.maintenance_entered_at" class="text-body-2 mb-2">
+      Maintenance Entered At:
+      {{
+        formatDateTime(instanceSummary.maintenance_entered_at, instanceSummary.time_zone)
+      }}
+    </p>
     <p class="text-body-2 mb-2">Instance Time Zone: {{ instanceSummary.time_zone }}</p>
     <p class="text-body-2 text-medium-emphasis mb-4">
       Updated at {{ formatDateTime(instanceSummary.updated_at, instanceSummary.time_zone) }}
@@ -99,6 +114,43 @@
       </tbody>
     </v-table>
     <p class="text-body-2 mb-6">{{ instanceSummary.storage.message }}</p>
+
+    <h3 class="text-h6 mb-2">Last Successful Backup</h3>
+    <v-table v-if="instanceSummary.last_successful_backup" class="mb-6">
+      <thead>
+        <tr>
+          <th scope="col">Completed At</th>
+          <th scope="col">Data As Of</th>
+          <th scope="col">Size</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-no-wrap">
+            {{
+              formatDateTime(
+                instanceSummary.last_successful_backup.ended_at,
+                instanceSummary.time_zone,
+              )
+            }}
+          </td>
+          <td class="text-no-wrap">
+            {{
+              formatDateTime(
+                instanceSummary.last_successful_backup.data_as_of,
+                instanceSummary.time_zone,
+              )
+            }}
+          </td>
+          <td class="text-no-wrap">
+            {{ formatFileSize(instanceSummary.last_successful_backup.size_bytes) }}
+          </td>
+        </tr>
+      </tbody>
+    </v-table>
+    <p v-else class="text-body-2 text-medium-emphasis mb-6">
+      No successful backup information is available.
+    </p>
   </template>
 
   <h3 class="text-h6 mb-3">Host Monitoring</h3>
@@ -269,6 +321,7 @@ import {
   type InstanceHealthStatus,
   type InstanceComponent,
   type InstanceSummaryResponse,
+  type ServiceState,
   ARR_INSTANCE_HISTORY_RANGE,
   type InstanceHistoryRange,
   type InstanceStatusResponse,
@@ -278,6 +331,10 @@ import { formatDateTime, formatDateTimeInput, formatFileSize } from "@/app/forma
 
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Legend);
 
+const MAP_SERVICE_STATE_LABEL: Record<ServiceState, string> = {
+  normal: "Normal",
+  maintenance: "Maintenance",
+};
 const MAP_COMPONENT_LABEL: Record<InstanceComponent, string> = {
   database: "Database",
   scheduler: "Scheduler",

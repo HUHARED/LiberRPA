@@ -16,6 +16,8 @@ import {
   type InstanceComponentResponse,
   type InstanceStorageResponse,
   type InstanceSummaryResponse,
+  type InstanceBackupResponse,
+  ARR_SERVICE_STATE,
   ARR_INSTANCE_HISTORY_RANGE,
   type InstanceHistoryRange,
   type InstanceHistorySampleResponse,
@@ -46,9 +48,28 @@ export async function getInstanceSummary(): Promise<InstanceSummaryResponse> {
     );
   }
 
+  function isBackup(value: unknown): value is InstanceBackupResponse {
+    return (
+      isRecord(value) &&
+      isDateString(value.ended_at) &&
+      isDateString(value.data_as_of) &&
+      isNonnegativeInteger(value.size_bytes)
+    );
+  }
+
   const payload = await requestApi("/platform/instance-status/summary/");
+  if (!isRecord(payload)) return rejectInvalidResponse();
+  const serviceState =
+    payload.service_state === null
+      ? null
+      : ARR_SERVICE_STATE.find((value) => value === payload.service_state);
   if (
-    !isRecord(payload) ||
+    typeof payload.version !== "string" ||
+    !payload.version ||
+    serviceState === undefined ||
+    !isNullableDateString(payload.maintenance_entered_at) ||
+    (payload.last_successful_backup !== null &&
+      !isBackup(payload.last_successful_backup)) ||
     !isDateString(payload.updated_at) ||
     typeof payload.time_zone !== "string" ||
     !payload.time_zone ||
@@ -62,6 +83,10 @@ export async function getInstanceSummary(): Promise<InstanceSummaryResponse> {
     return rejectInvalidResponse();
 
   return {
+    version: payload.version,
+    service_state: serviceState,
+    maintenance_entered_at: payload.maintenance_entered_at,
+    last_successful_backup: payload.last_successful_backup,
     updated_at: payload.updated_at,
     time_zone: payload.time_zone,
     components: payload.components,

@@ -103,6 +103,9 @@ for (const [strConstantName, strEnumName] of [
   ["ARR_INSTANCE_COMPONENT", "InstanceComponent"],
   ["ARR_INSTANCE_HISTORY_RANGE", "InstanceHistoryRange"],
   ["ARR_SERVICE_STATE", "ServiceState"],
+  ["ARR_BACKUP_STAGE", "BackupStage"],
+  ["ARR_BACKUP_SOURCE", "BackupSource"],
+  ["ARR_BACKUP_STATUS", "BackupStatus"],
 ]) {
   const strEnumValue = dictDefinitions[strEnumName].enum
     .map((value) => `  ${JSON.stringify(value)},`)
@@ -129,6 +132,7 @@ for (const strEnumName of [
   "PlatformOrganizationStatus",
   "ServiceState",
   "MaintenanceAction",
+  "BackupStatus",
 ]) {
   const strMember = dictDefinitions[strEnumName].enum
     .map((value) => {
