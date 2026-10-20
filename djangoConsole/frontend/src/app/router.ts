@@ -295,6 +295,13 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         ],
       },
       {
+        path: "/platform/audit-log",
+        name: "platform-audit-log",
+        component: () => import("@/views/audit/AuditLogView.vue"),
+        props: { platform: true },
+        meta: { title: "Platform Audit Log", requiresPlatformAdmin: true },
+      },
+      {
         path: "/my-profile",
         name: "my-profile",
         component: () => import("@/views/accounts/ProfileView.vue"),

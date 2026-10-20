@@ -237,6 +237,8 @@ export interface BrowserApiContracts {
   PackageUploadRequest: PackageUploadRequest;
   PackageUploadResponse: PackageUploadResponse;
   PasswordChangeRequest: PasswordChangeRequest;
+  PlatformAuditFilterOptionsResponse: PlatformAuditFilterOptionsResponse;
+  PlatformAuditListResponse: PlatformAuditListResponse;
   PlatformLoginRequest: PlatformLoginRequest;
   PlatformOrganizationFilters: PlatformOrganizationFilters;
   PlatformOrganizationListResponse: PlatformOrganizationListResponse;
@@ -450,7 +452,7 @@ export interface AuditDetailsRecordResponse {
   object_id: string;
   object_name: string;
   object_type: string;
-  organization_id: string;
+  organization_id: string | null;
   organization_name: string;
   reason_code: string | null;
   request_id: string | null;
@@ -1428,6 +1430,34 @@ export interface PasswordChangeRequest {
   confirm_password: string;
   current_password: string;
   new_password: string;
+}
+export interface PlatformAuditFilterOptionsResponse {
+  actions: string[];
+  actors: AuditActorResponse[];
+  organizations: PlatformAuditOrganizationResponse[];
+}
+export interface PlatformAuditOrganizationResponse {
+  id: string | null;
+  name: string;
+}
+export interface PlatformAuditListResponse {
+  pagination: PaginationResponse;
+  records: PlatformAuditRecordResponse[];
+}
+export interface PlatformAuditRecordResponse {
+  action: string;
+  actor_id: string | null;
+  actor_name: string;
+  channel: AuditChannel;
+  created_at: string;
+  id: string;
+  module: string;
+  object_id: string;
+  object_name: string;
+  object_type: string;
+  organization_id: string | null;
+  organization_name: string;
+  result: AuditResult;
 }
 export interface PlatformLoginRequest {
   password: string;

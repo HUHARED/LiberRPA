@@ -2,9 +2,10 @@
 <template>
   <v-row align="center" class="mb-4">
     <v-col>
-      <h2 class="text-h6 mb-2">Audit Log</h2>
+      <h1 v-if="props.platform" class="text-h5 mb-2">Platform Audit Log</h1>
+      <h2 v-else class="text-h6 mb-2">Audit Log</h2>
 
-      <p class="text-medium-emphasis">
+      <p v-if="!props.platform" class="text-medium-emphasis">
         Retained activity in your organization, newest first.
       </p>
     </v-col>
@@ -72,7 +73,24 @@
               :disabled="boolLoading" />
           </v-col>
 
-          <v-col cols="12" sm="6" lg="3">
+          <v-col v-if="props.platform" cols="12" sm="6" lg="3">
+            <v-autocomplete
+              v-model="draftFilters.organizationIds"
+              :items="arrOrganizationOption"
+              label="Organization"
+              placeholder="All"
+              persistent-placeholder
+              multiple
+              chips
+              closable-chips
+              clearable
+              variant="underlined"
+              density="compact"
+              hide-details
+              :disabled="boolLoading" />
+          </v-col>
+
+          <v-col v-else cols="12" sm="6" lg="3">
             <v-autocomplete
               v-model="draftFilters.modules"
               :items="arrModuleOption"
@@ -163,7 +181,7 @@
 
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
-      :headers="ARR_HEADER"
+      :headers="arrHeader"
       :items="recordPage?.records ?? []"
       :items-length="recordPage?.pagination.total_count ?? 0"
       :items-per-page="recordPage?.pagination.page_size ?? INT_LIST_PAGE_SIZE"
@@ -183,6 +201,16 @@
       </template>
 
       <template #item.channel="{ item }">{{ AUDIT_CHANNEL_LABEL[item.channel] }}</template>
+
+      <template #item.organization_name="{ item }">
+        <div class="table-text-narrow">
+          {{
+            "organization_id" in item && "organization_name" in item && item.organization_id
+              ? item.organization_name || "Unknown organization"
+              : "—"
+          }}
+        </div>
+      </template>
 
       <template #item.action="{ item }">
         <div class="table-text-narrow">{{ formatAuditLabel(item.action) }}</div>
@@ -247,6 +275,7 @@
   <AuditDetailsDialog
     v-if="strDetailsId"
     :audit-id="strDetailsId"
+    :platform="props.platform"
     @close="strDetailsId = null" />
 </template>
 
@@ -271,35 +300,49 @@ import {
   INT_LIST_PAGE_SIZE,
   type AuditFilterOptionsResponse,
   type AuditListResponse,
+  type PlatformAuditListResponse,
+  type PlatformAuditFilterOptionsResponse,
 } from "@/api/generated/browserApi";
 
 import { AUDIT_CHANNEL_LABEL, ARR_AUDIT_RESULT, formatAuditLabel } from "@/app/audit";
 import { formatDateTime } from "@/app/formatters";
 
-const ARR_HEADER = [
+const props = withDefaults(defineProps<{ platform?: boolean }>(), { platform: false });
+
+const arrHeader = computed(() => [
   { title: "Time", key: "created_at", minWidth: 180 },
   { title: "Actor", key: "actor_name", minWidth: 180 },
-  { title: "Channel", key: "channel", minWidth: 100 },
+  props.platform
+    ? { title: "Organization", key: "organization_name", minWidth: 180 }
+    : { title: "Channel", key: "channel", minWidth: 100 },
   { title: "Action", key: "action", minWidth: 180 },
   { title: "Object", key: "object", minWidth: 200 },
   { title: "Result", key: "result", minWidth: 110 },
   { title: "Actions", key: "actions", width: 72 },
-];
+]);
 
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+const boolHasAccess = computed(() =>
+  props.platform
+    ? !!sessionStore.session?.user.is_platform_admin
+    : !!sessionStore.access?.is_org_admin,
+);
 
 const draftFilters = reactive<Omit<AuditListFilters, "timeZone">>({
   fromDate: "",
   toDate: "",
   actorIds: [],
   modules: [],
+  organizationIds: [],
   actions: [],
   results: [],
 });
 
-const recordPage = shallowRef<AuditListResponse | null>(null);
-const filterOptions = shallowRef<AuditFilterOptionsResponse | null>(null);
+const recordPage = shallowRef<AuditListResponse | PlatformAuditListResponse | null>(null);
+const filterOptions = shallowRef<
+  AuditFilterOptionsResponse | PlatformAuditFilterOptionsResponse | null
+>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const strUpdatedAt = ref<string | null>(null);
@@ -313,9 +356,24 @@ const arrActorOption = computed(() =>
 );
 
 const arrModuleOption = computed(() =>
-  (filterOptions.value?.modules ?? []).map((module) => ({
+  (filterOptions.value && "modules" in filterOptions.value
+    ? filterOptions.value.modules
+    : []
+  ).map((module) => ({
     title: formatAuditLabel(module),
     value: module,
+  })),
+);
+
+const arrOrganizationOption = computed(() =>
+  (filterOptions.value && "organizations" in filterOptions.value
+    ? filterOptions.value.organizations
+    : []
+  ).map((organization) => ({
+    title:
+      organization.id === null ? "Instance" : organization.name || "Unknown organization",
+    value: organization.id ?? "instance",
+    props: { subtitle: organization.id ?? "" },
   })),
 );
 
@@ -337,6 +395,7 @@ function buildFilters(): AuditListFilters {
     timeZone: strTimeZone.value,
     actorIds: [...draftFilters.actorIds],
     modules: [...draftFilters.modules],
+    organizationIds: [...draftFilters.organizationIds],
     actions: [...draftFilters.actions],
     results: [...draftFilters.results],
   };
@@ -346,14 +405,17 @@ async function loadRecords(
   pageNumber: number = intRequestedPage,
   reloadOptions: boolean = false,
 ): Promise<void> {
+  if (!boolHasAccess.value) return;
   const intCurrentRevision = ++intListRevision;
   boolLoading.value = true;
   requestError.value = null;
   intRequestedPage = pageNumber;
   try {
     const [page, options] = await Promise.all([
-      getAuditList(appliedFilters, pageNumber),
-      reloadOptions || !filterOptions.value ? getAuditFilterOptions() : filterOptions.value,
+      getAuditList(appliedFilters, pageNumber, props.platform),
+      reloadOptions || !filterOptions.value
+        ? getAuditFilterOptions(props.platform)
+        : filterOptions.value,
     ]);
     if (intCurrentRevision !== intListRevision) return;
     recordPage.value = page;
@@ -393,18 +455,30 @@ function resetFilters(): void {
   draftFilters.toDate = "";
   draftFilters.actorIds = [];
   draftFilters.modules = [];
+  draftFilters.organizationIds = [];
   draftFilters.actions = [];
   draftFilters.results = [];
   applyFilters();
 }
 
-watch(strTimeZone, (timeZone) => {
-  if (!sessionStore.access?.is_org_admin) return;
-  appliedFilters = { ...appliedFilters, timeZone };
-  recordPage.value = null;
-  strUpdatedAt.value = null;
-  void loadRecords(1);
-});
+watch(
+  [() => props.platform, strTimeZone, boolHasAccess],
+  ([platform, timeZone], [previousPlatform]) => {
+    intListRevision += 1;
+    boolLoading.value = false;
+    recordPage.value = null;
+    filterOptions.value = null;
+    requestError.value = null;
+    strDetailsId.value = null;
+    strUpdatedAt.value = null;
+    if (platform !== previousPlatform) {
+      resetFilters();
+      return;
+    }
+    appliedFilters = { ...appliedFilters, timeZone };
+    void loadRecords(1);
+  },
+);
 
 onMounted(() => void loadRecords());
 

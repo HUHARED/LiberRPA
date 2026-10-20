@@ -181,7 +181,9 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (auditContracts.EmailIssueFiltersResponse, "serialization"),
     # Audit history.
     (auditContracts.AuditListResponse, "serialization"),
+    (auditContracts.PlatformAuditListResponse, "serialization"),
     (auditContracts.AuditFilterOptionsResponse, "serialization"),
+    (auditContracts.PlatformAuditFilterOptionsResponse, "serialization"),
     (auditContracts.AuditDetailsResponse, "serialization"),
 )
 

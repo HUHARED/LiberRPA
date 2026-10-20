@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
 from django.db import DatabaseError
+from django.db.models import QuerySet
 from django.http import HttpRequest, JsonResponse, QueryDict
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
@@ -29,30 +30,66 @@ from console_project.http import (
     parse_page_number,
 )
 from console_project.validators import validate_time_zone
-from organizations.permissions import AccessChannel, get_current_membership
+from organizations.limits import LIMIT_DEFINITIONS, LimitUnit
+from organizations.permissions import (
+    AccessChannel,
+    OrganizationAccessContext,
+    get_current_membership,
+    require_organization_business_available,
+    require_organization_admin,
+)
 from organizations.rate_limits import check_request_budget
 
+from .access import get_platform_actor
 from .audit_queries import (
     AuditListFilters,
     get_audit_list,
     get_audit_filter_options,
-    get_audit_details,
 )
 from .contracts import (
     AuditResult,
     AuditStage,
     AuditListResponse,
+    PlatformAuditListResponse,
     AuditFilterOptionsResponse,
+    PlatformAuditFilterOptionsResponse,
     AuditDetailsResponse,
 )
-from .models import AuditRecord
+from .models import AuditScope, AuditRecord
 
 _LOGGER = logging.getLogger("console.operations")
 
 
-def _parse_audit_filters(query: QueryDict, defaultTimeZone: str) -> AuditListFilters:
+def _get_authorized_audit_query(
+    request: HttpRequest, scope: AuditScope
+) -> tuple[User, QuerySet[AuditRecord]]:
+    if scope == AuditScope.PLATFORM:
+        actor = get_platform_actor(request)
+        return actor, AuditRecord.objects.filter(scope=AuditScope.PLATFORM)
+
+    actor = cast(User, request.user)
+    membership = get_current_membership(actorId=actor.pk)
+    access = OrganizationAccessContext(
+        actor=cast(User, membership.user),
+        organization=membership.organization,
+        isOrgAdmin=membership.is_org_admin,
+        channel=AccessChannel.SESSION,
+    )
+    require_organization_business_available(access.organization)
+    require_organization_admin(access)
+    check_request_budget(request, access.organization)
+    # An organization ID on a platform record never makes it tenant history.
+    return access.actor, AuditRecord.objects.filter(
+        scope=AuditScope.ORGANIZATION, organization_id=access.organization.pk
+    )
+
+
+def _parse_audit_filters(
+    query: QueryDict, defaultTimeZone: str, scope: AuditScope
+) -> AuditListFilters:
     setSingleField = {"page", "date_from", "date_to", "time_zone"}
-    setMultipleField = {"actor_id", "module", "action", "result"}
+    setMultipleField = {"actor_id", "action", "result"}
+    setMultipleField.add("organization_id" if scope == AuditScope.PLATFORM else "module")
     if set(query) - setSingleField - setMultipleField:
         raise ValueError("Unknown audit filters.")
     if any(len(query.getlist(strField)) > 1 for strField in setSingleField):
@@ -105,6 +142,10 @@ def _parse_audit_filters(query: QueryDict, defaultTimeZone: str) -> AuditListFil
     tupleActorId = tuple(
         uuid.UUID(strValue) for strValue in listActor if strValue != "system"
     )
+    listOrganization = query.getlist("organization_id")
+    tupleOrganizationId = tuple(
+        uuid.UUID(strValue) for strValue in listOrganization if strValue != "instance"
+    )
     tupleModule = tuple(query.getlist("module"))
     tupleAction = tuple(query.getlist("action"))
     if any(re.fullmatch(r"[a-z_]{1,32}", strValue) is None for strValue in tupleModule):
@@ -126,11 +167,13 @@ def _parse_audit_filters(query: QueryDict, defaultTimeZone: str) -> AuditListFil
         modules=tupleModule,
         actions=tupleAction,
         results=tupleResult,
+        organizationIds=tupleOrganizationId,
+        includeInstance="instance" in listOrganization,
     )
 
 
 def _build_record_payload(record: AuditRecord) -> dict[str, object]:
-    return {
+    dictRecord: dict[str, object] = {
         "id": record.id,
         "created_at": record.created_at,
         "actor_id": record.actor_id,
@@ -143,6 +186,12 @@ def _build_record_payload(record: AuditRecord) -> dict[str, object]:
         "object_name": record.object_name,
         "result": record.result,
     }
+    if record.scope == AuditScope.PLATFORM:
+        dictRecord.update({
+            "organization_id": record.organization_id,
+            "organization_name": record.organization_name,
+        })
+    return dictRecord
 
 
 def _build_details_payload(record: AuditRecord) -> dict[str, object]:
@@ -169,6 +218,32 @@ def _build_details_payload(record: AuditRecord) -> dict[str, object]:
         {"field": strField, "before": None, "after": None}
         for strField in details.get("changed_fields", [])
     )
+    if record.action == "organization.update_limits":
+        # Read the saved limits and sources, never today's defaults or organization state.
+        metadata = details.get("metadata", {})
+        dictLimit = metadata.get("limits", {})
+        for definition in LIMIT_DEFINITIONS:
+            if definition.configName not in dictLimit:
+                continue
+            dictValues = dict(
+                zip(metadata["columns"], dictLimit[definition.configName], strict=True)
+            )
+            strUnit = (
+                " bytes"
+                if definition.unit == LimitUnit.BYTES
+                else "/min"
+                if definition.unit == LimitUnit.PER_MINUTE
+                else ""
+            )
+            dictChange = {"field": definition.label}
+            for strSide in ("before", "after"):
+                strSource = (
+                    "Default" if dictValues[f"{strSide}_override"] is None else "Override"
+                )
+                dictChange[strSide] = (
+                    f"{dictValues[f'{strSide}_limit']:,}{strUnit} ({strSource})"
+                )
+            listChange.append(dictChange)
     return {
         **_build_record_payload(record),
         "organization_id": record.organization_id,
@@ -183,11 +258,15 @@ def _build_details_payload(record: AuditRecord) -> dict[str, object]:
     }
 
 
-def _build_audit_error_response(e: Exception) -> JsonResponse:
+def _build_audit_error_response(e: Exception, scope: AuditScope) -> JsonResponse:
     if isinstance(e, PermissionDenied):
         return build_error_response(
-            "audit_access_required",
-            "Organization audit access is unavailable.",
+            "platform_access_required"
+            if scope == AuditScope.PLATFORM
+            else "audit_access_required",
+            "Platform administrator access is required."
+            if scope == AuditScope.PLATFORM
+            else "Organization audit access is unavailable.",
             statusCode=403,
         )
     if isinstance(e, InvalidPage):
@@ -201,7 +280,7 @@ def _build_audit_error_response(e: Exception) -> JsonResponse:
             statusCode=404,
         )
     if isinstance(e, (ContractValidationError, PydanticSerializationError)):
-        _LOGGER.exception("Could not build the organization audit response.")
+        _LOGGER.exception("Could not build the audit response.")
         return build_error_response(
             "internal_server_error",
             "The service could not build a valid response.",
@@ -212,17 +291,17 @@ def _build_audit_error_response(e: Exception) -> JsonResponse:
 
 @never_cache
 @require_GET
-def list_organization_audit(request: HttpRequest) -> JsonResponse:
-    """Return one page of the signed-in administrator's organization history."""
+def list_audit(
+    request: HttpRequest, *, scope: AuditScope = AuditScope.ORGANIZATION
+) -> JsonResponse:
+    """Return one page of authorized history; the URL determines its scope."""
     try:
         if not request.user.is_authenticated:
             return build_authentication_required_response()
-        user = cast(User, request.user)
-        membership = get_current_membership(actorId=user.id)
-        check_request_budget(request, membership.organization)
+        actor, auditQuery = _get_authorized_audit_query(request, scope)
         # Only parsing failures belong to the client; query and response errors do not.
         try:
-            filters = _parse_audit_filters(request.GET, user.time_zone)
+            filters = _parse_audit_filters(request.GET, actor.time_zone, scope)
             intPage = parse_page_number(request.GET)
         except ValidationError as e:
             return build_error_response(
@@ -238,14 +317,17 @@ def list_organization_audit(request: HttpRequest) -> JsonResponse:
                 statusCode=400,
             )
         auditPage = get_audit_list(
-            actorId=user.id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
+            auditQuery=auditQuery,
             filters=filters,
             pageNumber=intPage,
         )
+        responseType = (
+            PlatformAuditListResponse
+            if scope == AuditScope.PLATFORM
+            else AuditListResponse
+        )
         return JsonResponse(
-            AuditListResponse.model_validate({
+            responseType.model_validate({
                 "records": [
                     _build_record_payload(record) for record in auditPage.object_list
                 ],
@@ -265,27 +347,34 @@ def list_organization_audit(request: HttpRequest) -> JsonResponse:
         ImproperlyConfigured,
         DatabaseError,
     ) as e:
-        return _build_audit_error_response(e)
+        return _build_audit_error_response(e, scope)
 
 
 @never_cache
 @require_GET
-def get_organization_audit_filters(request: HttpRequest) -> JsonResponse:
-    """Return retained history's selectable actors, modules and actions."""
+def get_audit_filters(
+    request: HttpRequest, *, scope: AuditScope = AuditScope.ORGANIZATION
+) -> JsonResponse:
+    """Return selectable values from retained history in the authorized scope."""
     try:
         if not request.user.is_authenticated:
             return build_authentication_required_response()
-        user = cast(User, request.user)
-        membership = get_current_membership(actorId=user.id)
-        check_request_budget(request, membership.organization)
+        _, auditQuery = _get_authorized_audit_query(request, scope)
+        if request.GET:
+            return build_error_response(
+                "invalid_audit_filters",
+                "This request does not accept query parameters.",
+                statusCode=400,
+            )
         options = get_audit_filter_options(
-            actorId=user.id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
+            auditQuery=auditQuery, platform=scope == AuditScope.PLATFORM
         )
-        return JsonResponse(
-            AuditFilterOptionsResponse.model_validate(options).model_dump(mode="python")
+        responseType = (
+            PlatformAuditFilterOptionsResponse
+            if scope == AuditScope.PLATFORM
+            else AuditFilterOptionsResponse
         )
+        return JsonResponse(responseType.model_validate(options).model_dump(mode="python"))
     except (
         PermissionDenied,
         ContractValidationError,
@@ -293,27 +382,26 @@ def get_organization_audit_filters(request: HttpRequest) -> JsonResponse:
         ImproperlyConfigured,
         DatabaseError,
     ) as e:
-        return _build_audit_error_response(e)
+        return _build_audit_error_response(e, scope)
 
 
 @never_cache
 @require_GET
-def get_organization_audit_details(
-    request: HttpRequest, auditId: uuid.UUID
+def get_audit_details(
+    request: HttpRequest, auditId: uuid.UUID, *, scope: AuditScope = AuditScope.ORGANIZATION
 ) -> JsonResponse:
-    """Read a single tenant record; a platform or foreign record is never selected."""
+    """Read one saved snapshot without querying its current business object."""
     try:
         if not request.user.is_authenticated:
             return build_authentication_required_response()
-        user = cast(User, request.user)
-        membership = get_current_membership(actorId=user.id)
-        check_request_budget(request, membership.organization)
-        record = get_audit_details(
-            actorId=user.id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
-            auditId=auditId,
-        )
+        _, auditQuery = _get_authorized_audit_query(request, scope)
+        if request.GET:
+            return build_error_response(
+                "invalid_audit_filters",
+                "This request does not accept query parameters.",
+                statusCode=400,
+            )
+        record = auditQuery.get(pk=auditId)
         return JsonResponse(
             AuditDetailsResponse.model_validate({
                 "record": _build_details_payload(record)
@@ -327,4 +415,4 @@ def get_organization_audit_details(
         ImproperlyConfigured,
         DatabaseError,
     ) as e:
-        return _build_audit_error_response(e)
+        return _build_audit_error_response(e, scope)

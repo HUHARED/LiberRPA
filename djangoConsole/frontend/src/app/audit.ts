@@ -19,6 +19,7 @@ const AUDIT_TERM_LABEL: Record<string, string> = {
   executorgroup: "Executor Group",
   executorsession: "Executor Session",
   memberinvitation: "Member Invitation",
+  servicesettings: "Service Settings",
 };
 
 export function formatAuditLabel(value: string): string {

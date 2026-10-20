@@ -47,8 +47,18 @@ class AuditRecordResponse(JsonResponsePayload):
     result: AuditResult = Field(strict=False)
 
 
+class PlatformAuditRecordResponse(AuditRecordResponse):
+    organization_id: UUID | None
+    organization_name: str
+
+
 class AuditListResponse(JsonResponsePayload):
     records: list[AuditRecordResponse]
+    pagination: PaginationResponse
+
+
+class PlatformAuditListResponse(JsonResponsePayload):
+    records: list[PlatformAuditRecordResponse]
     pagination: PaginationResponse
 
 
@@ -57,9 +67,20 @@ class AuditActorResponse(JsonResponsePayload):
     name: str
 
 
+class PlatformAuditOrganizationResponse(JsonResponsePayload):
+    id: UUID | None
+    name: str
+
+
 class AuditFilterOptionsResponse(JsonResponsePayload):
     actors: list[AuditActorResponse]
     modules: list[str]
+    actions: list[str]
+
+
+class PlatformAuditFilterOptionsResponse(JsonResponsePayload):
+    actors: list[AuditActorResponse]
+    organizations: list[PlatformAuditOrganizationResponse]
     actions: list[str]
 
 
@@ -71,7 +92,7 @@ class AuditChangeResponse(JsonResponsePayload):
 
 
 class AuditDetailsRecordResponse(AuditRecordResponse):
-    organization_id: UUID
+    organization_id: UUID | None
     organization_name: str
     department_id: UUID | None
     request_id: UUID | None
