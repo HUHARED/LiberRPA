@@ -107,14 +107,13 @@ def cleanup_run_data(limit: int = 200) -> tuple[int, int]:
                 intGroups -= int(run.log_bytes > 0)
             clear_run_logs(usage, listExpiredRun, currentTime)
             intLogsCleared += len(listExpiredRun)
-            # Keep the Run and its download reservation until the transfer ends or expires.
-            activeTransfers = RunFileTransfer.objects.filter(
-                run__job_id=OuterRef("pk"), expires_at__gt=timezone.now()
-            )
+            # The transfer layer decides when a download reservation can be released.
+            # Keep history while any reservation remains, including expired transfers still active in the proxy.
+            reservedTransfers = RunFileTransfer.objects.filter(run__job_id=OuterRef("pk"))
             finishedJobs = (
                 Job.objects
                 .filter(
-                    ~Exists(activeTransfers),
+                    ~Exists(reservedTransfers),
                     request__organization_id=organizationId,
                     state=JobState.FINISHED,
                 )
@@ -206,5 +205,4 @@ def cleanup_run_data(limit: int = 200) -> tuple[int, int]:
         .values_list("id", flat=True)[:limit]
     )
     ScheduleTrigger.objects.filter(pk__in=listTriggerId).delete()
-    RunFileTransfer.objects.filter(expires_at__lte=currentTime).delete()
     return intJobsRemoved, intLogsCleared
