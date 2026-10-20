@@ -25,6 +25,13 @@ class EmailStatus(TextChoices):
     UNKNOWN = "unknown", "Unknown"
 
 
+TUPLE_EMAIL_ISSUE_STATUS = (
+    EmailStatus.FAILED,
+    EmailStatus.NOT_SENT,
+    EmailStatus.UNKNOWN,
+)
+
+
 class EmailReasonCode(TextChoices):
     RUN_NOT_ELIGIBLE = "run_not_eligible", "Run email is no longer eligible"
     RUN_BUDGET_EXHAUSTED = "run_budget_exhausted", "Run email budget exhausted"
@@ -49,7 +56,6 @@ class EmailReasonCode(TextChoices):
         "Password reset not eligible",
     )
     EMAIL_CHANGE_NOT_ELIGIBLE = "email_change_not_eligible", "Email change not eligible"
-    DELETION_NOTICE_MISSING = "deletion_notice_missing", "Deletion notice missing"
     LIMITS_NOTICE_MISSING = "limits_notice_missing", "Limits notice missing"
     SMTP_AUTHENTICATION_FAILED = (
         "smtp_authentication_failed",

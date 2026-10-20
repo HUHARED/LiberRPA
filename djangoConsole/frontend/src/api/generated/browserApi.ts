@@ -38,11 +38,8 @@ export type DepartmentDeletionBlockerCode =
   | "package_uploads"
   | "schedules"
   | "active_jobs";
-export type ExecutorAssociationStatus = "unassociated" | "online" | "offline";
-export type PackagePreparationState = "pending" | "preparing" | "ready" | "failed";
-export type FilePath = string;
-export type FileRequestUuid = string;
-export type UploadState = "receiving" | "completed" | "failed" | "expired" | "canceled";
+export type EmailStatus =
+  "pending" | "sending" | "accepted" | "failed" | "not_sent" | "unknown";
 export type EmailReasonCode =
   | "run_not_eligible"
   | "run_budget_exhausted"
@@ -58,7 +55,6 @@ export type EmailReasonCode =
   | "invitation_superseded"
   | "password_reset_not_eligible"
   | "email_change_not_eligible"
-  | "deletion_notice_missing"
   | "limits_notice_missing"
   | "smtp_authentication_failed"
   | "smtp_not_supported"
@@ -71,8 +67,12 @@ export type EmailReasonCode =
   | "smtp_not_accepted"
   | "email_worker_interrupted"
   | "organization_deleted";
-export type EmailStatus =
-  "pending" | "sending" | "accepted" | "failed" | "not_sent" | "unknown";
+export type ExecutorAssociationStatus = "unassociated" | "online" | "offline";
+export type PackagePreparationState = "pending" | "preparing" | "ready" | "failed";
+export type FilePath = string;
+export type FileRequestUuid = string;
+export type UploadState = "receiving" | "completed" | "failed" | "expired" | "canceled";
+export type InstanceHistoryRange = "1h" | "24h" | "7d" | "15d";
 export type InvitationStatus = "pending" | "expired" | "accepted" | "revoked";
 export type JobControlAction = "cancel" | "stop" | "close";
 export type RunPriority = "high" | "normal" | "low";
@@ -177,6 +177,8 @@ export interface BrowserApiContracts {
   EmailChangeEmailRequest: EmailChangeEmailRequest;
   EmailChangeInfoResponse: EmailChangeInfoResponse;
   EmailChangeTokenRequest: EmailChangeTokenRequest;
+  EmailIssueFiltersResponse: EmailIssueFiltersResponse;
+  EmailIssueListResponse: EmailIssueListResponse;
   ExecutorCreationRequest: ExecutorCreationRequest;
   ExecutorDeletionRequest: ExecutorDeletionRequest;
   ExecutorDetailsResponse: ExecutorDetailsResponse;
@@ -202,6 +204,7 @@ export interface BrowserApiContracts {
   FileUploadRequest: FileUploadRequest;
   FileUploadResponse: FileUploadResponse;
   FileUsageResponse: FileUsageResponse;
+  InstanceStatusResponse: InstanceStatusResponse;
   InvitationCompletionRequest: InvitationCompletionRequest;
   InvitationCreateRequest: InvitationCreateRequest;
   InvitationDetailsResponse: InvitationDetailsResponse;
@@ -591,6 +594,40 @@ export interface EmailChangeInfoResponse {
 export interface EmailChangeTokenRequest {
   token: string;
 }
+export interface EmailIssueFiltersResponse {
+  organizations: EmailIssueOrganizationResponse[];
+  statuses: EmailIssueStatusResponse[];
+}
+export interface EmailIssueOrganizationResponse {
+  id: string | null;
+  name: string;
+}
+export interface EmailIssueStatusResponse {
+  label: string;
+  value: EmailStatus;
+}
+export interface EmailIssueListResponse {
+  failed_today: number;
+  instance_time_zone: string;
+  issues: EmailIssueResponse[];
+  pagination: PaginationResponse;
+  today: string;
+  updated_at: string;
+}
+export interface EmailIssueResponse {
+  attempted_at: string | null;
+  created_at: string;
+  email_type_label: string;
+  finished_at: string;
+  id: string;
+  organization_id: string | null;
+  organization_name: string;
+  reason_code: EmailReasonCode;
+  reason_text: string;
+  recipient: string;
+  status: EmailStatus;
+  status_label: string;
+}
 export interface ExecutorCreationRequest {
   department_id: string;
   name: string;
@@ -857,6 +894,29 @@ export interface FileUploadResponse {
   size_bytes: number;
   state: UploadState;
   upload_id: string;
+}
+export interface InstanceStatusResponse {
+  collected_at: string | null;
+  configured: boolean;
+  current: InstanceMetricsResponse;
+  history: InstanceHistorySampleResponse[];
+  interval_seconds: number;
+  network_interface: string | null;
+  network_interfaces: string[];
+  range: InstanceHistoryRange;
+}
+export interface InstanceMetricsResponse {
+  cpu_percent: number | null;
+  memory_percent: number | null;
+  network_receive_bytes_per_second: number | null;
+  network_transmit_bytes_per_second: number | null;
+}
+export interface InstanceHistorySampleResponse {
+  cpu_percent: number | null;
+  memory_percent: number | null;
+  network_receive_bytes_per_second: number | null;
+  network_transmit_bytes_per_second: number | null;
+  timestamp: string;
 }
 export interface InvitationCompletionRequest {
   password: string;
@@ -1977,7 +2037,6 @@ export const ARR_EMAIL_REASON_CODE = [
   "invitation_superseded",
   "password_reset_not_eligible",
   "email_change_not_eligible",
-  "deletion_notice_missing",
   "limits_notice_missing",
   "smtp_authentication_failed",
   "smtp_not_supported",
@@ -2028,6 +2087,12 @@ export const ARR_PLATFORM_ORGANIZATION_STATUS = [
   "deletion_scheduled",
   "deletion_in_progress",
 ] as const satisfies readonly PlatformOrganizationStatus[];
+export const ARR_INSTANCE_HISTORY_RANGE = [
+  "1h",
+  "24h",
+  "7d",
+  "15d",
+] as const satisfies readonly InstanceHistoryRange[];
 export const DepartmentRole = {
   Developer: "developer",
   Operator: "operator",

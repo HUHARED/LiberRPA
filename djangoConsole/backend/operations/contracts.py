@@ -4,7 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from django.db.models import TextChoices
@@ -12,6 +12,7 @@ from pydantic import Field
 
 from console_project.contracts import JsonRequest, JsonResponsePayload, PaginationResponse
 from organizations.limits import OrganizationLimit, LimitUnit
+from notifications.contracts import EmailStatus, EmailReasonCode
 
 
 class AuditChannel(TextChoices):
@@ -159,3 +160,71 @@ class OrganizationLimitsRequest(JsonRequest):
     version: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]+$")
     # The service validates the allowlisted keys and each limit's deployment rules once.
     overrides: dict[str, int]
+
+
+class InstanceHistoryRange(TextChoices):
+    HOUR = "1h", "Last Hour"
+    DAY = "24h", "Last 24 Hours"
+    WEEK = "7d", "Last 7 Days"
+    FIFTEEN_DAYS = "15d", "Last 15 Days"
+
+
+class InstanceMetricsResponse(JsonResponsePayload):
+    cpu_percent: float | None
+    memory_percent: float | None
+    network_receive_bytes_per_second: float | None
+    network_transmit_bytes_per_second: float | None
+
+
+class InstanceHistorySampleResponse(InstanceMetricsResponse):
+    timestamp: datetime
+
+
+class InstanceStatusResponse(JsonResponsePayload):
+    configured: bool
+    range: InstanceHistoryRange = Field(strict=False)
+    interval_seconds: int
+    network_interfaces: list[str]
+    network_interface: str | None
+    collected_at: datetime | None
+    current: InstanceMetricsResponse
+    history: list[InstanceHistorySampleResponse]
+
+
+class EmailIssueResponse(JsonResponsePayload):
+    id: UUID
+    organization_id: UUID | None
+    organization_name: str
+    email_type_label: str
+    recipient: str
+    status: EmailStatus = Field(strict=False)
+    status_label: str
+    created_at: datetime
+    attempted_at: datetime | None
+    finished_at: datetime
+    reason_code: EmailReasonCode = Field(strict=False)
+    reason_text: str
+
+
+class EmailIssueListResponse(JsonResponsePayload):
+    issues: list[EmailIssueResponse]
+    pagination: PaginationResponse
+    failed_today: int
+    instance_time_zone: str
+    today: date
+    updated_at: datetime
+
+
+class EmailIssueOrganizationResponse(JsonResponsePayload):
+    id: UUID | None
+    name: str
+
+
+class EmailIssueStatusResponse(JsonResponsePayload):
+    value: EmailStatus = Field(strict=False)
+    label: str
+
+
+class EmailIssueFiltersResponse(JsonResponsePayload):
+    organizations: list[EmailIssueOrganizationResponse]
+    statuses: list[EmailIssueStatusResponse]

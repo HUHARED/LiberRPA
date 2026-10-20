@@ -1,0 +1,15 @@
+# FileName: node_exporter.service
+# Install the official node_exporter binary at /usr/local/bin/node_exporter.
+# Copy this unit to /etc/systemd/system/liberrpa-node-exporter.service.
+# Run on the Linux host; these collectors read host CPU, memory and network counters.
+[Unit]
+Description=LiberRPA host metrics collector
+After=network.target
+
+[Service]
+DynamicUser=yes
+ExecStart=/usr/local/bin/node_exporter --web.listen-address=127.0.0.1:9100 --collector.disable-defaults --collector.cpu --collector.meminfo --collector.netdev
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

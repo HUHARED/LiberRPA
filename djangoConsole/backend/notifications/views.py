@@ -261,7 +261,9 @@ def change_recipient(
             recipient.notes = form.notes
             recipient.save(update_fields=["notes"])
         elif action == "resend":
-            resend_recipient_verification(recipient)
+            resend_recipient_verification(
+                recipient, organizationName=access.organization.name
+            )
         else:
             listReference = get_recipient_references(recipient)
             if listReference:

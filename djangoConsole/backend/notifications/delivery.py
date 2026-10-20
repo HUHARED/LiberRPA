@@ -39,7 +39,6 @@ from .models import (
     EmailType,
     EmailDispatchState,
     EmailDelivery,
-    OrganizationDeletionNotice,
     OrganizationLimitsNotice,
     RunEmailEvent,
     RunEmailReference,
@@ -285,12 +284,7 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
             case EmailType.EMAIL_CHANGE_NOTICE:
                 emailMessage = build_email_change_notice(delivery)
             case EmailType.ORGANIZATION_DELETION_NOTICE:
-                try:
-                    emailMessage = build_organization_deletion_notice(delivery)
-                except OrganizationDeletionNotice.DoesNotExist:
-                    return _mark_email_not_sent(
-                        delivery, reasonCode=EmailReasonCode.DELETION_NOTICE_MISSING
-                    )
+                emailMessage = build_organization_deletion_notice(delivery)
             case EmailType.ORGANIZATION_LIMITS_NOTICE:
                 try:
                     emailMessage = build_organization_limits_notice(delivery)

@@ -11,7 +11,12 @@ from django.db.models.functions import Lower, Trim
 from django.db.models.lookups import Exact
 from django.utils import timezone
 
-from .contracts import EmailStatus, EmailReasonCode, RunEmailRecipientStatus
+from .contracts import (
+    EmailStatus,
+    EmailReasonCode,
+    TUPLE_EMAIL_ISSUE_STATUS,
+    RunEmailRecipientStatus,
+)
 
 
 class EmailType(models.TextChoices):
@@ -56,6 +61,9 @@ class EmailDelivery(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # NOTE: Keep the historical organization scope after the organization is deleted.
     organization_id = models.UUIDField(null=True, blank=True, editable=False)
+    organization_name = models.CharField(
+        max_length=200, blank=True, default="", editable=False
+    )
     email_type = models.CharField(
         max_length=max(len(value) for value in EmailType.values),
         choices=EmailType.choices,
@@ -92,6 +100,11 @@ class EmailDelivery(models.Model):
                 fields=["status", "created_at"], name="email_delivery_pending_idx"
             ),
             models.Index(fields=["attempted_at"], name="email_delivery_attempt_idx"),
+            models.Index(
+                fields=["-finished_at", "-id"],
+                condition=models.Q(status__in=TUPLE_EMAIL_ISSUE_STATUS),
+                name="email_delivery_issues_idx",
+            ),
             models.Index(
                 fields=["organization_id", "-finished_at", "-id"],
                 name="email_delivery_history_idx",
@@ -227,17 +240,6 @@ class EmailDelivery(models.Model):
         return f"{self.email_type}: {self.recipient} ({self.status})"
 
 
-class OrganizationDeletionNotice(models.Model):
-    """Minimal historical context for one completion email, independent of deleted records."""
-
-    delivery_id: uuid.UUID
-    delivery = models.OneToOneField(
-        EmailDelivery, on_delete=models.CASCADE, primary_key=True, related_name="+"
-    )
-    organization_id = models.UUIDField(editable=False)
-    organization_name = models.CharField(max_length=200, editable=False)
-
-
 class OrganizationLimitsNotice(models.Model):
     """Committed limit changes and their sources, independent of later defaults or edits."""
 
@@ -245,8 +247,6 @@ class OrganizationLimitsNotice(models.Model):
     delivery = models.OneToOneField(
         EmailDelivery, on_delete=models.CASCADE, primary_key=True, related_name="+"
     )
-    organization_id = models.UUIDField(editable=False)
-    organization_name = models.CharField(max_length=200, editable=False)
     changes = models.JSONField(editable=False)
 
     class Meta:

@@ -25,11 +25,7 @@ from schedules.models import Schedule
 from operations.audit import record_audit
 from operations.models import AuditScope, AuditRecord
 from notifications.contracts import EmailStatus, EmailReasonCode
-from notifications.models import (
-    EmailType,
-    EmailDelivery,
-    OrganizationDeletionNotice,
-)
+from notifications.models import EmailType, EmailDelivery
 
 from .models import Organization, Membership, Department, MemberInvitation
 
@@ -208,19 +204,12 @@ def complete_organization_deletion(
     listDelivery = EmailDelivery.objects.bulk_create([
         EmailDelivery(
             organization_id=organizationId,
+            organization_name=strOrganizationName,
             email_type=EmailType.ORGANIZATION_DELETION_NOTICE,
             recipient=strEmail,
             created_at=completedAt,
         )
         for _userId, strEmail in listAccount
-    ])
-    OrganizationDeletionNotice.objects.bulk_create([
-        OrganizationDeletionNotice(
-            delivery=delivery,
-            organization_id=organizationId,
-            organization_name=strOrganizationName,
-        )
-        for delivery in listDelivery
     ])
     # Notice rows become visible only when the deletion itself commits successfully.
     return OrganizationDeletionResult(

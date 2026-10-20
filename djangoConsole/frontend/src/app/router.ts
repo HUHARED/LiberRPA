@@ -272,6 +272,23 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         meta: { title: "Usage & Limits", requiresPlatformAdmin: true },
       },
       {
+        path: "/platform/instance-status",
+        component: () => import("@/views/platform/InstanceStatusView.vue"),
+        meta: { title: "Instance Status", requiresPlatformAdmin: true },
+        children: [
+          {
+            path: "",
+            name: "platform-instance-status",
+            component: () => import("@/views/platform/InstanceOverviewView.vue"),
+          },
+          {
+            path: "email",
+            name: "platform-email-issues",
+            component: () => import("@/views/platform/EmailIssuesView.vue"),
+          },
+        ],
+      },
+      {
         path: "/my-profile",
         name: "my-profile",
         component: () => import("@/views/accounts/ProfileView.vue"),

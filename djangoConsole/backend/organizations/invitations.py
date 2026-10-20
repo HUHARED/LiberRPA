@@ -148,11 +148,14 @@ def _require_recipient_cooldown(organizationId: uuid.UUID, email: str) -> None:
         raise InvitationCooldownError(intRetrySeconds)
 
 
-def _queue_invitation_email(invitation: MemberInvitation) -> None:
+def _queue_invitation_email(
+    invitation: MemberInvitation, *, organizationName: str
+) -> None:
     # NOTE: Never lock old deliveries while holding the organization lock.
     # Workers lock delivery and dispatch before organization; stale requests are skipped.
     EmailDelivery.objects.create(
         organization_id=invitation.organization_id,
+        organization_name=organizationName,
         email_type=EmailType.MEMBER_INVITATION,
         recipient=invitation.email,
         invitation=invitation,
@@ -198,7 +201,7 @@ def create_member_invitation(
         )
         for departmentId, role in departmentRoles.items()
     ])
-    _queue_invitation_email(invitation)
+    _queue_invitation_email(invitation, organizationName=organization.name)
     record_audit(
         "invitation.create",
         actor=access.actor,
@@ -247,7 +250,7 @@ def resend_member_invitation(
     invitation.save(
         update_fields=["requested_at", "expires_at", "request_id", "token_hash"]
     )
-    _queue_invitation_email(invitation)
+    _queue_invitation_email(invitation, organizationName=organization.name)
     record_audit(
         "invitation.resend",
         actor=access.actor,

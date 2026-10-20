@@ -160,6 +160,7 @@ def request_password_reset_email(email: str) -> None:
     # Never lock or update an earlier delivery while holding the account lock.
     # The worker takes delivery and dispatch locks before the organization and account.
     delivery.organization_id = organization.id
+    delivery.organization_name = organization.name
     delivery.created_at = requestedAt
     delivery.save(force_insert=True)
     PasswordResetRequest.objects.update_or_create(

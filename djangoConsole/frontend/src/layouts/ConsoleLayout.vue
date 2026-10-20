@@ -27,6 +27,12 @@
         to="/platform/organizations"
         :active="route.path.startsWith('/platform/organizations')"
         color="primary" />
+      <v-list-item
+        title="Instance Status"
+        prepend-icon="mdi-server-outline"
+        to="/platform/instance-status"
+        :active="route.path.startsWith('/platform/instance-status')"
+        color="primary" />
     </v-list>
 
     <v-list

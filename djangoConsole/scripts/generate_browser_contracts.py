@@ -171,6 +171,11 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (auditContracts.PlatformOrganizationListResponse, "serialization"),
     (auditContracts.OrganizationLimitsRequest, "validation"),
     (auditContracts.OrganizationLimitsResponse, "serialization"),
+    # Platform host monitoring.
+    (auditContracts.InstanceStatusResponse, "serialization"),
+    # Platform email diagnostics.
+    (auditContracts.EmailIssueListResponse, "serialization"),
+    (auditContracts.EmailIssueFiltersResponse, "serialization"),
     # Audit history.
     (auditContracts.AuditListResponse, "serialization"),
     (auditContracts.AuditFilterOptionsResponse, "serialization"),

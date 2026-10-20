@@ -12,7 +12,7 @@ from django.conf import settings
 from django.core.mail import EmailMessage
 from django.views.decorators.debug import sensitive_variables
 
-from notifications.models import EmailDelivery, EmailType, OrganizationDeletionNotice
+from notifications.models import EmailDelivery, EmailType
 
 from .invitations import InvitationDeliveryInfo
 
@@ -51,13 +51,12 @@ def build_organization_deletion_notice(delivery: EmailDelivery) -> EmailMessage:
     if delivery.email_type != EmailType.ORGANIZATION_DELETION_NOTICE:
         raise ValueError("An organization deletion notice delivery is required.")
     strConsoleUrl = cast(str, settings.CONSOLE_URL)
-    notice = OrganizationDeletionNotice.objects.get(delivery_id=delivery.id)
     strCompletedAtText = delivery.created_at.astimezone(UTC).strftime(
         "%Y-%m-%d %H:%M:%S UTC"
     )
     strEmailBody = (
-        f"The LiberRPA Console organization {notice.organization_name} was deleted at {strCompletedAtText}.\n\n"
-        f"Organization ID: {notice.organization_id}\n"
+        f"The LiberRPA Console organization {delivery.organization_name} was deleted at {strCompletedAtText}.\n\n"
+        f"Organization ID: {delivery.organization_id}\n"
         "The organization, its current member accounts, and its Console data have been removed.\n"
         "This notice was sent to your membership email address recorded before deletion.\n"
         "This does not remove files on client devices or confirm that remote processes have stopped.\n\n"

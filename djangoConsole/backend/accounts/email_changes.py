@@ -188,6 +188,7 @@ def request_email_change(
 
     delivery = EmailDelivery.objects.create(
         organization_id=access.organization.id,
+        organization_name=access.organization.name,
         email_type=EmailType.EMAIL_CHANGE_VERIFICATION,
         recipient=newEmail,
         created_at=requestedAt,
@@ -333,6 +334,7 @@ def confirm_email_change(token: str) -> None:
     # Keep the consumed request as the per-account resend cursor, including across address changes.
     EmailDelivery.objects.create(
         organization_id=access.organization.id,
+        organization_name=access.organization.name,
         email_type=EmailType.EMAIL_CHANGE_NOTICE,
         recipient=strOldEmail,
         created_at=confirmedAt,

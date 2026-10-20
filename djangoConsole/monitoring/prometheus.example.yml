@@ -1,0 +1,22 @@
+# FileName: prometheus.example.yml
+# Install as /etc/liberrpa-console/monitoring/prometheus.yml beside host.rules.yml.
+# The service file sets the private listener, data directory and 15-day retention.
+global:
+  scrape_interval: 1m
+  scrape_timeout: 10s
+  evaluation_interval: 1m
+
+rule_files:
+  - host.rules.yml
+
+scrape_configs:
+  - job_name: liberrpa-host
+    static_configs:
+      - targets: ["127.0.0.1:9100"]
+        labels:
+          instance: console
+    # Keep only the raw samples needed by the host rules. Prometheus also stores up.
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: node_cpu_seconds_total|node_memory_MemAvailable_bytes|node_memory_MemTotal_bytes|node_network_receive_bytes_total|node_network_transmit_bytes_total
+        action: keep

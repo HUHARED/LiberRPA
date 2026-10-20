@@ -31,6 +31,7 @@ def queue_organization_limits_notices(
     listDelivery = EmailDelivery.objects.bulk_create([
         EmailDelivery(
             organization_id=organization.pk,
+            organization_name=organization.name,
             email_type=EmailType.ORGANIZATION_LIMITS_NOTICE,
             recipient=strEmail,
             created_at=currentTime,
@@ -41,12 +42,7 @@ def queue_organization_limits_notices(
         .values_list("user__email", flat=True)
     ])
     OrganizationLimitsNotice.objects.bulk_create([
-        OrganizationLimitsNotice(
-            delivery=delivery,
-            organization_id=organization.pk,
-            organization_name=organization.name,
-            changes=changes,
-        )
+        OrganizationLimitsNotice(delivery=delivery, changes=changes)
         for delivery in listDelivery
     ])
 
@@ -90,8 +86,8 @@ def build_organization_limits_notice(delivery: EmailDelivery) -> EmailMessage:
     return EmailMessage(
         subject="Your LiberRPA Console organization limits changed",
         body=(
-            f"The limits for {notice.organization_name} were updated.\n\n"
-            f"Organization ID: {notice.organization_id}\n\n"
+            f"The limits for {delivery.organization_name} were updated.\n\n"
+            f"Organization ID: {delivery.organization_id}\n\n"
             f"{strChangeSummary}\n\n"
             "Default values follow the instance settings. Overrides stay fixed until changed or reset.\n\n"
             "Lower limits may restrict new activity or storage growth. Eligible logs and Run history "

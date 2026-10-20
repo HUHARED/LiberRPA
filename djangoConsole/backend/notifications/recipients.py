@@ -70,9 +70,12 @@ def register_member_recipient(organizationId: uuid.UUID, email: str) -> None:
     RunEmailRecipient.objects.get_or_create(organization_id=organizationId, email=email)
 
 
-def queue_recipient_verification(recipient: RunEmailRecipient) -> None:
+def queue_recipient_verification(
+    recipient: RunEmailRecipient, *, organizationName: str
+) -> None:
     delivery = EmailDelivery.objects.create(
         organization_id=recipient.organization_id,
+        organization_name=organizationName,
         email_type=EmailType.RUN_RECIPIENT_VERIFICATION,
         recipient=recipient.email,
     )
@@ -110,7 +113,9 @@ def create_recipient(
     )
     recipient = get_recipient_query(access.organization.pk).get(pk=recipient.pk)
     if recipient.status == RunEmailRecipientStatus.PENDING:
-        queue_recipient_verification(recipient)
+        queue_recipient_verification(
+            recipient, organizationName=access.organization.name
+        )
     record_audit(
         "run_email_recipient.create",
         actor=access.actor,
@@ -120,7 +125,9 @@ def create_recipient(
     return recipient
 
 
-def resend_recipient_verification(recipient: RunEmailRecipient) -> None:
+def resend_recipient_verification(
+    recipient: RunEmailRecipient, *, organizationName: str
+) -> None:
     if recipient.status == RunEmailRecipientStatus.MEMBER:
         raise ValidationError("Member email addresses do not need verification.")
     if recipient.status == RunEmailRecipientStatus.VERIFIED:
@@ -133,7 +140,7 @@ def resend_recipient_verification(recipient: RunEmailRecipient) -> None:
     recipient.verification_id = uuid.uuid4()
     recipient.verification_requested_at = currentTime
     recipient.save(update_fields=["verification_id", "verification_requested_at"])
-    queue_recipient_verification(recipient)
+    queue_recipient_verification(recipient, organizationName=organizationName)
 
 
 def get_recipient_references(recipient: RunEmailRecipient) -> list[dict]:

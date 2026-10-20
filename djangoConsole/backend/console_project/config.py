@@ -64,6 +64,25 @@ class FileTransferProxyConfig(_BaseConfig):
     port: int = Field(default=9999, ge=1, le=65535)
 
 
+class MonitoringConfig(_BaseConfig):
+    prometheusUrl: HttpUrl
+
+    @field_validator("prometheusUrl")
+    @classmethod
+    def validate_prometheus_url(cls, prometheusUrl: HttpUrl) -> HttpUrl:
+        if (
+            prometheusUrl.username is not None
+            or prometheusUrl.password is not None
+            or prometheusUrl.query is not None
+            or prometheusUrl.fragment is not None
+            or prometheusUrl.path not in (None, "/")
+        ):
+            raise ValueError(
+                "Prometheus URL must be a site root without credentials, a query, or a fragment."
+            )
+        return prometheusUrl
+
+
 # Limits must round-trip exactly through browser JSON numbers.
 LimitInteger = Annotated[int, Field(le=INT_MAX_JSON_INTEGER)]
 
@@ -205,6 +224,7 @@ class ConsoleConfig(_BaseConfig):
     storageRoot: NonEmptyText = "storage"
     database: DatabaseConfig
     fileTransferProxy: FileTransferProxyConfig | None = None
+    monitoring: MonitoringConfig | None = None
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     consoleUrl: HttpUrl

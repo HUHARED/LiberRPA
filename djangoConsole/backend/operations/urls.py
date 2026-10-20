@@ -11,12 +11,25 @@ from .audit_views import (
     get_organization_audit_filters,
     get_organization_audit_details,
 )
+from .instance_views import get_instance_status
+from .email_views import list_email_issues, get_email_issue_filters
 from .organization_views import (
     list_platform_organizations,
     get_or_update_organization_limits,
 )
 
 urlpatterns = [
+    path("platform/email-issues/", list_email_issues, name="platform-email-issues"),
+    path(
+        "platform/email-issues/filters/",
+        get_email_issue_filters,
+        name="platform-email-issue-filters",
+    ),
+    path(
+        "platform/instance-status/",
+        get_instance_status,
+        name="platform-instance-status",
+    ),
     path(
         "platform/organizations/",
         list_platform_organizations,

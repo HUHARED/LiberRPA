@@ -30,6 +30,7 @@ def notify_run_event(run: "Run", event: RunEmailEvent) -> None:
     if not dictConfig.get(strKey, {}).get("enabled", False):
         return
     organizationId = run.job.request.organization_id
+    strOrganizationName = run.job.request.organization.name
     for recipient in get_eligible_recipients(organizationId).filter(
         pk__in=dictConfig.get("recipient_ids", [])
     ):
@@ -39,6 +40,7 @@ def notify_run_event(run: "Run", event: RunEmailEvent) -> None:
             continue
         delivery = EmailDelivery.objects.create(
             organization_id=organizationId,
+            organization_name=strOrganizationName,
             email_type=EmailType.RUN,
             recipient=recipient.email,
         )
