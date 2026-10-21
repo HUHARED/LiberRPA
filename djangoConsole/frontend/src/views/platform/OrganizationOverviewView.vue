@@ -38,7 +38,7 @@
             <v-text-field
               :model-value="field.value"
               :label="field.label"
-              variant="underlined"
+              variant="plain"
               readonly
               hide-details />
           </v-col>
@@ -47,7 +47,7 @@
             <v-textarea
               :model-value="organization.notes || '—'"
               label="Notes"
-              variant="underlined"
+              variant="plain"
               rows="2"
               auto-grow
               readonly
@@ -101,7 +101,7 @@
             <v-text-field
               :model-value="field.value"
               :label="field.label"
-              variant="underlined"
+              variant="plain"
               readonly
               hide-details />
           </v-col>
@@ -167,7 +167,7 @@
         <v-text-field
           :model-value="serviceTarget.name"
           label="Organization"
-          variant="underlined"
+          variant="plain"
           readonly
           hide-details
           class="mb-4" />
@@ -175,7 +175,7 @@
         <v-text-field
           :model-value="serviceTarget.id"
           label="Organization ID"
-          variant="underlined"
+          variant="plain"
           readonly
           hide-details
           class="mb-4" />
@@ -230,15 +230,24 @@
       </v-card-text>
 
       <v-card-actions>
-        <v-spacer />
-        <v-btn :disabled="boolSaving || boolLoading" @click="closeServiceDialog">
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolSaving || boolLoading"
+          @click="closeServiceDialog">
           Cancel
         </v-btn>
+
+        <v-spacer />
+
         <v-btn
           type="submit"
           form="organization-service-form"
           :color="boolSuspend ? 'warning' : 'primary'"
           variant="tonal"
+          :prepend-icon="
+            boolSuspend ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'
+          "
           :loading="boolSaving"
           :disabled="
             boolLoading ||
@@ -262,7 +271,7 @@ import { ApiError, getApiError } from "@/api/errors";
 import {
   getPlatformOrganizationDetails,
   updateOrganizationService,
-} from "@/api/organizationLimits";
+} from "@/api/platformOrganizations";
 import {
   INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH,
   type PlatformOrganizationDetailsResponse,

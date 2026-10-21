@@ -3,16 +3,14 @@
   <div class="d-flex flex-wrap align-center justify-space-between ga-4 mb-4">
     <h2 class="text-h6">Usage &amp; Limits</h2>
 
-    <div class="d-flex flex-wrap ga-2">
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="boolLoading"
-        :disabled="dialogMode !== null"
-        @click="loadLimits()">
-        Refresh
-      </v-btn>
-    </div>
+    <v-btn
+      variant="tonal"
+      prepend-icon="mdi-refresh"
+      :loading="boolLoading"
+      :disabled="boolLoading || dialogMode !== null"
+      @click="loadLimits()">
+      Refresh
+    </v-btn>
   </div>
 
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
@@ -84,7 +82,7 @@
             <v-text-field
               :model-value="usage.organization.name"
               label="Organization"
-              variant="outlined"
+              variant="plain"
               readonly
               hide-details />
           </v-col>
@@ -93,7 +91,7 @@
             <v-text-field
               :model-value="usage.organization.id"
               label="Organization ID"
-              variant="outlined"
+              variant="plain"
               readonly
               hide-details />
           </v-col>
@@ -200,7 +198,7 @@
                     :model-value="formatOrganizationLimit(limit.default_limit, limit.unit)"
                     :aria-label="`${limit.label} default`"
                     min-width="240"
-                    variant="outlined"
+                    variant="plain"
                     density="compact"
                     readonly
                     hide-details />
@@ -229,11 +227,22 @@
       </v-card-text>
 
       <v-card-actions>
+        <v-btn
+          variant="tonal"
+          prepend-icon="mdi-close"
+          :disabled="boolSaving || boolLoading"
+          @click="closeDialog">
+          Cancel
+        </v-btn>
+
         <v-spacer />
-        <v-btn :disabled="boolSaving || boolLoading" @click="closeDialog">Cancel</v-btn>
+
         <v-btn
           color="primary"
           variant="tonal"
+          :prepend-icon="
+            dialogMode === LimitDialog.Edit ? 'mdi-content-save-outline' : 'mdi-restore'
+          "
           :loading="boolSaving"
           :disabled="
             boolLoading ||
@@ -259,7 +268,7 @@ import { ApiError, getApiError, getFieldErrors } from "@/api/errors";
 import {
   getPlatformOrganizationLimits,
   updateOrganizationLimits,
-} from "@/api/organizationLimits";
+} from "@/api/platformOrganizations";
 import {
   LimitUnit,
   type OrganizationLimitResponse,

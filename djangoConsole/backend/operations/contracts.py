@@ -116,7 +116,7 @@ class PlatformOrganizationStatus(TextChoices):
     DELETION_IN_PROGRESS = "deletion_in_progress", "Deletion in Progress"
 
 
-class PlatformAdministratorResponse(JsonResponsePayload):
+class OrganizationAdministratorResponse(JsonResponsePayload):
     id: UUID
     name: str
     email: str
@@ -127,7 +127,7 @@ class PlatformOrganizationResponse(JsonResponsePayload):
     name: str
     notes: str
     created_at: datetime
-    administrators: list[PlatformAdministratorResponse]
+    administrators: list[OrganizationAdministratorResponse]
     suspended_at: datetime | None
     deletion_requested_at: datetime | None
     deletion_started_at: datetime | None

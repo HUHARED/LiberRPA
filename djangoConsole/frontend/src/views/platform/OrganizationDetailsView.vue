@@ -1,15 +1,14 @@
 <!-- FileName: OrganizationDetailsView.vue -->
 <template>
-  <div class="d-flex flex-wrap align-center justify-space-between ga-4 mb-4">
-    <h1 class="text-h5">Organization Details</h1>
+  <v-btn
+    :to="{ name: 'platform-organizations' }"
+    variant="tonal"
+    prepend-icon="mdi-arrow-left"
+    class="mb-4">
+    Back to Organizations
+  </v-btn>
 
-    <v-btn
-      :to="{ name: 'platform-organizations' }"
-      variant="text"
-      prepend-icon="mdi-arrow-left">
-      Back to Organizations
-    </v-btn>
-  </div>
+  <h1 class="text-h5 mb-4">Organization Details</h1>
 
   <v-tabs
     :model-value="route.name"

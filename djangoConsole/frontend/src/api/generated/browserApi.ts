@@ -1558,7 +1558,7 @@ export interface PlatformLoginRequest {
   remember_me?: boolean;
 }
 export interface PlatformOrganizationDetailsResponse {
-  administrators: PlatformAdministratorResponse[];
+  administrators: OrganizationAdministratorResponse[];
   created_at: string;
   default_time_zone: string;
   deletion_due_at: string | null;
@@ -1569,7 +1569,7 @@ export interface PlatformOrganizationDetailsResponse {
   notes: string;
   suspended_at: string | null;
 }
-export interface PlatformAdministratorResponse {
+export interface OrganizationAdministratorResponse {
   email: string;
   id: string;
   name: string;
@@ -1598,7 +1598,7 @@ export interface PlatformOrganizationListResponse {
   pagination: PaginationResponse;
 }
 export interface PlatformOrganizationResponse {
-  administrators: PlatformAdministratorResponse[];
+  administrators: OrganizationAdministratorResponse[];
   created_at: string;
   deletion_requested_at: string | null;
   deletion_started_at: string | null;

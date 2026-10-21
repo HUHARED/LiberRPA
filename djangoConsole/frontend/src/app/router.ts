@@ -296,12 +296,6 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         ],
       },
       {
-        path: "/platform/service-settings",
-        name: "platform-service-settings",
-        component: () => import("@/views/platform/ServiceSettingsView.vue"),
-        meta: { title: "Service Settings", requiresPlatformAdmin: true },
-      },
-      {
         path: "/platform/instance-status",
         component: () => import("@/views/platform/InstanceStatusView.vue"),
         meta: { title: "Instance Status", requiresPlatformAdmin: true },

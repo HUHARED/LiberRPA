@@ -66,20 +66,17 @@
     <v-text-field
       v-if="platform"
       id="platform-sign-in-login"
-      v-model="strPlatformLogin"
+      :model-value="STR_PLATFORM_ADMIN_LOGIN"
       name="platform_login"
       label="Login Name"
       type="text"
       autocomplete="username"
-      variant="underlined"
+      variant="plain"
       density="compact"
       class="mb-3"
-      :maxlength="254"
-      :rules="[validateRequiredPlatformLogin]"
-      :disabled="sessionStore.busy"
       spellcheck="false"
       autocapitalize="none"
-      required />
+      readonly />
 
     <v-text-field
       v-else
@@ -161,29 +158,22 @@ import { getSafeReturnPath } from "@/app/navigation";
 
 import { ApiError, getApiError } from "@/api/errors";
 
+const STR_PLATFORM_ADMIN_LOGIN = "admin";
+
 const props = withDefaults(defineProps<{ platform?: boolean }>(), { platform: false });
 
 const sessionStore = useSessionStore();
 const route = useRoute();
 const router = useRouter();
 const strEmail = ref("");
-const strPlatformLogin = ref("");
 const strPassword = ref("");
 const boolRememberMe = ref(false);
 const boolPasswordVisible = ref(false);
 const requestError = shallowRef<ApiError | null>(null);
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 
-onBeforeUnmount(() => {
-  strPassword.value = "";
-});
-
 function validateRequiredEmail(value: string): true | string {
   return value.trim() ? true : "Enter your email address.";
-}
-
-function validateRequiredPlatformLogin(value: string): true | string {
-  return value.trim() ? true : "Enter your login name.";
 }
 
 function validateRequiredPassword(value: string): true | string {
@@ -200,7 +190,7 @@ async function submitSignIn(event: SubmitEventPromise): Promise<void> {
     await sessionStore.signInAccount(
       props.platform
         ? {
-            platform_login: strPlatformLogin.value.trim(),
+            platform_login: STR_PLATFORM_ADMIN_LOGIN,
             password: strPassword.value,
             remember_me: boolRememberMe.value,
           }
@@ -228,6 +218,10 @@ async function submitSignIn(event: SubmitEventPromise): Promise<void> {
     setRetryDelay(requestError.value.retryAfterSeconds);
   }
 }
+
+onBeforeUnmount(() => {
+  strPassword.value = "";
+});
 </script>
 
 <style scoped></style>

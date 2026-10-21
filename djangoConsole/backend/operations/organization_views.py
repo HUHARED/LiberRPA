@@ -6,7 +6,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import logging
 import uuid
-from typing import cast
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage, Paginator
@@ -44,12 +43,12 @@ from .access import get_platform_actor
 from .audit import get_audit_snapshot, record_audit
 from .contracts import (
     PlatformOrganizationStatus,
-    PlatformOrganizationFilters,
-    PlatformAdministratorResponse,
+    OrganizationAdministratorResponse,
     PlatformOrganizationResponse,
     PlatformOrganizationDetailsResponse,
     OrganizationServiceRequest,
     PlatformOrganizationListResponse,
+    PlatformOrganizationFilters,
     OrganizationLimitsRequest,
 )
 from .models import AuditScope
@@ -63,10 +62,12 @@ def _get_platform_organization_query() -> QuerySet[Organization]:
         Prefetch(
             "memberships",
             queryset=Membership.objects
-            .filter(is_org_admin=True, user__is_active=True, user__is_platform_admin=False)
+            .filter(
+                is_org_admin=True, user__is_active=True, user__is_platform_admin=False
+            )
             .select_related("user")
             .order_by("user_id"),
-            to_attr="platformAdministrators",
+            to_attr="organizationAdministrators",
         )
     )
 
@@ -78,14 +79,12 @@ def _build_platform_organization_payload(organization: Organization) -> dict[str
         "notes": organization.notes,
         "created_at": organization.created_at,
         "administrators": [
-            PlatformAdministratorResponse(
+            OrganizationAdministratorResponse(
                 id=membership.user_id,
                 name=membership.user.username,
                 email=membership.user.email,
             )
-            for membership in cast(
-                list[Membership], getattr(organization, "platformAdministrators")
-            )
+            for membership in organization.organizationAdministrators
         ],
         "suspended_at": organization.suspended_at,
         "deletion_requested_at": organization.deletion_requested_at,
@@ -201,7 +200,11 @@ def list_platform_organizations(request: HttpRequest) -> JsonResponse:
             "Platform administrator access is required.",
             statusCode=403,
         )
-    except (ValueError, ContractValidationError, InvalidPage):
+    except InvalidPage:
+        return build_error_response(
+            "organization_page_not_found", "Organization page not found.", statusCode=404
+        )
+    except (ValueError, ContractValidationError):
         return build_error_response(
             "invalid_filters",
             "Select valid organization filters and a valid page.",
@@ -261,8 +264,10 @@ def update_organization_service(
         if isinstance(payload, JsonResponse):
             return payload
         with transaction.atomic():
-            organization = _get_platform_organization_query().select_for_update().get(
-                pk=organizationId
+            organization = (
+                _get_platform_organization_query()
+                .select_for_update()
+                .get(pk=organizationId)
             )
             actor = get_platform_actor(request, forUpdate=True)
             if organization.deletion_started_at is not None:
@@ -273,12 +278,9 @@ def update_organization_service(
                 )
             if payload.suspended == (organization.suspended_at is not None):
                 return _build_platform_organization_details(organization)
-            if (
-                payload.expected_suspended_at != organization.suspended_at
-                or (
-                    payload.expected_deletion_requested_at
-                    != organization.deletion_requested_at
-                )
+            if payload.expected_suspended_at != organization.suspended_at or (
+                payload.expected_deletion_requested_at
+                != organization.deletion_requested_at
             ):
                 return build_error_response(
                     "organization_state_changed",
@@ -422,12 +424,12 @@ def get_or_update_organization_limits(
             "This organization is no longer available.",
             statusCode=404,
         )
-    except ValidationError as error:
+    except ValidationError as e:
         return build_error_response(
             "invalid_limits",
-            " ".join(error.messages),
+            " ".join(e.messages),
             statusCode=400,
-            fields={"overrides": error.messages},
+            fields={"overrides": e.messages},
         )
     except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()

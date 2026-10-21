@@ -9,6 +9,7 @@ import type {
 
 const SET_RETURN_PATH = new Set([
   "/overview",
+  "/overview/analysis",
   "/packages",
   "/schedules",
   "/jobs",
@@ -31,7 +32,7 @@ const SET_RETURN_PATH = new Set([
   "/organization-status",
 ]);
 const REGEXP_DETAILS_PATH =
-  /^\/(?:packages|schedules|jobs|runs|assets|data-queues|executors(?:\/groups)?|organization-settings\/(?:members|departments))\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  /^\/(?:packages|schedules|jobs|runs|data-queues|executors(?:\/groups)?|organization-settings\/(?:members|departments))\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function getSafeReturnPath(value: unknown, platformAdmin = false): string {
   const strHomePath = platformAdmin ? "/platform/organizations" : "/overview";
@@ -45,7 +46,6 @@ export function getSafeReturnPath(value: unknown, platformAdmin = false): string
 
   const boolPlatformPath =
     strPath === "/platform/organizations" ||
-    strPath === "/platform/service-settings" ||
     strPath === "/platform/instance-status" ||
     strPath === "/platform/instance-status/email" ||
     strPath === "/platform/maintenance" ||

@@ -33,6 +33,9 @@ from .validators import validate_path_segment
 class Organization(models.Model):
     """Organization identity and service state; names may repeat across organizations."""
 
+    # Populated by the platform organization query's administrator prefetch.
+    organizationAdministrators: list["Membership"]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(
         max_length=200, validators=[ProhibitNullCharactersValidator()]

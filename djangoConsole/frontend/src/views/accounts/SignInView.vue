@@ -1,11 +1,7 @@
 <!-- FileName: SignInView.vue -->
 <template>
   <AuthLayout>
-    <h1 class="text-h5 mb-2">Sign in to Console</h1>
-
-    <p class="text-medium-emphasis mb-6">
-      Enter your account details to open your workspace.
-    </p>
+    <h1 class="text-h5 mb-6">Sign in to Console</h1>
 
     <SignInForm />
 
@@ -20,10 +16,6 @@
     </v-btn>
 
     <v-divider class="my-4" />
-
-    <p class="text-medium-emphasis">
-      Use the email address associated with your organization.
-    </p>
 
     <v-btn
       :to="{ name: 'create-organization' }"

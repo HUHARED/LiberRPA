@@ -136,10 +136,7 @@ import OrganizationUsageTable from "@/components/organizations/OrganizationUsage
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
-import {
-  getOrganizationUsage,
-  updateOrganizationRetention,
-} from "@/api/organizationLimits";
+import { getOrganizationUsage, updateOrganizationRetention } from "@/api/organization";
 import type { OrganizationLimitsResponse } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";

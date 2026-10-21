@@ -1,30 +1,137 @@
 <!-- FileName: OrganizationsView.vue -->
 <template>
-  <div class="d-flex align-center justify-space-between ga-4 mb-4">
+  <div class="d-flex flex-wrap align-center justify-space-between ga-4 mb-4">
     <h1 class="text-h5">Organizations</h1>
 
     <v-btn
       variant="tonal"
       prepend-icon="mdi-refresh"
       :loading="boolLoading"
+      :disabled="boolLoading"
+      aria-label="Refresh organization list"
       @click="loadOrganizations()">
       Refresh
     </v-btn>
   </div>
+
+  <v-card
+    variant="outlined"
+    class="mb-6"
+    :aria-busy="boolLoadingSettings || boolSavingSettings">
+    <v-card-title>Organization Creation</v-card-title>
+
+    <v-card-text>
+      <v-progress-linear
+        v-if="boolLoadingSettings"
+        indeterminate
+        color="primary"
+        class="mb-4"
+        aria-label="Loading organization creation setting" />
+
+      <v-alert
+        v-if="settingsRequestError"
+        type="error"
+        variant="tonal"
+        class="mb-4"
+        role="alert">
+        {{ settingsRequestError.message }}
+        <template #append>
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-refresh"
+            size="small"
+            :disabled="boolSettingsActionBlocked"
+            @click="loadSettings">
+            Retry
+          </v-btn>
+        </template>
+      </v-alert>
+
+      <v-alert
+        v-if="settingsSaveError"
+        type="error"
+        variant="tonal"
+        class="mb-4"
+        role="alert">
+        Save was not confirmed. {{ settingsSaveError.message }}
+        <template v-if="!serviceSettings" #append>
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-refresh"
+            size="small"
+            :disabled="boolSettingsActionBlocked"
+            @click="loadSettings">
+            Retry
+          </v-btn>
+        </template>
+      </v-alert>
+
+      <v-alert
+        v-if="strSettingsSuccess && !boolSettingsChanged"
+        type="success"
+        variant="tonal"
+        class="mb-4"
+        role="status">
+        {{ strSettingsSuccess }}
+      </v-alert>
+
+      <v-form
+        v-if="serviceSettings"
+        id="organization-creation-form"
+        @submit.prevent="saveSettings">
+        <v-switch
+          v-model="boolAllowOrganizationCreation"
+          label="Allow Organization Creation"
+          true-icon="mdi-check"
+          color="primary"
+          :disabled="boolSettingsActionBlocked"
+          :error-messages="settingsSaveError?.fields.allow_organization_creation ?? []"
+          hint="Existing accounts and valid invitations are unaffected."
+          persistent-hint />
+      </v-form>
+    </v-card-text>
+
+    <v-card-actions v-if="serviceSettings">
+      <v-btn
+        variant="tonal"
+        prepend-icon="mdi-close"
+        :disabled="boolSettingsActionBlocked || !boolSettingsChanged"
+        @click="cancelSettings">
+        Cancel
+      </v-btn>
+
+      <v-spacer />
+
+      <v-btn
+        type="submit"
+        form="organization-creation-form"
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-content-save-outline"
+        :loading="boolSavingSettings"
+        :disabled="boolSettingsActionBlocked || !boolSettingsChanged">
+        Save
+      </v-btn>
+    </v-card-actions>
+  </v-card>
 
   <v-card variant="outlined" class="mb-4">
     <v-card-text>
       <v-form @submit.prevent="applyFilters">
         <v-row>
           <v-col cols="12" md="4">
-            <v-text-field v-model="strName" label="Name" variant="outlined" hide-details />
+            <v-text-field
+              v-model="strName"
+              label="Name"
+              variant="underlined"
+              hide-details />
           </v-col>
 
           <v-col cols="12" md="4">
             <v-text-field
               v-model="strOrganizationId"
               label="Organization ID"
-              variant="outlined"
+              variant="underlined"
               placeholder="Full organization ID"
               hide-details />
           </v-col>
@@ -34,7 +141,7 @@
               v-model="arrStatus"
               :items="ARR_STATUS_OPTION"
               label="Status"
-              variant="outlined"
+              variant="underlined"
               multiple
               chips
               clearable
@@ -43,8 +150,20 @@
         </v-row>
 
         <div class="d-flex justify-end ga-2 mt-4">
-          <v-btn variant="text" @click="resetFilters">Reset</v-btn>
-          <v-btn type="submit" color="primary" variant="tonal">Apply</v-btn>
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-filter-remove-outline"
+            @click="resetFilters">
+            Reset Filters
+          </v-btn>
+
+          <v-btn
+            type="submit"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-filter-outline">
+            Apply
+          </v-btn>
         </div>
       </v-form>
     </v-card-text>
@@ -148,7 +267,7 @@
             params: { organizationId: item.id },
           }"
           :aria-label="`View ${item.name}`"
-          variant="text"
+          variant="tonal"
           size="small"
           prepend-icon="mdi-eye-outline">
           View
@@ -194,11 +313,16 @@ import { RouterLink } from "vue-router";
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
-import { getPlatformOrganizationList } from "@/api/organizationLimits";
+import {
+  getServiceSettings,
+  updateServiceSettings,
+  getPlatformOrganizationList,
+} from "@/api/platformOrganizations";
 import {
   INT_LIST_PAGE_SIZE,
   PlatformOrganizationStatus,
   type PlatformOrganizationListResponse,
+  type ServiceSettingsResponse,
 } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
@@ -211,7 +335,30 @@ const ARR_STATUS_OPTION = [
 ];
 
 const sessionStore = useSessionStore();
+const boolCanManage = computed(() => sessionStore.session?.user.is_platform_admin === true);
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+
+const serviceSettings = shallowRef<ServiceSettingsResponse | null>(null);
+const boolAllowOrganizationCreation = ref(false);
+const boolSettingsChanged = computed(
+  () =>
+    serviceSettings.value !== null &&
+    boolAllowOrganizationCreation.value !==
+      serviceSettings.value.allow_organization_creation,
+);
+const settingsRequestError = shallowRef<ApiError | null>(null);
+const settingsSaveError = shallowRef<ApiError | null>(null);
+const strSettingsSuccess = ref("");
+const boolLoadingSettings = ref(false);
+const boolSavingSettings = ref(false);
+const boolSettingsActionBlocked = computed(
+  () =>
+    boolLoadingSettings.value ||
+    boolSavingSettings.value ||
+    sessionStore.busy ||
+    !boolCanManage.value,
+);
+
 const strName = ref("");
 const strOrganizationId = ref("");
 const arrStatus = ref<PlatformOrganizationStatus[]>([]);
@@ -227,6 +374,7 @@ const strUpdatedAt = ref<string | null>(null);
 const boolLoading = ref(false);
 let intRequestRevision = 0;
 let intRequestedPage = 1;
+let boolUnmounted = false;
 
 const arrHeader = computed(() => [
   { title: "Name", key: "name", minWidth: 220 },
@@ -237,23 +385,101 @@ const arrHeader = computed(() => [
   { title: "Actions", key: "actions", width: 112 },
 ]);
 
+function applySettings(response: ServiceSettingsResponse): void {
+  serviceSettings.value = response;
+  boolAllowOrganizationCreation.value = response.allow_organization_creation;
+}
+
+function cancelSettings(): void {
+  if (boolSettingsActionBlocked.value || !serviceSettings.value) return;
+  applySettings(serviceSettings.value);
+  settingsSaveError.value = null;
+  strSettingsSuccess.value = "";
+}
+
+async function loadSettings(): Promise<void> {
+  if (boolUnmounted || boolSettingsActionBlocked.value) return;
+  boolLoadingSettings.value = true;
+  settingsRequestError.value = null;
+  settingsSaveError.value = null;
+  strSettingsSuccess.value = "";
+  try {
+    const response = await getServiceSettings();
+    if (boolUnmounted || !boolCanManage.value) return;
+    applySettings(response);
+  } catch (e) {
+    if (boolUnmounted) return;
+    settingsRequestError.value = getApiError(e);
+    if (settingsRequestError.value.statusCode === 401) {
+      serviceSettings.value = null;
+      boolAllowOrganizationCreation.value = false;
+    }
+    if (settingsRequestError.value.statusCode === 403) {
+      if (settingsRequestError.value.code === "platform_access_required")
+        await sessionStore.refreshChangedSession();
+      else await sessionStore.refreshSession();
+    }
+  } finally {
+    if (!boolUnmounted) boolLoadingSettings.value = false;
+  }
+}
+
+async function saveSettings(): Promise<void> {
+  if (boolUnmounted || boolSettingsActionBlocked.value || !boolSettingsChanged.value)
+    return;
+  boolSavingSettings.value = true;
+  settingsSaveError.value = null;
+  strSettingsSuccess.value = "";
+  try {
+    const response = await updateServiceSettings({
+      allow_organization_creation: boolAllowOrganizationCreation.value,
+    });
+    if (boolUnmounted || !boolCanManage.value) return;
+    applySettings(response);
+    strSettingsSuccess.value = "Organization creation setting saved.";
+  } catch (e) {
+    if (boolUnmounted) return;
+    settingsSaveError.value = getApiError(e);
+    if (settingsSaveError.value.statusCode === 401) {
+      serviceSettings.value = null;
+      boolAllowOrganizationCreation.value = false;
+    }
+    if (settingsSaveError.value.statusCode === 403) {
+      if (settingsSaveError.value.code === "platform_access_required")
+        await sessionStore.refreshChangedSession();
+      else await sessionStore.refreshSession();
+    }
+  } finally {
+    if (!boolUnmounted) boolSavingSettings.value = false;
+  }
+}
+
 async function loadOrganizations(pageNumber: number = intRequestedPage): Promise<void> {
+  if (boolUnmounted || !boolCanManage.value) return;
   const intCurrentRevision = ++intRequestRevision;
   intRequestedPage = pageNumber;
   boolLoading.value = true;
   requestError.value = null;
   try {
     const response = await getPlatformOrganizationList(appliedFilters, pageNumber);
-    if (intCurrentRevision !== intRequestRevision) return;
+    if (intCurrentRevision !== intRequestRevision || !boolCanManage.value) return;
     organizationPage.value = response;
     strUpdatedAt.value = new Date().toISOString();
   } catch (e) {
     if (intCurrentRevision !== intRequestRevision) return;
     requestError.value = getApiError(e);
-    if ([401, 403].includes(requestError.value.statusCode)) {
+    if (requestError.value.code === "organization_page_not_found" && pageNumber > 1) {
+      await loadOrganizations(1);
+      return;
+    }
+    if (requestError.value.statusCode === 401) {
       organizationPage.value = null;
       strUpdatedAt.value = null;
-      if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
+    }
+    if (requestError.value.statusCode === 403) {
+      if (requestError.value.code === "platform_access_required")
+        await sessionStore.refreshChangedSession();
+      else await sessionStore.refreshSession();
     }
   } finally {
     if (intCurrentRevision === intRequestRevision) boolLoading.value = false;
@@ -278,9 +504,13 @@ function resetFilters(): void {
   applyFilters();
 }
 
-onMounted(() => void loadOrganizations());
+onMounted(() => {
+  void loadSettings();
+  void loadOrganizations();
+});
 
 onBeforeUnmount(() => {
+  boolUnmounted = true;
   intRequestRevision += 1;
 });
 </script>
