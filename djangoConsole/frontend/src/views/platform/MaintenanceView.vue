@@ -183,10 +183,13 @@
             {{ backupStatus.time_zone }}
           </p>
           <p class="text-body-2 mb-2">{{ backupStatus.health_message }}</p>
+          <p class="text-body-2 text-medium-emphasis mb-2">
+            Display Time Zone: {{ strTimeZone }}
+          </p>
           <p class="text-body-2 text-medium-emphasis mb-4">
             Checked at
-            {{ formatDateTime(backupStatus.checked_at, backupStatus.time_zone) }} · Updated
-            at {{ formatDateTime(backupStatus.updated_at, backupStatus.time_zone) }}
+            {{ formatDateTime(backupStatus.checked_at, strTimeZone) }} · Updated at
+            {{ formatDateTime(backupStatus.updated_at, strTimeZone) }}
           </p>
 
           <h3 class="text-subtitle-1 mb-2">Current Backup</h3>
@@ -211,20 +214,10 @@
                     }}
                   </td>
                   <td class="text-no-wrap">
-                    {{
-                      formatDateTime(
-                        backupStatus.current.started_at,
-                        backupStatus.time_zone,
-                      )
-                    }}
+                    {{ formatDateTime(backupStatus.current.started_at, strTimeZone) }}
                   </td>
                   <td class="text-no-wrap">
-                    {{
-                      formatDateTime(
-                        backupStatus.current.data_as_of,
-                        backupStatus.time_zone,
-                      )
-                    }}
+                    {{ formatDateTime(backupStatus.current.data_as_of, strTimeZone) }}
                   </td>
                 </tr>
               </tbody>
@@ -251,28 +244,13 @@
                 <tr>
                   <td>{{ MAP_BACKUP_STATUS_LABEL[backupStatus.latest_result.status] }}</td>
                   <td class="text-no-wrap">
-                    {{
-                      formatDateTime(
-                        backupStatus.latest_result.data_as_of,
-                        backupStatus.time_zone,
-                      )
-                    }}
+                    {{ formatDateTime(backupStatus.latest_result.data_as_of, strTimeZone) }}
                   </td>
                   <td class="text-no-wrap">
-                    {{
-                      formatDateTime(
-                        backupStatus.latest_result.started_at,
-                        backupStatus.time_zone,
-                      )
-                    }}
+                    {{ formatDateTime(backupStatus.latest_result.started_at, strTimeZone) }}
                   </td>
                   <td class="text-no-wrap">
-                    {{
-                      formatDateTime(
-                        backupStatus.latest_result.ended_at,
-                        backupStatus.time_zone,
-                      )
-                    }}
+                    {{ formatDateTime(backupStatus.latest_result.ended_at, strTimeZone) }}
                   </td>
                   <td class="text-no-wrap">
                     {{
@@ -300,13 +278,9 @@
           <h3 class="text-subtitle-1 mb-2">Last Successful Backup</h3>
           <p v-if="backupStatus.last_success" class="text-body-2 mb-3">
             Completed at
-            {{
-              formatDateTime(backupStatus.last_success.ended_at, backupStatus.time_zone)
-            }}
+            {{ formatDateTime(backupStatus.last_success.ended_at, strTimeZone) }}
             · Data as of
-            {{
-              formatDateTime(backupStatus.last_success.data_as_of, backupStatus.time_zone)
-            }}
+            {{ formatDateTime(backupStatus.last_success.data_as_of, strTimeZone) }}
             ·
             {{
               backupStatus.last_success.size_bytes === null
@@ -371,7 +345,7 @@
           Runs are counted in each hour they overlap. Cleared history is not included.
         </p>
         <p class="text-body-2 text-medium-emphasis mb-4">
-          Updated at {{ formatDateTime(runActivity.updated_at, runActivity.time_zone) }}
+          Updated at {{ formatDateTime(runActivity.updated_at, strTimeZone) }}
         </p>
 
         <v-alert

@@ -256,6 +256,7 @@ export interface BrowserApiContracts {
   PlatformOrganizationDetailsResponse: PlatformOrganizationDetailsResponse;
   PlatformOrganizationFilters: PlatformOrganizationFilters;
   PlatformOrganizationListResponse: PlatformOrganizationListResponse;
+  PlatformTimeZoneRequest: PlatformTimeZoneRequest;
   ProfileUpdateRequest: ProfileUpdateRequest;
   ProfileWriteResponse: ProfileWriteResponse;
   ProjectPackageListResponse: ProjectPackageListResponse;
@@ -657,9 +658,9 @@ export interface EmailIssueStatusResponse {
 }
 export interface EmailIssueListResponse {
   failed_today: number;
-  instance_time_zone: string;
   issues: EmailIssueResponse[];
   pagination: PaginationResponse;
+  time_zone: string;
   today: string;
   updated_at: string;
 }
@@ -1606,6 +1607,9 @@ export interface PlatformOrganizationResponse {
   name: string;
   notes: string;
   suspended_at: string | null;
+}
+export interface PlatformTimeZoneRequest {
+  time_zone: string;
 }
 export interface ProfileUpdateRequest {
   time_zone: string;

@@ -10,7 +10,7 @@ from django.core.exceptions import ImproperlyConfigured, PermissionDenied, Valid
 from django.db import DatabaseError, transaction
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 
 from console_project.http import (
     build_error_response,
@@ -18,12 +18,20 @@ from console_project.http import (
     build_service_unavailable_response,
     parse_json_request,
 )
+from console_project.validators import validate_time_zone
+from operations.access import get_platform_actor
+from operations.audit import get_audit_snapshot, record_audit
+from operations.models import AuditScope
 from organizations.access import get_account_access_info
 from organizations.http import build_account_access_payload, get_request_access
-
 from organizations.rate_limits import RequestBudget, request_budget
 
-from .contracts import SessionUserResponse, ProfileUpdateRequest, ProfileWriteResponse
+from .contracts import (
+    SessionUserResponse,
+    ProfileUpdateRequest,
+    PlatformTimeZoneRequest,
+    ProfileWriteResponse,
+)
 from .models import User
 from .session_revocation import SessionInvalidatedError
 from .profile import update_profile
@@ -86,6 +94,61 @@ def get_or_update_profile(request: HttpRequest) -> JsonResponse:
             "profile_unavailable",
             "This profile operation is unavailable.",
             statusCode=403,
+        )
+    except (ImproperlyConfigured, DatabaseError):
+        return build_service_unavailable_response()
+
+
+@never_cache
+@require_POST
+def update_platform_time_zone(request: HttpRequest) -> JsonResponse:
+    """Save only the platform administrator's display time zone."""
+    try:
+        if not request.user.is_authenticated:
+            return build_authentication_required_response()
+        get_platform_actor(request)
+        if request.GET:
+            return build_error_response(
+                "invalid_profile_query",
+                "This request does not accept query parameters.",
+                statusCode=400,
+            )
+        payload = parse_json_request(request, PlatformTimeZoneRequest)
+        if isinstance(payload, JsonResponse):
+            return payload
+        validate_time_zone(payload.time_zone)
+
+        with transaction.atomic():
+            actor = get_platform_actor(request, forUpdate=True)
+            if actor.time_zone != payload.time_zone:
+                dictBefore = get_audit_snapshot(actor)
+                actor.time_zone = payload.time_zone
+                actor.save(update_fields=["time_zone"])
+                record_audit(
+                    "account.update_profile",
+                    actor=actor,
+                    organization=None,
+                    target=actor,
+                    before=dictBefore,
+                    scope=AuditScope.PLATFORM,
+                )
+        return JsonResponse(_build_profile_response(actor).model_dump(mode="python"))
+    except SessionInvalidatedError:
+        return build_authentication_required_response(
+            "The current session is no longer valid. Sign in again."
+        )
+    except PermissionDenied:
+        return build_error_response(
+            "platform_access_required",
+            "Platform administrator access is required.",
+            statusCode=403,
+        )
+    except ValidationError as e:
+        return build_error_response(
+            "invalid_profile",
+            "Select a valid time zone.",
+            statusCode=400,
+            fields={"time_zone": e.messages},
         )
     except (ImproperlyConfigured, DatabaseError):
         return build_service_unavailable_response()

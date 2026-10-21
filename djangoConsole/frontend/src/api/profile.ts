@@ -5,6 +5,7 @@ import { isRecord, rejectInvalidResponse, parseMessageResponse } from "./respons
 import { parseSessionUserResponse } from "./account";
 
 import type {
+  PlatformTimeZoneRequest,
   ProfileUpdateRequest,
   ProfileWriteResponse,
   PasswordChangeRequest,
@@ -18,6 +19,17 @@ export async function updateProfile(
   request: ProfileUpdateRequest,
 ): Promise<ProfileWriteResponse> {
   const payload = await requestApi("/auth/profile/", { method: "POST", body: request });
+  if (!isRecord(payload)) return rejectInvalidResponse();
+  return { user: parseSessionUserResponse(payload.user) };
+}
+
+export async function updatePlatformTimeZone(
+  request: PlatformTimeZoneRequest,
+): Promise<ProfileWriteResponse> {
+  const payload = await requestApi("/platform/auth/time-zone/", {
+    method: "POST",
+    body: request,
+  });
   if (!isRecord(payload)) return rejectInvalidResponse();
   return { user: parseSessionUserResponse(payload.user) };
 }

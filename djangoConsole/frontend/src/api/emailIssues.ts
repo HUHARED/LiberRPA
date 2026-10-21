@@ -61,7 +61,7 @@ export async function getEmailIssues(
         typeof issue.reason_text === "string",
     ) ||
     !isNonnegativeInteger(payload.failed_today) ||
-    typeof payload.instance_time_zone !== "string" ||
+    typeof payload.time_zone !== "string" ||
     !isDateString(payload.today) ||
     !isDateString(payload.updated_at)
   )
@@ -71,7 +71,7 @@ export async function getEmailIssues(
     issues: payload.issues,
     pagination: parsePaginationResponse(payload.pagination),
     failed_today: payload.failed_today,
-    instance_time_zone: payload.instance_time_zone,
+    time_zone: payload.time_zone,
     today: payload.today,
     updated_at: payload.updated_at,
   };

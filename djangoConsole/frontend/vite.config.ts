@@ -20,6 +20,8 @@ export default defineConfig(({ mode }) => {
   };
   return {
     plugins: [vue(), vuetify({ autoImport: true })],
+    // Auto-imported Vuetify components must not trigger a dependency rebuild on first navigation.
+    optimizeDeps: { exclude: ["vuetify"] },
     resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
     server: {
       host: "127.0.0.1",

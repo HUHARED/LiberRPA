@@ -110,6 +110,13 @@
             " />
           <v-divider class="my-2" />
           <v-list-item
+            v-if="sessionStore.session?.user.is_platform_admin"
+            title="Time Zone"
+            :subtitle="sessionStore.session.user.time_zone"
+            prepend-icon="mdi-clock-outline"
+            :disabled="sessionStore.busy"
+            @click="boolTimeZoneOpen = true" />
+          <v-list-item
             v-if="
               !sessionStore.session?.user.is_platform_admin &&
               sessionStore.access?.business_available
@@ -165,6 +172,10 @@
       <slot />
     </v-container>
   </v-main>
+
+  <PlatformTimeZoneDialog
+    v-if="boolTimeZoneOpen && sessionStore.session?.user.is_platform_admin"
+    @close="boolTimeZoneOpen = false" />
 </template>
 
 <script setup lang="ts">
@@ -173,6 +184,7 @@ import { useRoute } from "vue-router";
 import { useDisplay } from "vuetify";
 
 import NotificationsPanel from "@/components/notifications/NotificationsPanel.vue";
+import PlatformTimeZoneDialog from "@/components/accounts/PlatformTimeZoneDialog.vue";
 import BrandMark from "@/components/common/BrandMark.vue";
 
 import { useSessionStore } from "../stores/sessionStore";
@@ -217,6 +229,7 @@ const display = useDisplay();
 const boolDesktop = computed(() => display.mdAndUp.value);
 const boolDrawerOpen = ref(boolDesktop.value);
 const signOutError = shallowRef<ApiError | null>(null);
+const boolTimeZoneOpen = ref(false);
 const strDisplayName = computed(() =>
   sessionStore.session?.user.is_platform_admin
     ? sessionStore.session.user.platform_login

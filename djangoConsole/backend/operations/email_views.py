@@ -9,6 +9,7 @@ import re
 import uuid
 from datetime import date, datetime, time, timedelta
 from typing import cast
+from zoneinfo import ZoneInfo
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.paginator import InvalidPage, Paginator
@@ -73,8 +74,8 @@ def list_email_issues(request: HttpRequest) -> JsonResponse:
     try:
         if not request.user.is_authenticated:
             return build_authentication_required_response()
-        get_platform_actor(request)
-        instanceZone = timezone.get_default_timezone()
+        actor = get_platform_actor(request)
+        displayZone = ZoneInfo(actor.time_zone)
         query = request.GET
         try:
             setSingleField = {"page", "date_from", "date_to"}
@@ -101,13 +102,13 @@ def list_email_issues(request: HttpRequest) -> JsonResponse:
             ):
                 raise ValueError("The end date precedes the start date.")
             fromTime = (
-                datetime.combine(dictDate["date_from"], time.min, instanceZone)
+                datetime.combine(dictDate["date_from"], time.min, displayZone)
                 if "date_from" in dictDate
                 else None
             )
             untilTime = (
                 datetime.combine(
-                    dictDate["date_to"] + timedelta(days=1), time.min, instanceZone
+                    dictDate["date_to"] + timedelta(days=1), time.min, displayZone
                 )
                 if "date_to" in dictDate
                 else None
@@ -138,14 +139,14 @@ def list_email_issues(request: HttpRequest) -> JsonResponse:
             issues = issues.filter(organizationCondition)
         if listStatus:
             issues = issues.filter(status__in=listStatus)
-        page = Paginator(
-            issues.order_by("-finished_at", "-id"), INT_LIST_PAGE_SIZE
-        ).page(intPage)
+        page = Paginator(issues.order_by("-finished_at", "-id"), INT_LIST_PAGE_SIZE).page(
+            intPage
+        )
 
         currentTime = timezone.now()
-        today = timezone.localdate(currentTime, instanceZone)
-        dayStart = datetime.combine(today, time.min, instanceZone)
-        dayEnd = datetime.combine(today + timedelta(days=1), time.min, instanceZone)
+        today = timezone.localdate(currentTime, displayZone)
+        dayStart = datetime.combine(today, time.min, displayZone)
+        dayEnd = datetime.combine(today + timedelta(days=1), time.min, displayZone)
         intFailedToday = EmailDelivery.objects.filter(
             status=EmailStatus.FAILED,
             finished_at__gte=dayStart,
@@ -178,7 +179,7 @@ def list_email_issues(request: HttpRequest) -> JsonResponse:
                 total_pages=page.paginator.num_pages,
             ),
             failed_today=intFailedToday,
-            instance_time_zone=str(instanceZone),
+            time_zone=str(displayZone),
             today=today,
             updated_at=currentTime,
         )
@@ -205,10 +206,13 @@ def get_email_issue_filters(request: HttpRequest) -> JsonResponse:
         get_platform_actor(request)
         if request.GET:
             return build_error_response(
-                "invalid_email_filters", "This request does not accept filters.", statusCode=400
+                "invalid_email_filters",
+                "This request does not accept filters.",
+                statusCode=400,
             )
         organizations = (
-            EmailDelivery.objects.filter(status__in=TUPLE_EMAIL_ISSUE_STATUS)
+            EmailDelivery.objects
+            .filter(status__in=TUPLE_EMAIL_ISSUE_STATUS)
             .annotate(
                 organizationPosition=Window(
                     expression=RowNumber(),
@@ -224,7 +228,9 @@ def get_email_issue_filters(request: HttpRequest) -> JsonResponse:
             organizations=[
                 EmailIssueOrganizationResponse(
                     id=organizationId,
-                    name=strName if organizationId is not None else "Without organization",
+                    name=strName
+                    if organizationId is not None
+                    else "Without organization",
                 )
                 for organizationId, strName in organizations
             ],

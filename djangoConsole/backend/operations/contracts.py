@@ -353,7 +353,7 @@ class EmailIssueListResponse(JsonResponsePayload):
     issues: list[EmailIssueResponse]
     pagination: PaginationResponse
     failed_today: int
-    instance_time_zone: str
+    time_zone: str
     today: date
     updated_at: datetime
 

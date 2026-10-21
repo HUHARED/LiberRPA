@@ -64,6 +64,10 @@ class ProfileUpdateRequest(JsonRequest):
     time_zone: str
 
 
+class PlatformTimeZoneRequest(JsonRequest):
+    time_zone: Annotated[str, Field(min_length=1, max_length=100)]
+
+
 class ProfileWriteResponse(JsonResponsePayload):
     user: SessionUserResponse
 

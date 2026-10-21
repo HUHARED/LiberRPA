@@ -5,7 +5,7 @@
       <h2 class="text-subtitle-1">Failed Today</h2>
       <p class="text-h4">{{ issuePage?.failed_today ?? "—" }}</p>
       <p v-if="issuePage" class="text-body-2 text-medium-emphasis mt-1">
-        {{ issuePage.today }} · {{ issuePage.instance_time_zone }}
+        {{ issuePage.today }} · {{ issuePage.time_zone }}
       </p>
     </div>
 
@@ -27,17 +27,16 @@
   </v-alert>
 
   <p v-if="issuePage" class="text-body-2 text-medium-emphasis mb-4">
-    Updated at {{ formatDateTime(issuePage.updated_at, issuePage.instance_time_zone) }}
+    Updated at {{ formatDateTime(issuePage.updated_at, issuePage.time_zone) }}
   </p>
 
   <h2 class="text-h6 mb-3">Recent Issues</h2>
 
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
-      <v-form aria-label="Email issue filters" @submit.prevent="applyFilters">
+      <form aria-label="Email issue filters" @submit.prevent="applyFilters">
         <p class="text-body-2 text-medium-emphasis mb-4">
-          Date filters use {{ strInstanceTimeZone || "the instance time zone" }} and include
-          both selected dates.
+          Date filters use {{ strTimeZone }} and include both selected dates.
         </p>
 
         <v-row>
@@ -46,7 +45,8 @@
               v-model="draftFilters.fromDate"
               type="date"
               label="From Date"
-              variant="outlined"
+              variant="underlined"
+              density="compact"
               hide-details="auto"
               :error-messages="requestError?.fields.date_from ?? []"
               :disabled="boolLoading" />
@@ -57,7 +57,8 @@
               v-model="draftFilters.toDate"
               type="date"
               label="Through Date"
-              variant="outlined"
+              variant="underlined"
+              density="compact"
               hide-details="auto"
               :error-messages="requestError?.fields.date_to ?? []"
               :disabled="boolLoading" />
@@ -74,7 +75,8 @@
               chips
               closable-chips
               clearable
-              variant="outlined"
+              variant="underlined"
+              density="compact"
               hide-details
               :disabled="boolLoading" />
           </v-col>
@@ -92,19 +94,34 @@
               chips
               closable-chips
               clearable
-              variant="outlined"
+              variant="underlined"
+              density="compact"
               hide-details
               :disabled="boolLoading" />
           </v-col>
         </v-row>
 
-        <div class="d-flex justify-end ga-2 mt-4">
-          <v-btn variant="text" :disabled="boolLoading" @click="resetFilters">Reset</v-btn>
-          <v-btn type="submit" color="primary" variant="tonal" :disabled="boolLoading">
+        <div class="d-flex ga-2 mt-4">
+          <v-btn
+            variant="tonal"
+            prepend-icon="mdi-filter-remove-outline"
+            :disabled="boolLoading"
+            @click="resetFilters">
+            Reset Filters
+          </v-btn>
+
+          <v-spacer />
+
+          <v-btn
+            type="submit"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-check"
+            :disabled="boolLoading">
             Apply
           </v-btn>
         </div>
-      </v-form>
+      </form>
     </v-card-text>
   </v-card>
 
@@ -122,7 +139,7 @@
       disable-sort
       hide-default-footer>
       <template #item.finished_at="{ item }">
-        {{ formatDateTime(item.finished_at, strInstanceTimeZone) }}
+        {{ formatDateTime(item.finished_at, strTimeZone) }}
       </template>
 
       <template #item.organization_name="{ item }">
@@ -222,7 +239,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from "vue";
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  shallowRef,
+  watch,
+} from "vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -263,7 +288,7 @@ const issuePage = shallowRef<EmailIssueListResponse | null>(null);
 const filterOptions = shallowRef<EmailIssueFiltersResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
-const strInstanceTimeZone = ref("");
+const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const selectedIssue = shallowRef<EmailIssueResponse | null>(null);
 let intRequestedPage = 1;
 let intRequestRevision = 0;
@@ -301,16 +326,16 @@ const arrDetailField = computed(() => {
     { label: "Organization ID", value: issue.organization_id ?? "—" },
     { label: "Record ID", value: issue.id },
     {
-      label: `Created At (${strInstanceTimeZone.value})`,
-      value: formatDateTime(issue.created_at, strInstanceTimeZone.value),
+      label: `Created At (${strTimeZone.value})`,
+      value: formatDateTime(issue.created_at, strTimeZone.value),
     },
     {
-      label: `Attempted At (${strInstanceTimeZone.value})`,
-      value: formatDateTime(issue.attempted_at, strInstanceTimeZone.value),
+      label: `Attempted At (${strTimeZone.value})`,
+      value: formatDateTime(issue.attempted_at, strTimeZone.value),
     },
     {
-      label: `Finished At (${strInstanceTimeZone.value})`,
-      value: formatDateTime(issue.finished_at, strInstanceTimeZone.value),
+      label: `Finished At (${strTimeZone.value})`,
+      value: formatDateTime(issue.finished_at, strTimeZone.value),
     },
   ];
 });
@@ -343,7 +368,6 @@ async function loadIssues(
     if (intCurrentRevision !== intRequestRevision) return;
     issuePage.value = page;
     filterOptions.value = options;
-    strInstanceTimeZone.value = page.instance_time_zone;
   } catch (e) {
     if (intCurrentRevision !== intRequestRevision) return;
     requestError.value = getApiError(e);
@@ -356,7 +380,6 @@ async function loadIssues(
       issuePage.value = null;
       filterOptions.value = null;
       selectedIssue.value = null;
-      strInstanceTimeZone.value = "";
       if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
@@ -379,6 +402,12 @@ function resetFilters(): void {
   draftFilters.statuses = [];
   applyFilters();
 }
+
+watch(strTimeZone, () => {
+  issuePage.value = null;
+  selectedIssue.value = null;
+  void loadIssues(1);
+});
 
 onMounted(() => void loadIssues());
 onBeforeUnmount(() => {

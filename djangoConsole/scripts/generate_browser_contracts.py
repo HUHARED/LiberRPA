@@ -43,6 +43,7 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (accountContracts.SessionResponse, "serialization"),
     (accountContracts.CsrfResponse, "serialization"),
     (accountContracts.ProfileUpdateRequest, "validation"),
+    (accountContracts.PlatformTimeZoneRequest, "validation"),
     (accountContracts.ProfileWriteResponse, "serialization"),
     (accountContracts.PasswordChangeRequest, "validation"),
     (accountContracts.SessionRevocationRequest, "validation"),

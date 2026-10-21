@@ -115,25 +115,34 @@
     </v-card-actions>
   </v-card>
 
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
-      <v-form @submit.prevent="applyFilters">
+      <form aria-label="Organization filters" @submit.prevent="applyFilters">
         <v-row>
           <v-col cols="12" md="4">
             <v-text-field
               v-model="strName"
               label="Name"
+              placeholder="Search by name"
+              maxlength="200"
               variant="underlined"
-              hide-details />
+              density="compact"
+              hide-details
+              clearable
+              :disabled="boolLoading" />
           </v-col>
 
           <v-col cols="12" md="4">
             <v-text-field
               v-model="strOrganizationId"
               label="Organization ID"
-              variant="underlined"
               placeholder="Full organization ID"
-              hide-details />
+              maxlength="36"
+              variant="underlined"
+              density="compact"
+              hide-details
+              clearable
+              :disabled="boolLoading" />
           </v-col>
 
           <v-col cols="12" md="4">
@@ -141,31 +150,40 @@
               v-model="arrStatus"
               :items="ARR_STATUS_OPTION"
               label="Status"
-              variant="underlined"
+              placeholder="All statuses"
+              persistent-placeholder
               multiple
               chips
+              closable-chips
               clearable
-              hide-details />
+              variant="underlined"
+              density="compact"
+              hide-details
+              :disabled="boolLoading" />
           </v-col>
         </v-row>
 
-        <div class="d-flex justify-end ga-2 mt-4">
+        <div class="d-flex ga-2 mt-4">
           <v-btn
             variant="tonal"
             prepend-icon="mdi-filter-remove-outline"
+            :disabled="boolLoading"
             @click="resetFilters">
             Reset Filters
           </v-btn>
+
+          <v-spacer />
 
           <v-btn
             type="submit"
             color="primary"
             variant="tonal"
-            prepend-icon="mdi-filter-outline">
+            prepend-icon="mdi-check"
+            :disabled="boolLoading">
             Apply
           </v-btn>
         </div>
-      </v-form>
+      </form>
     </v-card-text>
   </v-card>
 
@@ -260,20 +278,6 @@
         </div>
       </template>
 
-      <template #item.actions="{ item }">
-        <v-btn
-          :to="{
-            name: 'platform-organization-details',
-            params: { organizationId: item.id },
-          }"
-          :aria-label="`View ${item.name}`"
-          variant="tonal"
-          size="small"
-          prepend-icon="mdi-eye-outline">
-          View
-        </v-btn>
-      </template>
-
       <template #no-data>
         {{
           requestError
@@ -359,8 +363,8 @@ const boolSettingsActionBlocked = computed(
     !boolCanManage.value,
 );
 
-const strName = ref("");
-const strOrganizationId = ref("");
+const strName = ref<string | null>("");
+const strOrganizationId = ref<string | null>("");
 const arrStatus = ref<PlatformOrganizationStatus[]>([]);
 let appliedFilters = {
   name: "",
@@ -382,7 +386,6 @@ const arrHeader = computed(() => [
   { title: "Notes", key: "notes", minWidth: 200 },
   { title: `Created At (${strTimeZone.value})`, key: "created_at", minWidth: 240 },
   { title: "Status", key: "status", minWidth: 200 },
-  { title: "Actions", key: "actions", width: 112 },
 ]);
 
 function applySettings(response: ServiceSettingsResponse): void {
@@ -487,9 +490,10 @@ async function loadOrganizations(pageNumber: number = intRequestedPage): Promise
 }
 
 function applyFilters(): void {
+  if (boolLoading.value) return;
   appliedFilters = {
-    name: strName.value,
-    organizationId: strOrganizationId.value,
+    name: (strName.value ?? "").trim(),
+    organizationId: (strOrganizationId.value ?? "").trim(),
     statuses: [...arrStatus.value],
   };
   organizationPage.value = null;
@@ -498,6 +502,7 @@ function applyFilters(): void {
 }
 
 function resetFilters(): void {
+  if (boolLoading.value) return;
   strName.value = "";
   strOrganizationId.value = "";
   arrStatus.value = [];

@@ -25,7 +25,7 @@ from .password_reset_views import (
     reset_account_password,
 )
 from .password_views import change_account_password
-from .profile_views import get_or_update_profile
+from .profile_views import get_or_update_profile, update_platform_time_zone
 from .public_api_views import get_api_key_access
 from .session_views import (
     sign_in,
@@ -63,6 +63,11 @@ urlpatterns = [
     path("auth/session/", get_current_session, name="auth-session"),
     path("auth/access/", get_current_access, name="auth-access"),
     path("auth/profile/", get_or_update_profile, name="auth-profile"),
+    path(
+        "platform/auth/time-zone/",
+        update_platform_time_zone,
+        name="platform-time-zone",
+    ),
     path("auth/api-keys/", list_or_create_api_keys, name="auth-api-keys"),
     path(
         "auth/api-keys/<uuid:apiKeyId>/",

@@ -37,13 +37,14 @@
     </p>
     <p v-if="instanceSummary.maintenance_entered_at" class="text-body-2 mb-2">
       Maintenance Entered At:
-      {{
-        formatDateTime(instanceSummary.maintenance_entered_at, instanceSummary.time_zone)
-      }}
+      {{ formatDateTime(instanceSummary.maintenance_entered_at, strTimeZone) }}
     </p>
     <p class="text-body-2 mb-2">Instance Time Zone: {{ instanceSummary.time_zone }}</p>
+    <p class="text-body-2 text-medium-emphasis mb-2">
+      Display Time Zone: {{ strTimeZone }}
+    </p>
     <p class="text-body-2 text-medium-emphasis mb-4">
-      Updated at {{ formatDateTime(instanceSummary.updated_at, instanceSummary.time_zone) }}
+      Updated at {{ formatDateTime(instanceSummary.updated_at, strTimeZone) }}
     </p>
 
     <h3 class="text-h6 mb-2">Components</h3>
@@ -68,7 +69,7 @@
             </v-chip>
           </td>
           <td class="text-no-wrap">
-            {{ formatDateTime(component.checked_at, instanceSummary.time_zone) }}
+            {{ formatDateTime(component.checked_at, strTimeZone) }}
           </td>
           <td>{{ component.message }}</td>
         </tr>
@@ -78,7 +79,7 @@
     <h3 class="text-h6 mb-2">Disk Space</h3>
     <p class="text-body-2 text-medium-emphasis mb-2">
       Disk containing Console file storage. Checked at
-      {{ formatDateTime(instanceSummary.storage.checked_at, instanceSummary.time_zone) }}
+      {{ formatDateTime(instanceSummary.storage.checked_at, strTimeZone) }}
     </p>
     <v-table class="mb-2" :aria-busy="boolSummaryLoading">
       <thead>
@@ -128,18 +129,12 @@
         <tr>
           <td class="text-no-wrap">
             {{
-              formatDateTime(
-                instanceSummary.last_successful_backup.ended_at,
-                instanceSummary.time_zone,
-              )
+              formatDateTime(instanceSummary.last_successful_backup.ended_at, strTimeZone)
             }}
           </td>
           <td class="text-no-wrap">
             {{
-              formatDateTime(
-                instanceSummary.last_successful_backup.data_as_of,
-                instanceSummary.time_zone,
-              )
+              formatDateTime(instanceSummary.last_successful_backup.data_as_of, strTimeZone)
             }}
           </td>
           <td class="text-no-wrap">
@@ -155,7 +150,7 @@
 
   <h3 class="text-h6 mb-3">Host Monitoring</h3>
 
-  <v-card variant="outlined" class="mb-4">
+  <v-card variant="elevated" class="mb-4">
     <v-card-text>
       <v-form @submit.prevent="applyFilters">
         <v-row>
@@ -165,7 +160,8 @@
               :items="ARR_RANGE_OPTION"
               :disabled="boolMetricsLoading || accessError !== null"
               label="Time Range"
-              variant="outlined"
+              variant="underlined"
+              density="compact"
               hide-details />
           </v-col>
 
@@ -175,7 +171,8 @@
               :items="instanceStatus?.network_interfaces ?? []"
               :disabled="boolMetricsLoading || !instanceStatus?.network_interfaces.length"
               label="Network Interface"
-              variant="outlined"
+              variant="underlined"
+              density="compact"
               hide-details />
           </v-col>
         </v-row>
@@ -185,6 +182,7 @@
             type="submit"
             color="primary"
             variant="tonal"
+            prepend-icon="mdi-check"
             :disabled="boolMetricsLoading || accessError !== null">
             Apply
           </v-btn>
