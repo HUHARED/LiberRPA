@@ -216,8 +216,8 @@ const arrStatus = ref<ApiKeyStatus[]>([...ARR_API_KEY_STATUS]);
 const arrHeader = computed(() => [
   { title: "Name", key: "name", minWidth: 180 },
   { title: "Status", key: "status", minWidth: 100 },
-  { title: `Expires At (${strTimeZone.value})`, key: "expires_at", minWidth: 240 },
-  { title: `Last Used At (${strTimeZone.value})`, key: "last_used_at", minWidth: 240 },
+  { title: "Expires At", key: "expires_at", minWidth: 240 },
+  { title: "Last Used At", key: "last_used_at", minWidth: 240 },
   { title: "Notes", key: "notes", minWidth: 200 },
   { title: "Actions", key: "actions", width: props.member ? 72 : 112 },
 ]);

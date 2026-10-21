@@ -12,7 +12,6 @@ from django.conf import settings
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
-from accounts.models import RequestRateLimit
 from assets.models import Asset
 from console_project.config import LimitsConfig
 from data_queues.models import DataQueue, QueueItem
@@ -43,7 +42,6 @@ from .limits import (
     get_organization_limits,
     get_run_log_retention_days,
 )
-from .rate_limits import RequestBudget, get_request_budget_key
 
 
 def get_limits_version(organization: Organization) -> str:
@@ -124,16 +122,6 @@ def get_organization_usage(organization: Organization) -> OrganizationLimitsResp
             ).count()
         )
 
-    dictRequestKey = {
-        budget: get_request_budget_key(organization.pk, budget)
-        for budget in (RequestBudget.READ, RequestBudget.WRITE)
-    }
-    dictRequestCount = dict(
-        RequestRateLimit.objects.filter(
-            key_hash__in=dictRequestKey.values(), expires_at__gt=currentTime
-        ).values_list("key_hash", "request_count")
-    )
-
     dictUsage: dict[OrganizationLimit, tuple[int | None, int | None]] = {
         OrganizationLimit.MEMBERS: (
             Membership.objects.filter(organization=organization).count(),
@@ -206,15 +194,8 @@ def get_organization_usage(organization: Organization) -> OrganizationLimitsResp
         ),
         OrganizationLimit.ACTIVE_UPLOADS: (intUploads, None),
         OrganizationLimit.ACTIVE_DOWNLOADS: (intDownloads, None),
-        OrganizationLimit.READ_REQUESTS_PER_MINUTE: (
-            dictRequestCount.get(dictRequestKey[RequestBudget.READ], 0),
-            None,
-        ),
-        OrganizationLimit.WRITE_OBJECTS_PER_MINUTE: (
-            dictRequestCount.get(dictRequestKey[RequestBudget.WRITE], 0),
-            None,
-        ),
     }
+    # Rate and burst limits are not resource balances; leave Used and Reserved unset.
     return OrganizationLimitsResponse(
         organization=OrganizationLimitIdentityResponse(
             id=organization.pk, name=organization.name

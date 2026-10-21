@@ -34,19 +34,31 @@
       <template #item.actions="{ item }">
         <div
           v-if="item.key === OrganizationLimit.MaxStoredBytesPerOrganization"
-          class="d-flex ga-1">
-          <v-btn to="/packages" size="small" variant="text">Packages</v-btn>
-          <v-btn to="/shared-files" size="small" variant="text">Shared Files</v-btn>
+          class="d-flex align-center ga-1">
+          <v-btn
+            v-tooltip:bottom="'Packages'"
+            to="/packages"
+            variant="text"
+            size="small"
+            aria-label="Open Packages"
+            icon="mdi-package-variant-closed" />
+
+          <v-btn
+            v-tooltip:bottom="'Shared Files'"
+            to="/shared-files"
+            variant="text"
+            size="small"
+            aria-label="Open Shared Files"
+            icon="mdi-folder-outline" />
         </div>
         <v-btn
           v-else-if="DICT_RESOURCE_ROUTE[item.key]"
+          v-tooltip:bottom="`Open ${item.label}`"
           :to="DICT_RESOURCE_ROUTE[item.key]"
-          size="small"
           variant="text"
-          prepend-icon="mdi-open-in-new"
-          :aria-label="`Open ${item.label}`">
-          Open
-        </v-btn>
+          size="small"
+          :aria-label="`Open ${item.label}`"
+          icon="mdi-open-in-new" />
       </template>
 
       <template #no-data>

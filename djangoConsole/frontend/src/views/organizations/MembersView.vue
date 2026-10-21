@@ -36,7 +36,7 @@
 
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
-      :headers="arrHeader"
+      :headers="ARR_HEADER"
       :items="memberPage?.members ?? []"
       :items-length="memberPage?.pagination.total_count ?? 0"
       :items-per-page="memberPage?.pagination.page_size ?? INT_LIST_PAGE_SIZE"
@@ -184,13 +184,13 @@ import { formatDateTime } from "@/app/formatters";
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 
-const arrHeader = computed(() => [
+const ARR_HEADER = [
   { title: "Account", key: "account", minWidth: 240 },
   { title: "Roles / Departments", key: "roles", minWidth: 240 },
   { title: "Notes", key: "notes", minWidth: 200 },
-  { title: `Joined At (${strTimeZone.value})`, key: "joined_at", minWidth: 240 },
+  { title: "Joined At", key: "joined_at", minWidth: 240 },
   { title: "Actions", key: "actions", width: 112 },
-]);
+];
 
 const memberPage = shallowRef<MemberListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);

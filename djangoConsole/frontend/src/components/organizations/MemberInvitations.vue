@@ -54,7 +54,7 @@
 
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
-      :headers="arrHeader"
+      :headers="ARR_HEADER"
       :items="invitationPage?.invitations ?? []"
       :items-length="invitationPage?.pagination.total_count ?? 0"
       :items-per-page="invitationPage?.pagination.page_size ?? INT_LIST_PAGE_SIZE"
@@ -206,14 +206,14 @@ const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const { intCurrentTimeMs } = useRetryDelay();
 
-const arrHeader = computed(() => [
+const ARR_HEADER = [
   { title: "Email", key: "email", minWidth: 220 },
   { title: "Status", key: "status", minWidth: 100 },
   { title: "Roles / Departments", key: "roles", minWidth: 220 },
-  { title: `Expires At (${strTimeZone.value})`, key: "expires_at", minWidth: 240 },
+  { title: "Expires At", key: "expires_at", minWidth: 240 },
   { title: "Email Delivery", key: "email_delivery", minWidth: 150 },
   { title: "Actions", key: "actions", width: 152 },
-]);
+];
 
 const invitationPage = shallowRef<InvitationListResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);

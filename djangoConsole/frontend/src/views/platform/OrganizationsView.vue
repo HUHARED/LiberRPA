@@ -200,7 +200,7 @@
 
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
-      :headers="arrHeader"
+      :headers="ARR_HEADER"
       :items="organizationPage?.organizations ?? []"
       :items-length="organizationPage?.pagination.total_count ?? 0"
       :items-per-page="organizationPage?.pagination.page_size ?? INT_LIST_PAGE_SIZE"
@@ -380,13 +380,13 @@ let intRequestRevision = 0;
 let intRequestedPage = 1;
 let boolUnmounted = false;
 
-const arrHeader = computed(() => [
+const ARR_HEADER = [
   { title: "Name", key: "name", minWidth: 220 },
   { title: "Administrators", key: "administrators", minWidth: 220 },
   { title: "Notes", key: "notes", minWidth: 200 },
-  { title: `Created At (${strTimeZone.value})`, key: "created_at", minWidth: 240 },
+  { title: "Created At", key: "created_at", minWidth: 240 },
   { title: "Status", key: "status", minWidth: 200 },
-]);
+];
 
 function applySettings(response: ServiceSettingsResponse): void {
   serviceSettings.value = response;
