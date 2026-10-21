@@ -4,14 +4,12 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-import getpass
-import warnings
-
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError, transaction
 from django.views.decorators.debug import sensitive_variables
 
+from console_project.terminal import PasswordInputError, read_password
 from accounts.models import STR_PLATFORM_ADMIN_LOGIN, User
 from accounts.passwords import validate_new_password
 from operations.audit import record_audit
@@ -36,19 +34,15 @@ class Command(BaseCommand):
                 exclude=["password"], validate_unique=False, validate_constraints=False
             )
 
-            with warnings.catch_warnings():
-                warnings.simplefilter("error", getpass.GetPassWarning)
-                strPassword = getpass.getpass("Password: ")
-                if strPassword != getpass.getpass("Password again: "):
-                    raise CommandError("The passwords do not match.")
+            strPassword = read_password("Password: ")
+            if strPassword != read_password("Password again: "):
+                raise CommandError("The passwords do not match.")
             validate_new_password(strPassword, user)
             user.set_password(strPassword)
         except (EOFError, KeyboardInterrupt):
             raise CommandError("Initialization cancelled.") from None
-        except getpass.GetPassWarning:
-            raise CommandError(
-                "Use an interactive terminal to enter the password."
-            ) from None
+        except PasswordInputError as e:
+            raise CommandError(str(e)) from None
         except ValidationError as e:
             raise CommandError(" ".join(e.messages)) from None
 

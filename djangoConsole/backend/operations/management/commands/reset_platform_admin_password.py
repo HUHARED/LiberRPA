@@ -4,14 +4,12 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-import getpass
-import warnings
-
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.views.decorators.debug import sensitive_variables
 
+from console_project.terminal import PasswordInputError, read_password
 from accounts.models import User
 from accounts.password_changes import save_password_change
 from accounts.passwords import validate_new_password
@@ -30,17 +28,13 @@ class Command(BaseCommand):
             )
 
         try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("error", getpass.GetPassWarning)
-                strPassword = getpass.getpass("New password: ")
-                if strPassword != getpass.getpass("New password again: "):
-                    raise CommandError("The passwords do not match.")
+            strPassword = read_password("New password: ")
+            if strPassword != read_password("New password again: "):
+                raise CommandError("The passwords do not match.")
         except (EOFError, KeyboardInterrupt):
             raise CommandError("Password reset cancelled.") from None
-        except getpass.GetPassWarning:
-            raise CommandError(
-                "Use an interactive terminal to enter the password."
-            ) from None
+        except PasswordInputError as e:
+            raise CommandError(str(e)) from None
 
         try:
             with transaction.atomic():
