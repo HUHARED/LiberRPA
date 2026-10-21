@@ -14,12 +14,20 @@ const AUDIT_TERM_LABEL: Record<string, string> = {
   api: "API",
   id: "ID",
   ids: "IDs",
+  user: "Account",
   apikey: "API Key",
+  editorsession: "Editor Session",
+  membership: "Member",
   dataqueue: "Data Queue",
+  sharedfile: "Shared File",
+  jobrequest: "Job Request",
+  runemailrecipient: "Run Email Recipient",
   executorgroup: "Executor Group",
   executorsession: "Executor Session",
   memberinvitation: "Member Invitation",
   servicesettings: "Service Settings",
+  maintenancestate: "Maintenance",
+  backuprecord: "Backup",
 };
 
 export function formatAuditLabel(value: string): string {

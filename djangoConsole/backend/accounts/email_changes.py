@@ -24,6 +24,7 @@ from django.utils.crypto import constant_time_compare, salted_hmac
 from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from notifications.models import EmailDelivery, EmailType
 from notifications.recipients import register_member_recipient
@@ -206,7 +207,7 @@ def request_email_change(
         },
     )
     record_audit(
-        "account.request_email_change",
+        AuditAction.ACCOUNT_REQUEST_EMAIL_CHANGE,
         actor=user,
         organization=access.organization,
         target=user,
@@ -325,7 +326,7 @@ def confirm_email_change(token: str) -> None:
     changeRequest.confirmed_at = confirmedAt
     changeRequest.save(update_fields=["confirmed_at"])
     record_audit(
-        "account.change_email",
+        AuditAction.ACCOUNT_CHANGE_EMAIL,
         actor=user,
         organization=access.organization,
         target=user,

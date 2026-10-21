@@ -16,6 +16,7 @@ from django.core.validators import validate_email
 from django.db.models import Case, CharField, Exists, OuterRef, QuerySet, Value, When
 from django.utils import timezone
 
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 from organizations.limits import get_organization_limits
 from organizations.models import Organization, Membership
@@ -113,11 +114,9 @@ def create_recipient(
     )
     recipient = get_recipient_query(access.organization.pk).get(pk=recipient.pk)
     if recipient.status == RunEmailRecipientStatus.PENDING:
-        queue_recipient_verification(
-            recipient, organizationName=access.organization.name
-        )
+        queue_recipient_verification(recipient, organizationName=access.organization.name)
     record_audit(
-        "run_email_recipient.create",
+        AuditAction.RUN_EMAIL_RECIPIENT_CREATE,
         actor=access.actor,
         organization=access.organization,
         target=recipient,

@@ -25,7 +25,7 @@ from console_project.http import (
 
 from .access import get_platform_actor
 from .audit import record_audit
-from .contracts import AuditStage
+from .contracts import AuditAction, AuditStage
 from .models import AuditScope
 from .backup_models import BackupState
 from .backup_worker import request_backup, load_backup_status
@@ -56,7 +56,7 @@ def get_or_request_backup(request: HttpRequest) -> JsonResponse:
                 record, boolCreated = request_backup(state)
                 if boolCreated:
                     record_audit(
-                        "backup.request",
+                        AuditAction.BACKUP_REQUEST,
                         actor=actor,
                         organization=None,
                         target=record,

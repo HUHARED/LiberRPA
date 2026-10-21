@@ -36,6 +36,7 @@ from file_storage.services import (
     get_download_expiry,
 )
 
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 from organizations.limits import get_organization_limits
 from organizations.permissions import OrganizationAccessContext
@@ -361,7 +362,7 @@ def complete_upload(
     )
     upload.save(update_fields=["state", "result"])
     record_audit(
-        "packages.upload",
+        AuditAction.PACKAGES_UPLOAD,
         actor=access.actor,
         organization=access.organization,
         target=package,
@@ -421,7 +422,7 @@ def save_package_settings(
         ).exclude(python_environment_name=package.python_environment_name).delete()
     request_referenced_preparation(package)
     record_audit(
-        "packages.update",
+        AuditAction.PACKAGES_UPDATE,
         actor=access.actor,
         organization=access.organization,
         target=package,
@@ -485,7 +486,7 @@ def open_download(
         transfer.expires_at = get_download_expiry()
         transfer.save(update_fields=["started", "expires_at"])
         record_audit(
-            "packages.download",
+            AuditAction.PACKAGES_DOWNLOAD,
             actor=access.actor,
             organization=access.organization,
             target=transfer,
@@ -559,7 +560,7 @@ def delete_package(access: OrganizationAccessContext, package: Package) -> None:
             "requests, and finish downloads or wait for unused links to expire.",
         )
     record_audit(
-        "packages.delete",
+        AuditAction.PACKAGES_DELETE,
         actor=access.actor,
         organization=access.organization,
         target=package,

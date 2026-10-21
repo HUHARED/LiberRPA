@@ -27,7 +27,7 @@
         <template v-if="record">
           <dl class="detail-fields">
             <div>
-              <dt class="text-caption text-medium-emphasis">Time ({{ strTimeZone }})</dt>
+              <dt class="text-caption text-medium-emphasis">Time</dt>
               <dd>{{ formatDateTime(record.created_at, strTimeZone) }}</dd>
             </div>
 
@@ -53,7 +53,7 @@
 
             <div>
               <dt class="text-caption text-medium-emphasis">Action</dt>
-              <dd>{{ record.action }}</dd>
+              <dd>{{ AUDIT_ACTION_LABEL[record.action] }}</dd>
             </div>
 
             <div>
@@ -116,14 +116,6 @@
               <dd>{{ record.id }}</dd>
             </div>
           </dl>
-
-          <v-divider class="my-4" />
-
-          <h3 class="text-subtitle-1 mb-2">Summary</h3>
-
-          <p>
-            {{ formatAuditLabel(record.action) }} — {{ record.stage }} {{ record.result }}.
-          </p>
 
           <dl
             v-if="record.reason || record.reason_code || record.http_status !== null"
@@ -204,7 +196,10 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { getAuditDetails } from "@/api/audit";
-import type { AuditDetailsRecordResponse } from "@/api/generated/browserApi";
+import {
+  AUDIT_ACTION_LABEL,
+  type AuditDetailsRecordResponse,
+} from "@/api/generated/browserApi";
 
 import { AUDIT_CHANNEL_LABEL, formatAuditLabel } from "@/app/audit";
 import { formatDateTime } from "@/app/formatters";

@@ -12,6 +12,7 @@ from django.views.decorators.debug import sensitive_variables
 from console_project.terminal import PasswordInputError, read_password
 from accounts.models import STR_PLATFORM_ADMIN_LOGIN, User
 from accounts.passwords import validate_new_password
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 
 
@@ -52,7 +53,7 @@ class Command(BaseCommand):
                     raise CommandError("Console already has a platform administrator.")
                 user.save(force_insert=True)
                 record_audit(
-                    "platform.initialize",
+                    AuditAction.PLATFORM_INITIALIZE,
                     actor=None,
                     organization=None,
                     target=user,

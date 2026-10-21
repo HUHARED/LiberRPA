@@ -10,6 +10,7 @@ from collections.abc import Mapping
 from django.core.exceptions import ValidationError
 
 from executors.session_state import revoke_unqualified_executor_sessions
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from runs.services import recheck_job_source_access
 
@@ -141,7 +142,7 @@ def update_membership(
     recheck_job_source_access(membership.user_id, organization.id)
     revoke_unqualified_executor_sessions(membership.user_id, organization.id)
     record_audit(
-        "membership.update",
+        AuditAction.MEMBERSHIP_UPDATE,
         actor=access.actor,
         organization=organization,
         target=membership,

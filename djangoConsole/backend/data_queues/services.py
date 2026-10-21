@@ -20,6 +20,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
 from console_project.validators import validate_json_value
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
 from organizations.limits import get_organization_limits
@@ -82,7 +83,7 @@ def create_queue(
     _prepare_queue_details(queue)
     queue.save()
     record_audit(
-        "data_queue.create",
+        AuditAction.DATA_QUEUE_CREATE,
         actor=access.actor,
         organization=access.organization,
         target=queue,
@@ -109,7 +110,7 @@ def update_queue(
     queue.updated_at = timezone.now()
     queue.save(update_fields=["name", "name_key", "notes", "updated_at"])
     record_audit(
-        "data_queue.update",
+        AuditAction.DATA_QUEUE_UPDATE,
         actor=access.actor,
         organization=access.organization,
         target=queue,
@@ -122,7 +123,7 @@ def update_queue(
 def delete_queue(access: OrganizationAccessContext, queueId: uuid.UUID) -> None:
     queue = get_queue_query(access, requiredRole=DepartmentRole.DEVELOPER).get(pk=queueId)
     record_audit(
-        "data_queue.delete",
+        AuditAction.DATA_QUEUE_DELETE,
         actor=access.actor,
         organization=access.organization,
         target=queue,
@@ -242,7 +243,12 @@ def _mutate_items(
     if apiKeyId is not None:
         metadata["api_key_id"] = str(apiKeyId)
     record_audit(
-        f"data_queue.{operation}",
+        {
+            QueueOperation.UPLOAD: AuditAction.DATA_QUEUE_UPLOAD,
+            QueueOperation.CLAIM: AuditAction.DATA_QUEUE_CLAIM,
+            QueueOperation.RESET: AuditAction.DATA_QUEUE_RESET,
+            QueueOperation.DELETE_ITEMS: AuditAction.DATA_QUEUE_DELETE_ITEMS,
+        }[operation],
         actor=access.actor,
         organization=access.organization,
         target=queue,

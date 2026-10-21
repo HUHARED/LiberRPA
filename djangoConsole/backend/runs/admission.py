@@ -33,7 +33,7 @@ from executors.session_state import (
     get_current_executor_sessions,
 )
 
-from operations.contracts import AuditChannel
+from operations.contracts import AuditAction, AuditChannel
 from operations.audit import record_audit
 
 from packages.contracts import RUN_PRIORITY_ORDER, RunSettings
@@ -236,7 +236,7 @@ def _create_request(
             attempt_queued_at=currentTime,
         )
     record_audit(
-        "job.accept",
+        AuditAction.JOB_ACCEPT,
         actor=actor,
         organization=organization,
         target=jobRequest,

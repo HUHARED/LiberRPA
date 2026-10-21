@@ -19,6 +19,7 @@ from packages.models import Package, PackageUpload
 from schedules.models import Schedule
 from runs.contracts import JobState
 from runs.models import Job
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 
 from .contracts import DepartmentDeletionBlockerCode
@@ -209,7 +210,7 @@ def delete_department(
     department.deleted_at = timezone.now()
     department.save(update_fields=["deleted_at"])
     record_audit(
-        "department.delete",
+        AuditAction.DEPARTMENT_DELETE,
         actor=access.actor,
         organization=access.organization,
         target=department,

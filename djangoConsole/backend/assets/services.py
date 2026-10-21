@@ -17,6 +17,7 @@ from django.views.decorators.debug import sensitive_variables
 from console_project.config import LimitsConfig
 from console_project.contracts import JsonValue
 from console_project.validators import validate_json_value
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
 from organizations.limits import get_organization_limits
@@ -145,7 +146,7 @@ def create_asset(
     _set_asset_value(asset, value)
     asset.save(force_insert=True)
     record_audit(
-        "asset.create",
+        AuditAction.ASSET_CREATE,
         actor=access.actor,
         organization=access.organization,
         target=asset,
@@ -186,7 +187,7 @@ def update_asset(
     asset.save(update_fields=[*listField, "updated_at"])
     if boolDetailsChanged:
         record_audit(
-            "asset.update",
+            AuditAction.ASSET_UPDATE,
             actor=access.actor,
             organization=access.organization,
             target=asset,
@@ -196,7 +197,7 @@ def update_asset(
     if boolSetValue:
         # Keep values out of the audit trail, including ordinary values.
         record_audit(
-            "asset.set_value",
+            AuditAction.ASSET_SET_VALUE,
             actor=access.actor,
             organization=access.organization,
             target=asset,
@@ -219,7 +220,7 @@ def save_asset_value(
     asset.save(update_fields=["value_json", "encrypted_value", "updated_at"])
     # Record the operation without putting old or new ordinary/secret values into audit.
     record_audit(
-        "asset.set_value",
+        AuditAction.ASSET_SET_VALUE,
         actor=access.actor,
         organization=access.organization,
         target=asset,
@@ -233,7 +234,7 @@ def delete_asset(access: OrganizationAccessContext, assetId: uuid.UUID) -> None:
     asset = get_asset_query(access, requiredRole=DepartmentRole.DEVELOPER).get(pk=assetId)
     # The details response reports known bindings; confirmed deletion leaves their configuration unchanged.
     record_audit(
-        "asset.delete",
+        AuditAction.ASSET_DELETE,
         actor=access.actor,
         organization=access.organization,
         target=asset,

@@ -41,6 +41,7 @@ from organizations.permissions import (
     resolve_organization_access,
 )
 from organizations.validators import get_path_name_key
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 from operations.maintenance import ServiceMaintenanceError
 from packages.models import Package
@@ -239,7 +240,11 @@ def update_job(
         strPreviousState = job.state
         if control_job(job, payload.action):
             record_audit(
-                f"job.{payload.action}",
+                {
+                    JobControlAction.CANCEL: AuditAction.JOB_CANCEL,
+                    JobControlAction.STOP: AuditAction.JOB_STOP,
+                    JobControlAction.CLOSE: AuditAction.JOB_CLOSE,
+                }[payload.action],
                 actor=access.actor,
                 organization=access.organization,
                 target=job,
@@ -323,7 +328,7 @@ def stop_run(
         run = get_visible_runs(access).select_for_update(of=("self",)).get(pk=workId)
         if control_job(run.job, JobControlAction.STOP, run=run):
             record_audit(
-                "run.stop",
+                AuditAction.RUN_STOP,
                 actor=access.actor,
                 organization=access.organization,
                 target=run,

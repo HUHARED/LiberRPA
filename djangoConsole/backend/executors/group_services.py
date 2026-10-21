@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
 from organizations.limits import get_organization_limits
@@ -108,7 +109,7 @@ def create_executor_group(
     group.save(force_insert=True)
     _save_group_members(group, executorIds)
     record_audit(
-        "executor_group.create",
+        AuditAction.EXECUTOR_GROUP_CREATE,
         actor=access.actor,
         organization=access.organization,
         target=group,
@@ -137,7 +138,7 @@ def update_executor_group(
     group.save(update_fields=["name", "notes"])
     _save_group_members(group, executorIds)
     record_audit(
-        "executor_group.update",
+        AuditAction.EXECUTOR_GROUP_UPDATE,
         actor=access.actor,
         organization=access.organization,
         target=group,
@@ -171,7 +172,7 @@ def delete_executor_group(
     group.deleted_at = timezone.now()
     group.save(update_fields=["deleted_at"])
     record_audit(
-        "executor_group.delete",
+        AuditAction.EXECUTOR_GROUP_DELETE,
         actor=access.actor,
         organization=access.organization,
         target=group,

@@ -87,6 +87,7 @@ for (const [strConstantName, strEnumName] of [
   ["ARR_EXECUTOR_ASSOCIATION_STATUS", "ExecutorAssociationStatus"],
   ["ARR_JOB_SOURCE", "JobSource"],
   ["ARR_FILE_UPLOAD_STATE", "UploadState"],
+  ["ARR_AUDIT_ACTION", "AuditAction"],
   ["ARR_AUDIT_CHANNEL", "AuditChannel"],
   ["ARR_AUDIT_RESULT_VALUE", "AuditResult"],
   ["ARR_AUDIT_STAGE", "AuditStage"],
@@ -114,6 +115,12 @@ for (const [strConstantName, strEnumName] of [
     `export const ${strConstantName} = [\n${strEnumValue}\n] as const satisfies readonly ${strEnumName}[];`,
   );
 }
+const strAuditActionLabel = dictInput.audit_actions
+  .map(([value, label]) => `  ${JSON.stringify(value)}: ${JSON.stringify(label)},`)
+  .join("\n");
+arrConstant.push(
+  `export const AUDIT_ACTION_LABEL = {\n${strAuditActionLabel}\n} as const satisfies Record<AuditAction, string>;`,
+);
 for (const strEnumName of [
   "DepartmentRole",
   "RunEmailRecipientStatus",

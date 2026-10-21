@@ -14,6 +14,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User, UserManager
 from notifications.recipients import register_member_recipient
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 from operations.policies import require_organization_creation_allowed
 
@@ -77,7 +78,7 @@ def create_organization_records(
     # General follows the same validation and quota rules as any other department.
     generalDepartment = create_general_department(organization)
     record_audit(
-        "organization.create",
+        AuditAction.ORGANIZATION_CREATE,
         actor=user,
         organization=organization,
         target=organization,

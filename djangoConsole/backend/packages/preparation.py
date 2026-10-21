@@ -12,6 +12,7 @@ from django.db.models import Q, F
 from django.utils import timezone
 
 from accounts.resource_authentication import NativeResourceAuthenticationContext
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 from executors.models import Executor, ExecutorSession, ExecutorGroupMember
 from executors.session_state import get_current_executor_sessions
@@ -134,7 +135,7 @@ def cancel_package_preparation(
     intCanceledCount, _ = preparations.delete()
     if intCanceledCount:
         record_audit(
-            "packages.cancel_preparation",
+            AuditAction.PACKAGES_CANCEL_PREPARATION,
             actor=access.actor,
             organization=access.organization,
             target=package,

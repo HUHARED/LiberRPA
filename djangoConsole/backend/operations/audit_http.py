@@ -16,44 +16,44 @@ from django.http import HttpRequest, HttpResponse, HttpResponseBase
 from console_project.logging import get_request_id
 from organizations.models import Organization, Membership
 
-from .contracts import AuditChannel, AuditResult, AuditStage
+from .contracts import AuditAction, AuditChannel, AuditResult, AuditStage
 from .models import AuditScope, AuditRecord
 
 _LOGGER = logging.getLogger("console.audit")
 # These are write endpoints. Anonymous authentication failures stay in runtime diagnostics;
 # a supplied email or bearer value must never be treated as an authenticated audit actor.
-_DICT_WRITE_ACTION = {
-    "auth-profile": "account.update_profile",
-    "auth-api-keys": "api_key.create",
-    "auth-api-key-notes": "api_key.update",
-    "auth-api-key-revoke": "api_key.revoke",
-    "organization-member-api-key-revoke": "api_key.revoke",
-    "auth-account-deletion": "account.delete",
-    "organization-member-deletion": "account.delete",
-    "auth-password-change": "account.change_password",
-    "auth-logout-others": "account.revoke_sessions",
-    "email-change-email": "account.request_email_change",
-    "organization-settings": "organization.update",
-    "organization-deletion": "organization.schedule_deletion",
-    "organization-deletion-cancel": "organization.cancel_deletion",
-    "organization-departments": "department.create",
-    "organization-department": "department.update",
-    "organization-department-deletion": "department.delete",
-    "organization-member": "membership.update",
-    "organization-invitations": "invitation.create",
-    "organization-invitation-resend": "invitation.resend",
-    "organization-invitation-revoke": "invitation.revoke",
-    "executors": "executor.create",
-    "executor": "executor.update",
-    "executor-dispatch": "executor.set_dispatch",
-    "executor-deletion": "executor.delete",
-    "executor-unassociate": "executor.unassociate",
-    "executor-groups": "executor_group.create",
-    "executor-group": "executor_group.update",
-    "executor-group-deletion": "executor_group.delete",
-    "assets": "asset.create",
-    "asset": "asset.update",
-    "asset-deletion": "asset.delete",
+_DICT_WRITE_ACTION: dict[str, AuditAction] = {
+    "auth-profile": AuditAction.ACCOUNT_UPDATE_PROFILE,
+    "auth-api-keys": AuditAction.API_KEY_CREATE,
+    "auth-api-key-notes": AuditAction.API_KEY_UPDATE,
+    "auth-api-key-revoke": AuditAction.API_KEY_REVOKE,
+    "organization-member-api-key-revoke": AuditAction.API_KEY_REVOKE,
+    "auth-account-deletion": AuditAction.ACCOUNT_DELETE,
+    "organization-member-deletion": AuditAction.ACCOUNT_DELETE,
+    "auth-password-change": AuditAction.ACCOUNT_CHANGE_PASSWORD,
+    "auth-logout-others": AuditAction.ACCOUNT_REVOKE_SESSIONS,
+    "email-change-email": AuditAction.ACCOUNT_REQUEST_EMAIL_CHANGE,
+    "organization-settings": AuditAction.ORGANIZATION_UPDATE,
+    "organization-deletion": AuditAction.ORGANIZATION_SCHEDULE_DELETION,
+    "organization-deletion-cancel": AuditAction.ORGANIZATION_CANCEL_DELETION,
+    "organization-departments": AuditAction.DEPARTMENT_CREATE,
+    "organization-department": AuditAction.DEPARTMENT_UPDATE,
+    "organization-department-deletion": AuditAction.DEPARTMENT_DELETE,
+    "organization-member": AuditAction.MEMBERSHIP_UPDATE,
+    "organization-invitations": AuditAction.INVITATION_CREATE,
+    "organization-invitation-resend": AuditAction.INVITATION_RESEND,
+    "organization-invitation-revoke": AuditAction.INVITATION_REVOKE,
+    "executors": AuditAction.EXECUTOR_CREATE,
+    "executor": AuditAction.EXECUTOR_UPDATE,
+    "executor-dispatch": AuditAction.EXECUTOR_SET_DISPATCH,
+    "executor-deletion": AuditAction.EXECUTOR_DELETE,
+    "executor-unassociate": AuditAction.EXECUTOR_UNASSOCIATE,
+    "executor-groups": AuditAction.EXECUTOR_GROUP_CREATE,
+    "executor-group": AuditAction.EXECUTOR_GROUP_UPDATE,
+    "executor-group-deletion": AuditAction.EXECUTOR_GROUP_DELETE,
+    "assets": AuditAction.ASSET_CREATE,
+    "asset": AuditAction.ASSET_UPDATE,
+    "asset-deletion": AuditAction.ASSET_DELETE,
 }
 
 
@@ -66,8 +66,8 @@ def record_failed_request(request: HttpRequest, response: HttpResponseBase) -> N
         or response.status_code == 429
     ):
         return
-    strAction = _DICT_WRITE_ACTION.get(request.resolver_match.url_name or "")
-    if strAction is None:
+    auditAction = _DICT_WRITE_ACTION.get(request.resolver_match.url_name or "")
+    if auditAction is None:
         return
     try:
         with transaction.atomic():
@@ -121,7 +121,7 @@ def record_failed_request(request: HttpRequest, response: HttpResponseBase) -> N
                 ),
                 "",
             )
-            strModule = strAction.split(".")[0]
+            strModule = auditAction.split(".")[0]
             if not strObjectId and strModule in ("account", "organization"):
                 strObjectId = str(
                     membership.user_id
@@ -140,7 +140,7 @@ def record_failed_request(request: HttpRequest, response: HttpResponseBase) -> N
                 channel=AuditChannel.SESSION,
                 request_id=get_request_id(),
                 module=strModule,
-                action=strAction,
+                action=auditAction,
                 object_type=strObjectType,
                 object_id=strObjectId,
                 object_name="",

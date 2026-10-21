@@ -14,7 +14,7 @@ from django.db.models.functions import RowNumber
 
 from console_project.constants import INT_LIST_PAGE_SIZE
 
-from .contracts import AuditResult
+from .contracts import AuditAction, AuditResult
 from .models import AuditRecord
 
 
@@ -25,7 +25,7 @@ class AuditListFilters:
     actorIds: tuple[uuid.UUID, ...]
     includeSystem: bool
     modules: tuple[str, ...]
-    actions: tuple[str, ...]
+    actions: tuple[AuditAction, ...]
     results: tuple[AuditResult, ...]
     organizationIds: tuple[uuid.UUID, ...] = ()
     includeInstance: bool = False

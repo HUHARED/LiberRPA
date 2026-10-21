@@ -11,6 +11,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from console_project.config import LimitsConfig
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 
 from .limits import get_organization_limits
@@ -146,7 +147,7 @@ def create_department(
         organization, name=name, parentId=parentId, notes=notes
     )
     record_audit(
-        "department.create",
+        AuditAction.DEPARTMENT_CREATE,
         actor=access.actor,
         organization=organization,
         target=department,
@@ -196,7 +197,7 @@ def update_department(
     # Update the same row and leave all identity-based relationships intact.
     department.save(update_fields=["name", "name_key", "parent", "notes"])
     record_audit(
-        "department.update",
+        AuditAction.DEPARTMENT_UPDATE,
         actor=access.actor,
         organization=organization,
         target=department,

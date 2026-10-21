@@ -18,7 +18,7 @@ from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
 from operations.audit import record_audit
-from operations.contracts import AuditChannel
+from operations.contracts import AuditAction, AuditChannel
 from organizations.models import Organization
 from organizations.permissions import (
     AccessChannel,
@@ -89,7 +89,7 @@ def begin_editor_login(
         session.full_clean()
         session.save(force_insert=True)
         record_audit(
-            "editor_session.login",
+            AuditAction.EDITOR_SESSION_LOGIN,
             actor=user,
             organization=access.organization,
             target=session,
@@ -169,7 +169,7 @@ def handle_editor_client_request(
             if organization is None or session is None:
                 raise InvalidEditorSessionError("A valid Editor session is required.")
             record_audit(
-                "editor_session.logout",
+                AuditAction.EDITOR_SESSION_LOGOUT,
                 actor=session.user,
                 organization=organization,
                 target=session,

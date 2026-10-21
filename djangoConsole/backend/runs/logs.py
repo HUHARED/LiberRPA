@@ -29,6 +29,7 @@ from console_project.constants import RunLogLevel
 from console_project.contracts import JsonRequest, JsonValue
 from console_project.http import build_error_response, parse_json_request
 from console_project.validators import validate_json_string
+from operations.contracts import AuditAction
 from operations.audit import record_audit_batch
 from organizations.http import get_request_access
 from organizations.permissions import AccessChannel
@@ -466,7 +467,7 @@ def clear_logs(request: HttpRequest) -> HttpResponse:
                 usage = get_or_create_run_log_usage(access.organization.id)
                 clear_run_logs(usage, listClearableRun, timezone.now())
                 record_audit_batch(
-                    "run.clear_logs",
+                    AuditAction.RUN_CLEAR_LOGS,
                     actor=access.actor,
                     organization=access.organization,
                     targets=listClearableRun,

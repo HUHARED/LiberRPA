@@ -19,6 +19,7 @@ from django.utils.crypto import constant_time_compare, salted_hmac
 from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 from notifications.contracts import EmailStatus
 from notifications.models import EmailDelivery, EmailType
@@ -262,7 +263,7 @@ def complete_password_reset(*, token: str, newPassword: str) -> User:
     _require_reset_token_unexpired(resetRequest)
     save_password_change(user)
     record_audit(
-        "account.reset_password",
+        AuditAction.ACCOUNT_RESET_PASSWORD,
         actor=user,
         organization=organization,
         target=user,

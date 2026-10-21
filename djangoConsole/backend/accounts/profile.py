@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from django.core.exceptions import PermissionDenied
 
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.permissions import (
     AccessChannel,
@@ -42,7 +43,7 @@ def update_profile(
     # A profile save must never overwrite passwords, login timestamps, or account state.
     user.save(update_fields=["username", "time_zone"])
     record_audit(
-        "account.update_profile",
+        AuditAction.ACCOUNT_UPDATE_PROFILE,
         actor=user,
         organization=access.organization,
         target=user,

@@ -42,6 +42,7 @@ from runs.services import revoke_job_source_access
 from .access import get_platform_actor
 from .audit import get_audit_snapshot, record_audit
 from .contracts import (
+    AuditAction,
     PlatformOrganizationStatus,
     OrganizationAdministratorResponse,
     PlatformOrganizationResponse,
@@ -303,7 +304,9 @@ def update_organization_service(
             else:
                 skip_expired_schedule_triggers(organization, currentTime)
             record_audit(
-                "organization.suspend" if payload.suspended else "organization.resume",
+                AuditAction.ORGANIZATION_SUSPEND
+                if payload.suspended
+                else AuditAction.ORGANIZATION_RESUME,
                 actor=actor,
                 organization=organization,
                 target=organization,
@@ -378,7 +381,7 @@ def get_or_update_organization_limits(
                     # Compact named columns retain all values/sources within the audit's 4 KiB limit.
                     # A null override means Default; an integer means Override, including zero.
                     record_audit(
-                        "organization.update_limits",
+                        AuditAction.ORGANIZATION_UPDATE_LIMITS,
                         actor=actor,
                         organization=organization,
                         target=organization,

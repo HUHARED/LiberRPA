@@ -20,6 +20,7 @@ from console_project.http import (
 )
 from console_project.validators import validate_time_zone
 from operations.access import get_platform_actor
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from operations.models import AuditScope
 from organizations.access import get_account_access_info
@@ -125,7 +126,7 @@ def update_platform_time_zone(request: HttpRequest) -> JsonResponse:
                 actor.time_zone = payload.time_zone
                 actor.save(update_fields=["time_zone"])
                 record_audit(
-                    "account.update_profile",
+                    AuditAction.ACCOUNT_UPDATE_PROFILE,
                     actor=actor,
                     organization=None,
                     target=actor,

@@ -242,6 +242,7 @@ def main() -> int:
                 {
                     "schema": _build_browser_contract_schema(),
                     "list_page_size": INT_LIST_PAGE_SIZE,
+                    "audit_actions": auditContracts.AuditAction.choices,
                     "max_organization_service_reason_length": auditContracts.INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH,
                     "max_run_statistics_days": runContracts.INT_MAX_RUN_STATISTICS_DAYS,
                 },

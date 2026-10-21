@@ -21,6 +21,97 @@ export type JsonValue =
   | boolean
   | null;
 export type AssetReferenceKind = "package" | "schedule";
+/**
+ * Stable audit event identifiers with user-facing action labels.
+ */
+export type AuditAction =
+  | "account.login"
+  | "account.logout"
+  | "account.update_profile"
+  | "account.change_password"
+  | "account.reset_password"
+  | "account.revoke_sessions"
+  | "account.request_email_change"
+  | "account.change_email"
+  | "account.delete"
+  | "platform.initialize"
+  | "platform.reset_password"
+  | "api_key.create"
+  | "api_key.update"
+  | "api_key.revoke"
+  | "editor_session.login"
+  | "editor_session.logout"
+  | "organization.create"
+  | "organization.update"
+  | "organization.update_retention"
+  | "organization.schedule_deletion"
+  | "organization.cancel_deletion"
+  | "organization.start_deletion"
+  | "organization.complete_deletion"
+  | "organization.suspend"
+  | "organization.resume"
+  | "organization.update_limits"
+  | "membership.update"
+  | "invitation.create"
+  | "invitation.resend"
+  | "invitation.revoke"
+  | "invitation.accept"
+  | "department.create"
+  | "department.update"
+  | "department.delete"
+  | "executor.create"
+  | "executor.update"
+  | "executor.set_dispatch"
+  | "executor.associate"
+  | "executor.unassociate"
+  | "executor.delete"
+  | "executor_group.create"
+  | "executor_group.update"
+  | "executor_group.delete"
+  | "executor_session.login"
+  | "executor_session.logout"
+  | "packages.upload"
+  | "packages.update"
+  | "packages.download"
+  | "packages.cancel_preparation"
+  | "packages.delete"
+  | "schedule.create"
+  | "schedule.update"
+  | "schedule.enable"
+  | "schedule.disable"
+  | "schedule.delete"
+  | "job.accept"
+  | "job.cancel"
+  | "job.stop"
+  | "job.close"
+  | "run.stop"
+  | "run.clear_logs"
+  | "asset.create"
+  | "asset.update"
+  | "asset.set_value"
+  | "asset.delete"
+  | "data_queue.create"
+  | "data_queue.update"
+  | "data_queue.upload"
+  | "data_queue.claim"
+  | "data_queue.reset"
+  | "data_queue.delete_items"
+  | "data_queue.delete"
+  | "shared_files.upload"
+  | "shared_files.overwrite"
+  | "shared_files.download"
+  | "shared_files.delete"
+  | "run_email_recipient.create"
+  | "run_email_recipient.notes"
+  | "run_email_recipient.resend"
+  | "run_email_recipient.verify"
+  | "run_email_recipient.delete"
+  | "service_settings.update"
+  | "maintenance.enter"
+  | "maintenance.resume"
+  | "backup.request"
+  | "backup.complete"
+  | "backup.restore";
 export type AuditChannel = "session" | "editor" | "executor" | "api_key" | "system";
 export type AuditResult = "succeeded" | "failed";
 export type AuditStage = "operation" | "request";
@@ -454,7 +545,7 @@ export interface AuditDetailsResponse {
   record: AuditDetailsRecordResponse;
 }
 export interface AuditDetailsRecordResponse {
-  action: string;
+  action: AuditAction;
   actor_id: string | null;
   actor_name: string;
   changes: AuditChangeResponse[];
@@ -482,7 +573,7 @@ export interface AuditChangeResponse {
   field: string;
 }
 export interface AuditFilterOptionsResponse {
-  actions: string[];
+  actions: AuditAction[];
   actors: AuditActorResponse[];
   modules: string[];
 }
@@ -501,7 +592,7 @@ export interface PaginationResponse {
   total_pages: number;
 }
 export interface AuditRecordResponse {
-  action: string;
+  action: AuditAction;
   actor_id: string | null;
   actor_name: string;
   channel: AuditChannel;
@@ -1526,7 +1617,7 @@ export interface PasswordChangeRequest {
   new_password: string;
 }
 export interface PlatformAuditFilterOptionsResponse {
-  actions: string[];
+  actions: AuditAction[];
   actors: AuditActorResponse[];
   organizations: PlatformAuditOrganizationResponse[];
 }
@@ -1539,7 +1630,7 @@ export interface PlatformAuditListResponse {
   records: PlatformAuditRecordResponse[];
 }
 export interface PlatformAuditRecordResponse {
-  action: string;
+  action: AuditAction;
   actor_id: string | null;
   actor_name: string;
   channel: AuditChannel;
@@ -2132,6 +2223,95 @@ export const ARR_FILE_UPLOAD_STATE = [
   "expired",
   "canceled",
 ] as const satisfies readonly UploadState[];
+export const ARR_AUDIT_ACTION = [
+  "account.login",
+  "account.logout",
+  "account.update_profile",
+  "account.change_password",
+  "account.reset_password",
+  "account.revoke_sessions",
+  "account.request_email_change",
+  "account.change_email",
+  "account.delete",
+  "platform.initialize",
+  "platform.reset_password",
+  "api_key.create",
+  "api_key.update",
+  "api_key.revoke",
+  "editor_session.login",
+  "editor_session.logout",
+  "organization.create",
+  "organization.update",
+  "organization.update_retention",
+  "organization.schedule_deletion",
+  "organization.cancel_deletion",
+  "organization.start_deletion",
+  "organization.complete_deletion",
+  "organization.suspend",
+  "organization.resume",
+  "organization.update_limits",
+  "membership.update",
+  "invitation.create",
+  "invitation.resend",
+  "invitation.revoke",
+  "invitation.accept",
+  "department.create",
+  "department.update",
+  "department.delete",
+  "executor.create",
+  "executor.update",
+  "executor.set_dispatch",
+  "executor.associate",
+  "executor.unassociate",
+  "executor.delete",
+  "executor_group.create",
+  "executor_group.update",
+  "executor_group.delete",
+  "executor_session.login",
+  "executor_session.logout",
+  "packages.upload",
+  "packages.update",
+  "packages.download",
+  "packages.cancel_preparation",
+  "packages.delete",
+  "schedule.create",
+  "schedule.update",
+  "schedule.enable",
+  "schedule.disable",
+  "schedule.delete",
+  "job.accept",
+  "job.cancel",
+  "job.stop",
+  "job.close",
+  "run.stop",
+  "run.clear_logs",
+  "asset.create",
+  "asset.update",
+  "asset.set_value",
+  "asset.delete",
+  "data_queue.create",
+  "data_queue.update",
+  "data_queue.upload",
+  "data_queue.claim",
+  "data_queue.reset",
+  "data_queue.delete_items",
+  "data_queue.delete",
+  "shared_files.upload",
+  "shared_files.overwrite",
+  "shared_files.download",
+  "shared_files.delete",
+  "run_email_recipient.create",
+  "run_email_recipient.notes",
+  "run_email_recipient.resend",
+  "run_email_recipient.verify",
+  "run_email_recipient.delete",
+  "service_settings.update",
+  "maintenance.enter",
+  "maintenance.resume",
+  "backup.request",
+  "backup.complete",
+  "backup.restore",
+] as const satisfies readonly AuditAction[];
 export const ARR_AUDIT_CHANNEL = [
   "session",
   "editor",
@@ -2291,6 +2471,95 @@ export const ARR_BACKUP_STATUS = [
   "failed",
   "skipped",
 ] as const satisfies readonly BackupStatus[];
+export const AUDIT_ACTION_LABEL = {
+  "account.login": "Sign In",
+  "account.logout": "Sign Out",
+  "account.update_profile": "Update Profile",
+  "account.change_password": "Change Password",
+  "account.reset_password": "Reset Password",
+  "account.revoke_sessions": "Revoke Other Sessions",
+  "account.request_email_change": "Request Email Change",
+  "account.change_email": "Change Email",
+  "account.delete": "Delete Account",
+  "platform.initialize": "Initialize Platform",
+  "platform.reset_password": "Reset Platform Password",
+  "api_key.create": "Create API Key",
+  "api_key.update": "Update API Key",
+  "api_key.revoke": "Revoke API Key",
+  "editor_session.login": "Sign In to Editor",
+  "editor_session.logout": "Sign Out of Editor",
+  "organization.create": "Create Organization",
+  "organization.update": "Update Organization",
+  "organization.update_retention": "Update Run Log Retention",
+  "organization.schedule_deletion": "Schedule Organization Deletion",
+  "organization.cancel_deletion": "Cancel Organization Deletion",
+  "organization.start_deletion": "Start Organization Deletion",
+  "organization.complete_deletion": "Complete Organization Deletion",
+  "organization.suspend": "Suspend Organization Service",
+  "organization.resume": "Resume Organization Service",
+  "organization.update_limits": "Update Organization Limits",
+  "membership.update": "Update Member",
+  "invitation.create": "Create Member Invitation",
+  "invitation.resend": "Resend Member Invitation",
+  "invitation.revoke": "Revoke Member Invitation",
+  "invitation.accept": "Accept Member Invitation",
+  "department.create": "Create Department",
+  "department.update": "Update Department",
+  "department.delete": "Delete Department",
+  "executor.create": "Create Executor",
+  "executor.update": "Update Executor",
+  "executor.set_dispatch": "Change Executor Dispatch",
+  "executor.associate": "Associate Executor",
+  "executor.unassociate": "Unassociate Executor",
+  "executor.delete": "Delete Executor",
+  "executor_group.create": "Create Executor Group",
+  "executor_group.update": "Update Executor Group",
+  "executor_group.delete": "Delete Executor Group",
+  "executor_session.login": "Sign In to Executor",
+  "executor_session.logout": "Sign Out of Executor",
+  "packages.upload": "Upload Package",
+  "packages.update": "Update Package",
+  "packages.download": "Download Package",
+  "packages.cancel_preparation": "Cancel Package Preparation",
+  "packages.delete": "Delete Package",
+  "schedule.create": "Create Schedule",
+  "schedule.update": "Update Schedule",
+  "schedule.enable": "Enable Schedule",
+  "schedule.disable": "Disable Schedule",
+  "schedule.delete": "Delete Schedule",
+  "job.accept": "Accept Job Request",
+  "job.cancel": "Cancel Job",
+  "job.stop": "Request Job Stop",
+  "job.close": "Close Job",
+  "run.stop": "Request Run Stop",
+  "run.clear_logs": "Clear Run Logs",
+  "asset.create": "Create Asset",
+  "asset.update": "Update Asset",
+  "asset.set_value": "Set Asset Value",
+  "asset.delete": "Delete Asset",
+  "data_queue.create": "Create Data Queue",
+  "data_queue.update": "Update Data Queue",
+  "data_queue.upload": "Upload Queue Items",
+  "data_queue.claim": "Claim Queue Items",
+  "data_queue.reset": "Reset Queue Items",
+  "data_queue.delete_items": "Delete Queue Items",
+  "data_queue.delete": "Delete Data Queue",
+  "shared_files.upload": "Upload Shared File",
+  "shared_files.overwrite": "Overwrite Shared File",
+  "shared_files.download": "Download Shared File",
+  "shared_files.delete": "Delete Shared File",
+  "run_email_recipient.create": "Add Run Email Recipient",
+  "run_email_recipient.notes": "Update Run Email Recipient Notes",
+  "run_email_recipient.resend": "Resend Run Email Verification",
+  "run_email_recipient.verify": "Verify Run Email Recipient",
+  "run_email_recipient.delete": "Delete Run Email Recipient",
+  "service_settings.update": "Update Service Settings",
+  "maintenance.enter": "Enter Maintenance",
+  "maintenance.resume": "Resume Service",
+  "backup.request": "Request Backup",
+  "backup.complete": "Finish Backup",
+  "backup.restore": "Restore Backup",
+} as const satisfies Record<AuditAction, string>;
 export const DepartmentRole = {
   Developer: "developer",
   Operator: "operator",

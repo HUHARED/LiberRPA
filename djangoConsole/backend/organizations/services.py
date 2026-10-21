@@ -11,6 +11,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from console_project.config import LimitsConfig
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 
 from .models import Organization
@@ -60,7 +61,7 @@ def update_organization_settings(
     # Members keep their independent time zones; only future defaults use this setting.
     organization.save(update_fields=["name", "default_time_zone", "notes"])
     record_audit(
-        "organization.update",
+        AuditAction.ORGANIZATION_UPDATE,
         actor=access.actor,
         organization=organization,
         target=organization,
@@ -88,7 +89,7 @@ def update_organization_retention(
     organization.run_log_retention_days = runLogDays
     organization.save(update_fields=["run_log_retention_days"])
     record_audit(
-        "organization.update_retention",
+        AuditAction.ORGANIZATION_UPDATE_RETENTION,
         actor=access.actor,
         organization=organization,
         target=organization,

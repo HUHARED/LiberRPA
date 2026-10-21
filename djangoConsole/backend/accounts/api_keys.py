@@ -19,6 +19,7 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.models import Membership
 from organizations.permissions import (
@@ -184,7 +185,7 @@ def create_api_key(
         raise ValidationError({"expires_at": "Choose a future expiry time."})
     apiKey.save(force_insert=True)
     record_audit(
-        "api_key.create",
+        AuditAction.API_KEY_CREATE,
         actor=access.actor,
         organization=access.organization,
         target=apiKey,
@@ -210,7 +211,7 @@ def update_api_key_notes(
     apiKey.full_clean(validate_unique=False, validate_constraints=False)
     apiKey.save(update_fields=["notes"])
     record_audit(
-        "api_key.update",
+        AuditAction.API_KEY_UPDATE,
         actor=access.actor,
         organization=access.organization,
         target=apiKey,
@@ -246,7 +247,7 @@ def revoke_api_key(
     apiKey.revoked_at = currentTime
     apiKey.save(update_fields=["revoked_at"])
     record_audit(
-        "api_key.revoke",
+        AuditAction.API_KEY_REVOKE,
         actor=access.actor,
         organization=access.organization,
         target=apiKey,

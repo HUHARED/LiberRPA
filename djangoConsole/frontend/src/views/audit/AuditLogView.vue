@@ -215,7 +215,7 @@
       </template>
 
       <template #item.action="{ item }">
-        <div class="table-text-narrow">{{ formatAuditLabel(item.action) }}</div>
+        <div class="table-text-narrow">{{ AUDIT_ACTION_LABEL[item.action] }}</div>
       </template>
 
       <template #item.object="{ item }">
@@ -300,6 +300,7 @@ import { type ApiError, getApiError } from "@/api/errors";
 import { type AuditListFilters, getAuditList, getAuditFilterOptions } from "@/api/audit";
 import {
   INT_LIST_PAGE_SIZE,
+  AUDIT_ACTION_LABEL,
   type AuditFilterOptionsResponse,
   type AuditListResponse,
   type PlatformAuditListResponse,
@@ -383,7 +384,7 @@ const arrOrganizationOption = computed(() =>
 
 const arrActionOption = computed(() =>
   (filterOptions.value?.actions ?? []).map((action) => ({
-    title: formatAuditLabel(action),
+    title: AUDIT_ACTION_LABEL[action],
     value: action,
   })),
 );

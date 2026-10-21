@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
 from organizations.limits import get_organization_limits
@@ -73,7 +74,7 @@ def create_executor(
         )
     executor.save(force_insert=True)
     record_audit(
-        "executor.create",
+        AuditAction.EXECUTOR_CREATE,
         actor=access.actor,
         organization=access.organization,
         target=executor,
@@ -99,7 +100,7 @@ def update_executor(
     executor.full_clean()
     executor.save(update_fields=["name", "notes"])
     record_audit(
-        "executor.update",
+        AuditAction.EXECUTOR_UPDATE,
         actor=access.actor,
         organization=access.organization,
         target=executor,
@@ -123,7 +124,7 @@ def set_executor_dispatch(
     executor.dispatch_enabled = dispatchEnabled
     executor.save(update_fields=["dispatch_enabled"])
     record_audit(
-        "executor.set_dispatch",
+        AuditAction.EXECUTOR_SET_DISPATCH,
         actor=access.actor,
         organization=access.organization,
         target=executor,
@@ -175,7 +176,7 @@ def delete_executor(
     executor.deleted_at = timezone.now()
     executor.save(update_fields=["deleted_at"])
     record_audit(
-        "executor.delete",
+        AuditAction.EXECUTOR_DELETE,
         actor=access.actor,
         organization=access.organization,
         target=executor,
@@ -201,7 +202,7 @@ def unassociate_executor(
                 code="executor_association_changed",
             )
         record_audit(
-            "executor.unassociate",
+            AuditAction.EXECUTOR_UNASSOCIATE,
             actor=access.actor,
             organization=access.organization,
             target=executor,

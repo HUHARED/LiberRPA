@@ -47,6 +47,7 @@ from .audit_queries import (
     get_audit_filter_options,
 )
 from .contracts import (
+    AuditAction,
     AuditResult,
     AuditStage,
     AuditListResponse,
@@ -147,14 +148,12 @@ def _parse_audit_filters(
         uuid.UUID(strValue) for strValue in listOrganization if strValue != "instance"
     )
     tupleModule = tuple(query.getlist("module"))
-    tupleAction = tuple(query.getlist("action"))
     if any(re.fullmatch(r"[a-z_]{1,32}", strValue) is None for strValue in tupleModule):
         raise ValueError("Invalid audit module.")
-    if any(
-        len(strValue) > 64 or re.fullmatch(r"[a-z_]+\.[a-z_]+", strValue) is None
-        for strValue in tupleAction
-    ):
-        raise ValueError("Invalid audit action.")
+    try:
+        tupleAction = tuple(AuditAction(strValue) for strValue in query.getlist("action"))
+    except ValueError:
+        raise ValueError("Invalid audit action.") from None
     try:
         tupleResult = tuple(AuditResult(strValue) for strValue in query.getlist("result"))
     except ValueError:
@@ -218,7 +217,7 @@ def _build_details_payload(record: AuditRecord) -> dict[str, object]:
         {"field": strField, "before": None, "after": None}
         for strField in details.get("changed_fields", [])
     )
-    if record.action == "organization.update_limits":
+    if record.action == AuditAction.ORGANIZATION_UPDATE_LIMITS:
         # Read the saved limits and sources, never today's defaults or organization state.
         metadata = details.get("metadata", {})
         dictLimit = metadata.get("limits", {})
@@ -253,7 +252,8 @@ def _build_details_payload(record: AuditRecord) -> dict[str, object]:
         "stage": details.get("stage", AuditStage.OPERATION),
         "reason": details.get("metadata", {}).get("reason")
         if record.scope == AuditScope.PLATFORM
-        and record.action in ("organization.suspend", "organization.resume")
+        and record.action
+        in (AuditAction.ORGANIZATION_SUSPEND, AuditAction.ORGANIZATION_RESUME)
         else None,
         "reason_code": details.get("reason_code"),
         "http_status": details.get("http_status"),
@@ -388,7 +388,9 @@ def get_audit_filters(
             if scope == AuditScope.PLATFORM
             else AuditFilterOptionsResponse
         )
-        return JsonResponse(responseType.model_validate(options).model_dump(mode="python"))
+        return JsonResponse(
+            responseType.model_validate(options).model_dump(mode="python")
+        )
     except (
         PermissionDenied,
         ContractValidationError,
@@ -402,7 +404,10 @@ def get_audit_filters(
 @never_cache
 @require_GET
 def get_audit_details(
-    request: HttpRequest, auditId: uuid.UUID, *, scope: AuditScope = AuditScope.ORGANIZATION
+    request: HttpRequest,
+    auditId: uuid.UUID,
+    *,
+    scope: AuditScope = AuditScope.ORGANIZATION,
 ) -> JsonResponse:
     """Read one saved snapshot without querying its current business object."""
     try:

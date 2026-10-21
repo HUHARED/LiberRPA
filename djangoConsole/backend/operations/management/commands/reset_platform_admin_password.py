@@ -13,6 +13,7 @@ from console_project.terminal import PasswordInputError, read_password
 from accounts.models import User
 from accounts.password_changes import save_password_change
 from accounts.passwords import validate_new_password
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 
 
@@ -43,7 +44,7 @@ class Command(BaseCommand):
                 user.set_password(strPassword)
                 save_password_change(user)
                 record_audit(
-                    "platform.reset_password",
+                    AuditAction.PLATFORM_RESET_PASSWORD,
                     actor=None,
                     organization=None,
                     target=user,

@@ -13,6 +13,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.views.decorators.debug import sensitive_variables
 
 from executors.session_state import revoke_user_executor_sessions
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 from runs.services import recheck_job_source_access
 
@@ -126,7 +127,7 @@ def delete_account(
     # Reconcile Executor associations before cascading account-owned credentials; retain resources and history.
     target = cast(User, membership.user)
     record_audit(
-        "account.delete",
+        AuditAction.ACCOUNT_DELETE,
         actor=actor,
         organization=access.organization,
         target=target,

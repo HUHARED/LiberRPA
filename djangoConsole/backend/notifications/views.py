@@ -28,6 +28,7 @@ from console_project.http import (
     build_rate_limited_response,
     parse_json_request,
 )
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 from organizations.http import get_request_membership, lock_request_write_access
 from organizations.models import Organization
@@ -278,7 +279,7 @@ def change_recipient(
                     status=409,
                 )
             record_audit(
-                "run_email_recipient.delete",
+                AuditAction.RUN_EMAIL_RECIPIENT_DELETE,
                 actor=access.actor,
                 organization=access.organization,
                 target=recipient,
@@ -286,7 +287,9 @@ def change_recipient(
             delete_recipient(recipient)
             return JsonResponse({"message": "Email address deleted."})
         record_audit(
-            "run_email_recipient." + action,
+            AuditAction.RUN_EMAIL_RECIPIENT_NOTES
+            if isinstance(form, RecipientNotesRequest)
+            else AuditAction.RUN_EMAIL_RECIPIENT_RESEND,
             actor=access.actor,
             organization=access.organization,
             target=recipient,
@@ -322,7 +325,7 @@ def verify_recipient(request: HttpRequest) -> JsonResponse:
                 recipient.verified_at = timezone.now()
                 recipient.save(update_fields=["verified_at"])
                 record_audit(
-                    "run_email_recipient.verify",
+                    AuditAction.RUN_EMAIL_RECIPIENT_VERIFY,
                     actor=None,
                     organization=recipient.organization,
                     target=recipient,

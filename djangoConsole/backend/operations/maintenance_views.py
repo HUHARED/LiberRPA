@@ -33,7 +33,7 @@ from schedules.models import Schedule, SchedulerState
 
 from .access import get_platform_actor
 from .audit import get_audit_snapshot, record_audit
-from .contracts import MaintenanceAction, MaintenanceRequest
+from .contracts import AuditAction, MaintenanceAction, MaintenanceRequest
 from .models import MaintenanceState, AuditScope
 from .maintenance import (
     lock_maintenance_state,
@@ -81,9 +81,12 @@ def get_or_update_maintenance(request: HttpRequest) -> JsonResponse:
                     if boolRestored and not boolEnter:
                         # The file barrier still blocks admission until this transaction commits.
                         resumedAt = timezone.now()
-                        for schedule in Schedule.objects.select_for_update().filter(
-                            enabled=True, deleted_at__isnull=True
-                        ).iterator():
+                        for schedule in (
+                            Schedule.objects
+                            .select_for_update()
+                            .filter(enabled=True, deleted_at__isnull=True)
+                            .iterator()
+                        ):
                             schedule.next_trigger_at = get_next_trigger(
                                 schedule.cron,
                                 schedule.time_zone,
@@ -97,7 +100,9 @@ def get_or_update_maintenance(request: HttpRequest) -> JsonResponse:
                         )
                         transaction.on_commit(complete_restored_service_review)
                     record_audit(
-                        "maintenance.enter" if boolEnter else "maintenance.resume",
+                        AuditAction.MAINTENANCE_ENTER
+                        if boolEnter
+                        else AuditAction.MAINTENANCE_RESUME,
                         actor=actor,
                         organization=None,
                         target=state,

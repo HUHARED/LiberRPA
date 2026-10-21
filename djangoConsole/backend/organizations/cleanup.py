@@ -22,6 +22,7 @@ from shared_files.models import SharedFile, UploadSession
 from packages.models import PackageUpload
 from runs.models import JobRequest, RunLogUsage
 from schedules.models import Schedule
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 from operations.models import AuditScope, AuditRecord
 from notifications.contracts import EmailStatus, EmailReasonCode
@@ -118,7 +119,7 @@ def start_next_organization_deletion() -> uuid.UUID | None:
         organization.deletion_started_at = startedAt
         organization.save(update_fields=["deletion_started_at"])
         record_audit(
-            "organization.start_deletion",
+            AuditAction.ORGANIZATION_START_DELETION,
             actor=None,
             organization=organization,
             target=organization,
@@ -192,7 +193,7 @@ def complete_organization_deletion(
         scope=AuditScope.ORGANIZATION, organization_id=organizationId
     ).delete()
     record_audit(
-        "organization.complete_deletion",
+        AuditAction.ORGANIZATION_COMPLETE_DELETION,
         actor=None,
         organization=organization,
         target=organization,

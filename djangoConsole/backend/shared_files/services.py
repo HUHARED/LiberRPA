@@ -35,6 +35,7 @@ from file_storage.services import (
     require_download_slot,
     get_download_expiry,
 )
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 from organizations.department_queries import (
     get_department_tree,
@@ -448,7 +449,9 @@ def complete_upload(
     if apiKeyId is not None:
         dictMetadata["api_key_id"] = str(apiKeyId)
     record_audit(
-        "shared_files.overwrite" if existingFile is not None else "shared_files.upload",
+        AuditAction.SHARED_FILES_OVERWRITE
+        if existingFile is not None
+        else AuditAction.SHARED_FILES_UPLOAD,
         actor=access.actor,
         organization=access.organization,
         target=file,
@@ -512,7 +515,7 @@ def delete_files(
         if apiKeyId is not None:
             dictMetadata["api_key_id"] = str(apiKeyId)
         record_audit(
-            "shared_files.delete",
+            AuditAction.SHARED_FILES_DELETE,
             actor=access.actor,
             organization=access.organization,
             target=file,
@@ -607,7 +610,7 @@ def open_download(
         if apiKeyId is not None:
             dictMetadata["api_key_id"] = str(apiKeyId)
         record_audit(
-            "shared_files.download",
+            AuditAction.SHARED_FILES_DOWNLOAD,
             actor=access.actor,
             organization=access.organization,
             target=transfer,

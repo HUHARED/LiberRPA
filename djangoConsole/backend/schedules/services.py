@@ -14,6 +14,7 @@ from django.utils import timezone
 
 from console_project.validators import parse_zoned_time
 from executors.models import Executor, ExecutorGroup
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
 from organizations.limits import get_organization_limits
@@ -182,7 +183,7 @@ def save_schedule(
     )
     request_package_preparation(package, listExecutorId)
     record_audit(
-        "schedule.create" if boolCreated else "schedule.update",
+        AuditAction.SCHEDULE_CREATE if boolCreated else AuditAction.SCHEDULE_UPDATE,
         actor=access.actor,
         organization=access.organization,
         target=schedule,
@@ -215,7 +216,7 @@ def set_schedule_enabled(
     )
     schedule.save(update_fields=["enabled", "updated_at", "next_trigger_at"])
     record_audit(
-        "schedule.enable" if enabled else "schedule.disable",
+        AuditAction.SCHEDULE_ENABLE if enabled else AuditAction.SCHEDULE_DISABLE,
         actor=access.actor,
         organization=access.organization,
         target=schedule,
@@ -234,7 +235,7 @@ def delete_schedule(access: OrganizationAccessContext, schedule: Schedule) -> No
     )
     # Accepted Jobs retain their independent snapshot and continue until explicitly controlled.
     record_audit(
-        "schedule.delete",
+        AuditAction.SCHEDULE_DELETE,
         actor=access.actor,
         organization=access.organization,
         target=schedule,

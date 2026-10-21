@@ -34,7 +34,14 @@ from shared_files.models import UploadSession
 from file_storage.models import StoredBlobState, StoredBlob, DownloadSession
 from schedules.models import SchedulerState
 from runs.contracts import JobState, AssignmentState
-from runs.models import Job, ExecutorWorkState, Assignment, Run, RunFileTransfer, DispatchControl
+from runs.models import (
+    Job,
+    ExecutorWorkState,
+    Assignment,
+    Run,
+    RunFileTransfer,
+    DispatchControl,
+)
 from notifications.contracts import EmailStatus, EmailReasonCode
 from notifications.models import (
     EmailWorkerState,
@@ -45,7 +52,7 @@ from notifications.models import (
 
 from .backup import BackupManifest
 from .backup_models import BackupState, BackupRecord
-from .contracts import AuditChannel
+from .contracts import AuditAction, AuditChannel
 from .models import MaintenanceState, CleanupState, AuditScope
 from .audit import record_audit
 
@@ -59,10 +66,14 @@ def validate_restored_schema(manifest: BackupManifest) -> None:
     """Require the matching schema; restoring a backup never runs migrations."""
     loader = MigrationLoader(connection)
     if set(loader.applied_migrations) != set(manifest.migrations):
-        raise ImproperlyConfigured("The restored migration history differs from the backup.")
+        raise ImproperlyConfigured(
+            "The restored migration history differs from the backup."
+        )
     loader.check_consistent_history(connection)
     if set(loader.graph.nodes) - set(loader.applied_migrations):
-        raise ImproperlyConfigured("Use the Console release matching this backup's migrations.")
+        raise ImproperlyConfigured(
+            "Use the Console release matching this backup's migrations."
+        )
     if MigrationAutodetector(
         loader.project_state(), ProjectState.from_apps(apps)
     ).changes(graph=loader.graph):
@@ -73,10 +84,17 @@ def validate_restored_schema(manifest: BackupManifest) -> None:
 def sanitize_restored_database(manifest: BackupManifest, restoredAt: datetime) -> None:
     """Invalidate old authority and pending actions without inventing execution outcomes."""
     setBlobId = set(manifest.blob_ids)
-    if set(
-        StoredBlob.objects.filter(state=StoredBlobState.AVAILABLE).values_list("pk", flat=True)
-    ) != setBlobId:
-        raise ImproperlyConfigured("The restored files do not match the database snapshot.")
+    if (
+        set(
+            StoredBlob.objects.filter(state=StoredBlobState.AVAILABLE).values_list(
+                "pk", flat=True
+            )
+        )
+        != setBlobId
+    ):
+        raise ImproperlyConfigured(
+            "The restored files do not match the database snapshot."
+        )
 
     User.objects.update(session_version=F("session_version") + 1)
     Session.objects.all().delete()
@@ -118,16 +136,20 @@ def sanitize_restored_database(manifest: BackupManifest, restoredAt: datetime) -
     jobs.update(source_access_revoked_at=restoredAt, retry_at=None)
     jobs = jobs.alias(
         unknown_assignment=Exists(
-            Assignment.objects.filter(job_id=OuterRef("pk"), state=AssignmentState.NEEDS_REVIEW)
+            Assignment.objects.filter(
+                job_id=OuterRef("pk"), state=AssignmentState.NEEDS_REVIEW
+            )
         ),
-        unknown_run=Exists(Run.objects.filter(job_id=OuterRef("pk"), ended_at__isnull=True)),
+        unknown_run=Exists(
+            Run.objects.filter(job_id=OuterRef("pk"), ended_at__isnull=True)
+        ),
     )
     unknownWork = (
-        Q(unknown_assignment=True)
-        | Q(unknown_run=True)
-        | Q(state=JobState.NEEDS_REVIEW)
+        Q(unknown_assignment=True) | Q(unknown_run=True) | Q(state=JobState.NEEDS_REVIEW)
     )
-    jobs.filter(unknownWork).update(state=JobState.NEEDS_REVIEW, reason=_STR_RESTORE_REASON)
+    jobs.filter(unknownWork).update(
+        state=JobState.NEEDS_REVIEW, reason=_STR_RESTORE_REASON
+    )
     jobs.exclude(unknownWork).update(
         state=JobState.FINISHED, ended_at=restoredAt, reason=_STR_RESTORE_REASON
     )
@@ -155,11 +177,14 @@ def sanitize_restored_database(manifest: BackupManifest, restoredAt: datetime) -
         pk=1, defaults={"entered_at": restoredAt}
     )
     record_audit(
-        "backup.restore",
+        AuditAction.BACKUP_RESTORE,
         actor=None,
         organization=None,
         target=maintenanceState,
         channel=AuditChannel.SYSTEM,
         scope=AuditScope.PLATFORM,
-        metadata={"backup_id": str(manifest.backup_id), "data_as_of": manifest.data_as_of},
+        metadata={
+            "backup_id": str(manifest.backup_id),
+            "data_as_of": manifest.data_as_of,
+        },
     )

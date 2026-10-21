@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.session_revocation import require_current_session
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from runs.contracts import JobState
 from runs.models import Job
@@ -83,7 +84,7 @@ def schedule_organization_deletion(
     ):
         revoke_job_source_access(job, requestedAt)
     record_audit(
-        "organization.schedule_deletion",
+        AuditAction.ORGANIZATION_SCHEDULE_DELETION,
         actor=actor,
         organization=organization,
         target=organization,
@@ -93,7 +94,9 @@ def schedule_organization_deletion(
     return organization
 
 
-def skip_expired_schedule_triggers(organization: Organization, resumedAt: datetime) -> None:
+def skip_expired_schedule_triggers(
+    organization: Organization, resumedAt: datetime
+) -> None:
     """Skip frozen-period triggers while the caller holds the organization lock."""
     for schedule in Schedule.objects.filter(
         department__organization=organization,
@@ -149,7 +152,7 @@ def cancel_organization_deletion(
     resumedAt = timezone.now()
     skip_expired_schedule_triggers(organization, resumedAt)
     record_audit(
-        "organization.cancel_deletion",
+        AuditAction.ORGANIZATION_CANCEL_DELETION,
         actor=actor,
         organization=organization,
         target=organization,

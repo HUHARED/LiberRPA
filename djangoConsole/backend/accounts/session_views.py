@@ -34,6 +34,7 @@ from console_project.http import (
     build_rate_limited_response,
     parse_json_request,
 )
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 from organizations.models import Organization, Membership
 from organizations.access import get_account_access_info
@@ -113,7 +114,7 @@ def _establish_session(
             if previousUserId is not None and previousUserId != user.pk:
                 notify_browser_user(previousUserId, BrowserMessageType.SESSION_CHANGED)
             record_audit(
-                "account.login",
+                AuditAction.ACCOUNT_LOGIN,
                 actor=user,
                 organization=organization,
                 target=user,
@@ -246,7 +247,7 @@ def sign_out(request: HttpRequest) -> JsonResponse:
                 user = cast(User, request.user)
                 organization = _lock_session_audit_organization(user)
                 record_audit(
-                    "account.logout",
+                    AuditAction.ACCOUNT_LOGOUT,
                     actor=user,
                     organization=organization,
                     target=user,

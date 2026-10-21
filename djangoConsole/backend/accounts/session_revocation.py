@@ -15,6 +15,7 @@ from django.utils.crypto import constant_time_compare
 from django.views.decorators.debug import sensitive_variables
 
 from executors.session_state import revoke_user_executor_sessions
+from operations.contracts import AuditAction
 from operations.audit import record_audit
 from organizations.permissions import (
     AccessChannel,
@@ -97,7 +98,7 @@ def revoke_other_sessions(
     revoke_user_executor_sessions(user.id)
     revoke_user_editor_sessions(user.id)
     record_audit(
-        "account.revoke_sessions",
+        AuditAction.ACCOUNT_REVOKE_SESSIONS,
         actor=user,
         organization=access.organization,
         target=user,

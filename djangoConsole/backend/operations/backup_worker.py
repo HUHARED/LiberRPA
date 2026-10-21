@@ -17,7 +17,7 @@ from django.utils import timezone
 from console_project.recovery import is_restored_service_pending_review
 from notifications.models import EmailType, EmailDelivery
 
-from .contracts import InstanceHealthStatus, AuditResult
+from .contracts import AuditAction, AuditResult, InstanceHealthStatus
 from .models import AuditScope
 from .audit import record_audit
 from .backup_contracts import (
@@ -82,7 +82,9 @@ def _record_problem(state: BackupState, message: str, currentTime: datetime) -> 
         state.failure_started_at = None
         state.failure_notice_at = None
         state.failure_message = ""
-    state.save(update_fields=["failure_started_at", "failure_notice_at", "failure_message"])
+    state.save(
+        update_fields=["failure_started_at", "failure_notice_at", "failure_message"]
+    )
 
 
 def _prune_result_records() -> None:
@@ -132,7 +134,7 @@ def _finish_backup(record: BackupRecord, *, succeeded: bool, message: str) -> No
         record.details = message
         record.save()
         record_audit(
-            "backup.complete",
+            AuditAction.BACKUP_COMPLETE,
             actor=None,
             organization=None,
             target=record,
@@ -146,7 +148,9 @@ def _finish_backup(record: BackupRecord, *, succeeded: bool, message: str) -> No
         strCleanupError = _prune_successful_backups()
         with transaction.atomic():
             state = _lock_backup_state()
-            BackupRecord.objects.filter(pk=record.id).update(cleanup_error=strCleanupError)
+            BackupRecord.objects.filter(pk=record.id).update(
+                cleanup_error=strCleanupError
+            )
             _record_problem(state, strCleanupError, timezone.now())
     _prune_result_records()
 
@@ -176,7 +180,9 @@ def recover_interrupted_backups() -> None:
         except DatabaseError:
             raise
         except Exception as e:
-            _LOGGER.warning("Interrupted backup verification failed: %s", type(e).__name__)
+            _LOGGER.warning(
+                "Interrupted backup verification failed: %s", type(e).__name__
+            )
         pathPartial = get_backup_location() / (record.id.hex + ".partial")
         try:
             if pathPartial.exists():
@@ -184,7 +190,9 @@ def recover_interrupted_backups() -> None:
         except OSError as e:
             _LOGGER.warning("Interrupted backup cleanup failed: %s", type(e).__name__)
         _finish_backup(
-            record, succeeded=False, message="The backup worker stopped before completion."
+            record,
+            succeeded=False,
+            message="The backup worker stopped before completion.",
         )
 
 
@@ -263,7 +271,9 @@ def process_next_backup() -> bool:
         record.data_as_of = result.dataAsOf
         record.size_bytes = result.sizeBytes
         _finish_backup(
-            record, succeeded=True, message="The backup completed and passed verification."
+            record,
+            succeeded=True,
+            message="The backup completed and passed verification.",
         )
     report_backup_worker(BackupWorkerStatus.RUNNING)
     return True
@@ -356,9 +366,7 @@ def load_backup_status() -> BackupStatusResponse:
             and _get_due_time(currentTime) <= lastSuccess.data_as_of <= currentTime
         ):
             healthStatus = InstanceHealthStatus.HEALTHY
-            strHealthMessage = (
-                "The backup worker is active and a current successful backup is available."
-            )
+            strHealthMessage = "The backup worker is active and a current successful backup is available."
         else:
             strHealthMessage = "No successful backup covers the latest scheduled time."
 

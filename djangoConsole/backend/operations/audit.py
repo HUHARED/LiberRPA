@@ -5,7 +5,6 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import json
-import re
 from collections.abc import Iterable
 from typing import cast
 
@@ -24,7 +23,7 @@ from organizations.models import (
 )
 from organizations.permissions import AccessChannel
 
-from .contracts import AuditChannel, AuditResult, AuditStage
+from .contracts import AuditAction, AuditChannel, AuditResult, AuditStage
 from .models import ServiceSettings, MaintenanceState, AuditScope, AuditRecord
 from .backup_models import BackupRecord
 
@@ -160,7 +159,7 @@ def _bound_details(details: dict[str, object]) -> dict[str, object]:
 
 @sensitive_variables()
 def _build_audit_record(
-    action: str,
+    action: AuditAction,
     *,
     actor: User | None,
     organization: Organization | None,
@@ -183,8 +182,8 @@ def _build_audit_record(
         raise RuntimeError(
             "Write successful audit records inside the business transaction."
         )
-    if re.fullmatch(r"[a-z_]+\.[a-z_]+", action) is None:
-        raise ValueError("Use a controlled module.action audit name.")
+    if not isinstance(action, AuditAction):
+        raise ValueError("Use an AuditAction member.")
     if channel not in AuditChannel.values:
         raise ValueError("Unknown audit channel.")
     dictChange = (
@@ -227,7 +226,7 @@ def _build_audit_record(
 
 @sensitive_variables()
 def record_audit(
-    action: str,
+    action: AuditAction,
     *,
     actor: User | None,
     organization: Organization | None,
@@ -257,7 +256,7 @@ def record_audit(
 
 @sensitive_variables()
 def record_audit_batch(
-    action: str,
+    action: AuditAction,
     *,
     actor: User | None,
     organization: Organization | None,

@@ -9,9 +9,11 @@ import {
 } from "./responses";
 
 import {
+  ARR_AUDIT_ACTION,
   ARR_AUDIT_CHANNEL,
   ARR_AUDIT_RESULT_VALUE,
   ARR_AUDIT_STAGE,
+  type AuditAction,
   type AuditResult,
   type AuditDetailsResponse,
   type AuditChangeResponse,
@@ -32,8 +34,12 @@ export interface AuditListFilters {
   actorIds: string[];
   modules: string[];
   organizationIds: string[];
-  actions: string[];
+  actions: AuditAction[];
   results: AuditResult[];
+}
+
+function isAuditAction(value: unknown): value is AuditAction {
+  return ARR_AUDIT_ACTION.some((action) => action === value);
 }
 
 function isAuditRecord(value: unknown): value is AuditRecordResponse {
@@ -46,7 +52,7 @@ function isAuditRecord(value: unknown): value is AuditRecordResponse {
     typeof value.actor_name === "string" &&
     ARR_AUDIT_CHANNEL.some((channel) => channel === value.channel) &&
     typeof value.module === "string" &&
-    typeof value.action === "string" &&
+    isAuditAction(value.action) &&
     typeof value.object_type === "string" &&
     typeof value.object_id === "string" &&
     typeof value.object_name === "string" &&
@@ -93,7 +99,7 @@ export function parseAuditFilterOptionsResponse(
         isRecord(actor) && isNullableString(actor.id) && typeof actor.name === "string",
     ) ||
     !Array.isArray(payload.actions) ||
-    !payload.actions.every((action: unknown) => typeof action === "string")
+    !payload.actions.every(isAuditAction)
   )
     return rejectInvalidResponse();
   if (platform) {

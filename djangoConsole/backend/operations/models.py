@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
 
-from .contracts import AuditChannel, AuditResult, AuditStage
+from .contracts import AuditAction, AuditChannel, AuditResult, AuditStage
 
 
 class ServiceSettings(models.Model):
@@ -129,7 +129,7 @@ class AuditRecord(models.Model):
     )
     request_id = models.UUIDField(null=True, editable=False)
     module = models.CharField(max_length=32, editable=False)
-    action = models.CharField(max_length=64, editable=False)
+    action = models.CharField(max_length=64, choices=AuditAction, editable=False)
     object_type = models.CharField(max_length=64, editable=False)
     object_id = models.CharField(max_length=64, blank=True, editable=False)
     object_name = models.CharField(
@@ -167,6 +167,10 @@ class AuditRecord(models.Model):
             models.CheckConstraint(
                 condition=models.Q(channel__in=AuditChannel.values),
                 name="audit_channel_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(action__in=AuditAction.values),
+                name="audit_action_valid",
             ),
             models.CheckConstraint(
                 condition=models.Q(result__in=AuditResult.values),

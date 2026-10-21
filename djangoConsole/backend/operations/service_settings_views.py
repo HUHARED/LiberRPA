@@ -25,7 +25,7 @@ from console_project.http import (
 
 from .access import get_platform_actor
 from .audit import get_audit_snapshot, record_audit
-from .contracts import ServiceSettingsRequest, ServiceSettingsResponse
+from .contracts import AuditAction, ServiceSettingsRequest, ServiceSettingsResponse
 from .models import ServiceSettings, AuditScope
 
 _LOGGER = logging.getLogger("console.operations")
@@ -65,7 +65,7 @@ def get_or_update_service_settings(request: HttpRequest) -> JsonResponse:
                     )
                     serviceSettings.save(update_fields=["allow_organization_creation"])
                     record_audit(
-                        "service_settings.update",
+                        AuditAction.SERVICE_SETTINGS_UPDATE,
                         actor=actor,
                         organization=None,
                         target=serviceSettings,

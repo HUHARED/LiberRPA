@@ -24,7 +24,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User
 from operations.audit import record_audit
-from operations.contracts import AuditChannel
+from operations.contracts import AuditAction, AuditChannel
 from organizations.contracts import DepartmentRole
 from organizations.models import Organization
 from organizations.permissions import (
@@ -120,7 +120,7 @@ def begin_executor_login(
         session.full_clean()
         session.save(force_insert=True)
         record_audit(
-            "executor_session.login",
+            AuditAction.EXECUTOR_SESSION_LOGIN,
             actor=access.actor,
             organization=access.organization,
             target=session,
@@ -221,7 +221,7 @@ def open_executor_client_request(
             if organization is None or session is None:
                 raise InvalidExecutorSessionError("A valid Executor session is required.")
             record_audit(
-                "executor_session.logout",
+                AuditAction.EXECUTOR_SESSION_LOGOUT,
                 actor=cast(User, session.user),
                 organization=organization,
                 target=session,
@@ -337,7 +337,7 @@ def open_executor_client_request(
 
                     if boolNewAssociation:
                         record_audit(
-                            "executor.associate",
+                            AuditAction.EXECUTOR_ASSOCIATE,
                             actor=access.actor,
                             organization=access.organization,
                             target=session.executor,

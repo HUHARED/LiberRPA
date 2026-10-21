@@ -25,6 +25,7 @@ from accounts.models import User, UserManager
 from console_project.config import LimitsConfig
 from notifications.models import EmailDelivery, EmailType
 from notifications.recipients import register_member_recipient
+from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 
 from .contracts import DepartmentRole, InvitationStatus
@@ -203,7 +204,7 @@ def create_member_invitation(
     ])
     _queue_invitation_email(invitation, organizationName=organization.name)
     record_audit(
-        "invitation.create",
+        AuditAction.INVITATION_CREATE,
         actor=access.actor,
         organization=organization,
         target=invitation,
@@ -252,7 +253,7 @@ def resend_member_invitation(
     )
     _queue_invitation_email(invitation, organizationName=organization.name)
     record_audit(
-        "invitation.resend",
+        AuditAction.INVITATION_RESEND,
         actor=access.actor,
         organization=organization,
         target=invitation,
@@ -281,7 +282,7 @@ def revoke_member_invitation(
         invitation.token_hash = None
         invitation.save(update_fields=["revoked_at", "token_hash"])
         record_audit(
-            "invitation.revoke",
+            AuditAction.INVITATION_REVOKE,
             actor=access.actor,
             organization=organization,
             target=invitation,
@@ -409,7 +410,7 @@ def complete_invitation_registration(
     invitation.token_hash = None
     invitation.save(update_fields=["accepted_at", "token_hash"])
     record_audit(
-        "invitation.accept",
+        AuditAction.INVITATION_ACCEPT,
         actor=user,
         organization=organization,
         target=invitation,
