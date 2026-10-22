@@ -164,10 +164,6 @@ export type PackagePreparationState = "pending" | "preparing" | "ready" | "faile
 export type FilePath = string;
 export type FileRequestUuid = string;
 export type UploadState = "receiving" | "completed" | "failed" | "expired" | "canceled";
-export type InstanceHistoryRange = "1h" | "24h" | "7d" | "15d";
-export type InstanceComponent = "database" | "scheduler" | "email" | "cleanup" | "backup";
-export type InstanceHealthStatus = "healthy" | "warning" | "error" | "unknown";
-export type ServiceState = "normal" | "maintenance";
 export type InvitationStatus = "pending" | "expired" | "accepted" | "revoked";
 export type JobControlAction = "cancel" | "stop" | "close";
 export type RunPriority = "high" | "normal" | "low";
@@ -299,8 +295,6 @@ export interface BrowserApiContracts {
   FileUploadRequest: FileUploadRequest;
   FileUploadResponse: FileUploadResponse;
   FileUsageResponse: FileUsageResponse;
-  InstanceStatusResponse: InstanceStatusResponse;
-  InstanceSummaryResponse: InstanceSummaryResponse;
   InvitationCompletionRequest: InvitationCompletionRequest;
   InvitationCreateRequest: InvitationCreateRequest;
   InvitationDetailsResponse: InvitationDetailsResponse;
@@ -998,58 +992,6 @@ export interface FileUploadResponse {
   size_bytes: number;
   state: UploadState;
   upload_id: string;
-}
-export interface InstanceStatusResponse {
-  collected_at: string | null;
-  configured: boolean;
-  current: InstanceMetricsResponse;
-  history: InstanceHistorySampleResponse[];
-  interval_seconds: number;
-  network_interface: string | null;
-  network_interfaces: string[];
-  range: InstanceHistoryRange;
-}
-export interface InstanceMetricsResponse {
-  cpu_percent: number | null;
-  memory_percent: number | null;
-  network_receive_bytes_per_second: number | null;
-  network_transmit_bytes_per_second: number | null;
-}
-export interface InstanceHistorySampleResponse {
-  cpu_percent: number | null;
-  memory_percent: number | null;
-  network_receive_bytes_per_second: number | null;
-  network_transmit_bytes_per_second: number | null;
-  timestamp: string;
-}
-export interface InstanceSummaryResponse {
-  components: InstanceComponentResponse[];
-  last_successful_backup: InstanceBackupResponse | null;
-  maintenance_entered_at: string | null;
-  service_state: ServiceState | null;
-  storage: InstanceStorageResponse;
-  time_zone: string;
-  updated_at: string;
-  version: string;
-}
-export interface InstanceComponentResponse {
-  checked_at: string | null;
-  component: InstanceComponent;
-  message: string;
-  status: InstanceHealthStatus;
-}
-export interface InstanceBackupResponse {
-  data_as_of: string;
-  ended_at: string;
-  size_bytes: number;
-}
-export interface InstanceStorageResponse {
-  checked_at: string;
-  free_bytes: number | null;
-  message: string;
-  status: InstanceHealthStatus;
-  total_bytes: number | null;
-  used_bytes: number | null;
 }
 export interface InvitationCompletionRequest {
   password: string;
@@ -2368,29 +2310,6 @@ export const ARR_PLATFORM_ORGANIZATION_STATUS = [
   "deletion_scheduled",
   "deletion_in_progress",
 ] as const satisfies readonly PlatformOrganizationStatus[];
-export const ARR_INSTANCE_HEALTH_STATUS = [
-  "healthy",
-  "warning",
-  "error",
-  "unknown",
-] as const satisfies readonly InstanceHealthStatus[];
-export const ARR_INSTANCE_COMPONENT = [
-  "database",
-  "scheduler",
-  "email",
-  "cleanup",
-  "backup",
-] as const satisfies readonly InstanceComponent[];
-export const ARR_INSTANCE_HISTORY_RANGE = [
-  "1h",
-  "24h",
-  "7d",
-  "15d",
-] as const satisfies readonly InstanceHistoryRange[];
-export const ARR_SERVICE_STATE = [
-  "normal",
-  "maintenance",
-] as const satisfies readonly ServiceState[];
 export const AUDIT_ACTION_LABEL = {
   "account.login": "Sign In",
   "account.logout": "Sign Out",
@@ -2593,7 +2512,3 @@ export const PlatformOrganizationStatus = {
   DeletionScheduled: "deletion_scheduled",
   DeletionInProgress: "deletion_in_progress",
 } as const satisfies Record<string, PlatformOrganizationStatus>;
-export const ServiceState = {
-  Normal: "normal",
-  Maintenance: "maintenance",
-} as const satisfies Record<string, ServiceState>;

@@ -6,6 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import logging
 import shutil
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -22,18 +23,10 @@ from schedules.models import SchedulerState
 from notifications.models import EmailWorkerStatus, EmailWorkerState
 from notifications.worker import INT_EMAIL_WORKER_MAX_AGE_SECONDS
 
-from .contracts import (
-    ServiceState,
-    InstanceHealthStatus,
-    InstanceComponent,
-    InstanceComponentResponse,
-    InstanceStorageResponse,
-    InstanceBackupResponse,
-    InstanceSummaryResponse,
-)
-
+from .contracts import ServiceState, InstanceHealthStatus, InstanceComponent
 from .models import MaintenanceState, CleanupTask, CleanupStatus, CleanupState
 from .cleanup import DICT_CLEANUP_MAX_AGE_SECONDS
+from .backup_contracts import BackupRecordInfo
 from .backup_worker import load_backup_status
 
 _LOGGER = logging.getLogger("console.operations")
@@ -41,7 +34,37 @@ _INT_SCHEDULE_SCAN_MAX_AGE_SECONDS = 60
 _INT_STORAGE_WARNING_BYTES = 10 * 1024**3
 
 
-def load_instance_summary() -> InstanceSummaryResponse:
+@dataclass(frozen=True)
+class InstanceComponentInfo:
+    component: InstanceComponent
+    status: InstanceHealthStatus
+    checkedAt: datetime | None
+    message: str
+
+
+@dataclass(frozen=True)
+class InstanceStorageInfo:
+    totalBytes: int | None
+    usedBytes: int | None
+    freeBytes: int | None
+    status: InstanceHealthStatus
+    checkedAt: datetime
+    message: str
+
+
+@dataclass(frozen=True)
+class InstanceSummary:
+    version: str
+    serviceState: ServiceState | None
+    maintenanceEnteredAt: datetime | None
+    lastSuccessfulBackup: BackupRecordInfo | None
+    updatedAt: datetime
+    timeZone: str
+    components: list[InstanceComponentInfo]
+    storage: InstanceStorageInfo
+
+
+def load_instance_summary() -> InstanceSummary:
     databaseStatus = InstanceHealthStatus.HEALTHY
     strDatabaseMessage = "Database query succeeded."
     try:
@@ -225,7 +248,7 @@ def load_instance_summary() -> InstanceSummaryResponse:
     backupStatus = InstanceHealthStatus.UNKNOWN
     backupCheckedAt = None
     strBackupMessage = "The database check failed; backup status is unavailable."
-    lastSuccessfulBackup = None
+    lastSuccessfulBackup: BackupRecordInfo | None = None
     if databaseStatus == InstanceHealthStatus.HEALTHY:
         try:
             backup = load_backup_status()
@@ -239,11 +262,7 @@ def load_instance_summary() -> InstanceSummaryResponse:
                 and lastSuccess.dataAsOf is not None
                 and lastSuccess.sizeBytes is not None
             ):
-                lastSuccessfulBackup = InstanceBackupResponse(
-                    ended_at=lastSuccess.endedAt,
-                    data_as_of=lastSuccess.dataAsOf,
-                    size_bytes=lastSuccess.sizeBytes,
-                )
+                lastSuccessfulBackup = lastSuccess
         except (DatabaseError, OSError) as e:
             strBackupMessage = "Backup status could not be read."
             _LOGGER.warning(
@@ -251,34 +270,34 @@ def load_instance_summary() -> InstanceSummaryResponse:
             )
 
     listComponent = [
-        InstanceComponentResponse(
+        InstanceComponentInfo(
             component=InstanceComponent.DATABASE,
             status=databaseStatus,
-            checked_at=databaseCheckedAt,
+            checkedAt=databaseCheckedAt,
             message=strDatabaseMessage,
         ),
-        InstanceComponentResponse(
+        InstanceComponentInfo(
             component=InstanceComponent.SCHEDULER,
             status=schedulerStatus,
-            checked_at=schedulerCheckedAt,
+            checkedAt=schedulerCheckedAt,
             message=strSchedulerMessage,
         ),
-        InstanceComponentResponse(
+        InstanceComponentInfo(
             component=InstanceComponent.EMAIL,
             status=emailStatus,
-            checked_at=emailCheckedAt,
+            checkedAt=emailCheckedAt,
             message=strEmailMessage,
         ),
-        InstanceComponentResponse(
+        InstanceComponentInfo(
             component=InstanceComponent.CLEANUP,
             status=cleanupStatus,
-            checked_at=cleanupCheckedAt,
+            checkedAt=cleanupCheckedAt,
             message=strCleanupMessage,
         ),
-        InstanceComponentResponse(
+        InstanceComponentInfo(
             component=InstanceComponent.BACKUP,
             status=backupStatus,
-            checked_at=backupCheckedAt,
+            checkedAt=backupCheckedAt,
             message=strBackupMessage,
         ),
     ]
@@ -310,20 +329,20 @@ def load_instance_summary() -> InstanceSummaryResponse:
         _LOGGER.warning("Instance storage check failed: %s", type(e).__name__)
     storageCheckedAt = timezone.now()
 
-    return InstanceSummaryResponse(
+    return InstanceSummary(
         version=STR_CONSOLE_VERSION,
-        service_state=serviceState,
-        maintenance_entered_at=maintenanceEnteredAt,
-        last_successful_backup=lastSuccessfulBackup,
-        updated_at=timezone.now(),
-        time_zone=settings.TIME_ZONE,
+        serviceState=serviceState,
+        maintenanceEnteredAt=maintenanceEnteredAt,
+        lastSuccessfulBackup=lastSuccessfulBackup,
+        updatedAt=timezone.now(),
+        timeZone=settings.TIME_ZONE,
         components=listComponent,
-        storage=InstanceStorageResponse(
-            total_bytes=intStorageTotal,
-            used_bytes=intStorageUsed,
-            free_bytes=intStorageFree,
+        storage=InstanceStorageInfo(
+            totalBytes=intStorageTotal,
+            usedBytes=intStorageUsed,
+            freeBytes=intStorageFree,
             status=storageStatus,
-            checked_at=storageCheckedAt,
+            checkedAt=storageCheckedAt,
             message=strStorageMessage,
         ),
     )

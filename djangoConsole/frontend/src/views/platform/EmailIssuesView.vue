@@ -1,13 +1,7 @@
 <!-- FileName: EmailIssuesView.vue -->
 <template>
   <div class="d-flex flex-wrap align-center justify-space-between ga-4 mb-4">
-    <div>
-      <h2 class="text-subtitle-1">Failed Today</h2>
-      <p class="text-h4">{{ issuePage?.failed_today ?? "—" }}</p>
-      <p v-if="issuePage" class="text-body-2 text-medium-emphasis mt-1">
-        {{ issuePage.today }} · {{ issuePage.time_zone }}
-      </p>
-    </div>
+    <h1 class="text-h5">Email Issues</h1>
 
     <v-btn
       variant="tonal"
@@ -29,6 +23,14 @@
   <p v-if="issuePage" class="text-body-2 text-medium-emphasis mb-4">
     Updated at {{ formatDateTime(issuePage.updated_at, issuePage.time_zone) }}
   </p>
+
+  <div class="mb-4">
+    <h2 class="text-subtitle-1">Failed Today</h2>
+    <p class="text-h4">{{ issuePage?.failed_today ?? "—" }}</p>
+    <p v-if="issuePage" class="text-body-2 text-medium-emphasis mt-1">
+      {{ issuePage.today }} · {{ issuePage.time_zone }}
+    </p>
+  </div>
 
   <h2 class="text-h6 mb-3">Recent Issues</h2>
 

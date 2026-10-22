@@ -1,5 +1,5 @@
 # FileName: prometheus.service
-# Install the official prometheus binary at /usr/local/bin/prometheus.
+# Install matching official prometheus and promtool binaries in /usr/local/bin.
 # Copy this unit to /etc/systemd/system/liberrpa-prometheus.service.
 [Unit]
 Description=LiberRPA host metrics storage
@@ -8,6 +8,7 @@ After=network.target
 [Service]
 DynamicUser=yes
 StateDirectory=liberrpa-prometheus
+ExecStartPre=/usr/local/bin/promtool check config /etc/liberrpa-console/monitoring/prometheus.yml
 ExecStart=/usr/local/bin/prometheus --config.file=/etc/liberrpa-console/monitoring/prometheus.yml --web.listen-address=127.0.0.1:9090 --storage.tsdb.path=/var/lib/liberrpa-prometheus --storage.tsdb.retention.time=15d
 Restart=on-failure
 

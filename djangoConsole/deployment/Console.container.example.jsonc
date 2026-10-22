@@ -16,7 +16,6 @@
     "passwordFile": "../secrets/database-password.txt"
   },
   "fileTransferProxy": { "host": "127.0.0.1", "port": 9999 },
-  "monitoring": null,
   // Enable after mounting and checking a separate backup location.
   // Example: { "location": "/backup", "dailyTime": "03:00", "notificationEmail": "admin@example.com" }
   "backup": null,

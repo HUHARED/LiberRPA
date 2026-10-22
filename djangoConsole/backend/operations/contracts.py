@@ -389,68 +389,6 @@ class InstanceComponent(TextChoices):
     BACKUP = "backup", "Backup"
 
 
-class InstanceComponentResponse(JsonResponsePayload):
-    component: InstanceComponent
-    status: InstanceHealthStatus
-    checked_at: datetime | None
-    message: str
-
-
-class InstanceStorageResponse(JsonResponsePayload):
-    total_bytes: int | None
-    used_bytes: int | None
-    free_bytes: int | None
-    status: InstanceHealthStatus
-    checked_at: datetime
-    message: str
-
-
-class InstanceBackupResponse(JsonResponsePayload):
-    ended_at: datetime
-    data_as_of: datetime
-    size_bytes: int
-
-
-class InstanceSummaryResponse(JsonResponsePayload):
-    version: str
-    service_state: ServiceState | None
-    maintenance_entered_at: datetime | None
-    last_successful_backup: InstanceBackupResponse | None
-    updated_at: datetime
-    time_zone: str
-    components: list[InstanceComponentResponse]
-    storage: InstanceStorageResponse
-
-
-class InstanceHistoryRange(TextChoices):
-    HOUR = "1h", "Last Hour"
-    DAY = "24h", "Last 24 Hours"
-    WEEK = "7d", "Last 7 Days"
-    FIFTEEN_DAYS = "15d", "Last 15 Days"
-
-
-class InstanceMetricsResponse(JsonResponsePayload):
-    cpu_percent: float | None
-    memory_percent: float | None
-    network_receive_bytes_per_second: float | None
-    network_transmit_bytes_per_second: float | None
-
-
-class InstanceHistorySampleResponse(InstanceMetricsResponse):
-    timestamp: datetime
-
-
-class InstanceStatusResponse(JsonResponsePayload):
-    configured: bool
-    range: InstanceHistoryRange = Field(strict=False)
-    interval_seconds: int
-    network_interfaces: list[str]
-    network_interface: str | None
-    collected_at: datetime | None
-    current: InstanceMetricsResponse
-    history: list[InstanceHistorySampleResponse]
-
-
 class EmailIssueResponse(JsonResponsePayload):
     id: UUID
     organization_id: UUID | None

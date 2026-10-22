@@ -28,10 +28,9 @@
         :active="route.path.startsWith('/platform/organizations')"
         color="primary" />
       <v-list-item
-        title="Instance Status"
-        prepend-icon="mdi-server-outline"
-        to="/platform/instance-status"
-        :active="route.path.startsWith('/platform/instance-status')"
+        title="Email Issues"
+        prepend-icon="mdi-email-alert-outline"
+        to="/platform/email-issues"
         color="primary" />
       <v-list-item
         title="Platform Audit Log"

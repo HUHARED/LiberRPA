@@ -13,7 +13,6 @@ from .audit_views import (
 )
 from .models import AuditScope
 from .service_settings_views import get_or_update_service_settings
-from .instance_views import get_instance_summary, get_instance_status
 from .email_views import list_email_issues, get_email_issue_filters
 from .organization_views import (
     list_platform_organizations,
@@ -33,16 +32,6 @@ urlpatterns = [
         "platform/email-issues/filters/",
         get_email_issue_filters,
         name="platform-email-issue-filters",
-    ),
-    path(
-        "platform/instance-status/summary/",
-        get_instance_summary,
-        name="platform-instance-summary",
-    ),
-    path(
-        "platform/instance-status/",
-        get_instance_status,
-        name="platform-instance-status",
     ),
     path(
         "platform/organizations/",

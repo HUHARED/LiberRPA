@@ -46,8 +46,7 @@ export function getSafeReturnPath(value: unknown, platformAdmin = false): string
 
   const boolPlatformPath =
     strPath === "/platform/organizations" ||
-    strPath === "/platform/instance-status" ||
-    strPath === "/platform/instance-status/email" ||
+    strPath === "/platform/email-issues" ||
     strPath === "/platform/audit-log" ||
     /^\/platform\/organizations\/[0-9a-f-]{36}(?:\/(?:limits|audit-log))?$/i.test(strPath);
   if (platformAdmin) return boolPlatformPath ? value : strHomePath;

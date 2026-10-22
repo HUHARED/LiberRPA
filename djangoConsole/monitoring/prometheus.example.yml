@@ -7,7 +7,7 @@ global:
   evaluation_interval: 1m
 
 rule_files:
-  - host.rules.yml
+  - /etc/liberrpa-console/monitoring/host.rules.yml
 
 scrape_configs:
   - job_name: liberrpa-host

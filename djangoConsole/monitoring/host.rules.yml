@@ -1,5 +1,5 @@
 # FileName: host.rules.yml
-# The metric label preserves the field identity after max_over_time removes __name__.
+# Query these metrics directly in Prometheus or promtool; network series keep their device label.
 groups:
   - name: liberrpa-host
     rules:
@@ -8,37 +8,19 @@ groups:
           clamp(100 * (1 - avg by (job, instance)
           (irate(node_cpu_seconds_total{job="liberrpa-host", mode="idle"}[5m]))), 0, 100)
           and on (job, instance) (up{job="liberrpa-host"} == 1)
-        labels:
-          metric: cpu_percent
 
       - record: liberrpa_host_memory_percent
         expr: >-
           clamp(100 * (1 - node_memory_MemAvailable_bytes{job="liberrpa-host"}
           / node_memory_MemTotal_bytes{job="liberrpa-host"}), 0, 100)
           and on (job, instance) (up{job="liberrpa-host"} == 1)
-        labels:
-          metric: memory_percent
 
       - record: liberrpa_host_network_receive_bytes_per_second
         expr: >-
           irate(node_network_receive_bytes_total{job="liberrpa-host", device!="lo"}[5m])
           and on (job, instance) (up{job="liberrpa-host"} == 1)
-        labels:
-          metric: network_receive_bytes_per_second
 
       - record: liberrpa_host_network_transmit_bytes_per_second
         expr: >-
           irate(node_network_transmit_bytes_total{job="liberrpa-host", device!="lo"}[5m])
           and on (job, instance) (up{job="liberrpa-host"} == 1)
-        labels:
-          metric: network_transmit_bytes_per_second
-
-      - record: liberrpa_host_up
-        expr: up{job="liberrpa-host"}
-        labels:
-          metric: up
-
-      - record: liberrpa_host_scraped_at_seconds
-        expr: timestamp(up{job="liberrpa-host"})
-        labels:
-          metric: scraped_at_seconds
