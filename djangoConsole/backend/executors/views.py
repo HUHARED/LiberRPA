@@ -46,7 +46,7 @@ from .contracts import (
     ExecutorDetailsResponse,
 )
 from .group_queries import get_executor_group_references
-from .http import (
+from .payloads import (
     build_executor_payload,
     build_executor_info_payload,
     build_executor_work_payload,

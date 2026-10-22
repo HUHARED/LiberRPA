@@ -21,7 +21,7 @@ from .views import (
 )
 from .logs import clear_logs, list_logs, upload_logs
 from .transfers import create_file_transfer, set_file_ready
-from .protocol import executor_work_endpoint
+from .executor_views import executor_work_endpoint
 
 urlpatterns = [
     path("jobs/", list_or_create_jobs, name="jobs"),

@@ -1,4 +1,4 @@
-# FileName: dispatch_control.py
+# FileName: worker_state.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"

@@ -19,7 +19,7 @@ from console_project.workers import (
     hold_worker_session,
     stop_on_signals,
 )
-from runs.dispatch_control import require_control_service
+from runs.worker_state import require_control_service
 from operations.models import MaintenanceState
 from schedules.worker import ScheduleScanWindow, scan_schedules
 
@@ -52,11 +52,15 @@ class Command(BaseCommand):
                     try:
                         control = require_control_service(timezone.now())
                         boolReady = (
-                            control.recovery_until is None
-                            or control.recovery_until <= timezone.now()
-                        ) and not is_restored_service_pending_review() and not MaintenanceState.objects.filter(
-                            pk=1, entered_at__isnull=False
-                        ).exists()
+                            (
+                                control.recovery_until is None
+                                or control.recovery_until <= timezone.now()
+                            )
+                            and not is_restored_service_pending_review()
+                            and not MaintenanceState.objects.filter(
+                                pk=1, entered_at__isnull=False
+                            ).exists()
+                        )
                     except ValidationError:
                         boolReady = False
                     if not boolReady:

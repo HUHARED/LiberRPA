@@ -19,7 +19,7 @@ from console_project.recovery import (
 
 from runs.contracts import JobState, RunStatus
 from runs.models import Job, Run
-from runs.dispatch_control import require_control_service
+from runs.worker_state import require_control_service
 from schedules.cron import get_next_trigger
 from schedules.models import Schedule, SchedulerState
 

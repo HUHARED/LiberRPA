@@ -44,7 +44,7 @@ from .contracts import JobSource, JobState, JobCreationRequest
 from .models import JobRequest, Job, JobAdmissionBudget
 from operations.maintenance import require_service_normal
 
-from .dispatch_control import require_control_service
+from .worker_state import require_control_service
 
 if TYPE_CHECKING:
     from schedules.models import Schedule

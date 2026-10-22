@@ -54,7 +54,7 @@ from .group_services import (
     update_executor_group,
     delete_executor_group,
 )
-from .http import (
+from .payloads import (
     build_executor_info_payload,
 )
 from .models import ExecutorGroup

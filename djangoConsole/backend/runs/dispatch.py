@@ -29,7 +29,7 @@ from operations.maintenance import ServiceMaintenanceError, require_service_norm
 from .contracts import JobState, AssignmentState, ACTIVE_ASSIGNMENT_STATES
 from .models import Job, ExecutorWorkState, Assignment, DispatchControl
 from .control_notifications import notify_executor_control
-from .dispatch_control import require_control_service
+from .worker_state import require_control_service
 from .services import has_job_source_access, finish_job, revoke_job_source_access
 
 _INT_WORK_STATE_MAX_AGE_SECONDS = 45

@@ -15,7 +15,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "console_project.settings")
 djangoApplication = get_asgi_application()
 
 from runs.transfers import RunFileRelay
-from runs.control import ExecutorControl
+from runs.executor_socket import ExecutorControl
 from accounts.browser_socket import BrowserSocket
 
 # Django and asgiref use different type annotations for the same ASGI interface.

@@ -18,7 +18,7 @@ from django.utils import timezone
 from console_project.version import STR_CONSOLE_VERSION
 from console_project.recovery import is_restored_service_pending_review
 
-from runs.dispatch_control import require_control_service
+from runs.worker_state import require_control_service
 from schedules.models import SchedulerState
 from notifications.models import EmailWorkerStatus, EmailWorkerState
 from notifications.worker import INT_EMAIL_WORKER_MAX_AGE_SECONDS

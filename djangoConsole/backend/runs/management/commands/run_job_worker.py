@@ -13,7 +13,7 @@ from console_project.workers import (
     hold_worker_session,
     stop_on_signals,
 )
-from runs.dispatch_control import start_control_cycle
+from runs.worker_state import start_control_cycle
 from runs.dispatch import run_control_tick
 
 

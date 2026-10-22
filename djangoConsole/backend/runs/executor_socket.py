@@ -1,4 +1,4 @@
-# FileName: control.py
+# FileName: executor_socket.py
 import asyncio
 import json
 import logging
@@ -39,12 +39,12 @@ from executors.client_sessions import (
     get_executor_session_identity,
     open_executor_client_request,
 )
-from executors.client_views import build_client_session_payload
+from executors.payloads import build_client_session_payload
 from executors.models import Executor
 
 from .contracts import WorkPollRequest
 from .control_notifications import listen_for_executor_notifications
-from .protocol import update_executor_work_state
+from .executor_state import update_executor_work_state
 
 _LOGGER = logging.getLogger("console.runs.control")
 _STR_CONTROL_PATH = "/api/clients/executor/control/"

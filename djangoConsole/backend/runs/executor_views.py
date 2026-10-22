@@ -1,4 +1,4 @@
-# FileName: protocol.py
+# FileName: executor_views.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
@@ -26,7 +26,6 @@ from console_project.http import (
     build_rate_limited_response,
     parse_json_request,
 )
-
 from executors.client_sessions import (
     InvalidExecutorSessionError,
     ExecutorClientAction,
@@ -34,7 +33,7 @@ from executors.client_sessions import (
     get_executor_session_identity,
     open_executor_client_request,
 )
-from executors.models import ExecutorSession
+from operations.maintenance import ServiceMaintenanceError
 
 from .contracts import (
     JobState,
@@ -46,9 +45,8 @@ from .contracts import (
     WorkPermitRequest,
     WorkEventsRequest,
 )
-from .models import ExecutorWorkState, Assignment, Run, RunEvent
-from operations.maintenance import ServiceMaintenanceError
-
+from .models import Assignment, Run, RunEvent
+from .executor_state import update_executor_work_state
 from .dispatch import get_start_evidence_not_before, issue_start_permit
 from .events import receive_event
 
@@ -107,43 +105,6 @@ class ResolvedEventAssignment(TypedDict):
 
 class WorkEventRetentionResponse(TypedDict):
     resolved_assignments: list[ResolvedEventAssignment]
-
-
-def update_executor_work_state(
-    session: ExecutorSession, payload: WorkPollRequest
-) -> None:
-    """Save a validated report inside the caller's locked association transaction."""
-    currentTime = timezone.now()
-    listRunningRunId = [str(entry) for entry in payload.running_run_ids]
-    work, boolCreated = ExecutorWorkState.objects.get_or_create(
-        executor_id=session.executor_id,
-        defaults={
-            "session_id": session.id,
-            "reported_at": currentTime,
-            "running_run_ids": listRunningRunId,
-            "local_waiting_count": payload.local_waiting_count,
-            "other_active_run_count": payload.other_active_run_count,
-        },
-    )
-    if boolCreated:
-        return
-
-    # Freshness is a new fact on every report; unchanged occupancy is not.
-    work.reported_at = currentTime
-    listUpdateField = ["reported_at"]
-    if work.session_id != session.id:
-        work.session_id = session.id
-        listUpdateField.append("session_id")
-    if work.running_run_ids != listRunningRunId:
-        work.running_run_ids = listRunningRunId
-        listUpdateField.append("running_run_ids")
-    if work.local_waiting_count != payload.local_waiting_count:
-        work.local_waiting_count = payload.local_waiting_count
-        listUpdateField.append("local_waiting_count")
-    if work.other_active_run_count != payload.other_active_run_count:
-        work.other_active_run_count = payload.other_active_run_count
-        listUpdateField.append("other_active_run_count")
-    work.save(update_fields=listUpdateField)
 
 
 def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> JsonResponse:
