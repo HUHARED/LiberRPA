@@ -14,6 +14,7 @@ from django.core.exceptions import ValidationError
 from django.db import DatabaseError, transaction
 from django.utils import timezone
 
+from console_project.logging import get_exception_summary
 from console_project.recovery import is_restored_service_pending_review
 from notifications.models import EmailType, EmailDelivery
 
@@ -111,9 +112,11 @@ def _prune_successful_backups() -> str:
             pathBackup = pathRoot / backupId.hex
             if pathBackup.exists():
                 shutil.rmtree(pathBackup)
-        except OSError as e:
+        except OSError:
             boolFailed = True
-            _LOGGER.warning("Old backup removal failed: %s", type(e).__name__)
+            _LOGGER.warning(
+                "Old backup removal failed: backup=%s.", backupId, exc_info=True
+            )
             continue
         BackupRecord.objects.filter(pk=backupId, status=BackupStatus.SUCCEEDED).delete()
     return "Some older backups could not be removed." if boolFailed else ""
@@ -131,7 +134,7 @@ def _finish_backup(record: BackupRecord, *, succeeded: bool, message: str) -> No
         state = _lock_backup_state()
         record.status = BackupStatus.SUCCEEDED if succeeded else BackupStatus.FAILED
         record.ended_at = timezone.now()
-        record.details = message
+        record.details = message[:500]
         record.save()
         record_audit(
             AuditAction.BACKUP_COMPLETE,
@@ -140,10 +143,11 @@ def _finish_backup(record: BackupRecord, *, succeeded: bool, message: str) -> No
             target=record,
             scope=AuditScope.PLATFORM,
             result=AuditResult.SUCCEEDED if succeeded else AuditResult.FAILED,
+            metadata={"reason": record.details} if not succeeded else None,
         )
         # Keep an older fault open until successful retention has also completed.
         if not succeeded:
-            _record_problem(state, message, record.ended_at)
+            _record_problem(state, record.details, record.ended_at)
     if succeeded:
         strCleanupError = _prune_successful_backups()
         with transaction.atomic():
@@ -179,16 +183,20 @@ def recover_interrupted_backups() -> None:
                 continue
         except DatabaseError:
             raise
-        except Exception as e:
+        except Exception:
             _LOGGER.warning(
-                "Interrupted backup verification failed: %s", type(e).__name__
+                "Interrupted backup verification failed: backup=%s.",
+                record.id,
+                exc_info=True,
             )
         pathPartial = get_backup_location() / (record.id.hex + ".partial")
         try:
             if pathPartial.exists():
                 shutil.rmtree(pathPartial)
-        except OSError as e:
-            _LOGGER.warning("Interrupted backup cleanup failed: %s", type(e).__name__)
+        except OSError:
+            _LOGGER.warning(
+                "Interrupted backup cleanup failed: backup=%s.", record.id, exc_info=True
+            )
         _finish_backup(
             record,
             succeeded=False,
@@ -248,24 +256,37 @@ def process_next_backup() -> bool:
         record.started_at = timezone.now()
         record.save(update_fields=["status", "stage", "started_at"])
 
-    def reportStage(stage: BackupStage, dataAsOf: datetime | None) -> None:
+    def report_stage(stage: BackupStage, dataAsOf: datetime | None) -> None:
         BackupRecord.objects.filter(pk=record.id).update(stage=stage, data_as_of=dataAsOf)
+        record.stage = stage
         report_backup_worker(BackupWorkerStatus.RUNNING)
 
     try:
-        result = create_backup(record.id, reportStage=reportStage)
+        result = create_backup(record.id, reportStage=report_stage)
     except DatabaseError:
         # The session owns the worker lock; do not reconnect to report a database failure.
+        _LOGGER.exception(
+            "Backup database operation failed: backup=%s stage=%s.",
+            record.id,
+            record.stage,
+        )
         raise
     except Exception as e:
         strMessage = (
             str(e)
             if isinstance(e, BackupError)
-            else "Backup creation failed. Check the server backup log."
+            else f"{get_exception_summary(e)}. Check the server backup log."
         )
-        _LOGGER.warning("Backup creation failed (%s): %s", type(e).__name__, strMessage)
+        strMessage = f"{BackupStage(record.stage).label}: {strMessage}"
+        _LOGGER.warning(
+            "Backup creation failed: backup=%s stage=%s. %s",
+            record.id,
+            record.stage,
+            strMessage,
+            exc_info=True,
+        )
         record.refresh_from_db()
-        _finish_backup(record, succeeded=False, message=strMessage[:500])
+        _finish_backup(record, succeeded=False, message=strMessage)
     else:
         record.refresh_from_db()
         record.data_as_of = result.dataAsOf

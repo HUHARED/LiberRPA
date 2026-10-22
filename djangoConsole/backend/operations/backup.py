@@ -33,8 +33,13 @@ from pydantic import (
     model_validator,
 )
 
-from console_project.config import ConsoleConfigSnapshot, parse_config, read_config_snapshot
+from console_project.config import (
+    ConsoleConfigSnapshot,
+    parse_config,
+    read_config_snapshot,
+)
 from console_project.local_locks import hold_local_lock
+from console_project.logging import capture_command_errors
 from console_project.version import STR_CONSOLE_VERSION
 
 from .backup_contracts import BackupStage
@@ -110,7 +115,9 @@ class BackupManifest(BaseModel):
         ):
             raise ValueError("Backup members must be unique.")
         setRequired = {"database.dump", "config/Console.jsonc"}
-        setBlobPath = {f"storage/{blobId.hex[:2]}/{blobId.hex}" for blobId in self.blob_ids}
+        setBlobPath = {
+            f"storage/{blobId.hex[:2]}/{blobId.hex}" for blobId in self.blob_ids
+        }
         if not setRequired.issubset(listPath):
             raise ValueError("Backup database and configuration are required.")
         if {value for value in listPath if value.startswith("storage/")} != setBlobPath:
@@ -175,7 +182,9 @@ def verify_backup(path: Path) -> BackupManifest:
                 )
         return manifest
     except (OSError, ValueError, ValidationError, ImproperlyConfigured) as e:
-        raise BackupError("The backup could not be read or did not pass validation.") from e
+        raise BackupError(
+            "The backup could not be read or did not pass validation."
+        ) from e
 
 
 def create_backup(
@@ -265,15 +274,14 @@ def create_backup(
                 write_bytes(f"config/secrets/{strFileName}", snapshot.secrets[strSource])
 
             strPassword = snapshot.read_secret(config.database.passwordFile)
-            dictConnection = {
-                "host": config.database.host,
-                "port": config.database.port,
-                "dbname": config.database.name,
-                "user": config.database.user,
-                "password": strPassword,
-                "connect_timeout": 3,
-            }
-            with psycopg.connect(**dictConnection) as database:
+            with psycopg.connect(
+                host=config.database.host,
+                port=config.database.port,
+                dbname=config.database.name,
+                user=config.database.user,
+                password=strPassword,
+                connect_timeout=3,
+            ) as database:
                 database.execute(
                     "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
                 )
@@ -349,33 +357,39 @@ def create_backup(
                 }
                 dictEnvironment["PGPASSFILE"] = str(pathPassfile)
                 try:
-                    result = subprocess.run(
-                        [
-                            "pg_dump",
-                            "--format=custom",
-                            "--no-password",
-                            "--no-acl",
-                            f"--host={config.database.host}",
-                            f"--port={config.database.port}",
-                            f"--username={config.database.user}",
-                            f"--dbname={config.database.name}",
-                            f"--snapshot={strSnapshotId}",
-                            f"--file={pathPartial / 'database.dump'}",
-                        ],
-                        env=dictEnvironment,
-                        stdin=subprocess.DEVNULL,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        check=False,
-                    )
-                except FileNotFoundError:
+                    with capture_command_errors(
+                        _LOGGER, "pg_dump", secrets=(strPassword,)
+                    ) as intErrorDescriptor:
+                        subprocess.run(
+                            [
+                                "pg_dump",
+                                "--format=custom",
+                                "--no-password",
+                                "--no-acl",
+                                f"--host={config.database.host}",
+                                f"--port={config.database.port}",
+                                f"--username={config.database.user}",
+                                f"--dbname={config.database.name}",
+                                f"--snapshot={strSnapshotId}",
+                                f"--file={pathPartial / 'database.dump'}",
+                            ],
+                            env=dictEnvironment,
+                            stdin=subprocess.DEVNULL,
+                            stdout=subprocess.DEVNULL,
+                            stderr=intErrorDescriptor,
+                            check=True,
+                        )
+                except FileNotFoundError as e:
                     raise BackupError(
                         "The PostgreSQL pg_dump program is unavailable."
-                    ) from None
+                    ) from e
+                except subprocess.CalledProcessError as e:
+                    raise BackupError(
+                        f"PostgreSQL could not export the database (pg_dump exit code {e.returncode}). "
+                        "Check the server backup log."
+                    ) from e
                 finally:
                     pathPassfile.unlink(missing_ok=True)
-                if result.returncode != 0:
-                    raise BackupError("PostgreSQL could not export the database.")
             with (pathPartial / "database.dump").open("rb") as handle:
                 os.fsync(handle.fileno())
             listFile.append(describe_file("database.dump"))
@@ -402,7 +416,8 @@ def create_backup(
             verify_backup(pathPartial)
             reportStage(BackupStage.FINALIZING, dataAsOf)
             for pathDirectory in sorted(
-                (entry for entry in pathPartial.rglob("*") if entry.is_dir()), reverse=True
+                (entry for entry in pathPartial.rglob("*") if entry.is_dir()),
+                reverse=True,
             ):
                 sync_directory(pathDirectory)
             sync_directory(pathPartial)
@@ -418,8 +433,10 @@ def create_backup(
         try:
             if pathPartial.exists():
                 shutil.rmtree(pathPartial)
-        except OSError as e:
+        except OSError:
             _LOGGER.warning(
-                "Could not remove incomplete backup files: %s", type(e).__name__
+                "Could not remove incomplete backup files: backup=%s.",
+                backupId,
+                exc_info=True,
             )
         raise

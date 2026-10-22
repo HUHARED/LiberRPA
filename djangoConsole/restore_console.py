@@ -7,11 +7,13 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import argparse
 import hashlib
 import json
+import logging
+import logging.config
 import os
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import django
@@ -24,6 +26,11 @@ _PATH_CONSOLE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_PATH_CONSOLE / "backend"))
 
 from console_project.config import DatabaseConfig, parse_config
+from console_project.logging import (
+    get_exception_summary,
+    capture_command_errors,
+    build_logging_config,
+)
 from console_project.recovery import (
     STR_RESTORE_PENDING_FILE,
     STR_RESTORE_READY_FILE,
@@ -32,25 +39,35 @@ from console_project.recovery import (
 from console_project.version import STR_CONSOLE_VERSION
 from operations.backup import BackupError, verify_backup
 
+_LOGGER = logging.getLogger("console.restore")
+
 
 def restore_backup(backupPath: Path, targetPath: Path, database: DatabaseConfig) -> Path:
     """Restore into a separate empty directory and an already-created empty database."""
     pathBackup = backupPath.resolve(strict=True)
     pathTarget = targetPath.resolve()
     if pathTarget == pathBackup or pathTarget.is_relative_to(pathBackup):
-        raise BackupError("The restore target must be separate from the backup directory.")
+        raise BackupError(
+            "The restore target must be separate from the backup directory."
+        )
     if targetPath.is_symlink() or (pathTarget.exists() and any(pathTarget.iterdir())):
         raise BackupError("The restore target must be an empty directory.")
     if database.name in ("postgres", "template0", "template1"):
         raise BackupError("Use a separate empty Console database.")
+    _LOGGER.info("Validating backup files.")
     manifest = verify_backup(pathBackup)
     if manifest.console_version != STR_CONSOLE_VERSION:
         raise BackupError("Use the Console release recorded in this backup.")
     if manifest.django_version.split(".")[:2] != django.get_version().split(".")[:2]:
-        raise BackupError("Use the Django major and minor version recorded in this backup.")
-    strPassword = Path(database.passwordFile).resolve(strict=True).read_text(
-        encoding="utf-8-sig"
-    ).rstrip("\r\n")
+        raise BackupError(
+            "Use the Django major and minor version recorded in this backup."
+        )
+    strPassword = (
+        Path(database.passwordFile)
+        .resolve(strict=True)
+        .read_text(encoding="utf-8-sig")
+        .rstrip("\r\n")
+    )
     if not strPassword.strip() or "\r" in strPassword or "\n" in strPassword:
         raise BackupError("Use a single-line database password.")
     strConnection = make_conninfo(
@@ -63,13 +80,18 @@ def restore_backup(backupPath: Path, targetPath: Path, database: DatabaseConfig)
     strRestore = shutil.which("pg_restore")
     if strRestore is None:
         raise BackupError("pg_restore is required on PATH.")
-    subprocess.run(
-        [strRestore, "--list", str(pathBackup / "database.dump")],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-    )
+    _LOGGER.info("Checking the PostgreSQL archive.")
+    with capture_command_errors(
+        _LOGGER, "pg_restore --list", secrets=(strPassword,)
+    ) as intErrorDescriptor:
+        subprocess.run(
+            [strRestore, "--list", str(pathBackup / "database.dump")],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=intErrorDescriptor,
+        )
 
+    _LOGGER.info("Checking the target database.")
     with psycopg.connect(
         strConnection, password=strPassword, autocommit=True
     ) as databaseConnection:
@@ -81,15 +103,21 @@ def restore_backup(backupPath: Path, targetPath: Path, database: DatabaseConfig)
             )
             databaseInfo = cursor.fetchone()
             if databaseInfo is None or databaseInfo[0] != database.user:
-                raise BackupError("The target database must belong to the configured Console role.")
+                raise BackupError(
+                    "The target database must belong to the configured Console role."
+                )
             if tuple(databaseInfo[1:4]) != (
                 manifest.database_encoding,
                 manifest.database_collation,
                 manifest.database_ctype,
             ):
-                raise BackupError("The target database encoding and locale must match the backup.")
+                raise BackupError(
+                    "The target database encoding and locale must match the backup."
+                )
             if databaseInfo[4] // 10000 < int(manifest.postgres_version.split(".", 1)[0]):
-                raise BackupError("The target PostgreSQL version is older than the backup server.")
+                raise BackupError(
+                    "The target PostgreSQL version is older than the backup server."
+                )
             cursor.execute(
                 "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname NOT IN "
                 "('public', 'information_schema') AND nspname NOT LIKE 'pg_%') "
@@ -102,13 +130,17 @@ def restore_backup(backupPath: Path, targetPath: Path, database: DatabaseConfig)
                 "OR EXISTS (SELECT 1 FROM pg_extension WHERE extname <> 'plpgsql')"
             )
             if cursor.fetchone() != (False,):
-                raise BackupError("The target database is not empty; no data was overwritten.")
+                raise BackupError(
+                    "The target database is not empty; no data was overwritten."
+                )
             cursor.execute(
                 "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
                 "WHERE datname=current_database() AND pid<>pg_backend_pid())"
             )
             if cursor.fetchone() != (False,):
-                raise BackupError("Stop other connections to the target database before restoring.")
+                raise BackupError(
+                    "Stop other connections to the target database before restoring."
+                )
 
     pathTarget.mkdir(parents=True, exist_ok=True, mode=0o700)
     pathPending = pathTarget / STR_RESTORE_PENDING_FILE
@@ -128,6 +160,7 @@ def restore_backup(backupPath: Path, targetPath: Path, database: DatabaseConfig)
     sync_directory(pathTarget)
     pathPassword = pathTarget / ".restore.pgpass"
     try:
+        _LOGGER.info("Copying backup files and configuration.")
         for entry in manifest.files:
             if entry.path.startswith("config/secrets/"):
                 pathDestination = pathTarget / entry.path.removeprefix("config/")
@@ -167,7 +200,13 @@ def restore_backup(backupPath: Path, targetPath: Path, database: DatabaseConfig)
 
         strPasswordLine = ":".join(
             str(value).replace("\\", "\\\\").replace(":", "\\:")
-            for value in (database.host, database.port, database.name, database.user, strPassword)
+            for value in (
+                database.host,
+                database.port,
+                database.name,
+                database.user,
+                strPassword,
+            )
         )
         with pathPassword.open("x", encoding="utf-8") as handle:
             pathPassword.chmod(0o600)
@@ -176,31 +215,40 @@ def restore_backup(backupPath: Path, targetPath: Path, database: DatabaseConfig)
         for strName in ("PGPASSWORD", "PGPASSFILE", "PGSERVICE", "PGSERVICEFILE"):
             dictEnvironment.pop(strName, None)
         dictEnvironment["PGPASSFILE"] = str(pathPassword)
-        subprocess.run(
-            [
-                strRestore,
-                "--single-transaction",
-                "--exit-on-error",
-                "--no-owner",
-                "--no-privileges",
-                "--dbname",
-                strConnection,
-                str(pathBackup / "database.dump"),
-            ],
-            env=dictEnvironment,
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-        )
+        _LOGGER.info("Restoring the database.")
+        with capture_command_errors(
+            _LOGGER, "pg_restore", secrets=(strPassword,)
+        ) as intErrorDescriptor:
+            subprocess.run(
+                [
+                    strRestore,
+                    "--single-transaction",
+                    "--exit-on-error",
+                    "--no-owner",
+                    "--no-privileges",
+                    "--dbname",
+                    strConnection,
+                    str(pathBackup / "database.dump"),
+                ],
+                env=dictEnvironment,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=intErrorDescriptor,
+            )
 
+        _LOGGER.info("Validating and preparing the restored database.")
         os.environ["LIBERRPA_CONSOLE_CONFIG"] = str(pathConfig)
         os.environ["DJANGO_SETTINGS_MODULE"] = "console_project.settings"
         with permit_restore_setup():
             django.setup()
-        from operations.restore import validate_restored_schema, sanitize_restored_database
+        from operations.restore import (
+            validate_restored_schema,
+            sanitize_restored_database,
+        )
 
         validate_restored_schema(manifest)
-        sanitize_restored_database(manifest, datetime.now(timezone.utc))
+        sanitize_restored_database(manifest, datetime.now(UTC))
+        _LOGGER.info("Finalizing the restored instance.")
         pathPending.replace(pathTarget / STR_RESTORE_READY_FILE)
         sync_directory(pathTarget)
         return pathConfig
@@ -209,6 +257,7 @@ def restore_backup(backupPath: Path, targetPath: Path, database: DatabaseConfig)
 
 
 def main() -> None:
+    logging.config.dictConfig(build_logging_config("INFO"))
     parser = argparse.ArgumentParser(
         description=(
             "Restore a trusted Console backup after stopping the old Console instance "
@@ -233,24 +282,34 @@ def main() -> None:
             passwordFile=str(args.password_file),
         )
         pathConfig = restore_backup(args.backup, args.target, database)
-    except BackupError as e:
-        parser.exit(1, f"Restore stopped: {e}\n")
+    except (BackupError, ImproperlyConfigured) as e:
+        _LOGGER.error("Restore stopped: %s", str(e)[:2000], exc_info=True)
+        parser.exit(
+            1,
+            "Keep the target isolated; any restore.pending marker must remain in place.\n",
+        )
     except (
         OSError,
         ValueError,
-        ImproperlyConfigured,
         DatabaseError,
         psycopg.Error,
         subprocess.CalledProcessError,
     ) as e:
+        _LOGGER.exception("Restore stopped.")
         parser.exit(
             1,
-            f"Restore stopped: {type(e).__name__}. Keep the target isolated; "
+            f"Restore stopped: {get_exception_summary(e)}. Keep the target isolated; "
             "any restore.pending marker must remain in place.\n",
+        )
+    except KeyboardInterrupt:
+        parser.exit(
+            1,
+            "Restore cancelled. Keep the target isolated and preserve any restore.pending marker.\n",
         )
     print(f"Restore completed in maintenance mode. Configuration: {pathConfig}")
     print(
-        "Review restored permissions and settings, then use Resume Service. "
+        "Review restored permissions and settings, then run "
+        "'python backend/manage.py maintenance resume' from the Console directory. "
         "Backups remain disabled."
     )
 

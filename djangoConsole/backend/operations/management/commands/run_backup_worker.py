@@ -12,6 +12,7 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import DatabaseError
 
 from console_project.local_locks import LocalLockUnavailableError, hold_local_lock
+from console_project.logging import get_exception_summary
 from console_project.recovery import is_restored_service_pending_review
 from console_project.workers import (
     BACKUP_WORKER_LOCK_ID,
@@ -38,7 +39,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
-            "--once", action="store_true", help="Process one due or queued backup and exit."
+            "--once",
+            action="store_true",
+            help="Process one due or queued backup and exit.",
         )
 
     def handle(self, *_args: object, **options: object) -> None:
@@ -51,12 +54,14 @@ class Command(BaseCommand):
                 ):
                     pass
                 return
-            pathRoot = get_backup_location()
-            pathRoot.mkdir(mode=0o700, parents=True, exist_ok=True)
             try:
+                pathRoot = get_backup_location()
+                pathRoot.mkdir(mode=0o700, parents=True, exist_ok=True)
                 with (
                     hold_local_lock(pathRoot / ".worker.lock"),
-                    hold_worker_session(lockId=BACKUP_WORKER_LOCK_ID, workerName="backup"),
+                    hold_worker_session(
+                        lockId=BACKUP_WORKER_LOCK_ID, workerName="backup"
+                    ),
                 ):
                     boolStarted = False
                     try:
@@ -98,5 +103,8 @@ class Command(BaseCommand):
                 DatabaseError,
                 OSError,
             ) as e:
-                raise CommandError("Backup worker stopped: " + type(e).__name__) from None
+                _LOGGER.exception("Backup worker stopped.")
+                raise CommandError(
+                    "Backup worker stopped: " + get_exception_summary(e)
+                ) from None
         _LOGGER.info("Backup worker stopped.")

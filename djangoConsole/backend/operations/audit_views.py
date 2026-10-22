@@ -253,7 +253,11 @@ def _build_details_payload(record: AuditRecord) -> dict[str, object]:
         "reason": details.get("metadata", {}).get("reason")
         if record.scope == AuditScope.PLATFORM
         and record.action
-        in (AuditAction.ORGANIZATION_SUSPEND, AuditAction.ORGANIZATION_RESUME)
+        in (
+            AuditAction.ORGANIZATION_SUSPEND,
+            AuditAction.ORGANIZATION_RESUME,
+            AuditAction.BACKUP_COMPLETE,
+        )
         else None,
         "reason_code": details.get("reason_code"),
         "http_status": details.get("http_status"),

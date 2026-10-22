@@ -5,19 +5,30 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import argparse
+import logging
+import logging.config
 import os
 import pwd
 import secrets
 import subprocess
 import sys
 import time
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from cryptography.fernet import Fernet
+from django.core.exceptions import ImproperlyConfigured
+
+from console_project.logging import (
+    get_exception_summary,
+    capture_command_errors,
+    build_logging_config,
+)
+
+_LOGGER = logging.getLogger("console.deployment")
 
 _PATH_APP = Path("/app")
 _PATH_DATA = Path("/data")
@@ -26,19 +37,36 @@ _PATH_POSTGRES = _PATH_DATA / "postgres"
 _PATH_DEPLOYMENT = _PATH_APP / "deployment"
 
 
+class DeploymentError(RuntimeError):
+    """A controlled deployment failure that can be shown without exposing credentials."""
+
+
 def run_as(
     user: str,
     command: list[str],
     *,
     inputText: str | None = None,
     hideOutput: bool = False,
+    secretValues: Iterable[str] = (),
 ) -> subprocess.CompletedProcess[str]:
+    _LOGGER.info("Running deployment command: %s.", Path(command[0]).name)
+    if hideOutput:
+        with capture_command_errors(
+            _LOGGER, Path(command[0]).name, secrets=secretValues
+        ) as errorOutput:
+            return subprocess.run(
+                ["runuser", "-u", user, "--", *command],
+                check=True,
+                input=inputText,
+                text=True,
+                stdout=subprocess.DEVNULL,
+                stderr=errorOutput,
+            )
     return subprocess.run(
         ["runuser", "-u", user, "--", *command],
         check=True,
         input=inputText,
         text=True,
-        capture_output=hideOutput,
     )
 
 
@@ -57,7 +85,7 @@ def prepare_runtime_directories() -> None:
 
 def prepare_empty_data() -> None:
     if not _PATH_DATA.is_dir() or any(_PATH_DATA.iterdir()):
-        raise RuntimeError("Initialization requires an existing, empty /data mount.")
+        raise DeploymentError("Initialization requires an existing, empty /data mount.")
     _PATH_DATA.chmod(0o755)
     for strName, strUser in (
         ("config", "liberrpa"),
@@ -87,7 +115,7 @@ def write_new_file(path: Path, content: bytes) -> None:
 
 def check_postgres_directory() -> None:
     if (_PATH_POSTGRES / "PG_VERSION").read_text().strip() != "17":
-        raise RuntimeError(
+        raise DeploymentError(
             "This image requires an existing PostgreSQL 17 data directory."
         )
 
@@ -165,6 +193,7 @@ def create_database(
             ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-d", "postgres"],
             inputText=strSql,
             hideOutput=True,
+            secretValues=(password,),
         )
 
 
@@ -182,7 +211,7 @@ def initialize(configPath: Path, smtpPasswordPath: Path) -> None:
     if any(
         actual != expected for actual, expected in expectedPaths
     ) or config.encryptionKeyFiles != ["../secrets/encryption-key.txt"]:
-        raise RuntimeError(
+        raise DeploymentError(
             "Use the paths in Console.container.example.jsonc for initialization."
         )
     if (
@@ -191,17 +220,17 @@ def initialize(configPath: Path, smtpPasswordPath: Path) -> None:
         config.database.name,
         config.database.user,
     ) != ("127.0.0.1", 5432, "liberrpa_console", "liberrpa_console"):
-        raise RuntimeError(
+        raise DeploymentError(
             "Use the internal database settings from the container template."
         )
     if config.fileTransferProxy is None or (
         config.fileTransferProxy.host,
         config.fileTransferProxy.port,
     ) != ("127.0.0.1", 9999):
-        raise RuntimeError("The container requires its local file transfer proxy.")
+        raise DeploymentError("The container requires its local file transfer proxy.")
     smtpPassword = smtpPasswordPath.read_bytes()
     if not smtpPassword.decode("utf-8-sig").rstrip("\r\n").strip():
-        raise RuntimeError("The SMTP password file must not be empty.")
+        raise DeploymentError("The SMTP password file must not be empty.")
     prepare_empty_data()
     password = secrets.token_urlsafe(48)
     write_new_file(_PATH_CONFIG, configBytes)
@@ -215,6 +244,7 @@ def initialize(configPath: Path, smtpPasswordPath: Path) -> None:
     create_database(password)
     with temporary_postgres():
         # Published migrations must already describe the models; this check writes no migration files.
+        _LOGGER.info("Checking published migrations.")
         run_as(
             "liberrpa",
             [
@@ -226,7 +256,9 @@ def initialize(configPath: Path, smtpPasswordPath: Path) -> None:
                 "--noinput",
             ],
         )
+        _LOGGER.info("Applying database migrations.")
         run_as("liberrpa", ["python", "/app/backend/manage.py", "migrate", "--noinput"])
+        _LOGGER.info("Creating the platform administrator.")
         run_as("liberrpa", ["python", "/app/backend/manage.py", "initialize_console"])
     print(
         "Console initialized. Keep /data and its secrets together when backing up or moving the instance."
@@ -247,13 +279,13 @@ def run_application(command: list[str]) -> None:
             break
         except OperationalError:
             if time.monotonic() >= floatDeadline:
-                raise RuntimeError(
+                raise DeploymentError(
                     "PostgreSQL did not become ready within 60 seconds."
-                ) from None
+                )
             time.sleep(1)
     executor = MigrationExecutor(connection)
     if executor.migration_plan(executor.loader.graph.leaf_nodes()):
-        raise RuntimeError(
+        raise DeploymentError(
             "Database migrations are pending. Apply published migrations while the service is stopped."
         )
     # This read-only comparison rejects builds that omitted required migration files.
@@ -266,14 +298,16 @@ def run_application(command: list[str]) -> None:
     if not User.objects.filter(
         is_platform_admin=True, platform_login=STR_PLATFORM_ADMIN_LOGIN
     ).exists():
-        raise RuntimeError(
+        raise DeploymentError(
             "The platform administrator is missing. Explicit initialization or recovery is required."
         )
     pathStorage = Path(settings.CONSOLE_STORAGE_ROOT)
     if not pathStorage.is_dir() or not os.access(
         pathStorage, os.R_OK | os.W_OK | os.X_OK
     ):
-        raise RuntimeError("The configured storage directory is missing or inaccessible.")
+        raise DeploymentError(
+            "The configured storage directory is missing or inaccessible."
+        )
     connection.close()
     os.execvp(command[0], command)
 
@@ -291,10 +325,11 @@ def check_health() -> None:
     )
     with urlopen(request, timeout=3) as response:
         if response.status != 200:
-            raise RuntimeError("Console is not ready.")
+            raise DeploymentError("Console is not ready.")
 
 
 def main() -> None:
+    logging.config.dictConfig(build_logging_config("INFO"))
     parser = argparse.ArgumentParser(
         description="Explicit container initialization, offline maintenance, and ordinary startup."
     )
@@ -318,13 +353,14 @@ def main() -> None:
     if args.action == "health":
         check_health()
         return
+    _LOGGER.info("Deployment action: %s.", args.action)
     if args.action == "run":
         if not args.command:
             parser.error("A child command is required.")
         run_application(args.command)
         return
     if os.geteuid() != 0:
-        raise RuntimeError(
+        raise DeploymentError(
             "Use the container entry point as root; child services run under their own users."
         )
     prepare_runtime_directories()
@@ -333,7 +369,7 @@ def main() -> None:
     elif args.action == "prepare-restore":
         password = args.password_file.read_text(encoding="utf-8-sig").rstrip("\r\n")
         if not password.strip():
-            raise RuntimeError("The database password file must not be empty.")
+            raise DeploymentError("The database password file must not be empty.")
         prepare_empty_data()
         create_database(
             password,
@@ -368,15 +404,20 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
+        _LOGGER.exception("Deployment command failed.")
         print(
-            "A deployment command failed. Review its preceding diagnostics and preserved data before retrying.",
+            f"Deployment stopped: {get_exception_summary(e)}. "
+            "Review the diagnostics and preserved data before retrying.",
             file=sys.stderr,
         )
         sys.exit(1)
     except KeyboardInterrupt:
         print("Deployment command cancelled.", file=sys.stderr)
         sys.exit(1)
-    except Exception as e:
-        print(f"Deployment failed: {e}", file=sys.stderr)
+    except (DeploymentError, ImproperlyConfigured) as e:
+        _LOGGER.error("Deployment stopped: %s", str(e)[:2000], exc_info=True)
+        sys.exit(1)
+    except Exception:
+        _LOGGER.exception("Deployment failed.")
         sys.exit(1)
