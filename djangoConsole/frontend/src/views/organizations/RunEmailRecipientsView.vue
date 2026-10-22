@@ -3,11 +3,21 @@
   <div class="d-flex align-center ga-3 mb-4">
     <h2 class="text-h6">Run Email Recipients</h2>
     <v-spacer />
-    <v-btn variant="tonal" prepend-icon="mdi-refresh" :loading="boolLoading" @click="load">
+    <v-btn
+      variant="tonal"
+      prepend-icon="mdi-refresh"
+      :loading="boolLoading"
+      :disabled="boolBusy || boolLoading"
+      @click="load">
       Refresh
     </v-btn>
 
-    <v-btn color="primary" variant="tonal" prepend-icon="mdi-plus" @click="openForm(null)">
+    <v-btn
+      color="primary"
+      variant="tonal"
+      prepend-icon="mdi-plus"
+      :disabled="boolBusy"
+      @click="openForm(null)">
       Add Email
     </v-btn>
   </div>
@@ -35,6 +45,7 @@
         variant="underlined"
         :items="ARR_STATUS"
         label="Status"
+        :disabled="boolBusy"
         hide-details
         @update:model-value="load" />
     </v-col>
@@ -51,6 +62,7 @@
           v-tooltip:bottom="'Edit Notes'"
           size="small"
           variant="text"
+          :disabled="boolBusy"
           aria-label="Edit Notes"
           icon="mdi-note-edit-outline"
           @click="openForm(item)" />
@@ -71,21 +83,32 @@
           size="small"
           variant="text"
           color="error"
+          :disabled="boolBusy"
           aria-label="Delete"
           icon="mdi-delete-outline"
-          @click="recipientDelete = item" />
+          @click="openDelete(item)" />
       </div>
     </template>
   </v-data-table>
 
-  <v-dialog v-model="boolForm" :persistent="boolBusy" max-width="640">
-    <v-card>
+  <v-dialog
+    :model-value="boolForm"
+    :persistent="boolBusy"
+    max-width="640"
+    @update:model-value="!$event && closeForm()">
+    <v-card v-if="boolForm">
       <v-card-title>{{ recipientEdit ? "Edit Notes" : "Add Email" }}</v-card-title>
 
       <v-card-text>
-        <v-form ref="form">
-          <v-alert v-if="strFormError" type="error" variant="tonal" class="mb-4">
-            {{ strFormError }}
+        <v-form id="run-email-recipient-form" validate-on="submit" @submit.prevent="save">
+          <v-alert v-if="formError" type="error" variant="tonal" class="mb-4" role="alert">
+            {{ formError.message }}
+            <p
+              v-for="strMessage in formError.fields.__all__"
+              :key="strMessage"
+              class="mt-2">
+              {{ strMessage }}
+            </p>
           </v-alert>
 
           <v-text-field
@@ -94,13 +117,23 @@
             label="Email"
             type="email"
             :readonly="!!recipientEdit"
-            :rules="[(value) => !!value.trim() || 'Enter an email address.']" />
+            :rules="[validateEmail]"
+            :error-messages="formError?.fields.email ?? []"
+            :disabled="boolBusy"
+            required
+            @update:model-value="formError = null" />
 
           <v-textarea
             v-model="strNotes"
             variant="outlined"
             label="Notes (optional)"
-            rows="3" />
+            rows="3"
+            counter="2000"
+            :counter-value="(value) => Array.from(value ?? '').length"
+            :rules="[validateNotes]"
+            :error-messages="formError?.fields.notes ?? []"
+            :disabled="boolBusy"
+            @update:model-value="formError = null" />
         </v-form>
       </v-card-text>
 
@@ -109,16 +142,18 @@
           variant="tonal"
           prepend-icon="mdi-close"
           :disabled="boolBusy"
-          @click="boolForm = false">
+          @click="closeForm">
           Cancel
         </v-btn>
         <v-spacer />
         <v-btn
+          type="submit"
+          form="run-email-recipient-form"
           variant="tonal"
           :prepend-icon="recipientEdit ? 'mdi-content-save-outline' : 'mdi-plus'"
           color="primary"
           :loading="boolBusy"
-          @click="save">
+          :disabled="boolBusy">
           {{ recipientEdit ? "Save" : "Add" }}
         </v-btn>
       </v-card-actions>
@@ -175,6 +210,7 @@
           prepend-icon="mdi-delete-outline"
           color="error"
           :loading="boolBusy"
+          :disabled="boolBusy"
           @click="remove">
           Delete
         </v-btn>
@@ -184,9 +220,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { RouteLocationRaw } from "vue-router";
-import type { VForm } from "vuetify/components";
+import type { SubmitEventPromise } from "vuetify";
 
 import {
   getRunEmailRecipients,
@@ -196,7 +232,7 @@ import {
   type RunEmailRecipient,
 } from "@/api/runEmail";
 import { RunEmailRecipientStatus } from "@/api/generated/browserApi";
-import { getApiError } from "@/api/errors";
+import { type ApiError, getApiError } from "@/api/errors";
 import { isRecord } from "@/api/responses";
 
 type RecipientReference =
@@ -228,7 +264,6 @@ const ARR_HEADER = [
   { title: "Actions", key: "actions", sortable: false },
 ];
 
-const form = ref<InstanceType<typeof VForm> | null>(null);
 const arrRecipient = ref<RunEmailRecipient[]>([]);
 const strSearch = ref("");
 const strStatus = ref<RunEmailRecipientFilter>("all");
@@ -237,14 +272,15 @@ const boolBusy = ref(false);
 const boolForm = ref(false);
 const recipientEdit = ref<RunEmailRecipient | null>(null);
 const recipientDelete = ref<RunEmailRecipient | null>(null);
-const strEmail = ref("");
-const strNotes = ref("");
+const strEmail = ref<string | null>("");
+const strNotes = ref<string | null>("");
 const strError = ref("");
-const strFormError = ref("");
+const formError = shallowRef<ApiError | null>(null);
 const strDeleteError = ref("");
 const strSuccess = ref("");
 const arrReference = ref<RecipientReference[]>([]);
 let intLoadRequest = 0;
+let boolUnmounted = false;
 
 const arrFiltered = computed(() =>
   arrRecipient.value.filter((recipient) =>
@@ -261,6 +297,7 @@ function getReferenceLocation(reference: RecipientReference): RouteLocationRaw |
 }
 
 async function load(): Promise<void> {
+  if (boolUnmounted) return;
   const intCurrentRequest = ++intLoadRequest;
   boolLoading.value = true;
   strError.value = "";
@@ -275,65 +312,106 @@ async function load(): Promise<void> {
   }
 }
 
+function validateEmail(value: string | null): true | string {
+  const strValue = value?.trim() ?? "";
+  if (!strValue) return "Enter an email address.";
+  return Array.from(strValue).length <= 254 ? true : "Use at most 254 characters.";
+}
+
+function validateNotes(value: string | null): true | string {
+  return Array.from(value ?? "").length <= 2000 ? true : "Use at most 2000 characters.";
+}
+
 function openForm(recipient: RunEmailRecipient | null): void {
+  if (boolUnmounted || boolBusy.value || boolForm.value || recipientDelete.value) return;
   recipientEdit.value = recipient;
   strEmail.value = recipient?.email ?? "";
   strNotes.value = recipient?.notes ?? "";
-  strFormError.value = "";
+  formError.value = null;
+  strSuccess.value = "";
   boolForm.value = true;
 }
 
-async function save(): Promise<void> {
-  if (!(await form.value?.validate())?.valid) return;
+function closeForm(): void {
+  if (boolBusy.value) return;
+  boolForm.value = false;
+  recipientEdit.value = null;
+  strEmail.value = "";
+  strNotes.value = "";
+  formError.value = null;
+}
+
+async function save(event: SubmitEventPromise): Promise<void> {
+  if (boolUnmounted || boolBusy.value || !boolForm.value) return;
+  const strRecipientId = recipientEdit.value?.id ?? null;
+  const strSubmittedEmail = strEmail.value?.trim() ?? "";
+  const strSubmittedNotes = strNotes.value ?? "";
   boolBusy.value = true;
-  strFormError.value = "";
+  formError.value = null;
+  strSuccess.value = "";
   try {
-    await saveRunEmailRecipient(
-      recipientEdit.value?.id ?? null,
-      strEmail.value,
-      strNotes.value,
-    );
+    const validation = await event;
+    if (!validation.valid || boolUnmounted) return;
+
+    await saveRunEmailRecipient(strRecipientId, strSubmittedEmail, strSubmittedNotes);
+    if (boolUnmounted) return;
     boolForm.value = false;
-    strSuccess.value = recipientEdit.value
+    strSuccess.value = strRecipientId
       ? "Notes saved."
       : "Address added. Ask the recipient to confirm the verification email.";
     await load();
   } catch (e) {
-    strFormError.value = getApiError(e).message;
+    if (!boolUnmounted) formError.value = getApiError(e);
   } finally {
     boolBusy.value = false;
   }
 }
 
 async function resend(id: string): Promise<void> {
+  if (boolUnmounted || boolBusy.value || boolForm.value || recipientDelete.value) return;
   boolBusy.value = true;
   strError.value = "";
+  strSuccess.value = "";
   try {
     await actOnRunEmailRecipient(id, "resend");
-    strSuccess.value = "Verification email requested.";
+    if (!boolUnmounted) strSuccess.value = "Verification email requested.";
   } catch (e) {
-    strError.value = getApiError(e).message;
+    if (!boolUnmounted) strError.value = getApiError(e).message;
   } finally {
     boolBusy.value = false;
   }
 }
 
+function openDelete(recipient: RunEmailRecipient): void {
+  if (boolUnmounted || boolBusy.value || boolForm.value || recipientDelete.value) return;
+  recipientDelete.value = recipient;
+  strDeleteError.value = "";
+  arrReference.value = [];
+  strSuccess.value = "";
+}
+
 function closeDelete(): void {
+  if (boolBusy.value) return;
   recipientDelete.value = null;
   strDeleteError.value = "";
   arrReference.value = [];
 }
 
 async function remove(): Promise<void> {
-  if (!recipientDelete.value) return;
+  if (boolUnmounted || boolBusy.value || !recipientDelete.value) return;
+  const strRecipientId = recipientDelete.value.id;
   boolBusy.value = true;
   strDeleteError.value = "";
   arrReference.value = [];
+  strSuccess.value = "";
   try {
-    await actOnRunEmailRecipient(recipientDelete.value.id, "delete");
+    await actOnRunEmailRecipient(strRecipientId, "delete");
+    if (boolUnmounted) return;
     recipientDelete.value = null;
+    strSuccess.value = "Email address deleted.";
     await load();
   } catch (e) {
+    if (boolUnmounted) return;
     const error = getApiError(e);
     strDeleteError.value = error.message;
     const payload = error.responsePayload;
@@ -362,6 +440,7 @@ async function remove(): Promise<void> {
 onMounted(() => void load());
 
 onBeforeUnmount(() => {
+  boolUnmounted = true;
   intLoadRequest += 1;
 });
 </script>

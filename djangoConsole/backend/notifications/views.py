@@ -59,6 +59,9 @@ from .recipients import (
 from .run_email import get_template_metadata
 from .services import prune_notifications
 
+# Allow 2,000 JSON-escaped Unicode characters, the email address and JSON structure.
+_INT_MAX_RECIPIENT_BODY_BYTES = 32 * 1024
+
 
 def _handle_errors(view: Callable) -> Callable:
     @wraps(view)
@@ -185,7 +188,9 @@ def list_or_create_recipients(request: HttpRequest) -> JsonResponse:
     if isinstance(membership, JsonResponse):
         return membership
     if request.method == "POST":
-        form = parse_json_request(request, RecipientCreationRequest)
+        form = parse_json_request(
+            request, RecipientCreationRequest, maxBodyBytes=_INT_MAX_RECIPIENT_BODY_BYTES
+        )
         if isinstance(form, JsonResponse):
             return form
         intRetry = _apply_sensitive_action_rate_limit(
@@ -231,9 +236,12 @@ def change_recipient(
     membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
-    form = parse_json_request(
-        request, RecipientNotesRequest if action == "notes" else EmptyRequest
-    )
+    if action == "notes":
+        form = parse_json_request(
+            request, RecipientNotesRequest, maxBodyBytes=_INT_MAX_RECIPIENT_BODY_BYTES
+        )
+    else:
+        form = parse_json_request(request, EmptyRequest)
     if isinstance(form, JsonResponse):
         return form
     if action == "resend":
