@@ -62,16 +62,38 @@ def get_limits_version(organization: Organization) -> str:
     ).hexdigest()
 
 
-def get_organization_usage(organization: Organization) -> OrganizationLimitsResponse:
-    """Read current counters on demand without creating history or changing reservations."""
-    currentTime = timezone.now()
-    defaults = cast(LimitsConfig, settings.CONSOLE_LIMITS)
-    limits = get_organization_limits(organization)
+def get_organization_capacity_usage(
+    organization: Organization,
+) -> dict[OrganizationLimit, tuple[int, int | None]]:
+    """Read capacity balances without counting unrelated objects or contacting the file proxy."""
     storage = get_storage_usage(organization)
     queueUsage = QueueItem.objects.filter(
         queue__department__organization=organization
     ).aggregate(items=Count("pk"), bytes=Sum("size_bytes", default=0))
     logUsage = RunLogUsage.objects.filter(organization=organization).first()
+    return {
+        OrganizationLimit.STORED_BYTES: (
+            storage["used_bytes"],
+            storage["reserved_bytes"],
+        ),
+        OrganizationLimit.QUEUE_ITEMS: (queueUsage["items"], None),
+        OrganizationLimit.QUEUE_DATA_BYTES: (queueUsage["bytes"], None),
+        OrganizationLimit.RUN_LOG_BYTES: (logUsage.used_bytes if logUsage else 0, None),
+        OrganizationLimit.RUN_LOG_GROUPS: (logUsage.group_count if logUsage else 0, None),
+        OrganizationLimit.RUN_HISTORY: (
+            Run.objects.filter(
+                job__request__organization=organization, job__state=JobState.FINISHED
+            ).count(),
+            None,
+        ),
+    }
+
+
+def get_organization_usage(organization: Organization) -> OrganizationLimitsResponse:
+    """Read current counters on demand without creating history or changing reservations."""
+    currentTime = timezone.now()
+    defaults = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+    limits = get_organization_limits(organization)
     projects = (
         Package.objects
         .filter(department__organization=organization)
@@ -123,6 +145,7 @@ def get_organization_usage(organization: Organization) -> OrganizationLimitsResp
         )
 
     dictUsage: dict[OrganizationLimit, tuple[int | None, int | None]] = {
+        **get_organization_capacity_usage(organization),
         OrganizationLimit.MEMBERS: (
             Membership.objects.filter(organization=organization).count(),
             intPendingMembers,
@@ -169,20 +192,6 @@ def get_organization_usage(organization: Organization) -> OrganizationLimitsResp
             get_recipient_query(organization.pk)
             .exclude(status=RunEmailRecipientStatus.MEMBER)
             .count(),
-            None,
-        ),
-        OrganizationLimit.STORED_BYTES: (
-            storage["used_bytes"],
-            storage["reserved_bytes"],
-        ),
-        OrganizationLimit.QUEUE_ITEMS: (queueUsage["items"], None),
-        OrganizationLimit.QUEUE_DATA_BYTES: (queueUsage["bytes"], None),
-        OrganizationLimit.RUN_LOG_BYTES: (logUsage.used_bytes if logUsage else 0, None),
-        OrganizationLimit.RUN_LOG_GROUPS: (logUsage.group_count if logUsage else 0, None),
-        OrganizationLimit.RUN_HISTORY: (
-            Run.objects.filter(
-                job__request__organization=organization, job__state=JobState.FINISHED
-            ).count(),
             None,
         ),
         OrganizationLimit.ACTIVE_JOBS: (

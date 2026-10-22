@@ -53,7 +53,7 @@ from notifications.models import (
 from .backup import BackupManifest
 from .backup_models import BackupState, BackupRecord
 from .contracts import AuditAction, AuditChannel
-from .models import MaintenanceState, CleanupState, AuditScope
+from .models import MaintenanceState, CleanupState, CapacityAlertState, AuditScope
 from .audit import record_audit
 
 _STR_RESTORE_REASON = (
@@ -171,6 +171,7 @@ def sanitize_restored_database(manifest: BackupManifest, restoredAt: datetime) -
 
     EmailWorkerState.objects.all().delete()
     CleanupState.objects.all().delete()
+    CapacityAlertState.objects.all().delete()
     BackupRecord.objects.all().delete()
     BackupState.objects.all().delete()
     maintenanceState, _ = MaintenanceState.objects.update_or_create(

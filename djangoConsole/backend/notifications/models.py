@@ -12,6 +12,7 @@ from django.db.models.lookups import Exact
 from django.utils import timezone
 
 from console_project.validators import validate_time_zone
+from operations.capacity_contracts import CapacityResource, CapacityLevel
 
 from .contracts import (
     EmailStatus,
@@ -57,6 +58,8 @@ class EmailType(models.TextChoices):
         "organization_resumed_notice",
         "Organization resumed notice",
     )
+
+    CAPACITY_NOTICE = "capacity_notice", "Capacity notice"
 
     BACKUP_FAILURE_NOTICE = "backup_failure_notice", "Backup failure notice"
     BACKUP_RECOVERY_NOTICE = "backup_recovery_notice", "Backup recovery notice"
@@ -203,6 +206,7 @@ class EmailDelivery(models.Model):
                             EmailType.ORGANIZATION_LIMITS_NOTICE,
                             EmailType.ORGANIZATION_SUSPENDED_NOTICE,
                             EmailType.ORGANIZATION_RESUMED_NOTICE,
+                            EmailType.CAPACITY_NOTICE,
                             EmailType.BACKUP_FAILURE_NOTICE,
                             EmailType.BACKUP_RECOVERY_NOTICE,
                         ],
@@ -330,6 +334,59 @@ class OrganizationDeletionScheduleNotice(models.Model):
         EmailDelivery, on_delete=models.CASCADE, primary_key=True, related_name="+"
     )
     deletion_due_at = models.DateTimeField(editable=False)
+
+
+class CapacityNotice(models.Model):
+    """Bounded numeric snapshot of one warning, retained with its delivery record."""
+
+    delivery_id: uuid.UUID
+    delivery = models.OneToOneField(
+        EmailDelivery,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="capacity_notice",
+    )
+    resource = models.CharField(
+        max_length=max(len(value) for value in CapacityResource.values),
+        choices=CapacityResource.choices,
+    )
+    level = models.CharField(
+        max_length=max(len(value) for value in CapacityLevel.values),
+        choices=CapacityLevel.choices,
+    )
+    used = models.PositiveBigIntegerField()
+    reserved = models.PositiveBigIntegerField()
+    limit = models.PositiveBigIntegerField()
+    free_bytes = models.PositiveBigIntegerField(null=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(resource__in=CapacityResource.values),
+                name="capacity_notice_resource_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    level__in=[CapacityLevel.WARNING, CapacityLevel.LIMIT_REACHED]
+                ),
+                name="capacity_notice_level_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(resource=CapacityResource.STORAGE_VOLUME)
+                    & models.Q(free_bytes__isnull=True)
+                )
+                | models.Q(
+                    resource=CapacityResource.STORAGE_VOLUME,
+                    level=CapacityLevel.WARNING,
+                    reserved=0,
+                    used__lte=models.F("limit"),
+                    free_bytes__isnull=False,
+                    free_bytes__lte=models.F("limit"),
+                ),
+                name="capacity_notice_volume_valid",
+            ),
+        ]
 
 
 class OrganizationLimitsNotice(models.Model):

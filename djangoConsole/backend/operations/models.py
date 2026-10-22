@@ -12,6 +12,7 @@ from django.utils import timezone
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
 
 from .contracts import AuditAction, AuditChannel, AuditResult, AuditStage
+from .capacity_contracts import CapacityResource, CapacityLevel
 
 
 class ServiceSettings(models.Model):
@@ -97,6 +98,102 @@ class CleanupState(models.Model):
                     finished_at__isnull=False,
                 ),
                 name="cleanup_finished_at_matches_status",
+            ),
+        ]
+
+
+class CapacityAlertState(models.Model):
+    """Latest capacity observation and notification clocks; not a measurement history."""
+
+    organization_id: uuid.UUID | None
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.CASCADE, null=True, blank=True
+    )
+    resource = models.CharField(
+        max_length=max(len(value) for value in CapacityResource.values),
+        choices=CapacityResource.choices,
+    )
+    level = models.CharField(
+        max_length=max(len(value) for value in CapacityLevel.values),
+        choices=CapacityLevel.choices,
+        default=CapacityLevel.UNKNOWN,
+    )
+    # For the physical volume, limit is its total size and reserved is zero.
+    used = models.PositiveBigIntegerField(null=True)
+    reserved = models.PositiveBigIntegerField(null=True)
+    limit = models.PositiveBigIntegerField(null=True)
+    free_bytes = models.PositiveBigIntegerField(null=True)
+    checked_at = models.DateTimeField(default=timezone.now)
+    warning_notified_at = models.DateTimeField(null=True)
+    limit_notified_at = models.DateTimeField(null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "resource"],
+                name="capacity_organization_resource_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["resource"],
+                condition=models.Q(organization__isnull=True),
+                name="capacity_instance_resource_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(resource__in=CapacityResource.values),
+                name="capacity_resource_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(level__in=CapacityLevel.values),
+                name="capacity_level_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    resource=CapacityResource.STORAGE_VOLUME, organization__isnull=True
+                )
+                | (
+                    ~models.Q(resource=CapacityResource.STORAGE_VOLUME)
+                    & models.Q(organization__isnull=False)
+                ),
+                name="capacity_scope_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    level=CapacityLevel.UNKNOWN,
+                    used__isnull=True,
+                    reserved__isnull=True,
+                    limit__isnull=True,
+                    free_bytes__isnull=True,
+                )
+                | (
+                    ~models.Q(level=CapacityLevel.UNKNOWN)
+                    & models.Q(
+                        used__isnull=False, reserved__isnull=False, limit__isnull=False
+                    )
+                ),
+                name="capacity_measurement_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(resource=CapacityResource.STORAGE_VOLUME)
+                    & models.Q(free_bytes__isnull=True)
+                )
+                | (
+                    models.Q(
+                        resource=CapacityResource.STORAGE_VOLUME,
+                        limit_notified_at__isnull=True,
+                    )
+                    & (
+                        models.Q(level=CapacityLevel.UNKNOWN)
+                        | models.Q(
+                            level__in=[CapacityLevel.NORMAL, CapacityLevel.WARNING],
+                            reserved=0,
+                            used__lte=models.F("limit"),
+                            free_bytes__isnull=False,
+                            free_bytes__lte=models.F("limit"),
+                        )
+                    )
+                ),
+                name="capacity_volume_valid",
             ),
         ]
 

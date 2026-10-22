@@ -19,6 +19,7 @@ from django.db import DatabaseError
 from console_project.workers import stop_on_signals
 from operations.models import CleanupTask
 from operations.cleanup import DICT_CLEANUP_INTERVAL_SECONDS
+from operations.capacity_contracts import INT_CAPACITY_CHECK_SECONDS
 
 _LOGGER = logging.getLogger("console.cleanup")
 _DICT_COMMAND = {
@@ -36,9 +37,18 @@ def main() -> None:
         task for task in CleanupTask if (task == CleanupTask.FILE_STORAGE) == boolFiles
     ]
     dictNextRun = dict.fromkeys(listTask, 0.0)
+    floatNextCapacityCheck = 0.0
     stopEvent = Event()
     with stop_on_signals(stopEvent):
         while not stopEvent.is_set():
+            if not boolFiles and time.monotonic() >= floatNextCapacityCheck:
+                floatNextCapacityCheck = time.monotonic() + INT_CAPACITY_CHECK_SECONDS
+                try:
+                    call_command("check_capacity")
+                except DatabaseError:
+                    raise
+                except Exception:
+                    _LOGGER.exception("Capacity check failed.")
             for task in listTask:
                 if stopEvent.is_set():
                     break
@@ -51,7 +61,10 @@ def main() -> None:
                     raise
                 except Exception as e:
                     _LOGGER.error("%s cleanup failed: %s", task.label, type(e).__name__)
-            stopEvent.wait(max(0.1, min(dictNextRun.values()) - time.monotonic()))
+            floatNextRun = min(dictNextRun.values())
+            if not boolFiles:
+                floatNextRun = min(floatNextRun, floatNextCapacityCheck)
+            stopEvent.wait(max(0.1, floatNextRun - time.monotonic()))
 
 
 if __name__ == "__main__":

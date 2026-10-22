@@ -45,9 +45,11 @@ from .models import (
     AccountDeletionNotice,
     OrganizationDeletionScheduleNotice,
     OrganizationLimitsNotice,
+    CapacityNotice,
     RunEmailEvent,
     RunEmailReference,
 )
+from .capacity_emails import build_capacity_notice
 from .recipients import get_eligible_recipients
 from .smtp import send_smtp_once
 
@@ -318,6 +320,13 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
                 | EmailType.ORGANIZATION_RESUMED_NOTICE
             ):
                 emailMessage = build_organization_service_notice(delivery)
+            case EmailType.CAPACITY_NOTICE:
+                try:
+                    emailMessage = build_capacity_notice(delivery)
+                except CapacityNotice.DoesNotExist:
+                    return _mark_email_not_sent(
+                        delivery, reasonCode=EmailReasonCode.EMAIL_MESSAGE_INVALID
+                    )
             case EmailType.BACKUP_FAILURE_NOTICE | EmailType.BACKUP_RECOVERY_NOTICE:
                 emailMessage = build_backup_notice(delivery)
             case _:
