@@ -62,11 +62,14 @@ def load_instance_summary() -> InstanceSummaryResponse:
             maintenanceEnteredAt = None if maintenance is None else maintenance.entered_at
             serviceState = (
                 ServiceState.MAINTENANCE
-                if maintenanceEnteredAt is not None or is_restored_service_pending_review()
+                if maintenanceEnteredAt is not None
+                or is_restored_service_pending_review()
                 else ServiceState.NORMAL
             )
         except (DatabaseError, OSError) as e:
-            _LOGGER.warning("Instance maintenance state could not be read: %s", type(e).__name__)
+            _LOGGER.warning(
+                "Instance maintenance state could not be read: %s", type(e).__name__
+            )
 
     schedulerStatus = InstanceHealthStatus.UNKNOWN
     schedulerCheckedAt = None
@@ -161,9 +164,10 @@ def load_instance_summary() -> InstanceSummaryResponse:
             for task in CleanupTask:
                 cleanupState = dictCleanupState.get(task)
                 if cleanupState is None:
-                    dictCleanupEvidence[InstanceHealthStatus.UNKNOWN].append(
-                        (str(task.label), None)
-                    )
+                    dictCleanupEvidence[InstanceHealthStatus.UNKNOWN].append((
+                        str(task.label),
+                        None,
+                    ))
                     continue
                 evidenceAt = cleanupState.finished_at or cleanupState.started_at
                 if (
@@ -196,7 +200,11 @@ def load_instance_summary() -> InstanceSummaryResponse:
                 cleanupCheckedAt = (
                     None
                     if any(checkedAt is None for checkedAt in listEvidenceTime)
-                    else min(checkedAt for checkedAt in listEvidenceTime if checkedAt is not None)
+                    else min(
+                        checkedAt
+                        for checkedAt in listEvidenceTime
+                        if checkedAt is not None
+                    )
                 )
                 strTaskNames = ", ".join(strName for strName, _ in listEvidence)
                 if status == InstanceHealthStatus.ERROR:
@@ -206,7 +214,9 @@ def load_instance_summary() -> InstanceSummaryResponse:
                 elif status == InstanceHealthStatus.WARNING:
                     strCleanupMessage = f"Cleanup in progress: {strTaskNames}."
                 else:
-                    strCleanupMessage = "Recent routine cleanup runs completed successfully."
+                    strCleanupMessage = (
+                        "Recent routine cleanup runs completed successfully."
+                    )
                 break
         except DatabaseError as e:
             strCleanupMessage = "Cleanup status could not be read."
@@ -219,24 +229,26 @@ def load_instance_summary() -> InstanceSummaryResponse:
     if databaseStatus == InstanceHealthStatus.HEALTHY:
         try:
             backup = load_backup_status()
-            backupStatus = backup.health_status
-            backupCheckedAt = backup.checked_at
-            strBackupMessage = backup.health_message
-            lastSuccess = backup.last_success
+            backupStatus = backup.healthStatus
+            backupCheckedAt = backup.checkedAt
+            strBackupMessage = backup.healthMessage
+            lastSuccess = backup.lastSuccess
             if (
                 lastSuccess is not None
-                and lastSuccess.ended_at is not None
-                and lastSuccess.data_as_of is not None
-                and lastSuccess.size_bytes is not None
+                and lastSuccess.endedAt is not None
+                and lastSuccess.dataAsOf is not None
+                and lastSuccess.sizeBytes is not None
             ):
                 lastSuccessfulBackup = InstanceBackupResponse(
-                    ended_at=lastSuccess.ended_at,
-                    data_as_of=lastSuccess.data_as_of,
-                    size_bytes=lastSuccess.size_bytes,
+                    ended_at=lastSuccess.endedAt,
+                    data_as_of=lastSuccess.dataAsOf,
+                    size_bytes=lastSuccess.sizeBytes,
                 )
         except (DatabaseError, OSError) as e:
             strBackupMessage = "Backup status could not be read."
-            _LOGGER.warning("Instance backup status could not be read: %s", type(e).__name__)
+            _LOGGER.warning(
+                "Instance backup status could not be read: %s", type(e).__name__
+            )
 
     listComponent = [
         InstanceComponentResponse(

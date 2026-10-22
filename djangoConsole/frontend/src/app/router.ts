@@ -313,12 +313,6 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         ],
       },
       {
-        path: "/platform/maintenance",
-        name: "platform-maintenance",
-        component: () => import("@/views/platform/MaintenanceView.vue"),
-        meta: { title: "Maintenance", requiresPlatformAdmin: true },
-      },
-      {
         path: "/platform/audit-log",
         name: "platform-audit-log",
         component: () => import("@/views/audit/AuditLogView.vue"),

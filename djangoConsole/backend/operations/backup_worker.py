@@ -18,7 +18,7 @@ from console_project.logging import get_exception_summary
 from console_project.recovery import is_restored_service_pending_review
 from notifications.models import EmailType, EmailDelivery
 
-from .contracts import AuditAction, AuditResult, InstanceHealthStatus
+from .contracts import AuditAction, AuditStage, AuditResult, InstanceHealthStatus
 from .models import AuditScope
 from .audit import record_audit
 from .backup_contracts import (
@@ -26,8 +26,8 @@ from .backup_contracts import (
     BackupSource,
     BackupStatus,
     BackupWorkerStatus,
-    BackupRecordResponse,
-    BackupStatusResponse,
+    BackupRecordInfo,
+    BackupSummary,
 )
 from .backup_models import BackupState, BackupRecord
 from .backup import BackupError, create_backup, verify_backup
@@ -311,26 +311,38 @@ def _worker_is_available(state: BackupState | None, currentTime: datetime) -> bo
     )
 
 
-def request_backup(state: BackupState) -> tuple[BackupRecord, bool]:
-    """Call after locking BackupState and rechecking the current platform session."""
+def request_backup() -> tuple[BackupRecord, bool]:
+    """Accept one manual server request; the existing worker performs the online backup."""
     if settings.CONSOLE_BACKUP is None:
         raise ValidationError("Backups are not configured.", code="backup_not_configured")
-    if is_restored_service_pending_review():
-        raise ValidationError(
-            "Review the restored instance and resume service before creating backups.",
-            code="restore_review_required",
+    with transaction.atomic():
+        state = _lock_backup_state()
+        if is_restored_service_pending_review():
+            raise ValidationError(
+                "Review the restored instance and resume service before creating backups.",
+                code="restore_review_required",
+            )
+        record = BackupRecord.objects.filter(status__in=_TUPLE_ACTIVE_STATUS).first()
+        if record is not None:
+            return record, False
+        if not _worker_is_available(state, timezone.now()):
+            raise ValidationError(
+                "The backup worker is unavailable.", code="backup_worker_unavailable"
+            )
+        record = BackupRecord.objects.create(source=BackupSource.MANUAL)
+        record_audit(
+            AuditAction.BACKUP_REQUEST,
+            actor=None,
+            organization=None,
+            target=record,
+            scope=AuditScope.PLATFORM,
+            stage=AuditStage.REQUEST,
+            metadata={"command": "backup request"},
         )
-    record = BackupRecord.objects.filter(status__in=_TUPLE_ACTIVE_STATUS).first()
-    if record is not None:
-        return record, False
-    if not _worker_is_available(state, timezone.now()):
-        raise ValidationError(
-            "The backup worker is unavailable.", code="backup_worker_unavailable"
-        )
-    return BackupRecord.objects.create(source=BackupSource.MANUAL), True
+        return record, True
 
 
-def load_backup_status() -> BackupStatusResponse:
+def load_backup_status() -> BackupSummary:
     currentTime = timezone.now()
     backupConfig = settings.CONSOLE_BACKUP
     state = BackupState.objects.filter(pk=1).first()
@@ -391,36 +403,36 @@ def load_backup_status() -> BackupStatusResponse:
         else:
             strHealthMessage = "No successful backup covers the latest scheduled time."
 
-    def serialize(record: BackupRecord | None) -> BackupRecordResponse | None:
+    def _build_record_info(record: BackupRecord | None) -> BackupRecordInfo | None:
         if record is None:
             return None
-        return BackupRecordResponse(
+        return BackupRecordInfo(
             id=record.id,
-            source=record.source,
-            status=record.status,
-            stage=record.stage,
-            created_at=record.created_at,
-            started_at=record.started_at,
-            ended_at=record.ended_at,
-            data_as_of=record.data_as_of,
-            size_bytes=record.size_bytes,
+            source=BackupSource(record.source),
+            status=BackupStatus(record.status),
+            stage=BackupStage(record.stage) if record.stage is not None else None,
+            createdAt=record.created_at,
+            startedAt=record.started_at,
+            endedAt=record.ended_at,
+            dataAsOf=record.data_as_of,
+            sizeBytes=record.size_bytes,
             details=record.details,
-            cleanup_error=record.cleanup_error,
+            cleanupError=record.cleanup_error,
         )
 
-    return BackupStatusResponse(
+    return BackupSummary(
         configured=backupConfig is not None,
         location=None if backupConfig is None else str(get_backup_location()),
-        daily_time=None if backupConfig is None else backupConfig.dailyTime,
-        time_zone=settings.TIME_ZONE,
-        retention_count=INT_BACKUP_RETENTION_COUNT,
-        current=serialize(current),
-        latest_result=serialize(latest),
-        last_success=serialize(lastSuccess),
-        health_status=healthStatus,
-        checked_at=checkedAt,
-        health_message=strHealthMessage,
-        can_start=not strBlockedReason,
-        blocked_reason=strBlockedReason,
-        updated_at=currentTime,
+        dailyTime=None if backupConfig is None else backupConfig.dailyTime,
+        timeZone=settings.TIME_ZONE,
+        retentionCount=INT_BACKUP_RETENTION_COUNT,
+        current=_build_record_info(current),
+        latestResult=_build_record_info(latest),
+        lastSuccess=_build_record_info(lastSuccess),
+        healthStatus=healthStatus,
+        checkedAt=checkedAt,
+        healthMessage=strHealthMessage,
+        canStart=not strBlockedReason,
+        blockedReason=strBlockedReason,
+        updatedAt=currentTime,
     )

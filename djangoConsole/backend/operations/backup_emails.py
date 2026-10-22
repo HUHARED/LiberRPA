@@ -19,15 +19,19 @@ def build_backup_notice(delivery: EmailDelivery) -> EmailMessage:
         strMessage = "A backup failed, or some older backups could not be removed."
     elif delivery.email_type == EmailType.BACKUP_RECOVERY_NOTICE:
         strSubject = "LiberRPA Console backups recovered"
-        strMessage = "A new backup completed successfully. No backup cleanup errors remain."
+        strMessage = (
+            "A new backup completed successfully. No backup cleanup errors remain."
+        )
     else:
         raise ValueError("A backup notice is required.")
     strRecordedAt = delivery.created_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
     return EmailMessage(
         subject=strSubject,
         body=(
-            f"{strMessage}\n\nRecorded at: {strRecordedAt}\n\n"
-            f"View the result: {settings.CONSOLE_URL}/platform/maintenance\n\nLiberRPA Console\n"
+            f"{strMessage}\n\nConsole: {settings.CONSOLE_URL}\n"
+            f"Recorded at: {strRecordedAt}\n\n"
+            "In the Console directory on the server, run:\n"
+            "python backend/manage.py backup status\n\nLiberRPA Console\n"
         ),
         to=[delivery.recipient],
     )

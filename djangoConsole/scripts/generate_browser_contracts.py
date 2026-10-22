@@ -26,7 +26,6 @@ from data_queues import contracts as queueContracts
 from shared_files import contracts as fileContracts
 from executors import contracts as executorContracts
 from operations import contracts as auditContracts
-from operations import backup_contracts as backupContracts
 from packages import contracts as packageContracts
 from schedules import contracts as scheduleContracts
 from runs import contracts as runContracts
@@ -178,12 +177,6 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     # Platform service settings.
     (auditContracts.ServiceSettingsRequest, "validation"),
     (auditContracts.ServiceSettingsResponse, "serialization"),
-    # Platform maintenance.
-    (auditContracts.MaintenanceRequest, "validation"),
-    (auditContracts.MaintenanceResponse, "serialization"),
-    (auditContracts.RunActivityResponse, "serialization"),
-    # Platform backups.
-    (backupContracts.BackupStatusResponse, "serialization"),
     # Platform instance status and host monitoring.
     (auditContracts.InstanceSummaryResponse, "serialization"),
     (auditContracts.InstanceStatusResponse, "serialization"),

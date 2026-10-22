@@ -22,6 +22,7 @@ _DICT_WORKER_COMMAND: dict[str, str] = {
     "email-worker": "run_email_worker",
     "job-worker": "run_job_worker",
     "scheduler": "run_scheduler",
+    "backup-worker": "run_backup_worker",
 }
 # NOTE: Development retention is per service; the backup count excludes the current file.
 _INT_LOG_MAX_BYTES = 50 * 1024 * 1024

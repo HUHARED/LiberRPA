@@ -115,10 +115,6 @@ export type AuditAction =
 export type AuditChannel = "session" | "editor" | "executor" | "api_key" | "system";
 export type AuditResult = "succeeded" | "failed";
 export type AuditStage = "operation" | "request";
-export type BackupSource = "manual" | "scheduled";
-export type BackupStage = "snapshot" | "database" | "files" | "verifying" | "finalizing";
-export type BackupStatus = "pending" | "running" | "succeeded" | "failed" | "skipped";
-export type InstanceHealthStatus = "healthy" | "warning" | "error" | "unknown";
 export type BrowserMessageType = "ready" | "session_changed" | "notifications_changed";
 export type DepartmentDeletionBlockerCode =
   | "child_departments"
@@ -170,6 +166,7 @@ export type FileRequestUuid = string;
 export type UploadState = "receiving" | "completed" | "failed" | "expired" | "canceled";
 export type InstanceHistoryRange = "1h" | "24h" | "7d" | "15d";
 export type InstanceComponent = "database" | "scheduler" | "email" | "cleanup" | "backup";
+export type InstanceHealthStatus = "healthy" | "warning" | "error" | "unknown";
 export type ServiceState = "normal" | "maintenance";
 export type InvitationStatus = "pending" | "expired" | "accepted" | "revoked";
 export type JobControlAction = "cancel" | "stop" | "close";
@@ -192,7 +189,6 @@ export type RunConflictPolicy = "skip" | "wait" | "concurrent";
 export type OutputsStatus = "waiting" | "complete" | "partial" | "unavailable";
 export type RunStatus =
   "running" | "completed" | "error" | "canceled" | "timed_out" | "interrupted";
-export type MaintenanceAction = "enter" | "resume";
 export type OrganizationLimit =
   | "maxMembersPerOrganization"
   | "maxDepartmentsPerOrganization"
@@ -261,7 +257,6 @@ export interface BrowserApiContracts {
   AuditDetailsResponse: AuditDetailsResponse;
   AuditFilterOptionsResponse: AuditFilterOptionsResponse;
   AuditListResponse: AuditListResponse;
-  BackupStatusResponse: BackupStatusResponse;
   BrowserEventResponse: BrowserEventResponse;
   ClearLogsRequest: ClearLogsRequest;
   CsrfResponse: CsrfResponse;
@@ -318,8 +313,6 @@ export interface BrowserApiContracts {
   JobDetailsResponse: JobDetailsResponse;
   JobListResponse: JobListResponse;
   LoginRequest: LoginRequest;
-  MaintenanceRequest: MaintenanceRequest;
-  MaintenanceResponse: MaintenanceResponse;
   MemberDetailsResponse: MemberDetailsResponse;
   MemberListResponse: MemberListResponse;
   MembershipUpdateRequest: MembershipUpdateRequest;
@@ -364,7 +357,6 @@ export interface BrowserApiContracts {
   RecipientCreationRequest: RecipientCreationRequest;
   RecipientNotesRequest: RecipientNotesRequest;
   RecipientTokenRequest: RecipientTokenRequest;
-  RunActivityResponse: RunActivityResponse;
   RunDepartmentListResponse: RunDepartmentListResponse;
   RunDetailsResponse: RunDetailsResponse;
   RunDownloadResponse: RunDownloadResponse;
@@ -603,35 +595,6 @@ export interface AuditRecordResponse {
   object_name: string;
   object_type: string;
   result: AuditResult;
-}
-export interface BackupStatusResponse {
-  blocked_reason: string;
-  can_start: boolean;
-  checked_at: string | null;
-  configured: boolean;
-  current: BackupRecordResponse | null;
-  daily_time: string | null;
-  health_message: string;
-  health_status: InstanceHealthStatus;
-  last_success: BackupRecordResponse | null;
-  latest_result: BackupRecordResponse | null;
-  location: string | null;
-  retention_count: number;
-  time_zone: string;
-  updated_at: string;
-}
-export interface BackupRecordResponse {
-  cleanup_error: string;
-  created_at: string;
-  data_as_of: string | null;
-  details: string;
-  ended_at: string | null;
-  id: string;
-  size_bytes: number | null;
-  source: BackupSource;
-  stage: BackupStage | null;
-  started_at: string | null;
-  status: BackupStatus;
 }
 export interface BrowserEventResponse {
   type: BrowserMessageType;
@@ -1337,19 +1300,6 @@ export interface LoginRequest {
   password: string;
   remember_me?: boolean;
 }
-export interface MaintenanceRequest {
-  action: MaintenanceAction;
-}
-export interface MaintenanceResponse {
-  active_jobs: number;
-  can_resume: boolean;
-  entered_at: string | null;
-  jobs_needing_review: number;
-  resume_block_reason: string;
-  running_runs: number;
-  state: ServiceState;
-  updated_at: string;
-}
 export interface MemberDetailsResponse {
   member: MemberResponse;
 }
@@ -1847,18 +1797,6 @@ export interface RecipientNotesRequest {
 }
 export interface RecipientTokenRequest {
   token: string;
-}
-export interface RunActivityResponse {
-  end_date: string;
-  hours: RunActivityHourResponse[];
-  incomplete_run_count: number;
-  start_date: string;
-  time_zone: string;
-  updated_at: string;
-}
-export interface RunActivityHourResponse {
-  hour: number;
-  run_count: number;
 }
 export interface RunDepartmentListResponse {
   departments: RunDepartmentResponse[];
@@ -2453,24 +2391,6 @@ export const ARR_SERVICE_STATE = [
   "normal",
   "maintenance",
 ] as const satisfies readonly ServiceState[];
-export const ARR_BACKUP_STAGE = [
-  "snapshot",
-  "database",
-  "files",
-  "verifying",
-  "finalizing",
-] as const satisfies readonly BackupStage[];
-export const ARR_BACKUP_SOURCE = [
-  "manual",
-  "scheduled",
-] as const satisfies readonly BackupSource[];
-export const ARR_BACKUP_STATUS = [
-  "pending",
-  "running",
-  "succeeded",
-  "failed",
-  "skipped",
-] as const satisfies readonly BackupStatus[];
 export const AUDIT_ACTION_LABEL = {
   "account.login": "Sign In",
   "account.logout": "Sign Out",
@@ -2677,14 +2597,3 @@ export const ServiceState = {
   Normal: "normal",
   Maintenance: "maintenance",
 } as const satisfies Record<string, ServiceState>;
-export const MaintenanceAction = {
-  Enter: "enter",
-  Resume: "resume",
-} as const satisfies Record<string, MaintenanceAction>;
-export const BackupStatus = {
-  Pending: "pending",
-  Running: "running",
-  Succeeded: "succeeded",
-  Failed: "failed",
-  Skipped: "skipped",
-} as const satisfies Record<string, BackupStatus>;
