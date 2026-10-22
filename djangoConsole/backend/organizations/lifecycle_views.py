@@ -14,7 +14,6 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_http_methods, require_POST
-from pydantic import SecretStr
 
 from accounts.models import User
 from accounts.rate_limits import apply_organization_deletion_rate_limit
@@ -28,7 +27,12 @@ from console_project.http import (
     parse_json_request,
 )
 
-from .lifecycle import cancel_organization_deletion, schedule_organization_deletion
+from .contracts import OrganizationDeletionRequest, OrganizationDeletionResponse
+from .lifecycle import (
+    INT_ORGANIZATION_DELETION_DELAY_DAYS,
+    schedule_organization_deletion,
+    cancel_organization_deletion,
+)
 from .models import Organization
 from .permissions import (
     AccessChannel,
@@ -38,15 +42,11 @@ from .permissions import (
 from .rate_limits import RequestBudget, check_request_budget, request_budget
 
 
-class OrganizationDeletionRequest(JsonRequest):
-    current_password: SecretStr
-
-
 def _build_organization_deletion_response(
     organization: Organization, *, isOrgAdmin: bool
 ) -> JsonResponse:
     boolBusinessAvailable = is_organization_business_available(organization)
-    return JsonResponse({
+    response = OrganizationDeletionResponse.model_validate({
         "organization": {
             "id": organization.id,
             "name": organization.name,
@@ -63,7 +63,9 @@ def _build_organization_deletion_response(
             and organization.deletion_requested_at is not None
             and organization.deletion_started_at is None
         ),
+        "deletion_delay_days": INT_ORGANIZATION_DELETION_DELAY_DAYS,
     })
+    return JsonResponse(response.model_dump(mode="python"))
 
 
 def _build_deletion_validation_response(validationError: ValidationError) -> JsonResponse:

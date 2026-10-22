@@ -9,13 +9,14 @@ import {
 } from "./responses";
 
 import {
-  ARR_DEPARTMENT_ROLE,
   type AccountAccessResponse,
   type DepartmentAccessResponse,
+  type OrganizationAccessResponse,
   type LoginRequest,
   type PlatformLoginRequest,
   type SessionUserResponse,
   type SessionResponse,
+  ARR_DEPARTMENT_ROLE,
 } from "./generated/browserApi";
 
 export function parseSessionUserResponse(payload: unknown): SessionUserResponse {
@@ -56,23 +57,40 @@ export function parseSessionResponse(payload: unknown): SessionResponse {
   };
 }
 
-export function parseAccountAccessResponse(payload: unknown): AccountAccessResponse {
-  if (!isRecord(payload) || !isRecord(payload.organization)) return rejectInvalidResponse();
-
-  const organizationInfo = payload.organization;
+export function parseOrganizationAccessResponse(
+  payload: unknown,
+): OrganizationAccessResponse {
   if (
-    typeof organizationInfo.id !== "string" ||
-    typeof organizationInfo.name !== "string" ||
-    !isNullableDateString(organizationInfo.suspended_at) ||
-    !isNullableDateString(organizationInfo.deletion_requested_at) ||
-    !isNullableDateString(organizationInfo.deletion_due_at) ||
-    !isNullableDateString(organizationInfo.deletion_started_at) ||
+    !isRecord(payload) ||
+    typeof payload.id !== "string" ||
+    typeof payload.name !== "string" ||
+    !isNullableDateString(payload.suspended_at) ||
+    !isNullableDateString(payload.deletion_requested_at) ||
+    !isNullableDateString(payload.deletion_due_at) ||
+    !isNullableDateString(payload.deletion_started_at)
+  )
+    return rejectInvalidResponse();
+
+  return {
+    id: payload.id,
+    name: payload.name,
+    suspended_at: payload.suspended_at,
+    deletion_requested_at: payload.deletion_requested_at,
+    deletion_due_at: payload.deletion_due_at,
+    deletion_started_at: payload.deletion_started_at,
+  };
+}
+
+export function parseAccountAccessResponse(payload: unknown): AccountAccessResponse {
+  if (
+    !isRecord(payload) ||
     typeof payload.is_org_admin !== "boolean" ||
     typeof payload.business_available !== "boolean" ||
     !Array.isArray(payload.departments)
   )
     return rejectInvalidResponse();
 
+  const organization = parseOrganizationAccessResponse(payload.organization);
   const arrDepartment = payload.departments.map(
     (departmentInfo: unknown): DepartmentAccessResponse => {
       if (!isRecord(departmentInfo)) return rejectInvalidResponse();
@@ -97,14 +115,7 @@ export function parseAccountAccessResponse(payload: unknown): AccountAccessRespo
     },
   );
   return {
-    organization: {
-      id: organizationInfo.id,
-      name: organizationInfo.name,
-      suspended_at: organizationInfo.suspended_at,
-      deletion_requested_at: organizationInfo.deletion_requested_at,
-      deletion_due_at: organizationInfo.deletion_due_at,
-      deletion_started_at: organizationInfo.deletion_started_at,
-    },
+    organization,
     is_org_admin: payload.is_org_admin,
     business_available: payload.business_available,
     departments: arrDepartment,

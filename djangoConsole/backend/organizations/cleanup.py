@@ -161,6 +161,7 @@ def complete_organization_deletion(
     PackageUpload.objects.filter(organization_id=organizationId).delete()
 
     strOrganizationName = organization.name
+    strTimeZone = organization.default_time_zone
     listAccount = list(
         Membership.objects
         .filter(organization_id=organizationId, user__is_platform_admin=False)
@@ -206,6 +207,7 @@ def complete_organization_deletion(
         EmailDelivery(
             organization_id=organizationId,
             organization_name=strOrganizationName,
+            time_zone=strTimeZone,
             email_type=EmailType.ORGANIZATION_DELETION_NOTICE,
             recipient=strEmail,
             created_at=completedAt,

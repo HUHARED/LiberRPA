@@ -7,12 +7,13 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 from datetime import UTC
 from typing import cast
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.core.mail import EmailMessage
 from django.views.decorators.debug import sensitive_variables
 
-from notifications.models import EmailType, EmailDelivery
+from notifications.models import EmailType, EmailDelivery, AccountDeletionNotice
 
 from .registration import RegistrationTokenDeliveryInfo
 from .password_resets import PasswordResetTokenDeliveryInfo
@@ -140,6 +141,35 @@ def build_email_change_notice(delivery: EmailDelivery) -> EmailMessage:
     return EmailMessage(
         subject="Your LiberRPA Console sign-in email was changed",
         body=strEmailBody,
+        to=[delivery.recipient],
+        reply_to=[cast(str, settings.CONSOLE_SUPPORT_EMAIL)],
+    )
+
+
+@sensitive_variables()
+def build_account_deletion_notice(delivery: EmailDelivery) -> EmailMessage:
+    """Build a deletion notice from its retained identity without querying User or Membership."""
+    if delivery.email_type != EmailType.ACCOUNT_DELETION_NOTICE:
+        raise ValueError("An account deletion notice delivery is required.")
+    notice = AccountDeletionNotice.objects.get(delivery_id=delivery.id)
+    strDeletedAt = delivery.created_at.astimezone(ZoneInfo(delivery.time_zone)).isoformat(
+        sep=" ", timespec="seconds"
+    )
+    return EmailMessage(
+        subject="A LiberRPA Console account was deleted",
+        body=(
+            f"The account {notice.account_email} in {delivery.organization_name} "
+            f"was deleted at {strDeletedAt}.\n\n"
+            f"Account ID: {notice.account_id}\n"
+            f"Organization ID: {delivery.organization_id}\n\n"
+            "The account's sessions, API keys, department roles, and client associations are no longer valid.\n"
+            "Organization resources and history remain. A new account with the same email "
+            "will not restore the deleted account.\n"
+            "This does not remove files on client devices or confirm that remote processes have stopped.\n\n"
+            "If you did not expect this change, reply to this email to contact support.\n"
+            f"Console: {cast(str, settings.CONSOLE_URL)}\n\n"
+            "LiberRPA Console\n"
+        ),
         to=[delivery.recipient],
         reply_to=[cast(str, settings.CONSOLE_SUPPORT_EMAIL)],
     )

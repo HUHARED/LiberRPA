@@ -61,6 +61,8 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (organizationContracts.OrganizationSettingsRequest, "validation"),
     (organizationContracts.OrganizationRetentionRequest, "validation"),
     (organizationContracts.OrganizationSettingsResponse, "serialization"),
+    (organizationContracts.OrganizationDeletionRequest, "validation"),
+    (organizationContracts.OrganizationDeletionResponse, "serialization"),
     (organizationContracts.DepartmentUpdateRequest, "validation"),
     (organizationContracts.DepartmentCreationRequest, "validation"),
     (organizationContracts.DepartmentDeletionRequest, "validation"),

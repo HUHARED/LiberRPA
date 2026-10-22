@@ -1,6 +1,7 @@
 // FileName: organization.ts
 
 import { requestApi } from "./client";
+import { parseOrganizationAccessResponse } from "./account";
 import {
   isRecord,
   isNonnegativeInteger,
@@ -12,6 +13,8 @@ import {
 
 import {
   type MessageResponse,
+  type OrganizationDeletionRequest,
+  type OrganizationDeletionResponse,
   type OrganizationLimitsResponse,
   type OrganizationLimitResponse,
   type OrganizationRetentionRequest,
@@ -41,6 +44,30 @@ export function parseOrganizationSettingsResponse(
       default_time_zone: payload.organization.default_time_zone,
       notes: payload.organization.notes,
     },
+  };
+}
+
+export function parseOrganizationDeletionResponse(
+  payload: unknown,
+): OrganizationDeletionResponse {
+  if (
+    !isRecord(payload) ||
+    typeof payload.is_org_admin !== "boolean" ||
+    typeof payload.business_available !== "boolean" ||
+    typeof payload.can_schedule_deletion !== "boolean" ||
+    typeof payload.can_cancel_deletion !== "boolean" ||
+    !isNonnegativeInteger(payload.deletion_delay_days) ||
+    payload.deletion_delay_days < 1
+  )
+    return rejectInvalidResponse();
+
+  return {
+    organization: parseOrganizationAccessResponse(payload.organization),
+    is_org_admin: payload.is_org_admin,
+    business_available: payload.business_available,
+    can_schedule_deletion: payload.can_schedule_deletion,
+    can_cancel_deletion: payload.can_cancel_deletion,
+    deletion_delay_days: payload.deletion_delay_days,
   };
 }
 
@@ -102,6 +129,24 @@ export async function updateOrganizationSettings(
 ): Promise<OrganizationSettingsResponse> {
   return parseOrganizationSettingsResponse(
     await requestApi("/organization/settings/", { method: "POST", body: request }),
+  );
+}
+
+export async function getOrganizationDeletion(): Promise<OrganizationDeletionResponse> {
+  return parseOrganizationDeletionResponse(await requestApi("/organization/deletion/"));
+}
+
+export async function scheduleOrganizationDeletion(
+  request: OrganizationDeletionRequest,
+): Promise<OrganizationDeletionResponse> {
+  return parseOrganizationDeletionResponse(
+    await requestApi("/organization/deletion/", { method: "POST", body: request }),
+  );
+}
+
+export async function cancelOrganizationDeletion(): Promise<OrganizationDeletionResponse> {
+  return parseOrganizationDeletionResponse(
+    await requestApi("/organization/deletion/cancel/", { method: "POST", body: {} }),
   );
 }
 

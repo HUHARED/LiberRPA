@@ -21,6 +21,7 @@ from runs.services import revoke_job_source_access
 from schedules.cron import get_next_trigger
 from schedules.models import Schedule
 
+from .emails import queue_organization_deletion_notices
 from .models import Organization
 from .permissions import (
     AccessChannel,
@@ -28,7 +29,7 @@ from .permissions import (
     lock_organization_for_deletion,
 )
 
-_ORGANIZATION_DELETION_DELAY = timedelta(days=7)
+INT_ORGANIZATION_DELETION_DELAY_DAYS = 7
 
 
 @sensitive_variables()
@@ -74,7 +75,9 @@ def schedule_organization_deletion(
     requestedAt = timezone.now()
     dictAuditBefore = get_audit_snapshot(organization)
     organization.deletion_requested_at = requestedAt
-    organization.deletion_due_at = requestedAt + _ORGANIZATION_DELETION_DELAY
+    organization.deletion_due_at = requestedAt + timedelta(
+        days=INT_ORGANIZATION_DELETION_DELAY_DAYS
+    )
     organization.save(update_fields=["deletion_requested_at", "deletion_due_at"])
     for job in (
         Job.objects
@@ -91,6 +94,7 @@ def schedule_organization_deletion(
         channel=channel,
         before=dictAuditBefore,
     )
+    queue_organization_deletion_notices(organization)
     return organization
 
 
@@ -159,4 +163,5 @@ def cancel_organization_deletion(
         channel=channel,
         before=dictAuditBefore,
     )
+    queue_organization_deletion_notices(organization)
     return organization

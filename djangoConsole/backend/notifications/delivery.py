@@ -25,6 +25,7 @@ from accounts.emails import (
     build_password_reset_email,
     build_email_change_verification,
     build_email_change_notice,
+    build_account_deletion_notice,
 )
 from organizations.models import MemberInvitation
 from organizations.invitations import InvitationConflictError, issue_invitation_token
@@ -41,6 +42,8 @@ from .models import (
     EmailType,
     EmailDispatchState,
     EmailDelivery,
+    AccountDeletionNotice,
+    OrganizationDeletionScheduleNotice,
     OrganizationLimitsNotice,
     RunEmailEvent,
     RunEmailReference,
@@ -285,8 +288,24 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
                 emailMessage = build_email_change_verification(changeDeliveryInfo)
             case EmailType.EMAIL_CHANGE_NOTICE:
                 emailMessage = build_email_change_notice(delivery)
-            case EmailType.ORGANIZATION_DELETION_NOTICE:
-                emailMessage = build_organization_deletion_notice(delivery)
+            case EmailType.ACCOUNT_DELETION_NOTICE:
+                try:
+                    emailMessage = build_account_deletion_notice(delivery)
+                except AccountDeletionNotice.DoesNotExist:
+                    return _mark_email_not_sent(
+                        delivery, reasonCode=EmailReasonCode.EMAIL_MESSAGE_INVALID
+                    )
+            case (
+                EmailType.ORGANIZATION_DELETION_SCHEDULED_NOTICE
+                | EmailType.ORGANIZATION_DELETION_CANCELED_NOTICE
+                | EmailType.ORGANIZATION_DELETION_NOTICE
+            ):
+                try:
+                    emailMessage = build_organization_deletion_notice(delivery)
+                except OrganizationDeletionScheduleNotice.DoesNotExist:
+                    return _mark_email_not_sent(
+                        delivery, reasonCode=EmailReasonCode.EMAIL_MESSAGE_INVALID
+                    )
             case EmailType.ORGANIZATION_LIMITS_NOTICE:
                 try:
                     emailMessage = build_organization_limits_notice(delivery)

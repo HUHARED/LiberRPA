@@ -1,7 +1,16 @@
 <!-- FileName: OrganizationGeneralView.vue -->
 <template>
-  <h2 class="text-h6 mb-2">General</h2>
-  <p class="text-medium-emphasis mb-6">Manage your organization's name and defaults.</p>
+  <div class="d-flex flex-wrap align-center justify-space-between ga-4 mb-4">
+    <h2 class="text-h6">General</h2>
+    <v-btn
+      color="error"
+      variant="tonal"
+      prepend-icon="mdi-delete-outline"
+      :disabled="boolActionBlocked || !organizationInfo"
+      @click="boolShowDeletion = true">
+      Delete Organization
+    </v-btn>
+  </div>
 
   <v-progress-linear
     v-if="boolLoading"
@@ -96,11 +105,17 @@
       </v-btn>
     </v-card-actions>
   </v-card>
+
+  <OrganizationDeleteDialog
+    v-if="boolShowDeletion && boolCanManage"
+    @close="boolShowDeletion = false" />
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
+
+import OrganizationDeleteDialog from "@/components/organizations/OrganizationDeleteDialog.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -142,9 +157,15 @@ const saveError = shallowRef<ApiError | null>(null);
 const strSuccess = ref("");
 const boolLoading = ref(false);
 const boolSaving = ref(false);
+const boolShowDeletion = ref(false);
 
 const boolActionBlocked = computed(
-  () => boolLoading.value || boolSaving.value || sessionStore.busy || !boolCanManage.value,
+  () =>
+    boolLoading.value ||
+    boolSaving.value ||
+    boolShowDeletion.value ||
+    sessionStore.busy ||
+    !boolCanManage.value,
 );
 
 let boolUnmounted = false;

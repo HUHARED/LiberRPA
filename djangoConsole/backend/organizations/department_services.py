@@ -212,5 +212,5 @@ def create_general_department(organization: Organization) -> Department:
     return _create_department_record(
         organization,
         name="General",
-        notes="Created automatically during organization setup.",
+        notes="",
     )

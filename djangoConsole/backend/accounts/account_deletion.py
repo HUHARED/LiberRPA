@@ -10,9 +10,11 @@ from typing import cast
 
 from django.contrib.auth.hashers import check_password
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from executors.session_state import revoke_user_executor_sessions
+from notifications.models import EmailType, EmailDelivery, AccountDeletionNotice
 from operations.contracts import AuditAction
 from operations.audit import record_audit
 from runs.services import recheck_job_source_access
@@ -126,4 +128,36 @@ def delete_account(
     revoke_user_executor_sessions(userId)
     target.delete()
     recheck_job_source_access(userId, access.organization.id)
+
+    # Snapshot recipients and identity before commit; SMTP never depends on the deleted account.
+    listEmail = [
+        target.email,
+        *Membership.objects
+        .filter(
+            organization=access.organization,
+            is_org_admin=True,
+            user__is_active=True,
+            user__is_platform_admin=False,
+        )
+        .order_by("user_id")
+        .values_list("user__email", flat=True),
+    ]
+    deletedAt = timezone.now()
+    listDelivery = EmailDelivery.objects.bulk_create([
+        EmailDelivery(
+            organization_id=access.organization.id,
+            organization_name=access.organization.name,
+            time_zone=access.organization.default_time_zone,
+            email_type=EmailType.ACCOUNT_DELETION_NOTICE,
+            recipient=strEmail,
+            created_at=deletedAt,
+        )
+        for strEmail in listEmail
+    ])
+    AccountDeletionNotice.objects.bulk_create([
+        AccountDeletionNotice(
+            delivery=delivery, account_id=userId, account_email=target.email
+        )
+        for delivery in listDelivery
+    ])
     # Django rejects old web sessions because their User ID no longer resolves.

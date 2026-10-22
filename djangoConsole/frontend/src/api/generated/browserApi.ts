@@ -312,6 +312,8 @@ export interface BrowserApiContracts {
   MembershipUpdateRequest: MembershipUpdateRequest;
   MembershipWriteResponse: MembershipWriteResponse;
   MessageResponse: MessageResponse;
+  OrganizationDeletionRequest: OrganizationDeletionRequest;
+  OrganizationDeletionResponse: OrganizationDeletionResponse;
   OrganizationLimitsRequest: OrganizationLimitsRequest;
   OrganizationLimitsResponse: OrganizationLimitsResponse;
   OrganizationRetentionRequest: OrganizationRetentionRequest;
@@ -1281,6 +1283,17 @@ export interface MembershipRecordResponse {
 }
 export interface MessageResponse {
   message: string;
+}
+export interface OrganizationDeletionRequest {
+  current_password: string;
+}
+export interface OrganizationDeletionResponse {
+  business_available: boolean;
+  can_cancel_deletion: boolean;
+  can_schedule_deletion: boolean;
+  deletion_delay_days: number;
+  is_org_admin: boolean;
+  organization: OrganizationAccessResponse;
 }
 export interface OrganizationLimitsRequest {
   overrides: {

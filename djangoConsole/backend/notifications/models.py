@@ -11,6 +11,8 @@ from django.db.models.functions import Lower, Trim
 from django.db.models.lookups import Exact
 from django.utils import timezone
 
+from console_project.validators import validate_time_zone
+
 from .contracts import (
     EmailStatus,
     EmailReasonCode,
@@ -30,6 +32,15 @@ class EmailType(models.TextChoices):
     PASSWORD_RESET = "password_reset", "Password reset"
     EMAIL_CHANGE_VERIFICATION = "email_change_verification", "Email change verification"
     EMAIL_CHANGE_NOTICE = "email_change_notice", "Email change notice"
+    ACCOUNT_DELETION_NOTICE = "account_deletion_notice", "Account deletion notice"
+    ORGANIZATION_DELETION_SCHEDULED_NOTICE = (
+        "organization_deletion_scheduled_notice",
+        "Organization deletion scheduled notice",
+    )
+    ORGANIZATION_DELETION_CANCELED_NOTICE = (
+        "organization_deletion_canceled_notice",
+        "Organization deletion canceled notice",
+    )
     ORGANIZATION_DELETION_NOTICE = (
         "organization_deletion_notice",
         "Organization deletion notice",
@@ -49,6 +60,7 @@ class EmailType(models.TextChoices):
 
     BACKUP_FAILURE_NOTICE = "backup_failure_notice", "Backup failure notice"
     BACKUP_RECOVERY_NOTICE = "backup_recovery_notice", "Backup recovery notice"
+
 
 class EmailWorkerStatus(models.TextChoices):
     STARTING = "starting", "Starting"
@@ -103,6 +115,9 @@ class EmailDelivery(models.Model):
     organization_id = models.UUIDField(null=True, blank=True, editable=False)
     organization_name = models.CharField(
         max_length=200, blank=True, default="", editable=False
+    )
+    time_zone = models.CharField(
+        max_length=100, default="UTC", validators=[validate_time_zone], editable=False
     )
     email_type = models.CharField(
         max_length=max(len(value) for value in EmailType.values),
@@ -181,6 +196,9 @@ class EmailDelivery(models.Model):
                             EmailType.PASSWORD_RESET,
                             EmailType.EMAIL_CHANGE_VERIFICATION,
                             EmailType.EMAIL_CHANGE_NOTICE,
+                            EmailType.ACCOUNT_DELETION_NOTICE,
+                            EmailType.ORGANIZATION_DELETION_SCHEDULED_NOTICE,
+                            EmailType.ORGANIZATION_DELETION_CANCELED_NOTICE,
                             EmailType.ORGANIZATION_DELETION_NOTICE,
                             EmailType.ORGANIZATION_LIMITS_NOTICE,
                             EmailType.ORGANIZATION_SUSPENDED_NOTICE,
@@ -282,6 +300,36 @@ class EmailDelivery(models.Model):
 
     def __str__(self) -> str:
         return f"{self.email_type}: {self.recipient} ({self.status})"
+
+
+class AccountDeletionNotice(models.Model):
+    """Deleted account identity retained only for the lifetime of its delivery."""
+
+    delivery_id: uuid.UUID
+    delivery = models.OneToOneField(
+        EmailDelivery, on_delete=models.CASCADE, primary_key=True, related_name="+"
+    )
+    account_id = models.UUIDField(editable=False)
+    account_email = models.EmailField(editable=False)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(account_email=Lower(Trim("account_email")))
+                & ~models.Q(account_email=""),
+                name="account_deletion_email_canonical",
+            ),
+        ]
+
+
+class OrganizationDeletionScheduleNotice(models.Model):
+    """The deadline recorded when deletion was scheduled, not the current organization state."""
+
+    delivery_id: uuid.UUID
+    delivery = models.OneToOneField(
+        EmailDelivery, on_delete=models.CASCADE, primary_key=True, related_name="+"
+    )
+    deletion_due_at = models.DateTimeField(editable=False)
 
 
 class OrganizationLimitsNotice(models.Model):

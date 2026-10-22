@@ -90,6 +90,19 @@ class OrganizationSettingsResponse(JsonResponsePayload):
     organization: OrganizationSettingsRecordResponse
 
 
+class OrganizationDeletionRequest(JsonRequest):
+    current_password: SecretStr
+
+
+class OrganizationDeletionResponse(JsonResponsePayload):
+    organization: OrganizationAccessResponse
+    is_org_admin: bool
+    business_available: bool
+    can_schedule_deletion: bool
+    can_cancel_deletion: bool
+    deletion_delay_days: int = Field(ge=1)
+
+
 class DepartmentUpdateRequest(JsonRequest):
     name: str
     parent_id: Annotated[UUID, Field(strict=False)] | None
