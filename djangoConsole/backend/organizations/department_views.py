@@ -37,7 +37,7 @@ from .contracts import (
 )
 from .models import Department
 from .http import lock_request_write_access
-from .permissions import AccessChannel, get_current_membership
+from .permissions import AccessChannel, get_current_membership, build_organization_access
 from .rate_limits import check_request_budget
 from .department_queries import (
     DepartmentInfo,
@@ -158,9 +158,7 @@ def list_or_create_departments(request: HttpRequest) -> JsonResponse:
                 return _build_saved_department_response(department, statusCode=201)
 
         listDepartmentInfo = get_department_list(
-            actorId=user.id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
+            access=build_organization_access(membership, channel=AccessChannel.SESSION),
         )
         dictListPayload = {
             "departments": [
@@ -223,9 +221,7 @@ def get_or_update_department(
                 return _build_saved_department_response(department, statusCode=200)
 
         detailsInfo = get_department_details(
-            actorId=user.id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
+            access=build_organization_access(membership, channel=AccessChannel.SESSION),
             departmentId=departmentId,
         )
         dictDetailsPayload = {
@@ -333,9 +329,7 @@ def get_or_delete_department(
                 )
 
         deletionInfo = get_department_deletion_info(
-            actorId=user.id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
+            access=build_organization_access(membership, channel=AccessChannel.SESSION),
             departmentId=departmentId,
         )
         return JsonResponse(build_deletion_payload(deletionInfo))

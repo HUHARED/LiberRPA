@@ -23,7 +23,7 @@ from .permissions import (
     AccessChannel,
     OrganizationAccessContext,
     get_current_membership,
-    resolve_organization_access,
+    build_organization_access,
 )
 from .rate_limits import check_request_budget
 
@@ -65,11 +65,7 @@ def get_request_access(
         raise PermissionDenied("Sign in to continue.")
     if forUpdate:
         return lock_request_write_access(request, membership)
-    return resolve_organization_access(
-        actorId=membership.user_id,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-    )
+    return build_organization_access(membership, channel=AccessChannel.SESSION)
 
 
 def parse_department_resource_filters(

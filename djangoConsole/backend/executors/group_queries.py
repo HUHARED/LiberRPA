@@ -18,9 +18,7 @@ from console_project.constants import INT_LIST_PAGE_SIZE
 from organizations.department_queries import get_department_path
 from organizations.contracts import DepartmentRole
 from organizations.permissions import (
-    AccessChannel,
     OrganizationAccessContext,
-    resolve_organization_access,
     get_authorized_departments,
 )
 
@@ -108,16 +106,11 @@ def _get_group_info_list(
 
 def get_executor_group_list(
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     pageNumber: int = 1,
     departmentIds: tuple[uuid.UUID, ...] = (),
     name: str = "",
 ) -> ExecutorGroupPageInfo:
-    access = resolve_organization_access(
-        actorId=actorId, organizationId=organizationId, channel=channel
-    )
     groups = _get_group_query(access)
     if departmentIds:
         groups = groups.filter(department_id__in=departmentIds)
@@ -136,14 +129,9 @@ def get_executor_group_list(
 
 def get_executor_group_details(
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     groupId: uuid.UUID,
 ) -> ExecutorGroupDetails:
-    access = resolve_organization_access(
-        actorId=actorId, organizationId=organizationId, channel=channel
-    )
     currentTime = timezone.now()
     group = _get_group_query(access).get(pk=groupId)
     members = list(

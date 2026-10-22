@@ -19,7 +19,7 @@ from organizations.models import Membership
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
-    resolve_organization_access,
+    build_organization_access,
 )
 
 from .services import FileOperationError
@@ -35,11 +35,7 @@ class FileRequestError(Exception):
 def get_file_access(authentication: FileAuthentication) -> OrganizationAccessContext:
     if not isinstance(authentication, Membership):
         return authentication.access
-    return resolve_organization_access(
-        actorId=authentication.user_id,
-        organizationId=authentication.organization_id,
-        channel=AccessChannel.SESSION,
-    )
+    return build_organization_access(authentication, channel=AccessChannel.SESSION)
 
 
 def get_file_api_key_id(authentication: FileAuthentication) -> uuid.UUID | None:

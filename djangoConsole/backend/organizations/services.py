@@ -4,7 +4,6 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-import uuid
 from typing import cast
 
 from django.conf import settings
@@ -15,21 +14,11 @@ from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 
 from .models import Organization
-from .permissions import (
-    AccessChannel,
-    OrganizationAccessContext,
-    resolve_organization_access,
-    require_organization_admin,
-)
+from .permissions import OrganizationAccessContext, require_organization_admin
 
 
-def get_organization_settings(
-    *, actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
-) -> Organization:
+def get_organization_settings(*, access: OrganizationAccessContext) -> Organization:
     """Read General settings using the current organization administrator permission."""
-    access = resolve_organization_access(
-        actorId=actorId, organizationId=organizationId, channel=channel
-    )
     require_organization_admin(access)
     return access.organization
 

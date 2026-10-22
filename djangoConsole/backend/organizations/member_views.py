@@ -35,7 +35,7 @@ from .contracts import (
 from .member_queries import MemberInfo, get_member_details, get_member_list
 from .models import Membership
 from .http import lock_request_write_access
-from .permissions import AccessChannel, get_current_membership
+from .permissions import AccessChannel, get_current_membership, build_organization_access
 from .rate_limits import check_request_budget
 from .member_services import update_membership
 
@@ -131,9 +131,7 @@ def list_members(request: HttpRequest) -> JsonResponse:
         if isinstance(pageNumberResult, JsonResponse):
             return pageNumberResult
         memberPage = get_member_list(
-            actorId=user.id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
+            access=build_organization_access(membership, channel=AccessChannel.SESSION),
             pageNumber=pageNumberResult,
         )
         return JsonResponse(
@@ -197,9 +195,9 @@ def get_or_update_member(request: HttpRequest, userId: uuid.UUID) -> JsonRespons
             return _build_saved_member_response(membership, dictDepartmentRole)
 
         memberInfo = get_member_details(
-            actorId=user.id,
-            organizationId=currentMembership.organization_id,
-            channel=AccessChannel.SESSION,
+            access=build_organization_access(
+                currentMembership, channel=AccessChannel.SESSION
+            ),
             userId=userId,
         )
         # API key metadata is loaded separately through the member's api-keys endpoint.

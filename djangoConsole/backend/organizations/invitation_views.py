@@ -66,7 +66,7 @@ from .models import (
 from .http import get_request_membership, lock_request_write_access
 from .permissions import (
     AccessChannel,
-    resolve_organization_access,
+    build_organization_access,
     require_organization_admin,
 )
 
@@ -122,11 +122,7 @@ def _get_invitation_membership(request: HttpRequest) -> Membership | JsonRespons
     membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
-    access = resolve_organization_access(
-        actorId=membership.user_id,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-    )
+    access = build_organization_access(membership, channel=AccessChannel.SESSION)
     require_organization_admin(access)
     return membership
 

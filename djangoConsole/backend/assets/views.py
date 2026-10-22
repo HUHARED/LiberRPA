@@ -37,7 +37,7 @@ from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
     get_current_membership,
-    resolve_organization_access,
+    build_organization_access,
 )
 from organizations.rate_limits import check_request_budget
 
@@ -193,11 +193,7 @@ def list_or_create_assets(request: HttpRequest, membership: Membership) -> HttpR
                 "Use a positive page, one name, department UUIDs, and supported asset types.",
                 statusCode=400,
             )
-        access = resolve_organization_access(
-            actorId=membership.user_id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
-        )
+        access = build_organization_access(membership, channel=AccessChannel.SESSION)
         return _build_asset_response(
             get_asset_list(access, **filters, assetTypes=tupleAssetType)
         )
@@ -226,11 +222,7 @@ def get_or_update_asset(
     request: HttpRequest, membership: Membership, assetId: uuid.UUID
 ) -> HttpResponse:
     if request.method == "GET":
-        access = resolve_organization_access(
-            actorId=membership.user_id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
-        )
+        access = build_organization_access(membership, channel=AccessChannel.SESSION)
         asset = get_asset_query(access).get(pk=assetId)
         return _build_asset_response(build_asset_details(asset, access))
 

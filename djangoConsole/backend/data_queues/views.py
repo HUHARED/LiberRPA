@@ -14,7 +14,7 @@ from console_project.contracts import MessageResponse
 from console_project.http import parse_page_number
 from organizations.http import parse_department_resource_filters
 from organizations.models import Membership
-from organizations.permissions import AccessChannel, resolve_organization_access
+from organizations.permissions import AccessChannel, build_organization_access
 from organizations.rate_limits import RequestBudget, check_request_budget, request_budget
 
 from .contracts import (
@@ -64,11 +64,7 @@ def list_or_create_queues(request: HttpRequest, membership: Membership) -> HttpR
             raise QueueRequestError(
                 "Use one positive page, one name, and department UUIDs.",
             ) from None
-        access = resolve_organization_access(
-            actorId=membership.user_id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
-        )
+        access = build_organization_access(membership, channel=AccessChannel.SESSION)
         return build_queue_response(get_queue_list(access, **filters))
     payload = parse_queue_request(request, QueueCreationRequest)
     if isinstance(payload, JsonResponse):
@@ -97,11 +93,7 @@ def get_or_update_queue(
     if request.method == "GET":
         if request.GET:
             raise QueueRequestError("This endpoint does not accept filters.")
-        access = resolve_organization_access(
-            actorId=membership.user_id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
-        )
+        access = build_organization_access(membership, channel=AccessChannel.SESSION)
         queue = get_queue_query(access, includeCounts=True).get(pk=queueId)
         return build_queue_response(
             QueueDetailsResponse(queue=build_queue_payloads([queue], access)[0]),
@@ -155,11 +147,7 @@ def list_queue_items(
         raise QueueRequestError(
             "Use supported fields, valid UUIDs, and valid queue filters.",
         ) from None
-    access = resolve_organization_access(
-        actorId=membership.user_id,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-    )
+    access = build_organization_access(membership, channel=AccessChannel.SESSION)
     queue = get_queue_query(access, includeCounts=True).get(pk=queueId)
     return build_queue_response(
         get_item_list(
@@ -183,11 +171,7 @@ def get_queue_item(
 ) -> HttpResponse:
     if request.GET:
         raise QueueRequestError("This endpoint does not accept filters.")
-    access = resolve_organization_access(
-        actorId=membership.user_id,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-    )
+    access = build_organization_access(membership, channel=AccessChannel.SESSION)
     queue = get_queue_query(access).get(pk=queueId)
     return build_queue_response(
         build_item_details(QueueItem.objects.get(queue=queue, pk=itemId)),

@@ -34,7 +34,7 @@ from organizations.contracts import DepartmentRole
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
-    resolve_organization_access,
+    build_organization_access,
     get_authorized_departments,
 )
 from organizations.rate_limits import RequestBudget, request_budget
@@ -215,11 +215,7 @@ def list_or_create_schedules(request: HttpRequest) -> JsonResponse:
                 },
                 status=201,
             )
-    access = resolve_organization_access(
-        actorId=membership.user_id,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-    )
+    access = build_organization_access(membership, channel=AccessChannel.SESSION)
     filters = parse_department_resource_filters(
         request.GET, extraFields=frozenset({"enabled", "project_name", "target"})
     )
@@ -282,11 +278,7 @@ def get_or_update_schedule(request: HttpRequest, scheduleId: uuid.UUID) -> JsonR
                     runSettingsById={schedule.pk: form.settings},
                 )[0]
             })
-    access = resolve_organization_access(
-        actorId=membership.user_id,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-    )
+    access = build_organization_access(membership, channel=AccessChannel.SESSION)
     return JsonResponse({
         "schedule": _build_payloads(
             [get_schedule_for_access(access, scheduleId)], access, details=True
@@ -344,11 +336,7 @@ def preview_schedule(request: HttpRequest) -> JsonResponse:
     membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
-    resolve_organization_access(
-        actorId=membership.user_id,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-    )
+    build_organization_access(membership, channel=AccessChannel.SESSION)
     form = parse_json_request(request, ScheduleTimeRequest)
     if isinstance(form, JsonResponse):
         return form
@@ -368,11 +356,7 @@ def schedule_defaults(request: HttpRequest) -> JsonResponse:
     membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
-    access = resolve_organization_access(
-        actorId=membership.user_id,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-    )
+    access = build_organization_access(membership, channel=AccessChannel.SESSION)
     return JsonResponse({
         "time_zone": access.actor.time_zone,
     })

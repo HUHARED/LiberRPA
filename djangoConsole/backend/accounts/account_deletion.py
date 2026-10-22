@@ -21,8 +21,6 @@ from organizations.models import Membership
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
-    get_current_membership,
-    resolve_organization_access,
     require_organization_admin,
     has_other_active_organization_admin,
 )
@@ -81,17 +79,9 @@ def _build_account_deletion_info(membership: Membership) -> AccountDeletionInfo:
 
 
 def get_account_deletion_info(
-    *, actorId: uuid.UUID, channel: AccessChannel, userId: uuid.UUID
+    *, access: OrganizationAccessContext, userId: uuid.UUID
 ) -> AccountDeletionInfo:
     """Preview account deletion without authorizing a later write or checking a password."""
-    if channel != AccessChannel.SESSION:
-        raise PermissionDenied("A signed-in account is required to delete an account.")
-    currentMembership = get_current_membership(actorId=actorId)
-    access = resolve_organization_access(
-        actorId=actorId,
-        organizationId=currentMembership.organization_id,
-        channel=channel,
-    )
     membership = _get_account_deletion_membership(access, userId, forUpdate=False)
     return _build_account_deletion_info(membership)
 

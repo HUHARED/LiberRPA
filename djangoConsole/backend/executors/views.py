@@ -32,7 +32,7 @@ from organizations.http import (
     parse_department_resource_filters,
 )
 from organizations.models import Department
-from organizations.permissions import AccessChannel, resolve_organization_access
+from organizations.permissions import AccessChannel, build_organization_access
 from schedules.models import Schedule
 
 from .contracts import (
@@ -199,11 +199,7 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
         listParametersResult = _get_list_parameters(request)
         if isinstance(listParametersResult, JsonResponse):
             return listParametersResult
-        access = resolve_organization_access(
-            actorId=membership.user_id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
-        )
+        access = build_organization_access(membership, channel=AccessChannel.SESSION)
         executorPage = get_executor_list(
             access,
             **listParametersResult,
@@ -252,9 +248,7 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
                     }).model_dump(mode="python")
                 )
         details = get_executor_details(
-            actorId=membership.user_id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
+            access=build_organization_access(membership, channel=AccessChannel.SESSION),
             executorId=executorId,
         )
         try:

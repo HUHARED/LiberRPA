@@ -21,7 +21,6 @@ from organizations.models import Department
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
-    resolve_organization_access,
     get_authorized_departments,
 )
 from packages.contracts import PackagePreparationState
@@ -176,14 +175,9 @@ def get_executor_list(
 
 def get_executor_details(
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     executorId: uuid.UUID,
 ) -> ExecutorInfo:
-    access = resolve_organization_access(
-        actorId=actorId, organizationId=organizationId, channel=channel
-    )
     currentTime = timezone.now()
     executor = _get_executor_query(access).get(pk=executorId)
     context = get_executor_read_context(

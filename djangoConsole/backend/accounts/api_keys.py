@@ -25,8 +25,6 @@ from organizations.models import Membership
 from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
-    get_current_membership,
-    resolve_organization_access,
     require_organization_admin,
 )
 
@@ -116,21 +114,12 @@ def _prune_inactive_api_keys(userId: uuid.UUID, currentTime: datetime) -> int:
 
 def get_api_key_list(
     *,
-    actorId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     userId: uuid.UUID,
     statuses: tuple[ApiKeyStatus, ...] = (),
     asAdministrator: bool = False,
 ) -> tuple[ApiKey, ...]:
     """Read current owner/admin metadata; filtering happens after applying retention."""
-    if channel != AccessChannel.SESSION:
-        raise PermissionDenied("A signed-in account is required to manage API keys.")
-    membership = get_current_membership(actorId=actorId)
-    access = resolve_organization_access(
-        actorId=actorId,
-        organizationId=membership.organization_id,
-        channel=channel,
-    )
     _require_management_access(
         access, userId, forUpdate=False, asAdministrator=asAdministrator
     )

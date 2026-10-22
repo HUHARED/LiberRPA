@@ -34,7 +34,7 @@ from organizations.http import get_request_membership, lock_request_write_access
 from organizations.models import Organization
 from organizations.permissions import (
     AccessChannel,
-    resolve_organization_access,
+    build_organization_access,
     require_organization_admin,
 )
 from organizations.rate_limits import RequestBudget, request_budget
@@ -199,11 +199,7 @@ def list_or_create_recipients(request: HttpRequest) -> JsonResponse:
             access = lock_request_write_access(request, membership)
             recipient = create_recipient(access, email=form.email, notes=form.notes)
             return JsonResponse({"recipient": _recipient_payload(recipient)}, status=201)
-    access = resolve_organization_access(
-        actorId=membership.user_id,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-    )
+    access = build_organization_access(membership, channel=AccessChannel.SESSION)
     strStatus = request.GET.get("status", "all")
     if strStatus not in ("all", "eligible", *RunEmailRecipientStatus):
         raise ValidationError(
@@ -344,9 +340,5 @@ def template_metadata(request: HttpRequest) -> JsonResponse:
     membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
-    resolve_organization_access(
-        actorId=membership.user_id,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-    )
+    build_organization_access(membership, channel=AccessChannel.SESSION)
     return JsonResponse(get_template_metadata())

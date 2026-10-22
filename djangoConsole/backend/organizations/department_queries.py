@@ -11,11 +11,7 @@ from dataclasses import dataclass
 from .contracts import DepartmentRole
 from .models import Department, DepartmentMembership
 from .validators import get_path_name_key
-from .permissions import (
-    AccessChannel,
-    resolve_organization_access,
-    require_organization_admin,
-)
+from .permissions import OrganizationAccessContext, require_organization_admin
 
 
 @dataclass(frozen=True)
@@ -85,11 +81,8 @@ def get_department_path(
 
 
 def _get_admin_department_tree(
-    actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
+    access: OrganizationAccessContext,
 ) -> dict[uuid.UUID, Department]:
-    access = resolve_organization_access(
-        actorId=actorId, organizationId=organizationId, channel=channel
-    )
     require_organization_admin(access)
     return get_department_tree(access.organization.pk)
 
@@ -106,11 +99,9 @@ def _build_department_info(
     )
 
 
-def get_department_list(
-    *, actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
-) -> list[DepartmentInfo]:
+def get_department_list(*, access: OrganizationAccessContext) -> list[DepartmentInfo]:
     """Return the active tree for organization administration, ordered by full path."""
-    dictDepartmentById = _get_admin_department_tree(actorId, organizationId, channel)
+    dictDepartmentById = _get_admin_department_tree(access)
     listDepartmentInfo = [
         _build_department_info(department, dictDepartmentById)
         for department in dictDepartmentById.values()
@@ -126,13 +117,11 @@ def get_department_list(
 
 def get_department_details(
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     departmentId: uuid.UUID,
 ) -> DepartmentDetailsInfo:
     """Return one active department and its explicit current membership assignments."""
-    dictDepartmentById = _get_admin_department_tree(actorId, organizationId, channel)
+    dictDepartmentById = _get_admin_department_tree(access)
     department = dictDepartmentById.get(departmentId)
     if department is None:
         raise Department.DoesNotExist
@@ -146,7 +135,7 @@ def get_department_details(
             role=DepartmentRole(strRole),
         )
         for userId, strEmail, strUsername, strRole in DepartmentMembership.objects.filter(
-            department=department, membership__organization_id=organizationId
+            department=department, membership__organization_id=access.organization.pk
         ).values_list(
             "membership_id",
             "membership__user__email",

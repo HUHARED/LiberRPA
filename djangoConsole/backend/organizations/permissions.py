@@ -87,7 +87,7 @@ def _resolve_organization_member(
     actorId: uuid.UUID,
     organizationId: uuid.UUID,
     forUpdate: bool,
-) -> tuple[Organization, Membership]:
+) -> Membership:
     """Load current identity facts; the caller applies the operation's service-state rule."""
     membershipQuery = _get_active_memberships(actorId).filter(
         organization_id=organizationId
@@ -103,29 +103,24 @@ def _resolve_organization_member(
                 .select_for_update(of=("self", "user"))
                 .get()
             )
+            # Reuse the separately locked organization without a lazy relationship query.
+            membership.organization = organization
         else:
             membership = membershipQuery.select_related("organization", "user").get()
-            organization = cast(Organization, membership.organization)
     except (Organization.DoesNotExist, Membership.DoesNotExist):
         raise PermissionDenied("Organization access is required.") from None
 
-    return organization, membership
+    return membership
 
 
-def resolve_organization_access(
-    *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
-    forUpdate: bool = False,
+def build_organization_access(
+    membership: Membership, *, channel: AccessChannel
 ) -> OrganizationAccessContext:
-    """Resolve current organization business access after credential authentication.
+    """Apply business rules to current identity facts without querying them again.
 
-    actorId and channel come from verified credentials, never from the request body.
-    Restricted status viewing and deletion cancellation need separate authorization.
-    forUpdate requires the caller's transaction and locks the organization before its member.
-    The returned actor is the account loaded with the membership, locked for writes.
-    Resolve again at a new operation or write boundary instead of reusing an old result.
+    The membership and its user and organization must come from the verified identity lookup.
+    The credential channel is selected by the server, never by request data.
+    Reuse the context only within this operation; writes must reload and lock current access.
     """
     if channel not in (
         AccessChannel.SESSION,
@@ -135,10 +130,7 @@ def resolve_organization_access(
     ):
         raise PermissionDenied("Unsupported access channel.")
 
-    organization, membership = _resolve_organization_member(
-        actorId=actorId, organizationId=organizationId, forUpdate=forUpdate
-    )
-    # Verify membership first so an outsider cannot discover the organization's state.
+    organization = cast(Organization, membership.organization)
     require_organization_business_available(organization)
     return OrganizationAccessContext(
         actor=cast(User, membership.user),
@@ -146,6 +138,27 @@ def resolve_organization_access(
         isOrgAdmin=membership.is_org_admin,
         channel=channel,
     )
+
+
+def resolve_organization_access(
+    *,
+    actorId: uuid.UUID,
+    organizationId: uuid.UUID,
+    channel: AccessChannel,
+    forUpdate: bool = False,
+) -> OrganizationAccessContext:
+    """Load current organization business access at an operation or write boundary.
+
+    actorId and channel come from verified credentials, never from the request body.
+    Restricted status viewing and deletion cancellation need separate authorization.
+    forUpdate requires the caller's transaction and locks the organization before its member.
+    The returned actor is the account loaded with the membership, locked for writes.
+    Callers that already loaded current membership use build_organization_access for reads.
+    """
+    membership = _resolve_organization_member(
+        actorId=actorId, organizationId=organizationId, forUpdate=forUpdate
+    )
+    return build_organization_access(membership, channel=channel)
 
 
 def _require_organization_admin(isOrgAdmin: bool, channel: AccessChannel) -> None:
@@ -166,11 +179,11 @@ def lock_organization_for_deletion(
     The caller's transaction must contain the state transition and any password check.
     actorId and channel must come from verified credentials.
     """
-    organization, membership = _resolve_organization_member(
+    membership = _resolve_organization_member(
         actorId=actorId, organizationId=organizationId, forUpdate=True
     )
     _require_organization_admin(membership.is_org_admin, channel)
-    return organization, cast(User, membership.user)
+    return cast(Organization, membership.organization), cast(User, membership.user)
 
 
 def lock_account_for_password_reset(*, userId: uuid.UUID) -> tuple[Organization, User]:
@@ -181,12 +194,12 @@ def lock_account_for_password_reset(*, userId: uuid.UUID) -> tuple[Organization,
     Return both locked records so a successful reset can record its audit without rereading identity.
     """
     currentMembership = get_current_membership(actorId=userId)
-    organization, membership = _resolve_organization_member(
+    membership = _resolve_organization_member(
         actorId=userId,
         organizationId=currentMembership.organization_id,
         forUpdate=True,
     )
-    return organization, cast(User, membership.user)
+    return cast(Organization, membership.organization), cast(User, membership.user)
 
 
 def has_other_active_organization_admin(

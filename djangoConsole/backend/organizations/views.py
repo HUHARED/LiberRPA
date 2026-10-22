@@ -32,8 +32,9 @@ from .models import Organization
 from .http import lock_request_write_access
 from .permissions import (
     AccessChannel,
-    get_current_membership,
     require_organization_business_available,
+    get_current_membership,
+    build_organization_access,
 )
 from .rate_limits import check_request_budget
 from .services import (
@@ -153,9 +154,9 @@ def get_or_update_organization_settings(request: HttpRequest) -> JsonResponse:
                 )
         else:
             organization = get_organization_settings(
-                actorId=user.id,
-                organizationId=membership.organization_id,
-                channel=AccessChannel.SESSION,
+                access=build_organization_access(
+                    membership, channel=AccessChannel.SESSION
+                ),
             )
         return _build_organization_settings_response(organization)
     except SessionInvalidatedError:

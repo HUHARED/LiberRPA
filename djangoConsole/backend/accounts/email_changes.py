@@ -32,6 +32,7 @@ from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
     get_current_membership,
+    build_organization_access,
     resolve_organization_access,
 )
 
@@ -77,12 +78,14 @@ def _resolve_email_change_access(
 ) -> OrganizationAccessContext:
     """Resolve current business eligibility; callers separately verify the password or proof."""
     membership = get_current_membership(actorId=userId)
-    return resolve_organization_access(
-        actorId=userId,
-        organizationId=membership.organization_id,
-        channel=AccessChannel.SESSION,
-        forUpdate=forUpdate,
-    )
+    if forUpdate:
+        return resolve_organization_access(
+            actorId=userId,
+            organizationId=membership.organization_id,
+            channel=AccessChannel.SESSION,
+            forUpdate=True,
+        )
+    return build_organization_access(membership, channel=AccessChannel.SESSION)
 
 
 @sensitive_variables()

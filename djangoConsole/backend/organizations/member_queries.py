@@ -20,11 +20,7 @@ from console_project.constants import INT_LIST_PAGE_SIZE
 from .department_queries import get_department_path
 from .contracts import DepartmentRole
 from .models import Membership, Department, DepartmentMembership
-from .permissions import (
-    AccessChannel,
-    resolve_organization_access,
-    require_organization_admin,
-)
+from .permissions import OrganizationAccessContext, require_organization_admin
 
 
 @dataclass(frozen=True)
@@ -55,12 +51,7 @@ class MemberPageInfo:
     totalPages: int
 
 
-def _get_member_query(
-    actorId: uuid.UUID, organizationId: uuid.UUID, channel: AccessChannel
-) -> QuerySet[Membership]:
-    access = resolve_organization_access(
-        actorId=actorId, organizationId=organizationId, channel=channel
-    )
+def _get_member_query(access: OrganizationAccessContext) -> QuerySet[Membership]:
     require_organization_admin(access)
     return (
         Membership.objects
@@ -133,19 +124,19 @@ def _get_member_info_list(
 
 def get_member_list(
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     pageNumber: int = 1,
 ) -> MemberPageInfo:
     """Read one ordered page of current members and their explicit department roles."""
-    membershipQuery = _get_member_query(actorId, organizationId, channel).order_by(
+    membershipQuery = _get_member_query(access).order_by(
         Lower("user__username"), "user__email", "user_id"
     )
     paginator = Paginator(membershipQuery, INT_LIST_PAGE_SIZE)
     memberPage = paginator.page(pageNumber)
     return MemberPageInfo(
-        members=_get_member_info_list(list(memberPage.object_list), organizationId),
+        members=_get_member_info_list(
+            list(memberPage.object_list), access.organization.pk
+        ),
         page=memberPage.number,
         pageSize=INT_LIST_PAGE_SIZE,
         totalCount=paginator.count,
@@ -155,11 +146,9 @@ def get_member_list(
 
 def get_member_details(
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     userId: uuid.UUID,
 ) -> MemberInfo:
     """Read one current organization member without exposing account credentials."""
-    membership = _get_member_query(actorId, organizationId, channel).get(user_id=userId)
-    return _get_member_info_list([membership], organizationId)[0]
+    membership = _get_member_query(access).get(user_id=userId)
+    return _get_member_info_list([membership], access.organization.pk)[0]

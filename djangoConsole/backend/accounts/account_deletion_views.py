@@ -26,7 +26,11 @@ from console_project.http import (
 )
 from organizations.http import get_request_access
 from organizations.models import Membership
-from organizations.permissions import AccessChannel, get_current_membership
+from organizations.permissions import (
+    AccessChannel,
+    get_current_membership,
+    build_organization_access,
+)
 from organizations.rate_limits import RequestBudget, check_request_budget, request_budget
 
 from .account_deletion import (
@@ -93,13 +97,16 @@ def get_or_delete_account(
 
         targetId = user.id if userId is None else userId
         if request.method == "GET":
+            membership = get_current_membership(actorId=user.id)
             if userId is not None:
-                membership = get_current_membership(actorId=user.id)
                 check_request_budget(
                     request, membership.organization, budget=RequestBudget.READ
                 )
             deletionInfo = get_account_deletion_info(
-                actorId=user.id, channel=AccessChannel.SESSION, userId=targetId
+                access=build_organization_access(
+                    membership, channel=AccessChannel.SESSION
+                ),
+                userId=targetId,
             )
             return JsonResponse(_build_account_deletion_payload(deletionInfo))
 

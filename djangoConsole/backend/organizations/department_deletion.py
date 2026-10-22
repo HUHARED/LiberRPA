@@ -24,12 +24,7 @@ from operations.audit import record_audit
 
 from .contracts import DepartmentDeletionBlockerCode
 from .models import Department, DepartmentMembership
-from .permissions import (
-    AccessChannel,
-    OrganizationAccessContext,
-    resolve_organization_access,
-    require_organization_admin,
-)
+from .permissions import OrganizationAccessContext, require_organization_admin
 
 
 @dataclass(frozen=True)
@@ -179,15 +174,10 @@ def _build_department_deletion_info(department: Department) -> DepartmentDeletio
 
 def get_department_deletion_info(
     *,
-    actorId: uuid.UUID,
-    organizationId: uuid.UUID,
-    channel: AccessChannel,
+    access: OrganizationAccessContext,
     departmentId: uuid.UUID,
 ) -> DepartmentDeletionInfo:
     """Describe current blockers without reserving the department or changing any rows."""
-    access = resolve_organization_access(
-        actorId=actorId, organizationId=organizationId, channel=channel
-    )
     department = _get_department_for_deletion(access, departmentId)
     return _build_department_deletion_info(department)
 

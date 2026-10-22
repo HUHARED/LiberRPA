@@ -31,7 +31,7 @@ from organizations.http import (
     parse_department_resource_filters,
 )
 from organizations.models import Department
-from organizations.permissions import AccessChannel
+from organizations.permissions import AccessChannel, build_organization_access
 from schedules.models import Schedule
 
 from .contracts import (
@@ -222,9 +222,7 @@ def list_or_create_executor_groups(request: HttpRequest) -> JsonResponse:
         if isinstance(listParametersResult, JsonResponse):
             return listParametersResult
         page = get_executor_group_list(
-            actorId=membership.user_id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
+            access=build_organization_access(membership, channel=AccessChannel.SESSION),
             **listParametersResult,
         )
         dictListPayload = {
@@ -276,9 +274,7 @@ def get_or_update_executor_group(
                     ).model_dump(mode="python")
                 )
         details = get_executor_group_details(
-            actorId=membership.user_id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.SESSION,
+            access=build_organization_access(membership, channel=AccessChannel.SESSION),
             groupId=groupId,
         )
         dictDetailsPayload = {

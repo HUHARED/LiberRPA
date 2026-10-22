@@ -19,6 +19,7 @@ from organizations.permissions import (
     AccessChannel,
     OrganizationAccessContext,
     get_current_membership,
+    build_organization_access,
     resolve_organization_access,
 )
 
@@ -73,11 +74,7 @@ def authenticate_api_key(authorizationHeader: str) -> ApiKeyAuthenticationContex
             membership = get_current_membership(actorId=apiKey.user_id)
         except PermissionDenied:
             raise InvalidApiKeyError("A valid API key is required.") from None
-        access = resolve_organization_access(
-            actorId=apiKey.user_id,
-            organizationId=membership.organization_id,
-            channel=AccessChannel.API_KEY,
-        )
+        access = build_organization_access(membership, channel=AccessChannel.API_KEY)
 
         currentTime = timezone.now()
         if apiKey.expires_at <= currentTime:
