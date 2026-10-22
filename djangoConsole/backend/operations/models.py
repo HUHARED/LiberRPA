@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
 
-from .contracts import AuditAction, AuditChannel, AuditResult, AuditStage
+from .audit_contracts import AuditAction, AuditChannel, AuditResult, AuditStage
 from .capacity_contracts import CapacityResource, CapacityLevel
 
 

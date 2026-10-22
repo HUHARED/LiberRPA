@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.models import Membership
 from organizations.permissions import (

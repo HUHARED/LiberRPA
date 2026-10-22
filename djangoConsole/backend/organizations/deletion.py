@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.session_revocation import require_current_session
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from runs.contracts import JobState
 from runs.models import Job

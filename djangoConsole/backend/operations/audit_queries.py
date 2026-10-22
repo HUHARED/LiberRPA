@@ -14,7 +14,7 @@ from django.db.models.functions import RowNumber
 
 from console_project.constants import INT_LIST_PAGE_SIZE
 
-from .contracts import AuditAction, AuditResult
+from .audit_contracts import AuditAction, AuditResult
 from .models import AuditRecord
 
 

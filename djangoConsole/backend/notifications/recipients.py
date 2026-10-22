@@ -16,7 +16,7 @@ from django.core.validators import validate_email
 from django.db.models import Case, CharField, Exists, OuterRef, QuerySet, Value, When
 from django.utils import timezone
 
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 from organizations.limits import get_organization_limits
 from organizations.models import Organization, Membership

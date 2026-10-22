@@ -36,7 +36,7 @@ from file_storage.services import (
     get_download_expiry,
 )
 
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 from organizations.limits import get_organization_limits
 from organizations.permissions import OrganizationAccessContext

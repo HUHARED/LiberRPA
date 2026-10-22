@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from django.core.exceptions import ValidationError
 
 from executors.session_state import revoke_unqualified_executor_sessions
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from runs.services import recheck_job_source_access
 

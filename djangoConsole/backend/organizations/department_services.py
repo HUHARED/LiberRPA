@@ -11,7 +11,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from console_project.config import LimitsConfig
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 
 from .limits import get_organization_limits

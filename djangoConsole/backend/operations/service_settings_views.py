@@ -25,7 +25,8 @@ from console_project.http import (
 
 from .access import get_platform_actor
 from .audit import get_audit_snapshot, record_audit
-from .contracts import AuditAction, ServiceSettingsRequest, ServiceSettingsResponse
+from .audit_contracts import AuditAction
+from .contracts import ServiceSettingsRequest, ServiceSettingsResponse
 from .models import ServiceSettings, AuditScope
 
 _LOGGER = logging.getLogger("console.operations")

@@ -22,7 +22,7 @@ from shared_files.models import SharedFile, UploadSession
 from packages.models import PackageUpload
 from runs.models import JobRequest, RunLogUsage
 from schedules.models import Schedule
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 from operations.models import AuditScope, AuditRecord
 from notifications.contracts import EmailStatus, EmailReasonCode

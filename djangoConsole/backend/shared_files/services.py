@@ -35,7 +35,7 @@ from file_storage.services import (
     require_download_slot,
     get_download_expiry,
 )
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 from organizations.department_queries import (
     get_department_tree,

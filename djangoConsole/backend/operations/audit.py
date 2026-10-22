@@ -23,7 +23,7 @@ from organizations.models import (
 )
 from organizations.permissions import AccessChannel
 
-from .contracts import AuditAction, AuditChannel, AuditResult, AuditStage
+from .audit_contracts import AuditAction, AuditChannel, AuditResult, AuditStage
 from .models import ServiceSettings, MaintenanceState, AuditScope, AuditRecord
 from .backup_models import BackupRecord
 

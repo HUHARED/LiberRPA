@@ -16,7 +16,7 @@ from django.http import HttpRequest, HttpResponse, HttpResponseBase
 from console_project.logging import get_request_id
 from organizations.models import Organization, Membership
 
-from .contracts import AuditAction, AuditChannel, AuditResult, AuditStage
+from .audit_contracts import AuditAction, AuditChannel, AuditResult, AuditStage
 from .models import AuditScope, AuditRecord
 
 _LOGGER = logging.getLogger("console.audit")

@@ -12,7 +12,7 @@ from django.db.models import Q, F
 from django.utils import timezone
 
 from accounts.resource_authentication import NativeResourceAuthenticationContext
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 from executors.models import Executor, ExecutorSession, ExecutorGroupMember
 from executors.session_state import get_current_executor_sessions

@@ -15,7 +15,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from executors.session_state import revoke_user_executor_sessions
 from notifications.models import EmailType, EmailDelivery, AccountDeletionNotice
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 from runs.services import recheck_job_source_access
 

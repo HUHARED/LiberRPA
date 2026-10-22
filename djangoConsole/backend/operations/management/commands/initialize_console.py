@@ -12,7 +12,7 @@ from django.views.decorators.debug import sensitive_variables
 from console_project.terminal import PasswordInputError, read_password
 from accounts.models import STR_PLATFORM_ADMIN_LOGIN, User
 from accounts.passwords import validate_new_password
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 
 

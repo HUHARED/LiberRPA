@@ -24,7 +24,8 @@ from schedules.cron import get_next_trigger
 from schedules.models import Schedule, SchedulerState
 
 from .audit import get_audit_snapshot, record_audit
-from .contracts import AuditAction, ServiceState, MaintenanceAction
+from .audit_contracts import AuditAction
+from .contracts import ServiceState, MaintenanceAction
 from .models import MaintenanceState, AuditScope
 
 _INT_MAINTENANCE_LOCK_NAMESPACE = int.from_bytes(b"LRMT", "big")

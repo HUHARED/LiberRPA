@@ -46,7 +46,7 @@ from .audit_queries import (
     get_audit_list,
     get_audit_filter_options,
 )
-from .contracts import (
+from .audit_contracts import (
     AuditAction,
     AuditResult,
     AuditStage,

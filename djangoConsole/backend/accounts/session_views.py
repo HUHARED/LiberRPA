@@ -34,7 +34,7 @@ from console_project.http import (
     build_rate_limited_response,
     parse_json_request,
 )
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 from organizations.models import Organization, Membership
 from organizations.access_info import get_account_access_info

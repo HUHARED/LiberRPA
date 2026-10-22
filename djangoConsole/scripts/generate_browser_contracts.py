@@ -25,7 +25,8 @@ from assets import contracts as assetContracts
 from data_queues import contracts as queueContracts
 from shared_files import contracts as fileContracts
 from executors import contracts as executorContracts
-from operations import contracts as auditContracts
+from operations import contracts as operationContracts
+from operations import audit_contracts as auditContracts
 from packages import contracts as packageContracts
 from schedules import contracts as scheduleContracts
 from runs import contracts as runContracts
@@ -174,18 +175,18 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (notificationContracts.RunEmailRecipientListResponse, "serialization"),
     (notificationContracts.RunEmailVerificationResponse, "serialization"),
     # Organization quota management.
-    (auditContracts.PlatformOrganizationFilters, "validation"),
-    (auditContracts.PlatformOrganizationDetailsResponse, "serialization"),
-    (auditContracts.OrganizationServiceRequest, "validation"),
-    (auditContracts.PlatformOrganizationListResponse, "serialization"),
-    (auditContracts.OrganizationLimitsRequest, "validation"),
-    (auditContracts.OrganizationLimitsResponse, "serialization"),
+    (operationContracts.PlatformOrganizationFilters, "validation"),
+    (operationContracts.PlatformOrganizationDetailsResponse, "serialization"),
+    (operationContracts.OrganizationServiceRequest, "validation"),
+    (operationContracts.PlatformOrganizationListResponse, "serialization"),
+    (operationContracts.OrganizationLimitsRequest, "validation"),
+    (operationContracts.OrganizationLimitsResponse, "serialization"),
     # Platform service settings.
-    (auditContracts.ServiceSettingsRequest, "validation"),
-    (auditContracts.ServiceSettingsResponse, "serialization"),
+    (operationContracts.ServiceSettingsRequest, "validation"),
+    (operationContracts.ServiceSettingsResponse, "serialization"),
     # Platform email diagnostics.
-    (auditContracts.EmailIssueListResponse, "serialization"),
-    (auditContracts.EmailIssueFiltersResponse, "serialization"),
+    (operationContracts.EmailIssueListResponse, "serialization"),
+    (operationContracts.EmailIssueFiltersResponse, "serialization"),
     # Audit history.
     (auditContracts.AuditListResponse, "serialization"),
     (auditContracts.PlatformAuditListResponse, "serialization"),
@@ -239,7 +240,7 @@ def main() -> int:
                     "schema": _build_browser_contract_schema(),
                     "list_page_size": INT_LIST_PAGE_SIZE,
                     "audit_actions": auditContracts.AuditAction.choices,
-                    "max_organization_service_reason_length": auditContracts.INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH,
+                    "max_organization_service_reason_length": operationContracts.INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH,
                     "max_run_statistics_days": runContracts.INT_MAX_RUN_STATISTICS_DAYS,
                 },
                 sort_keys=True,

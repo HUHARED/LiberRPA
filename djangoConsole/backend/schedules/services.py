@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from console_project.validators import parse_zoned_time
 from executors.models import Executor, ExecutorGroup
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
 from organizations.limits import get_organization_limits

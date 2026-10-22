@@ -17,7 +17,7 @@ from django.views.decorators.debug import sensitive_variables
 from console_project.config import LimitsConfig
 from console_project.contracts import JsonValue
 from console_project.validators import validate_json_value
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
 from organizations.limits import get_organization_limits

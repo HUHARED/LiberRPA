@@ -29,7 +29,7 @@ from console_project.constants import RunLogLevel
 from console_project.contracts import JsonRequest, JsonValue
 from console_project.http import build_error_response, parse_json_request
 from console_project.validators import validate_json_string
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit_batch
 from organizations.http import get_request_access
 from organizations.permissions import AccessChannel

@@ -33,7 +33,7 @@ from executors.session_state import (
     get_current_executor_sessions,
 )
 
-from operations.contracts import AuditAction, AuditChannel
+from operations.audit_contracts import AuditAction, AuditChannel
 from operations.audit import record_audit
 
 from packages.contracts import RUN_PRIORITY_ORDER, RunSettings

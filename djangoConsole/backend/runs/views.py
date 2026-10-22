@@ -41,7 +41,7 @@ from organizations.permissions import (
     build_organization_access,
 )
 from organizations.validators import get_path_name_key
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 from operations.maintenance import ServiceMaintenanceError
 from packages.models import Package

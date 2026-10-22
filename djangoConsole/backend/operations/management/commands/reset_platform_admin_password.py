@@ -13,7 +13,7 @@ from console_project.terminal import PasswordInputError, read_password
 from accounts.models import User
 from accounts.password_changes import save_password_change
 from accounts.passwords import validate_new_password
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 
 

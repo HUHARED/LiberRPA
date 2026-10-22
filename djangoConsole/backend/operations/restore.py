@@ -52,7 +52,7 @@ from notifications.models import (
 
 from .backup import BackupManifest
 from .backup_models import BackupState, BackupRecord
-from .contracts import AuditAction, AuditChannel
+from .audit_contracts import AuditAction, AuditChannel
 from .models import MaintenanceState, CleanupState, CapacityAlertState, AuditScope
 from .audit import record_audit
 

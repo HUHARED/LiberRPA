@@ -20,7 +20,7 @@ from console_project.http import (
 )
 from console_project.validators import validate_time_zone
 from operations.access import get_platform_actor
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from operations.models import AuditScope
 from organizations.access_info import get_account_access_info

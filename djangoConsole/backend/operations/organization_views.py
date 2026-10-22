@@ -41,8 +41,8 @@ from schedules.services import skip_expired_schedule_triggers
 
 from .access import get_platform_actor
 from .audit import get_audit_snapshot, record_audit
+from .audit_contracts import AuditAction
 from .contracts import (
-    AuditAction,
     PlatformOrganizationStatus,
     OrganizationAdministratorResponse,
     PlatformOrganizationResponse,

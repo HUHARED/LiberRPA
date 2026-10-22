@@ -19,7 +19,7 @@ from packages.models import Package, PackageUpload
 from schedules.models import Schedule
 from runs.contracts import JobState
 from runs.models import Job
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 
 from .contracts import DepartmentDeletionBlockerCode

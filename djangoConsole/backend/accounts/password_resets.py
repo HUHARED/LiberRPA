@@ -19,7 +19,7 @@ from django.utils.crypto import constant_time_compare, salted_hmac
 from django.views.decorators.debug import sensitive_variables
 
 from console_project.config import LimitsConfig
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 from notifications.contracts import EmailStatus
 from notifications.models import EmailType, EmailDelivery

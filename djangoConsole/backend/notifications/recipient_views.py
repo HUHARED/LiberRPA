@@ -18,7 +18,7 @@ from accounts.rate_limits import (
     _apply_sensitive_action_rate_limit,
 )
 from console_project.http import build_rate_limited_response, parse_json_request
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 from organizations.http import get_request_membership, lock_request_write_access
 from organizations.models import Organization

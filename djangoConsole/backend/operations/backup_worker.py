@@ -18,7 +18,8 @@ from console_project.logging import get_exception_summary
 from console_project.recovery import is_restored_service_pending_review
 from notifications.models import EmailType, EmailDelivery
 
-from .contracts import AuditAction, AuditStage, AuditResult, InstanceHealthStatus
+from .audit_contracts import AuditAction, AuditResult, AuditStage
+from .contracts import InstanceHealthStatus
 from .models import AuditScope
 from .audit import record_audit
 from .backup_contracts import (

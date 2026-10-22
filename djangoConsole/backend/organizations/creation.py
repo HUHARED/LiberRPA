@@ -14,7 +14,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from accounts.models import User, UserManager
 from notifications.recipients import register_member_recipient
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 from operations.policies import require_organization_creation_allowed
 

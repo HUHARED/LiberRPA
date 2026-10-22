@@ -25,7 +25,7 @@ from accounts.models import User, UserManager
 from console_project.config import LimitsConfig
 from notifications.models import EmailDelivery, EmailType
 from notifications.recipients import register_member_recipient
-from operations.contracts import AuditAction
+from operations.audit_contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 
 from .contracts import DepartmentRole, InvitationStatus
