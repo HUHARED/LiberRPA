@@ -1,4 +1,4 @@
-# FileName: lifecycle_views.py
+# FileName: deletion_views.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
@@ -28,7 +28,7 @@ from console_project.http import (
 )
 
 from .contracts import OrganizationDeletionRequest, OrganizationDeletionResponse
-from .lifecycle import (
+from .deletion import (
     INT_ORGANIZATION_DELETION_DELAY_DAYS,
     schedule_organization_deletion,
     cancel_organization_deletion,

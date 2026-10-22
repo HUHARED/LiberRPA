@@ -23,9 +23,9 @@ from .invitation_views import (
     check_invitation_link,
     complete_invited_registration,
 )
-from .lifecycle_views import (
-    cancel_scheduled_organization_deletion,
+from .deletion_views import (
     get_or_schedule_organization_deletion,
+    cancel_scheduled_organization_deletion,
 )
 from .member_views import (
     get_or_update_member,

@@ -33,11 +33,11 @@ from organizations.models import Organization, Membership
 from organizations.limits import validate_limit_overrides, get_organization_limits
 from organizations.limit_emails import queue_organization_limits_notices
 from organizations.service_emails import queue_organization_service_notices
-from organizations.lifecycle import skip_expired_schedule_triggers
 from organizations.usage import get_limits_version, get_organization_usage
 from runs.contracts import JobState
 from runs.models import Job
 from runs.services import revoke_job_source_access
+from schedules.services import skip_expired_schedule_triggers
 
 from .access import get_platform_actor
 from .audit import get_audit_snapshot, record_audit

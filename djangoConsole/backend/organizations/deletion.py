@@ -1,4 +1,4 @@
-# FileName: lifecycle.py
+# FileName: deletion.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
@@ -18,8 +18,7 @@ from operations.audit import get_audit_snapshot, record_audit
 from runs.contracts import JobState
 from runs.models import Job
 from runs.services import revoke_job_source_access
-from schedules.cron import get_next_trigger
-from schedules.models import Schedule
+from schedules.services import skip_expired_schedule_triggers
 
 from .emails import queue_organization_deletion_notices
 from .models import Organization
@@ -96,26 +95,6 @@ def schedule_organization_deletion(
     )
     queue_organization_deletion_notices(organization)
     return organization
-
-
-def skip_expired_schedule_triggers(
-    organization: Organization, resumedAt: datetime
-) -> None:
-    """Skip frozen-period triggers while the caller holds the organization lock."""
-    for schedule in Schedule.objects.filter(
-        department__organization=organization,
-        enabled=True,
-        deleted_at__isnull=True,
-        next_trigger_at__lte=resumedAt,
-    ).select_for_update(of=("self",)):
-        schedule.next_trigger_at = get_next_trigger(
-            schedule.cron,
-            schedule.time_zone,
-            schedule.active_from,
-            schedule.active_until,
-            resumedAt,
-        )
-        schedule.save(update_fields=["next_trigger_at"])
 
 
 @sensitive_variables()

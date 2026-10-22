@@ -18,6 +18,7 @@ from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
 from organizations.limits import get_organization_limits
+from organizations.models import Organization
 from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
@@ -222,6 +223,26 @@ def set_schedule_enabled(
         target=schedule,
         before=dictBefore,
     )
+
+
+def skip_expired_schedule_triggers(
+    organization: Organization, resumedAt: datetime
+) -> None:
+    """Skip frozen-period triggers while the caller holds the organization lock."""
+    for schedule in Schedule.objects.filter(
+        department__organization=organization,
+        enabled=True,
+        deleted_at__isnull=True,
+        next_trigger_at__lte=resumedAt,
+    ).select_for_update(of=("self",)):
+        schedule.next_trigger_at = get_next_trigger(
+            schedule.cron,
+            schedule.time_zone,
+            schedule.active_from,
+            schedule.active_until,
+            resumedAt,
+        )
+        schedule.save(update_fields=["next_trigger_at"])
 
 
 def delete_schedule(access: OrganizationAccessContext, schedule: Schedule) -> None:

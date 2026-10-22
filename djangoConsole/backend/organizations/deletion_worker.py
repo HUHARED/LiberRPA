@@ -8,7 +8,7 @@ from file_storage.services import clean_organization_storage
 from shared_files.cleanup import prepare_organization_file_cleanup
 from packages.cleanup import prepare_organization_package_cleanup
 
-from .cleanup import (
+from .deletion_cleanup import (
     OrganizationDeletionResult,
     prepare_organization_execution_cleanup,
     start_next_organization_deletion,
