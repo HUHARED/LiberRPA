@@ -23,7 +23,7 @@ from organizations.permissions import (
 
 from .contracts import PackageUploadState, RunSettings
 from .models import Package, PackageUpload
-from .runtime import parse_run_settings
+from .run_settings import parse_run_settings
 
 
 def require_package_department(

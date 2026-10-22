@@ -26,8 +26,9 @@ from .password_reset_views import (
 )
 from .password_views import change_account_password
 from .profile_views import get_or_update_profile, update_platform_time_zone
-from .public_api_views import get_api_key_access
+from .api_access_views import get_api_key_access
 from .session_views import (
+    get_csrf_token,
     sign_in,
     sign_in_platform,
     get_current_session,
@@ -35,8 +36,7 @@ from .session_views import (
     sign_out,
     sign_out_other_sessions,
 )
-from .views import (
-    get_csrf_token,
+from .registration_views import (
     queue_registration_email,
     check_registration_link,
     complete_registration,

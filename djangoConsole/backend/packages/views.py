@@ -23,7 +23,7 @@ from file_storage.http import (
 from file_storage.proxy import get_download_proxy_snapshot
 from file_storage.services import FileOperationError, release_unstarted_download
 from file_storage.streaming import SyncFileStream, AsyncFileStream
-from organizations.access import get_department_access_info
+from organizations.access_info import get_department_access_info
 from organizations.http import parse_department_resource_filters
 from organizations.contracts import DepartmentRole
 from organizations.permissions import OrganizationAccessContext

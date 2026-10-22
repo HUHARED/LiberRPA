@@ -16,7 +16,7 @@ from accounts.models import User
 from accounts.session_revocation import lock_session_write_access
 from console_project.http import build_authentication_required_response, parse_page_number
 
-from .access import AccountAccessInfo
+from .access_info import AccountAccessInfo
 from .contracts import AccountAccessResponse
 from .models import Membership
 from .permissions import (

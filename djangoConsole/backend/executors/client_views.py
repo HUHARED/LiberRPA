@@ -27,7 +27,7 @@ from console_project.http import (
     build_rate_limited_response,
     parse_json_request,
 )
-from organizations.access import get_department_access_info
+from organizations.access_info import get_department_access_info
 from organizations.permissions import OrganizationAccessContext
 
 from .client_sessions import (

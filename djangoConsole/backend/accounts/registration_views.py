@@ -1,4 +1,4 @@
-# FileName: views.py
+# FileName: registration_views.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
@@ -10,10 +10,9 @@ from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import DatabaseError
 from django.http import HttpRequest, JsonResponse
-from django.middleware.csrf import get_token
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_POST
 from pydantic import SecretStr
 
 from console_project.contracts import JsonRequest
@@ -24,7 +23,6 @@ from console_project.http import (
     parse_json_request,
 )
 
-from .contracts import CsrfResponse
 from .models import User
 from .rate_limits import (
     apply_registration_email_rate_limit,
@@ -82,15 +80,6 @@ def _build_registration_validation_response(
         " ".join(validationError.messages),
         statusCode=intStatusCode,
         fields=dictPasswordField,
-    )
-
-
-@never_cache
-@require_GET
-def get_csrf_token(request: HttpRequest) -> JsonResponse:
-    """Issue a masked token and its matching cookie for subsequent browser requests."""
-    return JsonResponse(
-        CsrfResponse(csrf_token=get_token(request)).model_dump(mode="python")
     )
 
 

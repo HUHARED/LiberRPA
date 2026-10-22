@@ -37,7 +37,7 @@ from console_project.http import (
 from operations.contracts import AuditAction
 from operations.audit import record_audit
 from organizations.models import Organization, Membership
-from organizations.access import get_account_access_info
+from organizations.access_info import get_account_access_info
 from organizations.http import get_request_access, build_account_access_payload
 
 from organizations.rate_limits import RequestBudget, request_budget
@@ -48,6 +48,7 @@ from .contracts import (
     PlatformLoginRequest,
     SessionUserResponse,
     SessionResponse,
+    CsrfResponse,
     SessionRevocationRequest,
 )
 from .models import User, UserManager
@@ -126,6 +127,15 @@ def _establish_session(
         request.session = type(request.session)()
         request.user = AnonymousUser()
         return build_service_unavailable_response()
+
+
+@never_cache
+@require_GET
+def get_csrf_token(request: HttpRequest) -> JsonResponse:
+    """Issue a masked token and its matching cookie for subsequent browser requests."""
+    return JsonResponse(
+        CsrfResponse(csrf_token=get_token(request)).model_dump(mode="python")
+    )
 
 
 @never_cache

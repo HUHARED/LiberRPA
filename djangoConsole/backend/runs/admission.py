@@ -38,7 +38,7 @@ from operations.audit import record_audit
 
 from packages.contracts import RUN_PRIORITY_ORDER, RunSettings
 from packages.models import Package
-from packages.runtime import parse_run_settings, get_run_snapshot
+from packages.run_settings import parse_run_settings, get_run_snapshot
 
 from .contracts import JobSource, JobState, JobCreationRequest
 from .models import JobRequest, Job, JobAdmissionBudget

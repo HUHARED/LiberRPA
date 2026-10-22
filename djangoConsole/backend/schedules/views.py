@@ -39,7 +39,7 @@ from organizations.permissions import (
 )
 from organizations.rate_limits import RequestBudget, request_budget
 from packages.contracts import RunSettings
-from packages.runtime import parse_run_settings
+from packages.run_settings import parse_run_settings
 
 from .contracts import (
     ScheduleTimeRequest,

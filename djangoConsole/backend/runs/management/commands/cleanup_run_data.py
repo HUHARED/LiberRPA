@@ -9,7 +9,7 @@ from typing import cast
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from operations.models import CleanupTask
-from operations.cleanup import record_cleanup
+from operations.cleanup_status import record_cleanup
 
 from runs.retention import cleanup_run_data
 

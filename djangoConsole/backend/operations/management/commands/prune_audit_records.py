@@ -10,7 +10,7 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import DatabaseError
 
 from operations.models import CleanupTask
-from operations.cleanup import record_cleanup
+from operations.cleanup_status import record_cleanup
 from operations.audit_retention import prune_audit_records
 
 _LOGGER = logging.getLogger("console.audit")

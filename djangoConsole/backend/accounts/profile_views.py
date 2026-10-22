@@ -23,7 +23,7 @@ from operations.access import get_platform_actor
 from operations.contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from operations.models import AuditScope
-from organizations.access import get_account_access_info
+from organizations.access_info import get_account_access_info
 from organizations.http import build_account_access_payload, get_request_access
 from organizations.rate_limits import RequestBudget, request_budget
 

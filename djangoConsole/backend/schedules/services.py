@@ -23,7 +23,7 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 from packages.models import Package
-from packages.runtime import (
+from packages.run_settings import (
     parse_run_settings,
     apply_run_settings,
     validate_run_settings,

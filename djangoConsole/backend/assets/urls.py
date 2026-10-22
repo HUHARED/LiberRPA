@@ -11,26 +11,22 @@ from .views import (
     get_or_update_asset,
     delete_asset_view,
 )
-from . import public_views
+from . import api_views
 
 urlpatterns = [
     path("assets/", list_or_create_assets, name="assets"),
     path("assets/<uuid:assetId>/", get_or_update_asset, name="asset"),
     path("assets/<uuid:assetId>/deletion/", delete_asset_view, name="asset-deletion"),
-    path(
-        "v1/assets/get_value/", public_views.get_asset_value, name="api-asset-get-value"
-    ),
-    path(
-        "v1/assets/set_value/", public_views.set_asset_value, name="api-asset-set-value"
-    ),
+    path("v1/assets/get_value/", api_views.get_asset_value, name="api-asset-get-value"),
+    path("v1/assets/set_value/", api_views.set_asset_value, name="api-asset-set-value"),
     path(
         "v1/assets/get_secret_text/",
-        public_views.get_asset_secret_text,
+        api_views.get_asset_secret_text,
         name="api-asset-get-secret-text",
     ),
     path(
         "v1/assets/get_credential/",
-        public_views.get_asset_credential,
+        api_views.get_asset_credential,
         name="api-asset-get-credential",
     ),
 ]

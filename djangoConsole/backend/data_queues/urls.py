@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 from django.urls import path
 
-from . import views, public_views
+from . import views, api_views
 
 urlpatterns = [
     path("data-queues/", views.list_or_create_queues, name="data-queues"),
@@ -37,27 +37,27 @@ urlpatterns = [
     ),
     path(
         "v1/data-queues/query/",
-        public_views.query_queue_items,
+        api_views.query_queue_items,
         name="public-queue-query",
     ),
     path(
         "v1/data-queues/upload/",
-        public_views.upload_queue_items,
+        api_views.upload_queue_items,
         name="public-queue-upload",
     ),
     path(
         "v1/data-queues/claim/",
-        public_views.claim_queue_items,
+        api_views.claim_queue_items,
         name="public-queue-claim",
     ),
     path(
         "v1/data-queues/reset/",
-        public_views.reset_queue_items,
+        api_views.reset_queue_items,
         name="public-queue-reset",
     ),
     path(
         "v1/data-queues/delete_items/",
-        public_views.delete_queue_items,
+        api_views.delete_queue_items,
         name="public-queue-delete_items",
     ),
 ]

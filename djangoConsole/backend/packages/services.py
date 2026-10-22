@@ -64,7 +64,7 @@ from .queries import (
     get_upload_state,
     build_upload_payload,
 )
-from .runtime import apply_run_settings, validate_run_settings
+from .run_settings import apply_run_settings, validate_run_settings
 
 
 @dataclass(frozen=True)

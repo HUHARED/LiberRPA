@@ -18,7 +18,7 @@ from django.db import DatabaseError
 
 from console_project.workers import stop_on_signals
 from operations.models import CleanupTask
-from operations.cleanup import DICT_CLEANUP_INTERVAL_SECONDS
+from operations.cleanup_status import DICT_CLEANUP_INTERVAL_SECONDS
 from operations.capacity_contracts import INT_CAPACITY_CHECK_SECONDS
 
 _LOGGER = logging.getLogger("console.cleanup")

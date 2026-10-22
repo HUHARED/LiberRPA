@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError
 
 from operations.models import CleanupTask
-from operations.cleanup import record_cleanup
+from operations.cleanup_status import record_cleanup
 
 from accounts.api_keys import prune_inactive_api_keys
 

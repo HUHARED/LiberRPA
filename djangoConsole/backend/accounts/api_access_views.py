@@ -1,4 +1,4 @@
-# FileName: public_api_views.py
+# FileName: api_access_views.py
 __author__ = "Jiyan Hu"
 __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
@@ -16,7 +16,7 @@ from console_project.http import (
     build_service_unavailable_response,
     build_rate_limited_response,
 )
-from organizations.access import get_department_access_info
+from organizations.access_info import get_department_access_info
 from organizations.contracts import DepartmentRole
 from organizations.rate_limits import check_request_budget
 

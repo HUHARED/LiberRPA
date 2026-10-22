@@ -23,7 +23,7 @@ from console_project.http import (
     build_rate_limited_response,
     parse_json_request,
 )
-from organizations.access import get_department_access_info
+from organizations.access_info import get_department_access_info
 
 from .models import User, UserManager
 from .rate_limits import apply_login_rate_limit, apply_editor_client_rate_limit

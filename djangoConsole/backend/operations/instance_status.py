@@ -25,7 +25,7 @@ from notifications.worker import INT_EMAIL_WORKER_MAX_AGE_SECONDS
 
 from .contracts import ServiceState, InstanceHealthStatus, InstanceComponent
 from .models import MaintenanceState, CleanupTask, CleanupStatus, CleanupState
-from .cleanup import DICT_CLEANUP_MAX_AGE_SECONDS
+from .cleanup_status import DICT_CLEANUP_MAX_AGE_SECONDS
 from .capacity_contracts import INT_STORAGE_WARNING_BYTES
 from .backup_contracts import BackupRecordInfo
 from .backup_worker import load_backup_status
