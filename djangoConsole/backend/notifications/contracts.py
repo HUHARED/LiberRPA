@@ -16,6 +16,38 @@ from console_project.contracts import JsonRequest, JsonResponsePayload
 from console_project.validators import validate_json_string
 
 
+class NotificationAction(StrEnum):
+    READ = "read"
+    READ_ALL = "read_all"
+    DELETE = "delete"
+    CLEAR = "clear"
+
+
+class NotificationResponse(JsonResponsePayload):
+    id: UUID
+    title: str
+    created_at: datetime
+    read_at: datetime | None
+
+
+class NotificationListResponse(JsonResponsePayload):
+    notifications: list[NotificationResponse]
+    unread_count: int = Field(ge=0)
+
+
+class NotificationDetailsRecordResponse(NotificationResponse):
+    detail: str
+
+
+class NotificationDetailsResponse(JsonResponsePayload):
+    notification: NotificationDetailsRecordResponse
+
+
+class NotificationReadResponse(JsonResponsePayload):
+    id: UUID
+    read_at: datetime
+
+
 class EmailStatus(TextChoices):
     PENDING = "pending", "Pending"
     SENDING = "sending", "Sending"

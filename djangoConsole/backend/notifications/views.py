@@ -22,6 +22,7 @@ from accounts.rate_limits import (
 from accounts.session_revocation import SessionInvalidatedError
 from accounts.browser_events import notify_browser_user
 from accounts.contracts import BrowserMessageType
+from console_project.contracts import MessageResponse
 from console_project.http import (
     build_error_response,
     build_authentication_required_response,
@@ -40,6 +41,12 @@ from organizations.permissions import (
 from organizations.rate_limits import RequestBudget, request_budget
 
 from .contracts import (
+    NotificationAction,
+    NotificationResponse,
+    NotificationListResponse,
+    NotificationDetailsRecordResponse,
+    NotificationDetailsResponse,
+    NotificationReadResponse,
     RecipientCreationRequest,
     RecipientNotesRequest,
     EmptyRequest,
@@ -86,18 +93,6 @@ def _handle_errors(view: Callable) -> Callable:
     return wrapped
 
 
-def _notification_payload(notification: Notification, *, details: bool = False) -> dict:
-    dictPayload = {
-        "id": notification.pk,
-        "title": notification.title,
-        "created_at": notification.created_at,
-        "read_at": notification.read_at,
-    }
-    if details:
-        dictPayload["detail"] = notification.detail
-    return dictPayload
-
-
 @request_budget(RequestBudget.INDEPENDENT)
 @never_cache
 @require_http_methods(["GET"])
@@ -112,32 +107,46 @@ def list_notifications(request: HttpRequest) -> JsonResponse:
     query = Notification.objects.filter(
         user=access.actor, organization=access.organization
     ).order_by("-created_at", "-id")
-    return JsonResponse({
-        "notifications": [_notification_payload(notification) for notification in query],
-        "unread_count": query.filter(read_at__isnull=True).count(),
-    })
+    listNotification = [
+        NotificationResponse(
+            id=notification.pk,
+            title=notification.title,
+            created_at=notification.created_at,
+            read_at=notification.read_at,
+        )
+        for notification in query
+    ]
+    response = NotificationListResponse(
+        notifications=listNotification,
+        unread_count=sum(
+            notification.read_at is None for notification in listNotification
+        ),
+    )
+    return JsonResponse(response.model_dump(mode="json"))
 
 
 @request_budget(RequestBudget.INDEPENDENT)
 @never_cache
 @require_http_methods(["GET"])
 @_handle_errors
-@transaction.atomic
 def notification_details(request: HttpRequest, notificationId: uuid.UUID) -> JsonResponse:
     membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
-    access = lock_request_write_access(request, membership)
+    access = build_organization_access(membership, channel=AccessChannel.SESSION)
     notification = Notification.objects.get(
         pk=notificationId, user=access.actor, organization=access.organization
     )
-    if notification.read_at is None:
-        notification.read_at = timezone.now()
-        notification.save(update_fields=["read_at"])
-        notify_browser_user(access.actor.pk, BrowserMessageType.NOTIFICATIONS_CHANGED)
-    return JsonResponse({
-        "notification": _notification_payload(notification, details=True)
-    })
+    response = NotificationDetailsResponse(
+        notification=NotificationDetailsRecordResponse(
+            id=notification.pk,
+            title=notification.title,
+            created_at=notification.created_at,
+            read_at=notification.read_at,
+            detail=notification.detail,
+        )
+    )
+    return JsonResponse(response.model_dump(mode="json"))
 
 
 @request_budget(RequestBudget.INDEPENDENT)
@@ -145,7 +154,9 @@ def notification_details(request: HttpRequest, notificationId: uuid.UUID) -> Jso
 @require_POST
 @_handle_errors
 def change_notifications(
-    request: HttpRequest, action: str, notificationId: uuid.UUID | None = None
+    request: HttpRequest,
+    action: NotificationAction,
+    notificationId: uuid.UUID | None = None,
 ) -> JsonResponse:
     membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
@@ -153,20 +164,46 @@ def change_notifications(
     form = parse_json_request(request, EmptyRequest)
     if isinstance(form, JsonResponse):
         return form
+    readResponse: NotificationReadResponse | None = None
     with transaction.atomic():
         access = lock_request_write_access(request, membership)
         query = Notification.objects.filter(
             user=access.actor, organization=access.organization
         )
-        if action == "read":
-            intChanged = query.filter(read_at__isnull=True).update(read_at=timezone.now())
-        elif action == "delete":
-            intChanged, _ = query.get(pk=notificationId).delete()
-        else:
-            intChanged, _ = query.delete()
+        match action:
+            case NotificationAction.READ:
+                if notificationId is None:
+                    raise ValidationError("Select a notification to mark as read.")
+                notification = query.select_for_update().get(pk=notificationId)
+                readAt = notification.read_at
+                intChanged = 0
+                if readAt is None:
+                    readAt = timezone.now()
+                    notification.read_at = readAt
+                    notification.save(update_fields=["read_at"])
+                    intChanged = 1
+                readResponse = NotificationReadResponse(
+                    id=notification.pk, read_at=readAt
+                )
+            case NotificationAction.READ_ALL:
+                intChanged = query.filter(read_at__isnull=True).update(
+                    read_at=timezone.now()
+                )
+            case NotificationAction.DELETE:
+                if notificationId is None:
+                    raise ValidationError("Select a notification to delete.")
+                intChanged, _ = query.get(pk=notificationId).delete()
+            case NotificationAction.CLEAR:
+                intChanged, _ = query.delete()
+            case _:
+                raise ValidationError("Unsupported notification action.")
         if intChanged:
             notify_browser_user(access.actor.pk, BrowserMessageType.NOTIFICATIONS_CHANGED)
-    return JsonResponse({"message": "Notifications updated."})
+    if readResponse is not None:
+        return JsonResponse(readResponse.model_dump(mode="json"))
+    return JsonResponse(
+        MessageResponse(message="Notifications updated.").model_dump(mode="json")
+    )
 
 
 def _recipient_payload(recipient: RunEmailRecipient) -> dict:

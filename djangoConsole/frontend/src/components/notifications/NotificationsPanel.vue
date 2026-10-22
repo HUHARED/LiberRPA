@@ -4,7 +4,8 @@
     v-model="boolOpen"
     :close-on-content-click="false"
     location="bottom end"
-    max-width="480">
+    max-width="480"
+    @update:model-value="!$event && !details && closeDetails()">
     <template #activator="{ props: menuProps }">
       <v-btn v-bind="menuProps" icon aria-label="Notifications" @click="load">
         <v-badge :content="intUnread" :model-value="intUnread > 0" color="error">
@@ -26,8 +27,8 @@
             size="small"
             variant="tonal"
             prepend-icon="mdi-email-open-outline"
-            :disabled="boolBusy"
-            @click="act('read-all')">
+            :disabled="boolBusy || intUnread === 0"
+            @click="applyChange(markAllNotificationsRead)">
             Mark All as Read
           </v-btn>
 
@@ -57,7 +58,7 @@
               variant="text"
               :disabled="boolBusy"
               aria-label="Delete notification"
-              @click.stop="act(`${notification.id}/delete`)" />
+              @click.stop="applyChange(() => deleteNotification(notification.id))" />
           </template>
         </v-list-item>
 
@@ -78,6 +79,10 @@
       </v-card-subtitle>
 
       <v-card-text>
+        <v-alert v-if="strReadError" type="error" variant="tonal" class="mb-4">
+          {{ strReadError }}
+        </v-alert>
+
         <p class="text-pre-wrap text-break">{{ details.detail }}</p>
       </v-card-text>
 
@@ -114,7 +119,7 @@
           prepend-icon="mdi-delete-outline"
           :loading="boolBusy"
           color="warning"
-          @click="act('clear')">
+          @click="applyChange(clearNotifications, true)">
           Clear All
         </v-btn>
       </v-card-actions>
@@ -123,25 +128,32 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-import { requestApi } from "@/api/client";
-import { isRecord, rejectInvalidResponse } from "@/api/responses";
+import {
+  getNotifications,
+  getNotificationDetails,
+  markNotificationRead,
+  markAllNotificationsRead,
+  deleteNotification,
+  clearNotifications,
+} from "@/api/notifications";
+import type {
+  NotificationResponse,
+  NotificationDetailsRecordResponse,
+} from "@/api/notifications";
 import { getApiError } from "@/api/errors";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { formatDateTime } from "@/app/formatters";
 
-interface NotificationInfo {
-  id: string;
-  title: string;
-  created_at: string;
-  read_at: string | null;
-}
-
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
+const boolAvailable = computed(
+  () => !!sessionStore.session && sessionStore.access?.business_available === true,
+);
+
 const boolOpen = ref(false);
 const boolClear = ref(false);
 const boolActing = ref(false);
@@ -149,10 +161,12 @@ const boolDetailsLoading = ref(false);
 const boolBusy = computed(() => boolActing.value || boolDetailsLoading.value);
 const strError = ref("");
 const strDetailsError = ref("");
+const strReadError = ref("");
 const strClearError = ref("");
 const intUnread = ref(0);
-const arrNotification = ref<NotificationInfo[]>([]);
-const details = ref<(NotificationInfo & { detail: string }) | null>(null);
+const arrNotification = ref<NotificationResponse[]>([]);
+const details = ref<NotificationDetailsRecordResponse | null>(null);
+
 let boolMounted = false;
 let boolLoadRequested = false;
 let intRevision = 0;
@@ -160,24 +174,18 @@ let intDetailsRequest = 0;
 let loadTask: Promise<void> | null = null;
 
 function load(): Promise<void> {
-  if (!boolMounted || !sessionStore.access?.business_available) return Promise.resolve();
+  if (!boolMounted || !boolAvailable.value) return Promise.resolve();
   boolLoadRequested = true;
   if (loadTask !== null) return loadTask;
 
   loadTask = (async () => {
-    while (boolLoadRequested && boolMounted && sessionStore.access?.business_available) {
+    while (boolLoadRequested && boolMounted && boolAvailable.value) {
       boolLoadRequested = false;
       const intCurrentRevision = intRevision;
       try {
-        const result = await requestApi("/notifications/");
+        const result = await getNotifications();
         if (!boolMounted || intCurrentRevision !== intRevision) continue;
-        if (
-          !isRecord(result) ||
-          !Array.isArray(result.notifications) ||
-          typeof result.unread_count !== "number"
-        )
-          return rejectInvalidResponse();
-        arrNotification.value = result.notifications as NotificationInfo[];
+        arrNotification.value = result.notifications;
         intUnread.value = result.unread_count;
         strError.value = "";
       } catch (e) {
@@ -195,67 +203,70 @@ function closeDetails(): void {
   intDetailsRequest += 1;
   details.value = null;
   boolDetailsLoading.value = false;
+  strReadError.value = "";
 }
 
 async function openDetails(id: string): Promise<void> {
+  if (!boolMounted || !boolAvailable.value || boolActing.value || boolClear.value) return;
   const intCurrentRevision = intRevision;
   const intCurrentRequest = ++intDetailsRequest;
+  const isCurrentRequest = (): boolean =>
+    boolMounted &&
+    intCurrentRevision === intRevision &&
+    intCurrentRequest === intDetailsRequest;
+
   boolDetailsLoading.value = true;
+  details.value = null;
   strDetailsError.value = "";
+  strReadError.value = "";
   try {
-    const result = await requestApi(`/notifications/${encodeURIComponent(id)}/`);
-    if (
-      !boolMounted ||
-      intCurrentRevision !== intRevision ||
-      intCurrentRequest !== intDetailsRequest
-    )
-      return;
-    if (
-      !isRecord(result) ||
-      !isRecord(result.notification) ||
-      typeof result.notification.detail !== "string"
-    )
-      return rejectInvalidResponse();
-    details.value = result.notification as unknown as NotificationInfo & { detail: string };
+    const notification = await getNotificationDetails(id);
+    if (!isCurrentRequest()) return;
+    details.value = notification;
     boolOpen.value = false;
-    await load();
+    // Wait until Vue has rendered this accepted detail before marking it as read.
+    await nextTick();
+    if (!isCurrentRequest() || details.value?.id !== id || notification.read_at !== null)
+      return;
+
+    try {
+      const result = await markNotificationRead(id);
+      if (!boolMounted || intCurrentRevision !== intRevision) return;
+      if (isCurrentRequest() && details.value?.id === id)
+        details.value = { ...details.value, read_at: result.read_at };
+      await load();
+    } catch (e) {
+      if (isCurrentRequest())
+        strReadError.value = `Could not mark this notification as read. ${getApiError(e).message}`;
+    }
   } catch (e) {
-    if (
-      boolMounted &&
-      intCurrentRevision === intRevision &&
-      intCurrentRequest === intDetailsRequest
-    )
-      strDetailsError.value = getApiError(e).message;
+    if (isCurrentRequest()) strDetailsError.value = getApiError(e).message;
   } finally {
-    if (
-      boolMounted &&
-      intCurrentRevision === intRevision &&
-      intCurrentRequest === intDetailsRequest
-    )
-      boolDetailsLoading.value = false;
+    if (isCurrentRequest()) boolDetailsLoading.value = false;
   }
 }
 
 function openClear(): void {
+  if (boolBusy.value || !arrNotification.value.length) return;
   strClearError.value = "";
   boolClear.value = true;
 }
 
-async function act(action: string): Promise<void> {
-  if (boolBusy.value) return;
+async function applyChange(action: () => Promise<void>, clearAll = false): Promise<void> {
+  if (!boolMounted || !boolAvailable.value || boolBusy.value) return;
   const intCurrentRevision = intRevision;
   boolActing.value = true;
   strError.value = "";
   strDetailsError.value = "";
   strClearError.value = "";
   try {
-    await requestApi(`/notifications/${action}/`, { method: "POST", body: {} });
+    await action();
     if (!boolMounted || intCurrentRevision !== intRevision) return;
-    boolClear.value = false;
+    if (clearAll) boolClear.value = false;
     await load();
   } catch (e) {
     if (boolMounted && intCurrentRevision === intRevision) {
-      if (action === "clear") strClearError.value = getApiError(e).message;
+      if (clearAll) strClearError.value = getApiError(e).message;
       else strError.value = getApiError(e).message;
     }
   } finally {
@@ -268,24 +279,26 @@ function handleNotificationChange(): void {
 }
 
 watch(
-  () => sessionStore.access?.business_available,
-  (boolAvailable) => {
+  [
+    () => sessionStore.session?.user.id,
+    () => sessionStore.access?.organization.id,
+    () => boolAvailable.value,
+  ],
+  () => {
     intRevision += 1;
     closeDetails();
+    boolLoadRequested = false;
     boolActing.value = false;
-    if (boolAvailable) {
-      void load();
-    } else {
-      boolLoadRequested = false;
-      arrNotification.value = [];
-      intUnread.value = 0;
-      boolOpen.value = false;
-      boolClear.value = false;
-      strError.value = "";
-      strDetailsError.value = "";
-      strClearError.value = "";
-    }
+    arrNotification.value = [];
+    intUnread.value = 0;
+    boolOpen.value = false;
+    boolClear.value = false;
+    strError.value = "";
+    strDetailsError.value = "";
+    strClearError.value = "";
+    if (boolAvailable.value) void load();
   },
+  { flush: "sync" },
 );
 
 onMounted(() => {
@@ -296,7 +309,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   boolMounted = false;
+  boolLoadRequested = false;
   intRevision += 1;
+  closeDetails();
   window.removeEventListener("console-notifications-changed", handleNotificationChange);
 });
 </script>

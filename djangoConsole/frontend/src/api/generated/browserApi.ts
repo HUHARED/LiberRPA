@@ -312,6 +312,9 @@ export interface BrowserApiContracts {
   MembershipUpdateRequest: MembershipUpdateRequest;
   MembershipWriteResponse: MembershipWriteResponse;
   MessageResponse: MessageResponse;
+  NotificationDetailsResponse: NotificationDetailsResponse;
+  NotificationListResponse: NotificationListResponse;
+  NotificationReadResponse: NotificationReadResponse;
   OrganizationDeletionRequest: OrganizationDeletionRequest;
   OrganizationDeletionResponse: OrganizationDeletionResponse;
   OrganizationLimitsRequest: OrganizationLimitsRequest;
@@ -1283,6 +1286,30 @@ export interface MembershipRecordResponse {
 }
 export interface MessageResponse {
   message: string;
+}
+export interface NotificationDetailsResponse {
+  notification: NotificationDetailsRecordResponse;
+}
+export interface NotificationDetailsRecordResponse {
+  created_at: string;
+  detail: string;
+  id: string;
+  read_at: string | null;
+  title: string;
+}
+export interface NotificationListResponse {
+  notifications: NotificationResponse[];
+  unread_count: number;
+}
+export interface NotificationResponse {
+  created_at: string;
+  id: string;
+  read_at: string | null;
+  title: string;
+}
+export interface NotificationReadResponse {
+  id: string;
+  read_at: string;
 }
 export interface OrganizationDeletionRequest {
   current_password: string;

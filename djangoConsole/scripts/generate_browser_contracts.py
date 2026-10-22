@@ -163,6 +163,10 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (runContracts.RunLogClearResponse, "serialization"),
     (runContracts.RunDownloadResponse, "serialization"),
     (runContracts.RunDepartmentListResponse, "serialization"),
+    # Personal notifications.
+    (notificationContracts.NotificationListResponse, "serialization"),
+    (notificationContracts.NotificationDetailsResponse, "serialization"),
+    (notificationContracts.NotificationReadResponse, "serialization"),
     # Run email recipients.
     (notificationContracts.RecipientCreationRequest, "validation"),
     (notificationContracts.RecipientNotesRequest, "validation"),
