@@ -49,15 +49,13 @@ class Command(BaseCommand):
             self.stdout.write(f"\nFile storage volume: {storage.status.label}")
             self.stdout.write(f"  Checked at: {_format_time(storage.checkedAt)}")
             self.stdout.write(f"  Message: {storage.message}")
-            self.stdout.write(
-                f"  Total (bytes): {storage.totalBytes if storage.totalBytes is not None else '-'}"
-            )
-            self.stdout.write(
-                f"  Used (bytes): {storage.usedBytes if storage.usedBytes is not None else '-'}"
-            )
-            self.stdout.write(
-                f"  Free (bytes): {storage.freeBytes if storage.freeBytes is not None else '-'}"
-            )
+            for strLabel, intBytes in (
+                ("Total", storage.totalBytes),
+                ("Used", storage.usedBytes),
+                ("Free", storage.freeBytes),
+            ):
+                strSize = "-" if intBytes is None else f"{intBytes / 1024**3:,.2f}"
+                self.stdout.write(f"  {strLabel} (GiB): {strSize}")
 
             backup = summary.lastSuccessfulBackup
             self.stdout.write("\nLast successful backup:")

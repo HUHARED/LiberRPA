@@ -4,8 +4,9 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from typing import cast
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.db import transaction
@@ -13,6 +14,7 @@ from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from console_project.config import LimitsConfig
+from accounts.models import User
 
 from .contracts import EmailStatus
 from .models import EmailDelivery
@@ -39,14 +41,23 @@ def prune_email_deliveries(*, batchSize: int = 1000) -> int:
     """Prune completed history by organization while preserving live accounting and proofs."""
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     currentTime = timezone.now()
-    instanceDayStart = timezone.localtime(
-        currentTime, timezone.get_default_timezone()
-    ).replace(hour=0, minute=0, second=0, microsecond=0)
-    # Keep budget usage, resend cursors, valid email proofs, and the instance's Failed Today count.
+    strTimeZone = (
+        User.objects
+        .filter(is_platform_admin=True)
+        .values_list("time_zone", flat=True)
+        .first()
+    )
+    displayZone = (
+        ZoneInfo(strTimeZone) if strTimeZone else timezone.get_default_timezone()
+    )
+    dayStart = datetime.combine(
+        timezone.localdate(currentTime, displayZone), time.min, displayZone
+    )
+    # Preserve the administrator's full local day, including a 25-hour daylight-saving day.
     protectedCutoff = min(
         currentTime
         - max(EMAIL_BUDGET_WINDOW, timedelta(seconds=limits.emailResendSeconds)),
-        instanceDayStart,
+        dayStart,
     )
     retentionCutoff = currentTime - timedelta(days=limits.emailDeliveryRetentionDays)
     completed = EmailDelivery.objects.filter(

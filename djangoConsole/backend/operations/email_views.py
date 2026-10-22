@@ -11,10 +11,11 @@ from datetime import date, datetime, time, timedelta
 from typing import cast
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.paginator import InvalidPage, Paginator
 from django.db import DatabaseError
-from django.db.models import F, Q, Window
+from django.db.models import Count, F, Q, Window
 from django.db.models.functions import RowNumber
 from django.http import HttpRequest, JsonResponse
 from django.utils import timezone
@@ -23,6 +24,7 @@ from django.views.decorators.http import require_GET
 from pydantic import ValidationError as ContractValidationError
 from pydantic_core import PydanticSerializationError
 
+from console_project.config import LimitsConfig
 from console_project.constants import INT_LIST_PAGE_SIZE
 from console_project.contracts import PaginationResponse
 from console_project.http import (
@@ -33,10 +35,12 @@ from console_project.http import (
 )
 from notifications.contracts import EmailStatus, EmailReasonCode, TUPLE_EMAIL_ISSUE_STATUS
 from notifications.models import EmailType, EmailDelivery
+from notifications.delivery import EMAIL_BUDGET_WINDOW
 
 from .access import get_platform_actor
 from .contracts import (
     EmailIssueResponse,
+    EmailUsageResponse,
     EmailIssueListResponse,
     EmailIssueOrganizationResponse,
     EmailIssueStatusResponse,
@@ -70,7 +74,7 @@ def _build_email_error_response(error: Exception) -> JsonResponse:
 @never_cache
 @require_GET
 def list_email_issues(request: HttpRequest) -> JsonResponse:
-    """Read completed delivery issues without loading message bodies or private proofs."""
+    """Read instance-wide email usage and filtered issues without loading message bodies or private proofs."""
     try:
         if not request.user.is_authenticated:
             return build_authentication_required_response()
@@ -147,11 +151,28 @@ def list_email_issues(request: HttpRequest) -> JsonResponse:
         today = timezone.localdate(currentTime, displayZone)
         dayStart = datetime.combine(today, time.min, displayZone)
         dayEnd = datetime.combine(today + timedelta(days=1), time.min, displayZone)
-        intFailedToday = EmailDelivery.objects.filter(
+        limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
+        # Match the worker's strict rolling cutoff; list filters never affect these counts.
+        recentAttempts = Q(attempted_at__gt=currentTime - EMAIL_BUDGET_WINDOW)
+        pendingDeliveries = Q(status=EmailStatus.PENDING)
+        failedToday = Q(
             status=EmailStatus.FAILED,
             finished_at__gte=dayStart,
             finished_at__lt=dayEnd,
-        ).count()
+        )
+        dictUsage = EmailDelivery.objects.filter(
+            recentAttempts | pendingDeliveries | failedToday
+        ).aggregate(
+            smtp_budget_used_24h=Count("pk", filter=recentAttempts),
+            run_budget_used_24h=Count(
+                "pk", filter=recentAttempts & Q(email_type=EmailType.RUN)
+            ),
+            accepted_by_smtp_24h=Count(
+                "pk", filter=recentAttempts & Q(status=EmailStatus.ACCEPTED)
+            ),
+            pending=Count("pk", filter=pendingDeliveries),
+            failed_today=Count("pk", filter=failedToday),
+        )
         # These completed rows contain only bounded metadata; the dialog uses the same snapshot.
         response = EmailIssueListResponse(
             issues=[
@@ -178,7 +199,15 @@ def list_email_issues(request: HttpRequest) -> JsonResponse:
                 total_count=page.paginator.count,
                 total_pages=page.paginator.num_pages,
             ),
-            failed_today=intFailedToday,
+            usage=EmailUsageResponse(
+                smtp_budget_used_24h=dictUsage["smtp_budget_used_24h"],
+                smtp_budget_limit_24h=limits.maxEmailRecipientsPer24Hours,
+                run_budget_used_24h=dictUsage["run_budget_used_24h"],
+                run_budget_limit_24h=limits.maxRunEmailRecipientsPer24Hours,
+                accepted_by_smtp_24h=dictUsage["accepted_by_smtp_24h"],
+                pending=dictUsage["pending"],
+            ),
+            failed_today=dictUsage["failed_today"],
             time_zone=str(displayZone),
             today=today,
             updated_at=currentTime,

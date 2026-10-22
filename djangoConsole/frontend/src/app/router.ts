@@ -296,10 +296,10 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         ],
       },
       {
-        path: "/platform/email-issues",
-        name: "platform-email-issues",
-        component: () => import("@/views/platform/EmailIssuesView.vue"),
-        meta: { title: "Email Issues", requiresPlatformAdmin: true },
+        path: "/platform/email",
+        name: "platform-email",
+        component: () => import("@/views/platform/EmailView.vue"),
+        meta: { title: "Email", requiresPlatformAdmin: true },
       },
       {
         path: "/platform/audit-log",

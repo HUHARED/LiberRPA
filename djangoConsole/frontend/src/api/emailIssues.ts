@@ -60,6 +60,15 @@ export async function getEmailIssues(
         ARR_EMAIL_REASON_CODE.some((code) => code === issue.reason_code) &&
         typeof issue.reason_text === "string",
     ) ||
+    !isRecord(payload.usage) ||
+    !isNonnegativeInteger(payload.usage.smtp_budget_used_24h) ||
+    !isNonnegativeInteger(payload.usage.smtp_budget_limit_24h) ||
+    !isNonnegativeInteger(payload.usage.run_budget_used_24h) ||
+    !isNonnegativeInteger(payload.usage.run_budget_limit_24h) ||
+    !isNonnegativeInteger(payload.usage.accepted_by_smtp_24h) ||
+    !isNonnegativeInteger(payload.usage.pending) ||
+    payload.usage.run_budget_used_24h > payload.usage.smtp_budget_used_24h ||
+    payload.usage.accepted_by_smtp_24h > payload.usage.smtp_budget_used_24h ||
     !isNonnegativeInteger(payload.failed_today) ||
     typeof payload.time_zone !== "string" ||
     !isDateString(payload.today) ||
@@ -70,6 +79,14 @@ export async function getEmailIssues(
   return {
     issues: payload.issues,
     pagination: parsePaginationResponse(payload.pagination),
+    usage: {
+      smtp_budget_used_24h: payload.usage.smtp_budget_used_24h,
+      smtp_budget_limit_24h: payload.usage.smtp_budget_limit_24h,
+      run_budget_used_24h: payload.usage.run_budget_used_24h,
+      run_budget_limit_24h: payload.usage.run_budget_limit_24h,
+      accepted_by_smtp_24h: payload.usage.accepted_by_smtp_24h,
+      pending: payload.usage.pending,
+    },
     failed_today: payload.failed_today,
     time_zone: payload.time_zone,
     today: payload.today,

@@ -1,7 +1,7 @@
-<!-- FileName: EmailIssuesView.vue -->
+<!-- FileName: EmailView.vue -->
 <template>
   <div class="d-flex flex-wrap align-center justify-space-between ga-4 mb-4">
-    <h1 class="text-h5">Email Issues</h1>
+    <h1 class="text-h5">Email</h1>
 
     <v-btn
       variant="tonal"
@@ -24,13 +24,57 @@
     Updated at {{ formatDateTime(issuePage.updated_at, issuePage.time_zone) }}
   </p>
 
-  <div class="mb-4">
-    <h2 class="text-subtitle-1">Failed Today</h2>
-    <p class="text-h4">{{ issuePage?.failed_today ?? "—" }}</p>
-    <p v-if="issuePage" class="text-body-2 text-medium-emphasis mt-1">
-      {{ issuePage.today }} · {{ issuePage.time_zone }}
-    </p>
-  </div>
+  <v-row class="mb-2" aria-label="Instance email usage">
+    <v-col cols="12" sm="6" lg="3">
+      <h2 class="text-subtitle-1">SMTP Budget</h2>
+      <p class="text-h5">
+        {{ issuePage?.usage.smtp_budget_used_24h.toLocaleString("en-US") ?? "—" }} /
+        {{ issuePage?.usage.smtp_budget_limit_24h.toLocaleString("en-US") ?? "—" }}
+      </p>
+      <p class="text-body-2 text-medium-emphasis mt-1">Last 24 hours · Used / Limit</p>
+    </v-col>
+
+    <v-col cols="12" sm="6" lg="3">
+      <h2 class="text-subtitle-1">Run Email Budget</h2>
+      <p class="text-h5">
+        {{ issuePage?.usage.run_budget_used_24h.toLocaleString("en-US") ?? "—" }} /
+        {{ issuePage?.usage.run_budget_limit_24h.toLocaleString("en-US") ?? "—" }}
+      </p>
+      <p class="text-body-2 text-medium-emphasis mt-1">Last 24 hours · Used / Limit</p>
+    </v-col>
+
+    <v-col cols="12" sm="4" lg="2">
+      <h2 class="text-subtitle-1">Accepted by SMTP</h2>
+      <p class="text-h5">
+        {{ issuePage?.usage.accepted_by_smtp_24h.toLocaleString("en-US") ?? "—" }}
+      </p>
+      <p class="text-body-2 text-medium-emphasis mt-1">Attempts in the last 24 hours</p>
+    </v-col>
+
+    <v-col cols="12" sm="4" lg="2">
+      <h2 class="text-subtitle-1">Pending</h2>
+      <p class="text-h5">
+        {{ issuePage?.usage.pending.toLocaleString("en-US") ?? "—" }}
+      </p>
+      <p class="text-body-2 text-medium-emphasis mt-1">Waiting to be sent</p>
+    </v-col>
+
+    <v-col cols="12" sm="4" lg="2">
+      <h2 class="text-subtitle-1">Failed Today</h2>
+      <p class="text-h5">{{ issuePage?.failed_today.toLocaleString("en-US") ?? "—" }}</p>
+      <p v-if="issuePage" class="text-body-2 text-medium-emphasis mt-1">
+        {{ issuePage.today }} · {{ issuePage.time_zone }}
+      </p>
+    </v-col>
+  </v-row>
+
+  <p class="text-body-2 text-medium-emphasis mb-1">
+    Totals cover all organizations and are not affected by issue filters. Budgets count
+    recipient attempts, including failed or unknown results. Run email uses both budgets.
+  </p>
+  <p class="text-body-2 text-medium-emphasis mb-4">
+    SMTP acceptance does not confirm inbox delivery.
+  </p>
 
   <h2 class="text-h6 mb-3">Recent Issues</h2>
 

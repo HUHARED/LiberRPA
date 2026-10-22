@@ -716,6 +716,7 @@ export interface EmailIssueListResponse {
   time_zone: string;
   today: string;
   updated_at: string;
+  usage: EmailUsageResponse;
 }
 export interface EmailIssueResponse {
   attempted_at: string | null;
@@ -730,6 +731,14 @@ export interface EmailIssueResponse {
   recipient: string;
   status: EmailStatus;
   status_label: string;
+}
+export interface EmailUsageResponse {
+  accepted_by_smtp_24h: number;
+  pending: number;
+  run_budget_limit_24h: number;
+  run_budget_used_24h: number;
+  smtp_budget_limit_24h: number;
+  smtp_budget_used_24h: number;
 }
 export interface ExecutorCreationRequest {
   department_id: string;

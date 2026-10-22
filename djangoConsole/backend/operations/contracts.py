@@ -404,10 +404,20 @@ class EmailIssueResponse(JsonResponsePayload):
     reason_text: str
 
 
+class EmailUsageResponse(JsonResponsePayload):
+    smtp_budget_used_24h: int = Field(ge=0)
+    smtp_budget_limit_24h: int = Field(ge=0)
+    run_budget_used_24h: int = Field(ge=0)
+    run_budget_limit_24h: int = Field(ge=0)
+    accepted_by_smtp_24h: int = Field(ge=0)
+    pending: int = Field(ge=0)
+
+
 class EmailIssueListResponse(JsonResponsePayload):
     issues: list[EmailIssueResponse]
     pagination: PaginationResponse
-    failed_today: int
+    usage: EmailUsageResponse
+    failed_today: int = Field(ge=0)
     time_zone: str
     today: date
     updated_at: datetime

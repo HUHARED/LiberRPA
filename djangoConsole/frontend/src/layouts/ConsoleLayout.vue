@@ -28,9 +28,9 @@
         :active="route.path.startsWith('/platform/organizations')"
         color="primary" />
       <v-list-item
-        title="Email Issues"
-        prepend-icon="mdi-email-alert-outline"
-        to="/platform/email-issues"
+        title="Email"
+        prepend-icon="mdi-email-outline"
+        to="/platform/email"
         color="primary" />
       <v-list-item
         title="Platform Audit Log"
