@@ -13,6 +13,11 @@ from django.db.models import TextChoices
 from .contracts import InstanceHealthStatus
 
 
+INT_BACKUP_RETENTION_COUNT = 7
+INT_BACKUP_WORKER_REPORT_SECONDS = 30
+INT_BACKUP_WORKER_MAX_AGE_SECONDS = 2 * INT_BACKUP_WORKER_REPORT_SECONDS
+
+
 class BackupStage(TextChoices):
     SNAPSHOT = "snapshot", "Preparing snapshot"
     DATABASE = "database", "Exporting database"
@@ -32,6 +37,9 @@ class BackupStatus(TextChoices):
     SUCCEEDED = "succeeded", "Succeeded"
     FAILED = "failed", "Failed"
     SKIPPED = "skipped", "Skipped"
+
+
+TUPLE_ACTIVE_BACKUP_STATUS = (BackupStatus.PENDING, BackupStatus.RUNNING)
 
 
 class BackupWorkerStatus(TextChoices):

@@ -14,7 +14,7 @@ from django.db import DatabaseError
 
 from console_project.logging import get_exception_summary
 from operations.backup_contracts import BackupStatus, BackupRecordInfo
-from operations.backup_worker import request_backup, load_backup_status
+from operations.backup_jobs import request_backup, load_backup_status
 
 _LOGGER = logging.getLogger("console.backup")
 

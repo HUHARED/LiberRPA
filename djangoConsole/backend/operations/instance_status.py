@@ -28,7 +28,7 @@ from .models import MaintenanceState, CleanupTask, CleanupStatus, CleanupState
 from .cleanup_status import DICT_CLEANUP_MAX_AGE_SECONDS
 from .capacity_contracts import INT_STORAGE_WARNING_BYTES
 from .backup_contracts import BackupRecordInfo
-from .backup_worker import load_backup_status
+from .backup_jobs import load_backup_status
 
 _LOGGER = logging.getLogger("console.operations")
 _INT_SCHEDULE_SCAN_MAX_AGE_SECONDS = 60

@@ -20,10 +20,12 @@ from console_project.workers import (
     hold_worker_session,
     stop_on_signals,
 )
-from operations.backup_contracts import BackupWorkerStatus
-from operations.backup_worker import (
+from operations.backup_contracts import (
     INT_BACKUP_WORKER_REPORT_SECONDS,
-    get_backup_location,
+    BackupWorkerStatus,
+)
+from operations.backup_jobs import get_backup_location
+from operations.backup_worker import (
     report_backup_worker,
     recover_interrupted_backups,
     schedule_due_backup,
