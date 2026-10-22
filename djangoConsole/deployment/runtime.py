@@ -8,16 +8,14 @@ import argparse
 import logging
 import logging.config
 import os
-import pwd
 import secrets
 import subprocess
 import sys
 import time
 from collections.abc import Generator, Iterable
 from contextlib import contextmanager
+from http.client import HTTPConnection
 from pathlib import Path
-from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
 
 from cryptography.fernet import Fernet
 from django.core.exceptions import ImproperlyConfigured
@@ -41,7 +39,7 @@ class DeploymentError(RuntimeError):
     """A controlled deployment failure that can be shown without exposing credentials."""
 
 
-def run_as(
+def _run_as(
     user: str,
     command: list[str],
     *,
@@ -53,14 +51,14 @@ def run_as(
     if hideOutput:
         with capture_command_errors(
             _LOGGER, Path(command[0]).name, secrets=secretValues
-        ) as errorOutput:
+        ) as intErrorDescriptor:
             return subprocess.run(
                 ["runuser", "-u", user, "--", *command],
                 check=True,
                 input=inputText,
                 text=True,
                 stdout=subprocess.DEVNULL,
-                stderr=errorOutput,
+                stderr=intErrorDescriptor,
             )
     return subprocess.run(
         ["runuser", "-u", user, "--", *command],
@@ -70,7 +68,18 @@ def run_as(
     )
 
 
-def prepare_runtime_directories() -> None:
+def _set_owner(path: Path, user: str) -> None:
+    """Set the owner and primary group of a Linux deployment path."""
+    if sys.platform == "linux":
+        import pwd
+
+        userInfo = pwd.getpwnam(user)
+        os.chown(path, userInfo.pw_uid, userInfo.pw_gid)
+    else:
+        raise DeploymentError("Container deployment commands require Linux.")
+
+
+def _prepare_runtime_directories() -> None:
     for strPath, strUser, intMode in (
         ("/run/liberrpa", "root", 0o755),
         ("/run/liberrpa/web", "liberrpa", 0o700),
@@ -78,12 +87,11 @@ def prepare_runtime_directories() -> None:
     ):
         path = Path(strPath)
         path.mkdir(parents=True, exist_ok=True)
-        user = pwd.getpwnam(strUser)
-        os.chown(path, user.pw_uid, user.pw_gid)
+        _set_owner(path, strUser)
         path.chmod(intMode)
 
 
-def prepare_empty_data() -> None:
+def _prepare_empty_data() -> None:
     if not _PATH_DATA.is_dir() or any(_PATH_DATA.iterdir()):
         raise DeploymentError("Initialization requires an existing, empty /data mount.")
     _PATH_DATA.chmod(0o755)
@@ -95,25 +103,22 @@ def prepare_empty_data() -> None:
     ):
         path = _PATH_DATA / strName
         path.mkdir(mode=0o700)
-        user = pwd.getpwnam(strUser)
-        os.chown(path, user.pw_uid, user.pw_gid)
+        _set_owner(path, strUser)
     if Path("/backup").is_dir():
-        user = pwd.getpwnam("liberrpa")
-        os.chown("/backup", user.pw_uid, user.pw_gid)
+        _set_owner(Path("/backup"), "liberrpa")
         Path("/backup").chmod(0o700)
 
 
-def write_new_file(path: Path, content: bytes) -> None:
+def _write_new_file(path: Path, content: bytes) -> None:
     intDescriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(intDescriptor, "wb") as file:
         file.write(content)
         file.flush()
         os.fsync(file.fileno())
-    user = pwd.getpwnam("liberrpa")
-    os.chown(path, user.pw_uid, user.pw_gid)
+    _set_owner(path, "liberrpa")
 
 
-def check_postgres_directory() -> None:
+def _check_postgres_directory() -> None:
     if (_PATH_POSTGRES / "PG_VERSION").read_text().strip() != "17":
         raise DeploymentError(
             "This image requires an existing PostgreSQL 17 data directory."
@@ -121,10 +126,10 @@ def check_postgres_directory() -> None:
 
 
 @contextmanager
-def temporary_postgres() -> Generator[None]:
-    check_postgres_directory()
+def _temporary_postgres() -> Generator[None]:
+    _check_postgres_directory()
     # pg_ctl refuses an already running cluster; offline commands cannot share production data.
-    run_as(
+    _run_as(
         "postgres",
         [
             "pg_ctl",
@@ -139,19 +144,19 @@ def temporary_postgres() -> Generator[None]:
     try:
         yield
     finally:
-        run_as(
+        _run_as(
             "postgres", ["pg_ctl", "-D", str(_PATH_POSTGRES), "-m", "fast", "-w", "stop"]
         )
 
 
-def create_database(
+def _create_database(
     password: str,
     *,
     encoding: str = "UTF8",
     collation: str = "C.UTF-8",
     ctype: str = "C.UTF-8",
 ) -> None:
-    run_as(
+    _run_as(
         "postgres",
         [
             "initdb",
@@ -187,8 +192,8 @@ def create_database(
         .format(*(sql.Literal(value) for value in (password, encoding, collation, ctype)))
         .as_string()
     )
-    with temporary_postgres():
-        run_as(
+    with _temporary_postgres():
+        _run_as(
             "postgres",
             ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-d", "postgres"],
             inputText=strSql,
@@ -197,7 +202,61 @@ def create_database(
         )
 
 
-def initialize(configPath: Path, smtpPasswordPath: Path) -> None:
+def _check_release_migrations() -> None:
+    """Check packaged model definitions without waiting for or changing the database."""
+    import django
+    from django.apps import apps
+    from django.db.migrations.autodetector import MigrationAutodetector
+    from django.db.migrations.exceptions import (
+        BadMigrationError,
+        CircularDependencyError,
+        NodeNotFoundError,
+    )
+    from django.db.migrations.loader import MigrationLoader
+    from django.db.migrations.state import ProjectState
+
+    _LOGGER.info("Checking published migrations.")
+    django.setup()
+    try:
+        loader = MigrationLoader(None, ignore_no_migrations=True)
+    except (
+        BadMigrationError,
+        CircularDependencyError,
+        NodeNotFoundError,
+        ValueError,
+    ) as e:
+        raise DeploymentError(
+            "Published migrations are missing or invalid. "
+            "Generate and include the complete migration files before deployment."
+        ) from e
+
+    listMissingApp = sorted(
+        appConfig.label
+        for appConfig in apps.get_app_configs()
+        if appConfig.label in loader.unmigrated_apps and any(appConfig.get_models())
+    )
+    if listMissingApp:
+        raise DeploymentError(
+            "Published migrations are missing for: " + ", ".join(listMissingApp) + "."
+        )
+    if dictConflict := loader.detect_conflicts():
+        raise DeploymentError(
+            "Published migrations have conflicting branches in: "
+            + ", ".join(sorted(dictConflict))
+            + ". Resolve them before deployment."
+        )
+    dictChange = MigrationAutodetector(
+        loader.project_state(), ProjectState.from_apps(apps)
+    ).changes(graph=loader.graph)
+    if dictChange:
+        raise DeploymentError(
+            "Model changes are missing published migrations for: "
+            + ", ".join(sorted(dictChange))
+            + ". Generate and include them before deployment."
+        )
+
+
+def _initialize(configPath: Path, smtpPasswordPath: Path) -> None:
     from console_project.config import parse_config
 
     configBytes = configPath.read_bytes()
@@ -231,44 +290,32 @@ def initialize(configPath: Path, smtpPasswordPath: Path) -> None:
     smtpPassword = smtpPasswordPath.read_bytes()
     if not smtpPassword.decode("utf-8-sig").rstrip("\r\n").strip():
         raise DeploymentError("The SMTP password file must not be empty.")
-    prepare_empty_data()
+    _prepare_empty_data()
     password = secrets.token_urlsafe(48)
-    write_new_file(_PATH_CONFIG, configBytes)
+    _write_new_file(_PATH_CONFIG, configBytes)
     for strName, value in (
         ("django-secret-key.txt", secrets.token_urlsafe(64).encode()),
         ("encryption-key.txt", Fernet.generate_key()),
         ("database-password.txt", password.encode()),
         ("smtp-password.txt", smtpPassword),
     ):
-        write_new_file(_PATH_DATA / "secrets" / strName, value)
-    create_database(password)
-    with temporary_postgres():
-        # Published migrations must already describe the models; this check writes no migration files.
-        _LOGGER.info("Checking published migrations.")
-        run_as(
-            "liberrpa",
-            [
-                "python",
-                "/app/backend/manage.py",
-                "makemigrations",
-                "--check",
-                "--dry-run",
-                "--noinput",
-            ],
-        )
+        _write_new_file(_PATH_DATA / "secrets" / strName, value)
+    _check_release_migrations()
+    _create_database(password)
+    with _temporary_postgres():
         _LOGGER.info("Applying database migrations.")
-        run_as("liberrpa", ["python", "/app/backend/manage.py", "migrate", "--noinput"])
+        _run_as("liberrpa", ["python", "/app/backend/manage.py", "migrate", "--noinput"])
         _LOGGER.info("Creating the platform administrator.")
-        run_as("liberrpa", ["python", "/app/backend/manage.py", "initialize_console"])
+        _run_as("liberrpa", ["python", "/app/backend/manage.py", "initialize_console"])
     print(
         "Console initialized. Keep /data and its secrets together when backing up or moving the instance."
     )
 
 
-def run_application(command: list[str]) -> None:
+def _run_application(command: list[str]) -> None:
     import django
-    from django.core.management import call_command
     from django.db import OperationalError, connection
+    from django.db.migrations.exceptions import InconsistentMigrationHistory
     from django.db.migrations.executor import MigrationExecutor
 
     django.setup()
@@ -284,14 +331,17 @@ def run_application(command: list[str]) -> None:
                 )
             time.sleep(1)
     executor = MigrationExecutor(connection)
+    try:
+        executor.loader.check_consistent_history(connection)
+    except InconsistentMigrationHistory as e:
+        raise DeploymentError(
+            "Database migration history is inconsistent. "
+            "Resolve it before starting the service."
+        ) from e
     if executor.migration_plan(executor.loader.graph.leaf_nodes()):
         raise DeploymentError(
             "Database migrations are pending. Apply published migrations while the service is stopped."
         )
-    # This read-only comparison rejects builds that omitted required migration files.
-    call_command(
-        "makemigrations", check=True, dry_run=True, interactive=False, verbosity=0
-    )
     from accounts.models import STR_PLATFORM_ADMIN_LOGIN, User
     from django.conf import settings
 
@@ -312,24 +362,30 @@ def run_application(command: list[str]) -> None:
     os.execvp(command[0], command)
 
 
-def check_health() -> None:
-    from console_project.config import read_config_snapshot
-
-    snapshot = read_config_snapshot(_PATH_CONFIG)
-    request = Request(
-        "http://127.0.0.1:52100/api/health/database/",
-        headers={
-            "Host": urlsplit(str(snapshot.config.consoleUrl)).netloc,
-            "X-Forwarded-For": "127.0.0.1",
-        },
-    )
-    with urlopen(request, timeout=3) as response:
+def _check_health() -> None:
+    # Keep the proxy, running application and database in the probe; never reread pending configuration.
+    connection = HTTPConnection("127.0.0.1", 52100, timeout=3)
+    try:
+        connection.request(
+            "GET",
+            "/api/health/database/",
+            headers={"X-Forwarded-For": "127.0.0.1"},
+        )
+        response = connection.getresponse()
         if response.status != 200:
-            raise DeploymentError("Console is not ready.")
+            raise DeploymentError(
+                f"Console readiness check returned HTTP {response.status}."
+            )
+    finally:
+        connection.close()
 
 
 def main() -> None:
     logging.config.dictConfig(build_logging_config("INFO"))
+    if sys.platform == "linux":
+        intEffectiveUserId = os.geteuid()
+    else:
+        raise DeploymentError("Container deployment commands require Linux.")
     parser = argparse.ArgumentParser(
         description="Explicit container initialization, offline maintenance, and ordinary startup."
     )
@@ -351,27 +407,27 @@ def main() -> None:
     args = parser.parse_args()
     os.umask(0o077)
     if args.action == "health":
-        check_health()
+        _check_health()
         return
     _LOGGER.info("Deployment action: %s.", args.action)
     if args.action == "run":
         if not args.command:
             parser.error("A child command is required.")
-        run_application(args.command)
+        _run_application(args.command)
         return
-    if os.geteuid() != 0:
+    if intEffectiveUserId != 0:
         raise DeploymentError(
             "Use the container entry point as root; child services run under their own users."
         )
-    prepare_runtime_directories()
+    _prepare_runtime_directories()
     if args.action == "initialize":
-        initialize(args.config, args.smtp_password_file)
+        _initialize(args.config, args.smtp_password_file)
     elif args.action == "prepare-restore":
         password = args.password_file.read_text(encoding="utf-8-sig").rstrip("\r\n")
         if not password.strip():
             raise DeploymentError("The database password file must not be empty.")
-        prepare_empty_data()
-        create_database(
+        _prepare_empty_data()
+        _create_database(
             password,
             encoding=args.database_encoding,
             collation=args.database_collation,
@@ -383,15 +439,14 @@ def main() -> None:
     elif args.action == "offline":
         if not args.command:
             parser.error("An offline command is required.")
-        with temporary_postgres():
-            run_as("liberrpa", args.command)
+        with _temporary_postgres():
+            _run_as("liberrpa", args.command)
     else:
-        from console_project.config import read_config_snapshot
         from console_project.recovery import require_completed_restore
 
-        check_postgres_directory()
+        _check_postgres_directory()
         require_completed_restore(_PATH_CONFIG)
-        read_config_snapshot(_PATH_CONFIG)
+        _check_release_migrations()
         subprocess.run(
             ["haproxy", "-c", "-f", str(_PATH_DEPLOYMENT / "haproxy.cfg")], check=True
         )

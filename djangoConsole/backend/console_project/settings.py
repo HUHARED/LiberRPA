@@ -41,7 +41,8 @@ if len(SECRET_KEY) < 50:
     )
 
 DEBUG = _CONSOLE_CONFIG.debug
-ALLOWED_HOSTS = _CONSOLE_CONFIG.allowedHosts
+# The internal readiness probe uses a fixed loopback Host, independent of pending configuration.
+ALLOWED_HOSTS = [*_CONSOLE_CONFIG.allowedHosts, "127.0.0.1"]
 ROOT_URLCONF = "console_project.urls"
 LOGGING = build_logging_config(_CONSOLE_CONFIG.logging.level)
 DEFAULT_FROM_EMAIL = str(
@@ -57,7 +58,9 @@ MAILERS = {
             "host": _CONSOLE_CONFIG.smtp.host,
             "port": _CONSOLE_CONFIG.smtp.port,
             "username": _CONSOLE_CONFIG.smtp.user,
-            "password": CONSOLE_CONFIG_SNAPSHOT.read_secret(_CONSOLE_CONFIG.smtp.passwordFile),
+            "password": CONSOLE_CONFIG_SNAPSHOT.read_secret(
+                _CONSOLE_CONFIG.smtp.passwordFile
+            ),
             "use_ssl": _CONSOLE_CONFIG.smtp.security == "ssl",
             "use_tls": _CONSOLE_CONFIG.smtp.security == "starttls",
             "timeout": _CONSOLE_CONFIG.smtp.timeoutSeconds,
@@ -120,7 +123,9 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": _CONSOLE_CONFIG.database.name,
         "USER": _CONSOLE_CONFIG.database.user,
-        "PASSWORD": CONSOLE_CONFIG_SNAPSHOT.read_secret(_CONSOLE_CONFIG.database.passwordFile),
+        "PASSWORD": CONSOLE_CONFIG_SNAPSHOT.read_secret(
+            _CONSOLE_CONFIG.database.passwordFile
+        ),
         "HOST": _CONSOLE_CONFIG.database.host,
         "PORT": _CONSOLE_CONFIG.database.port,
         # ASGI requests should not keep Django's persistent database connections open.

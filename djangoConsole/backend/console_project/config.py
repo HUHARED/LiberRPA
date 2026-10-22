@@ -214,7 +214,9 @@ class SmtpConfig(_BaseConfig):
 
 class BackupConfig(_BaseConfig):
     location: NonEmptyText
-    dailyTime: Annotated[str, StringConstraints(pattern=r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")] = "03:00"
+    dailyTime: Annotated[
+        str, StringConstraints(pattern=r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")
+    ] = "03:00"
     notificationEmail: EmailAddress
 
 
@@ -286,7 +288,6 @@ def parse_config(content: bytes, configPath: Path) -> ConsoleConfig:
 class ConsoleConfigSnapshot:
     configPath: Path
     config: ConsoleConfig
-    content: bytes
     secrets: dict[str, bytes] = field(repr=False)
 
     def read_secret(self, fileName: str) -> str:
@@ -317,7 +318,9 @@ def read_config_snapshot(configPath: Path) -> ConsoleConfigSnapshot:
     try:
         content = configPath.read_bytes()
     except OSError as e:
-        raise ImproperlyConfigured(f"Cannot read Console configuration: {configPath}") from e
+        raise ImproperlyConfigured(
+            f"Cannot read Console configuration: {configPath}"
+        ) from e
     config = parse_config(content, configPath)
     dictSecret: dict[str, bytes] = {}
     for strFileName in dict.fromkeys([
@@ -330,4 +333,4 @@ def read_config_snapshot(configPath: Path) -> ConsoleConfigSnapshot:
             dictSecret[strFileName] = (configPath.parent / strFileName).read_bytes()
         except OSError as e:
             raise ImproperlyConfigured(f"Cannot read secret file: {strFileName}") from e
-    return ConsoleConfigSnapshot(configPath, config, content, dictSecret)
+    return ConsoleConfigSnapshot(configPath, config, dictSecret)
