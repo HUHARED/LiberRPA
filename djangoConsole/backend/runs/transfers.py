@@ -416,8 +416,7 @@ def set_file_ready(request: HttpRequest, transferId: uuid.UUID) -> HttpResponse:
                 boolOwnPreparation = True
                 if payload.size_bytes > _DICT_MAX_FILE_BYTES[ticket.kind]:
                     raise ValidationError(
-                        "This file exceeds the Console download limit; "
-                        "retrieve it on the Executor computer."
+                        "This file exceeds the Console download limit; retrieve it on the Executor computer."
                     )
                 if any(char in payload.filename for char in "\r\n/\\\x00"):
                     raise ValidationError("Invalid download filename.")

@@ -107,17 +107,11 @@ def cleanup() -> None:
 
                 if _TerminableThread.intUnsafeThreadTerminationCount > 0:
                     # The worker thread was actually interrupted by injected exception and then stopped.
-                    strTemp += (
-                        f"Unsafe timeout fallback interrupted worker threads "
-                        f"{_TerminableThread.intUnsafeThreadTerminationCount} times. "
-                    )
+                    strTemp += f"Unsafe timeout fallback interrupted worker threads {_TerminableThread.intUnsafeThreadTerminationCount} times. "
 
                 if _TerminableThread.intUnstoppableThreadCount > 0:
                     # The worker thread could not be stopped. The specific call raised UiUnstoppableThreadError.
-                    strTemp += (
-                        f"Unsafe timeout fallback failed to stop worker threads "
-                        f"{_TerminableThread.intUnstoppableThreadCount} times. "
-                    )
+                    strTemp += f"Unsafe timeout fallback failed to stop worker threads {_TerminableThread.intUnstoppableThreadCount} times. "
 
                 Log.critical(
                     strTemp

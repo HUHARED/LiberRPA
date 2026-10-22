@@ -556,8 +556,7 @@ def delete_package(access: OrganizationAccessContext, package: Package) -> None:
     if get_package_references(package):
         raise FileOperationError(
             "package_in_use",
-            "Remove Schedule references, finish or close active Jobs, cancel preparation "
-            "requests, and finish downloads or wait for unused links to expire.",
+            "Remove Schedule references, finish or close active Jobs, cancel preparation requests, and finish downloads or wait for unused links to expire.",
         )
     record_audit(
         AuditAction.PACKAGES_DELETE,

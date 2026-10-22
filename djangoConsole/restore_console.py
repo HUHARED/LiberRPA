@@ -260,8 +260,7 @@ def main() -> None:
     logging.config.dictConfig(build_logging_config("INFO"))
     parser = argparse.ArgumentParser(
         description=(
-            "Restore a trusted Console backup after stopping the old Console instance "
-            "and all its workers. "
+            "Restore a trusted Console backup after stopping the old Console instance and all its workers. "
             "The target directory and target database must be empty."
         )
     )
@@ -298,8 +297,8 @@ def main() -> None:
         _LOGGER.exception("Restore stopped.")
         parser.exit(
             1,
-            f"Restore stopped: {get_exception_summary(e)}. Keep the target isolated; "
-            "any restore.pending marker must remain in place.\n",
+            f"Restore stopped: {get_exception_summary(e)}. "
+            "Keep the target isolated; any restore.pending marker must remain in place.\n",
         )
     except KeyboardInterrupt:
         parser.exit(
@@ -308,8 +307,7 @@ def main() -> None:
         )
     print(f"Restore completed in maintenance mode. Configuration: {pathConfig}")
     print(
-        "Review restored permissions and settings, then run "
-        "'python backend/manage.py maintenance resume' from the Console directory. "
+        "Review restored permissions and settings, then run 'python backend/manage.py maintenance resume' from the Console directory. "
         "Backups remain disabled."
     )
 

@@ -39,8 +39,8 @@ from .models import Organization, Membership, Department, MemberInvitation
 from .limits import (
     OrganizationLimit,
     LIMIT_DEFINITIONS,
-    get_organization_limits,
     get_run_log_retention_days,
+    get_organization_limits,
 )
 
 

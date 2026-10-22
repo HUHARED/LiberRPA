@@ -1,7 +1,7 @@
 <!-- FileName: HelpView.vue -->
 <template>
-  <h1 class="text-h5 mb-2">Help & About</h1>
-  <p class="text-medium-emphasis mb-6">A workspace for your automation team.</p>
+  <h1 class="text-h5 mb-4">Help & About</h1>
+
   <v-card variant="outlined">
     <v-card-text class="text-body-1">
       <BrandMark class="mb-4" />

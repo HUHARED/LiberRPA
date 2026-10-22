@@ -97,8 +97,7 @@ def _set_record_process_resources(processRecord: subprocess.Popen) -> None:
         listRecordCpu = listAvailableCpu[-intRecordCpuCount:]
         psutil.Process(processRecord.pid).cpu_affinity(listRecordCpu)
         Log.debug(
-            f"Set ffmpeg CPU affinity to {listRecordCpu} "
-            f"from {len(listAvailableCpu)} available logical CPUs."
+            f"Set ffmpeg CPU affinity to {listRecordCpu} from {len(listAvailableCpu)} available logical CPUs."
         )
     except Exception as e:
         Log.warning(f"Failed to limit ffmpeg CPU affinity: {e}")
@@ -415,10 +414,7 @@ def record_screen(pid: int, folderName: str) -> None:
 
                 if captureAreaCurrent != captureArea:
                     Log.info(
-                        "Primary monitor capture area changed: "
-                        f"{captureArea.x},{captureArea.y} {captureArea.width}x{captureArea.height} -> "
-                        f"{captureAreaCurrent.x},{captureAreaCurrent.y} "
-                        f"{captureAreaCurrent.width}x{captureAreaCurrent.height}. "
+                        f"Primary monitor capture area changed: {captureArea.x},{captureArea.y} {captureArea.width}x{captureArea.height} -> {captureAreaCurrent.x},{captureAreaCurrent.y} {captureAreaCurrent.width}x{captureAreaCurrent.height}. "
                         f"Keep recording output at {initialWidth}x{initialHeight}."
                     )
 
@@ -470,8 +466,7 @@ def record_screen(pid: int, folderName: str) -> None:
                     if captureAreaCurrent != captureArea:
                         Log.info(
                             "ffmpeg stopped during a display mode change. "
-                            f"Restart recording at {captureAreaCurrent.width}x{captureAreaCurrent.height}, "
-                            f"keeping output at {initialWidth}x{initialHeight}."
+                            f"Restart recording at {captureAreaCurrent.width}x{captureAreaCurrent.height}, keeping output at {initialWidth}x{initialHeight}."
                         )
 
                         captureArea = captureAreaCurrent

@@ -320,8 +320,7 @@ def get_or_delete_department(
                         "error": {
                             "code": "department_deletion_blocked",
                             "message": (
-                                "Remove the remaining dependencies "
-                                "before deleting this department."
+                                "Remove the remaining dependencies before deleting this department."
                             ),
                         },
                     },

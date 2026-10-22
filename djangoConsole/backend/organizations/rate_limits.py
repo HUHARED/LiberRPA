@@ -90,8 +90,8 @@ def check_request_budget(
 ) -> None:
     """Charge verified HTTP identity once, before any business transaction.
 
-    Deferred endpoints supply their validated batch size. Account/security flows,
-    execution control and already accepted transfers retain independent safeguards.
+    Deferred endpoints supply their validated batch size.
+    Account/security flows, execution control and already accepted transfers retain independent safeguards.
     """
     if getattr(request, _STR_CHECKED_ATTRIBUTE, False):
         return
@@ -118,8 +118,8 @@ def check_request_budget(
         )
     if cost > intLimit:
         raise RequestBudgetError(
-            f"This request exceeds the organization's allowance of {intLimit} "
-            "object operations per minute. Select fewer items.",
+            f"This request exceeds the organization's allowance of {intLimit} object operations per minute. "
+            "Select fewer items.",
             code="organization_request_too_large",
             status=400,
         )

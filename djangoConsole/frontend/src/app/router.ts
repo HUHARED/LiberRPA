@@ -138,6 +138,29 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         meta: { title: "Executors", requiresBusiness: true },
       },
       {
+        path: "/executors/groups",
+        name: "executor-groups",
+        component: () => import("@/views/executors/ExecutorGroupsView.vue"),
+        meta: { title: "Executor Groups", requiresBusiness: true },
+        children: [
+          {
+            path: ":groupId",
+            name: "executor-group-details",
+            component: () =>
+              import("@/components/executors/ExecutorGroupDetailsDialog.vue"),
+            props: true,
+            meta: { title: "Group Details" },
+          },
+        ],
+      },
+      {
+        path: "/executors/:executorId",
+        name: "executor-details",
+        component: () => import("@/views/executors/ExecutorDetailsView.vue"),
+        props: true,
+        meta: { title: "Executor Details", requiresBusiness: true },
+      },
+      {
         path: "/shared-files",
         name: "shared-files",
         component: () => import("@/views/sharedFiles/SharedFilesView.vue"),
@@ -173,29 +196,6 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         meta: { title: "Assets", requiresBusiness: true },
       },
       {
-        path: "/executors/groups",
-        name: "executor-groups",
-        component: () => import("@/views/executors/ExecutorGroupsView.vue"),
-        meta: { title: "Executor Groups", requiresBusiness: true },
-        children: [
-          {
-            path: ":groupId",
-            name: "executor-group-details",
-            component: () =>
-              import("@/components/executors/ExecutorGroupDetailsDialog.vue"),
-            props: true,
-            meta: { title: "Group Details" },
-          },
-        ],
-      },
-      {
-        path: "/executors/:executorId",
-        name: "executor-details",
-        component: () => import("@/views/executors/ExecutorDetailsView.vue"),
-        props: true,
-        meta: { title: "Executor Details", requiresBusiness: true },
-      },
-      {
         path: "/organization-settings",
         name: "organization-settings",
         component: () => import("@/views/organizations/OrganizationSettingsView.vue"),
@@ -207,28 +207,10 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         },
         children: [
           {
-            path: "run-email-recipients",
-            name: "run-email-recipients",
-            component: () => import("@/views/organizations/RunEmailRecipientsView.vue"),
-            meta: { title: "Run Email Recipients" },
-          },
-          {
             path: "general",
             name: "organization-general",
             component: () => import("@/views/organizations/OrganizationGeneralView.vue"),
             meta: { title: "General" },
-          },
-          {
-            path: "usage-retention",
-            name: "organization-usage",
-            component: () => import("@/views/organizations/OrganizationUsageView.vue"),
-            meta: { title: "Usage & Retention" },
-          },
-          {
-            path: "audit-log",
-            name: "audit-log",
-            component: () => import("@/views/audit/AuditLogView.vue"),
-            meta: { title: "Audit Log" },
           },
           {
             path: "members",
@@ -255,6 +237,24 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
             component: () => import("@/views/organizations/DepartmentDetailsView.vue"),
             props: true,
             meta: { title: "Department Details" },
+          },
+          {
+            path: "run-email-recipients",
+            name: "run-email-recipients",
+            component: () => import("@/views/organizations/RunEmailRecipientsView.vue"),
+            meta: { title: "Run Email Recipients" },
+          },
+          {
+            path: "usage-retention",
+            name: "organization-usage",
+            component: () => import("@/views/organizations/OrganizationUsageView.vue"),
+            meta: { title: "Usage & Retention" },
+          },
+          {
+            path: "audit-log",
+            name: "audit-log",
+            component: () => import("@/views/audit/AuditLogView.vue"),
+            meta: { title: "Audit Log" },
           },
         ],
       },

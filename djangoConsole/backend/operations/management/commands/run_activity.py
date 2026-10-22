@@ -30,8 +30,7 @@ class Command(BaseCommand):
             ) from None
 
         self.stdout.write(
-            f"Window: {summary.windowStart.isoformat(timespec='seconds')} to "
-            f"{summary.windowEnd.isoformat(timespec='seconds')} (end excluded)"
+            f"Window: {summary.windowStart.isoformat(timespec='seconds')} to {summary.windowEnd.isoformat(timespec='seconds')} (end excluded)"
         )
         self.stdout.write(
             "Based on retained Runs with known end times; each hour averages 14 days."
@@ -41,8 +40,8 @@ class Command(BaseCommand):
             strHour = f"{intHour:02d}:00-{intHour + 1:02d}:00"
             self.stdout.write(f"{strHour:<16} {average:>24.6f}")
         self.stdout.write(
-            f"Excluded retained Runs with unknown end times, started before the window end: "
-            f"{summary.incompleteRunCount}. These may predate the window."
+            f"Excluded retained Runs with unknown end times, started before the window end: {summary.incompleteRunCount}. "
+            "These may predate the window."
         )
         self.stdout.write(
             f"Checked at: {summary.updatedAt.isoformat(timespec='seconds')}"

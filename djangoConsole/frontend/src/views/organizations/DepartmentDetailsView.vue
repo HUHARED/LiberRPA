@@ -17,11 +17,9 @@
     </v-btn>
   </div>
 
-  <h2 class="text-h5 mb-2 text-anywhere">
+  <h2 class="text-h5 mb-4 text-anywhere">
     {{ detailsInfo?.department.name ?? "Department Details" }}
   </h2>
-
-  <p class="text-medium-emphasis mb-6">Department Details</p>
 
   <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
     {{

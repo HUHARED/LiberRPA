@@ -1,7 +1,6 @@
 <!-- FileName: ProfileView.vue -->
 <template>
-  <h1 class="text-h5 mb-2">My Profile</h1>
-  <p class="text-medium-emphasis mb-6">Manage your profile and account security.</p>
+  <h1 class="text-h5 mb-4">My Profile</h1>
 
   <v-alert v-if="strSuccess" type="success" variant="tonal" class="mb-4" role="status">
     {{ strSuccess }}

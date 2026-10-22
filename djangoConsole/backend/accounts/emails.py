@@ -158,13 +158,12 @@ def build_account_deletion_notice(delivery: EmailDelivery) -> EmailMessage:
     return EmailMessage(
         subject="A LiberRPA Console account was deleted",
         body=(
-            f"The account {notice.account_email} in {delivery.organization_name} "
-            f"was deleted at {strDeletedAt}.\n\n"
+            f"The account {notice.account_email} in {delivery.organization_name} was deleted at {strDeletedAt}.\n\n"
             f"Account ID: {notice.account_id}\n"
             f"Organization ID: {delivery.organization_id}\n\n"
             "The account's sessions, API keys, department roles, and client associations are no longer valid.\n"
-            "Organization resources and history remain. A new account with the same email "
-            "will not restore the deleted account.\n"
+            "Organization resources and history remain. "
+            "A new account with the same email will not restore the deleted account.\n"
             "This does not remove files on client devices or confirm that remote processes have stopped.\n\n"
             "If you did not expect this change, reply to this email to contact support.\n"
             f"Console: {cast(str, settings.CONSOLE_URL)}\n\n"

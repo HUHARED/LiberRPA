@@ -60,7 +60,7 @@ _SET_ALLOWED_KEYS_HAND_WRITTEN_SNIPPET = {
     "imports",
 }
 
-# Keep this order synchronized with MANAGED_IMPORT_ORDER in snippets/ApiConfig.py.
+# NOTE: Keep this order synchronized with MANAGED_IMPORT_ORDER in snippets/ApiConfig.py.
 # The Snippet generation scripts are not imported by the runtime liberrpa package.
 _TUPLE_LIBERRPA_IMPORT_ORDER = (
     "Log",
@@ -887,8 +887,7 @@ def build_snippet_catalog(
             add_validation_issue(
                 listConflictIssue,
                 f"snippets.{strSnippetKey}.label",
-                f"Duplicate label in category {dictSnippetItem['category']!r}; "
-                f"it is already used by {strExistingLabelOwner!r}.",
+                f"Duplicate label in category {dictSnippetItem['category']!r}; it is already used by {strExistingLabelOwner!r}.",
             )
         else:
             dictLabelOwner[tupleLabelKey] = strSnippetKey

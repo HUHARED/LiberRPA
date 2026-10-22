@@ -52,8 +52,7 @@ class DictSnippetsCatalog(TypedDict):
 # Public modules that should be scanned for normal function snippets.
 #
 # Do not include Log, delay, PrjArgs, CustomArgs, or helper classes here.
-# They are user-facing import targets, but they are not normal
-# liberrpa.<Module> function modules to scan.
+# They are user-facing import targets, but they are not normal liberrpa.<Module> function modules to scan.
 PUBLIC_MODULE_ORDER = [
     # UI element manipulation
     "Mouse",
@@ -152,7 +151,7 @@ SNIPPET_CATEGORY_ICON: dict[str, str] = {
 
 
 # Managed import block configuration for liberrpa-snippets-tree.
-# Keep this order aligned with liberrpa.Modules.__all__.
+# NOTE: Keep this order aligned with liberrpa.Modules.__all__.
 MANAGED_IMPORT_SOURCE = "liberrpa.Modules"
 
 MANAGED_IMPORT_ORDER = [

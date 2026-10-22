@@ -20,8 +20,8 @@ from .contracts import AuditAction, AuditChannel, AuditResult, AuditStage
 from .models import AuditScope, AuditRecord
 
 _LOGGER = logging.getLogger("console.audit")
-# These are write endpoints. Anonymous authentication failures stay in runtime diagnostics;
-# a supplied email or bearer value must never be treated as an authenticated audit actor.
+# These are write endpoints.
+# Anonymous authentication failures stay in runtime diagnostics; a supplied email or bearer value must never be treated as an authenticated audit actor.
 _DICT_WRITE_ACTION: dict[str, AuditAction] = {
     "auth-profile": AuditAction.ACCOUNT_UPDATE_PROFILE,
     "auth-api-keys": AuditAction.API_KEY_CREATE,

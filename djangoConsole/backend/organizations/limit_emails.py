@@ -12,10 +12,10 @@ from django.db import connection
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
-from notifications.models import EmailDelivery, EmailType, OrganizationLimitsNotice
+from notifications.models import EmailType, EmailDelivery, OrganizationLimitsNotice
 
-from .limits import LIMIT_DEFINITIONS, LimitUnit
-from .models import Membership, Organization
+from .limits import LimitUnit, LIMIT_DEFINITIONS
+from .models import Organization, Membership
 
 
 def queue_organization_limits_notices(
@@ -54,7 +54,7 @@ def build_organization_limits_notice(delivery: EmailDelivery) -> EmailMessage:
         raise ValueError("An organization limits notice delivery is required.")
     notice = OrganizationLimitsNotice.objects.get(delivery_id=delivery.id)
 
-    def formatValue(value: int, unit: LimitUnit) -> str:
+    def _format_value(value: int, unit: LimitUnit) -> str:
         if unit == LimitUnit.BYTES:
             for strUnit, intUnitBytes in (
                 ("GiB", 1024**3),
@@ -77,9 +77,9 @@ def build_organization_limits_notice(delivery: EmailDelivery) -> EmailMessage:
         strAfterSource = "Default" if change["after"] is None else "Override"
         listChangeLine.append(
             f"{definition.label}: "
-            f"{formatValue(change['before_limit'], definition.unit)} ({strBeforeSource})"
+            f"{_format_value(change['before_limit'], definition.unit)} ({strBeforeSource})"
             " -> "
-            f"{formatValue(change['after_limit'], definition.unit)} ({strAfterSource})"
+            f"{_format_value(change['after_limit'], definition.unit)} ({strAfterSource})"
         )
 
     strChangeSummary = "\n".join(listChangeLine)
@@ -90,9 +90,9 @@ def build_organization_limits_notice(delivery: EmailDelivery) -> EmailMessage:
             f"Organization ID: {delivery.organization_id}\n\n"
             f"{strChangeSummary}\n\n"
             "Default values follow the instance settings. Overrides stay fixed until changed or reset.\n\n"
-            "Lower limits may restrict new activity or storage growth. Eligible logs and Run history "
-            "may be cleaned up under their retention rules. Business files and queue items are kept, "
-            "and accepted Jobs are not canceled.\n\n"
+            "Lower limits may restrict new activity or storage growth. "
+            "Eligible logs and Run history may be cleaned up under their retention rules. "
+            "Business files and queue items are kept, and accepted Jobs are not canceled.\n\n"
             f"Console: {cast(str, settings.CONSOLE_URL)}/organization-settings/usage-retention\n\n"
             "LiberRPA Console\n"
         ),

@@ -23,6 +23,11 @@ _DICT_WORKER_COMMAND: dict[str, str] = {
     "job-worker": "run_job_worker",
     "scheduler": "run_scheduler",
     "backup-worker": "run_backup_worker",
+    "organization-deletion-worker": "run_organization_deletion_worker",
+}
+_DICT_CLEANUP_MODE: dict[str, str] = {
+    "file-cleanup": "files",
+    "history-cleanup": "history",
 }
 # NOTE: Development retention is per service; the backup count excludes the current file.
 _INT_LOG_MAX_BYTES = 50 * 1024 * 1024
@@ -45,7 +50,7 @@ _DICT_STATUS_COLOR = {
     "4": _DICT_LEVEL_COLOR["WARNING"],
     "5": _DICT_LEVEL_COLOR["ERROR"],
 }
-# Keep this pattern aligned with the backend ConsoleFormatter output.
+# NOTE: Keep this pattern aligned with the backend ConsoleFormatter output.
 _RE_LOG_LINE = re.compile(
     r"(?P<time>\d{4}-\d{2}-\d{2}T\S+Z) "
     r"(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL) "
@@ -180,6 +185,11 @@ def _keep_capturing(_signalNumber: int, _frame: FrameType | None) -> None:
 
 
 def _run_service(service: str, logger: logging.Logger) -> int:
+    dictEnvironment = {
+        **os.environ,
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONIOENCODING": "utf-8",
+    }
     if service == "server":
         listCommand = [
             sys.executable,
@@ -202,6 +212,17 @@ def _run_service(service: str, logger: logging.Logger) -> int:
             "--no-access-log",
             "--no-use-colors",
         ]
+    elif service in _DICT_CLEANUP_MODE:
+        listCommand = [
+            sys.executable,
+            str(_PATH_CONSOLE / "deployment" / "cleanup_loop.py"),
+            _DICT_CLEANUP_MODE[service],
+        ]
+        dictEnvironment.setdefault("DJANGO_SETTINGS_MODULE", "console_project.settings")
+        strPythonPath = dictEnvironment.get("PYTHONPATH", "")
+        dictEnvironment["PYTHONPATH"] = str(_PATH_CONSOLE / "backend") + (
+            os.pathsep + strPythonPath if strPythonPath else ""
+        )
     else:
         listCommand = [
             sys.executable,
@@ -216,7 +237,7 @@ def _run_service(service: str, logger: logging.Logger) -> int:
         with subprocess.Popen(
             listCommand,
             cwd=_PATH_CONSOLE / "backend",
-            env={**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"},
+            env=dictEnvironment,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -237,7 +258,9 @@ def main() -> int:
     argumentParser = argparse.ArgumentParser(
         description="Run a Console development service with terminal output and rotating local logs."
     )
-    argumentParser.add_argument("service", choices=("server", *_DICT_WORKER_COMMAND))
+    argumentParser.add_argument(
+        "service", choices=("server", *_DICT_WORKER_COMMAND, *_DICT_CLEANUP_MODE)
+    )
     arguments = argumentParser.parse_args()
     strService: str = arguments.service
     pathLogs = _PATH_CONSOLE / ".local/logs"

@@ -28,7 +28,7 @@ from packages.contracts import RUN_PRIORITY_ORDER
 from schedules.models import Schedule
 
 from .contracts import JobState, ACTIVE_ASSIGNMENT_STATES, RunStatus
-from .models import Assignment, Job, Run
+from .models import Job, Assignment, Run
 
 _INT_MAX_SELECTED_RUNS = 20000
 
@@ -166,15 +166,6 @@ def build_job_payload(
     return dictPayload
 
 
-def build_job_payloads(jobs: Iterable[Job]) -> list[dict[str, object]]:
-    listJob = list(jobs)
-    dictAssignmentByJobId = _get_active_assignments([job.id for job in listJob])
-    return [
-        build_job_payload(job, assignmentsByJobId=dictAssignmentByJobId)
-        for job in listJob
-    ]
-
-
 def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
     job = run.job
     assignment = run.assignment
@@ -236,6 +227,15 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
             ],
         })
     return dictPayload
+
+
+def build_job_payloads(jobs: Iterable[Job]) -> list[dict[str, object]]:
+    listJob = list(jobs)
+    dictAssignmentByJobId = _get_active_assignments([job.id for job in listJob])
+    return [
+        build_job_payload(job, assignmentsByJobId=dictAssignmentByJobId)
+        for job in listJob
+    ]
 
 
 def _get_filtered_work(

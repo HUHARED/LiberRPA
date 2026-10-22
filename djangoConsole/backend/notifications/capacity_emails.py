@@ -17,7 +17,7 @@ from operations.capacity_contracts import (
     CapacityResource,
     CapacityLevel,
 )
-from organizations.limits import LIMIT_DEFINITIONS, LimitUnit
+from organizations.limits import LimitUnit, LIMIT_DEFINITIONS
 from organizations.models import Organization, Membership
 
 from .contracts import EmailStatus
@@ -158,8 +158,8 @@ def build_capacity_notice(delivery: EmailDelivery) -> EmailMessage:
             f"Limit: {_format_value(notice.limit)}\n\n"
             f"{strReservationNote}"
             "Review usage and remove unneeded data through Console. "
-            "File and queue growth follows the current limits; eligible Run logs and "
-            "history follow their cleanup rules. This notice does not stop running work.\n"
+            "File and queue growth follows the current limits; eligible Run logs and history follow their cleanup rules. "
+            "This notice does not stop running work.\n"
             f"Usage: {strConsoleUrl}/organization-settings/usage-retention\n"
         )
     return EmailMessage(

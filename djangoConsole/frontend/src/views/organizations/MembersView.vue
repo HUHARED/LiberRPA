@@ -1,7 +1,6 @@
 <!-- FileName: MembersView.vue -->
 <template>
-  <h2 class="text-h5 mb-2">Members</h2>
-  <p class="text-medium-emphasis mb-6">Accounts in this organization.</p>
+  <h2 class="text-h5 mb-4">Members</h2>
 
   <v-alert
     v-if="strSuccessMessage"

@@ -109,8 +109,7 @@ def set_display_resolution(width: int, height: int) -> None:
             result, ("UNKNOWN", "Windows returned an unknown display settings result")
         )
         raise RuntimeError(
-            f"Failed to set display resolution to {width}x{height}: "
-            f"{strResultName} ({result}), {strResultDescription}."
+            f"Failed to set display resolution to {width}x{height}: {strResultName} ({result}), {strResultDescription}."
         )
 
     print(f"Display resolution set to {width} x {height}", flush=True)

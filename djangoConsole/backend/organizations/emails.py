@@ -110,18 +110,17 @@ def build_organization_deletion_notice(delivery: EmailDelivery) -> EmailMessage:
             strEvent = f"Deletion of {delivery.organization_name} was scheduled at {strChangedAt}."
             strImpact = (
                 f"Scheduled cleanup time: {strDueAt}.\n"
-                "Business operations are paused. Cleanup removes the organization, its current "
-                "member accounts, and its Console data.\n"
-                "Any active organization administrator can sign in and cancel deletion before "
-                "cleanup actually starts, even if the scheduled time has passed."
+                "Business operations are paused. "
+                "Cleanup removes the organization, its current member accounts, and its Console data.\n"
+                "Any active organization administrator can sign in and cancel deletion before cleanup actually starts, even if the scheduled time has passed."
             )
             strConsoleUrl += "/organization-status"
         case EmailType.ORGANIZATION_DELETION_CANCELED_NOTICE:
             strSubject = "Your LiberRPA Console organization deletion was canceled"
             strEvent = f"Deletion of {delivery.organization_name} was canceled at {strChangedAt}."
             strImpact = (
-                "The deletion plan has been canceled. An independent service suspension, if any, "
-                "remains in place.\n"
+                "The deletion plan has been canceled. "
+                "An independent service suspension, if any, remains in place.\n"
                 "Previously canceled work and missed scheduled runs do not restart automatically."
             )
             strConsoleUrl += "/organization-status"

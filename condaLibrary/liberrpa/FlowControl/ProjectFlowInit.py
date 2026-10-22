@@ -229,8 +229,7 @@ def _generate_next_dict() -> tuple[
 
 class ProjectArguments:
     """
-    A class to handle project arguments, initialization from the 'project.flow' file,
-    and track elapsed time since object creation.
+    A class to handle project arguments, initialization from the 'project.flow' file, and track elapsed time since object creation.
 
     Attributes:
         projectPath (str): The path of the current working directory.

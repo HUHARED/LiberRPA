@@ -8,8 +8,8 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 """
 Public entry points for LiberRPA snippets and user scripts.
 
-This module intentionally exposes a small set of user-facing objects through
-lazy imports. It keeps the old import style compatible:
+This module intentionally exposes a small set of user-facing objects through lazy imports.
+It keeps the old import style compatible:
 
     from liberrpa.Modules import *
 
@@ -19,14 +19,13 @@ and also supports the future managed import block:
         Mouse,
     )
 
-When importing specific names, unrelated LiberRPA modules are not imported until
-they are actually requested.
+When importing specific names, unrelated LiberRPA modules are not imported until they are actually requested.
 """
 
 from typing import TYPE_CHECKING, Any
 import importlib
 
-# Keep this order aligned with snippets/ApiConfig.py PUBLIC_MODULE_ORDER and import_manifest.json generation.
+# NOTE: Keep this order aligned with snippets/ApiConfig.py PUBLIC_MODULE_ORDER and import_manifest.json generation.
 __all__ = [
     # Basic module
     "Log",
@@ -135,8 +134,7 @@ def __getattr__(name: str) -> Any:
     """
     Lazily import public LiberRPA entry points.
 
-    This function is called only when a name is not already present in this
-    module's global namespace.
+    This function is called only when a name is not already present in this module's global namespace.
     """
 
     modulePath = _LAZY_MODULE_EXPORTS.get(name)

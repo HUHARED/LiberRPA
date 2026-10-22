@@ -268,8 +268,7 @@ def accept_request(
             ):
                 raise ValidationError({
                     "settings": (
-                        "Use custom_args for API inputs; "
-                        "argument lists and bindings cannot be overridden."
+                        "Use custom_args for API inputs; argument lists and bindings cannot be overridden."
                     )
                 })
             dictOverride = payload.custom_args or {}

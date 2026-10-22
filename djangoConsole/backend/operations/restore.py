@@ -57,8 +57,8 @@ from .models import MaintenanceState, CleanupState, CapacityAlertState, AuditSco
 from .audit import record_audit
 
 _STR_RESTORE_REASON = (
-    "Console was restored from a backup. Previous work will not resume; "
-    "check any execution that may still be active on the Executor."
+    "Console was restored from a backup. "
+    "Previous work will not resume; check any execution that may still be active on the Executor."
 )
 
 

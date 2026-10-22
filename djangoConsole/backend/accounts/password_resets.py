@@ -22,13 +22,13 @@ from console_project.config import LimitsConfig
 from operations.contracts import AuditAction
 from operations.audit import record_audit
 from notifications.contracts import EmailStatus
-from notifications.models import EmailDelivery, EmailType
+from notifications.models import EmailType, EmailDelivery
 from organizations.permissions import (
     get_current_membership,
     lock_account_for_password_reset,
 )
 
-from .models import PasswordResetRequest, User, UserManager
+from .models import UserManager, User, PasswordResetRequest
 from .password_changes import save_password_change
 from .passwords import validate_new_password
 
@@ -115,8 +115,7 @@ def _get_password_reset_request(token: str) -> PasswordResetRequest:
 def request_password_reset_email(email: str) -> None:
     """Queue recovery mail with a fixed account identity and no plaintext token.
 
-    The HTTP adapter applies source limits and returns the same response for unknown,
-    inactive, unusable-password, cooldown, and accepted addresses.
+    The HTTP adapter applies source limits and returns the same response for unknown, inactive, unusable-password, cooldown, and accepted addresses.
     """
     delivery = EmailDelivery(
         email_type=EmailType.PASSWORD_RESET,
