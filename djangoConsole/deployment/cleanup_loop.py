@@ -69,4 +69,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except DatabaseError:
+        _LOGGER.exception("Cleanup process stopped after a database error.")
+        raise SystemExit(1) from None

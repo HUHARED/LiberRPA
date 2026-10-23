@@ -7,7 +7,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import logging
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
-from django.db import DatabaseError
 
 from operations.models import CleanupTask
 from operations.cleanup_status import record_cleanup
@@ -36,9 +35,4 @@ class Command(BaseCommand):
                 intDeletedCount = prune_audit_records(batchSize=intBatchSize)
         except ValueError as e:
             raise CommandError(str(e)) from None
-        except DatabaseError:
-            _LOGGER.exception("Audit retention cleanup stopped after a database error.")
-            raise CommandError(
-                "Audit cleanup failed. Check the runtime log before retrying."
-            ) from None
         _LOGGER.info("Audit retention cleanup completed: deleted=%s.", intDeletedCount)

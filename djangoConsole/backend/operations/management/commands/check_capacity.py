@@ -11,7 +11,6 @@ from time import monotonic
 
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError, CommandParser
-from django.db import DatabaseError
 
 from console_project.logging import get_exception_summary
 from console_project.recovery import is_restored_service_pending_review
@@ -79,7 +78,7 @@ class Command(BaseCommand):
                         stopEvent.wait(min(floatRemainingSeconds, 0.5))
         except WorkerAlreadyRunningError as e:
             raise CommandError(str(e)) from None
-        except (ImproperlyConfigured, DatabaseError, OSError) as e:
+        except (ImproperlyConfigured, OSError) as e:
             _LOGGER.exception("Capacity check failed.")
             raise CommandError(
                 "Capacity check failed: " + get_exception_summary(e)

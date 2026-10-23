@@ -4,7 +4,6 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-import logging
 import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -14,7 +13,6 @@ from django.utils import timezone
 
 from .models import CleanupTask, CleanupStatus, CleanupState
 
-_LOGGER = logging.getLogger("console.cleanup")
 DICT_CLEANUP_INTERVAL_SECONDS = {
     CleanupTask.FILE_STORAGE: 60,
     CleanupTask.RUN_DATA: 3600,
@@ -47,12 +45,9 @@ def record_cleanup(task: CleanupTask) -> Generator[None]:
         # Do not reconnect or issue another query just to report a database failure.
         raise
     except Exception:
-        try:
-            CleanupState.objects.filter(task=task, attempt_id=attemptId).update(
-                status=CleanupStatus.FAILED, finished_at=timezone.now()
-            )
-        except DatabaseError as e:
-            _LOGGER.warning("Could not record cleanup failure: %s", type(e).__name__)
+        CleanupState.objects.filter(task=task, attempt_id=attemptId).update(
+            status=CleanupStatus.FAILED, finished_at=timezone.now()
+        )
         raise
     else:
         # A later overlapping attempt owns the latest state, even if this attempt finishes last.
