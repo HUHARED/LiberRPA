@@ -299,7 +299,7 @@ export async function downloadPackage(packageInfo: PackageInfo): Promise<void> {
     return rejectInvalidResponse();
   const blob = await requestApi(
     `/packages/downloads/${encodeURIComponent(response.transfer_id)}/content/`,
-    { responseType: "blob", timeoutMs: 300000 },
+    { responseType: "blob" },
   );
   if (
     !(blob instanceof Blob) ||

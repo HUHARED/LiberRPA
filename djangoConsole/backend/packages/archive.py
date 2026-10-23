@@ -28,6 +28,8 @@ from .contracts import (
 
 _INT_MAX_ENTRY_COUNT = 20000
 _INT_MAX_EXPANDED_BYTES = 2 * 1024**3
+# NOTE: Keep the project.flow limit aligned with Project Manager and Executor.
+_INT_MAX_PROJECT_FLOW_BYTES = 8 * 1024**2
 _INT_MAX_METADATA_BYTES = 2 * 1024**2
 _ROOT_JSON_NAMES = ("flow.json", ".liberrpa-package.json", "project.flow")
 
@@ -51,8 +53,11 @@ def _parse_root_json(archive: zipfile.ZipFile, name: str) -> dict[str, object]:
         entry = archive.getinfo(name)
     except KeyError:
         raise ValidationError(f"The Package must contain {name} at its root.") from None
-    if name != "project.flow" and entry.file_size > _INT_MAX_METADATA_BYTES:
-        raise ValidationError(f"{name} exceeds the 2 MiB limit.")
+    intMaxBytes = (
+        _INT_MAX_PROJECT_FLOW_BYTES if name == "project.flow" else _INT_MAX_METADATA_BYTES
+    )
+    if entry.file_size > intMaxBytes:
+        raise ValidationError(f"{name} exceeds the {intMaxBytes // 1024**2} MiB limit.")
     content = archive.read(entry)
     if len(content) != entry.file_size:
         raise ValidationError("A ZIP entry has an inconsistent size.")

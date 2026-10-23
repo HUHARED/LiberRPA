@@ -27,10 +27,11 @@ from file_storage.services import (
     FileOperationError,
     get_blob_path,
     sync_directory,
-    open_blob_for_write,
     lock_storage,
     check_disk_capacity,
+    write_blob_chunk,
     get_storage_usage,
+    prune_file_receipts_and_require_capacity,
     require_upload_slot,
     require_download_slot,
     get_download_expiry,
@@ -72,7 +73,6 @@ from .queries import (
     get_upload_state,
     build_upload_payload,
 )
-from .cleanup import expire_uploads
 
 _UPLOAD_LIFETIME_HOURS = 24
 
@@ -94,28 +94,6 @@ def _get_request_digest(payload: object) -> str:
             payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")
     ).hexdigest()
-
-
-def _prune_receipts_and_require_capacity(access: OrganizationAccessContext) -> None:
-    cutoff = timezone.now() - timedelta(
-        days=settings.CONSOLE_LIMITS.fileReceiptRetentionDays
-    )
-    # Never evict an unexpired identity to make room for a new mutation.
-    UploadSession.objects.filter(
-        organization=access.organization, created_at__lt=cutoff
-    ).exclude(state=UploadState.RECEIVING).delete()
-    FileDeletionReceipt.objects.filter(
-        organization=access.organization, created_at__lt=cutoff
-    ).delete()
-    intReceiptCount = (
-        UploadSession.objects.filter(organization=access.organization).count()
-        + FileDeletionReceipt.objects.filter(organization=access.organization).count()
-    )
-    if intReceiptCount >= settings.CONSOLE_LIMITS.maxFileReceiptsPerOrganization:
-        raise FileOperationError(
-            "file_receipt_limit",
-            "The file request history is full. Please try again later.",
-        )
 
 
 def _require_file_capacity(
@@ -172,8 +150,7 @@ def create_upload(
             "A file with this name already exists. Enable Overwrite Existing File to replace it.",
         )
     _require_file_capacity(access.organization, existingFile)
-    expire_uploads(access.organization.pk)
-    _prune_receipts_and_require_capacity(access)
+    prune_file_receipts_and_require_capacity(access.organization)
     require_upload_slot(access.organization)
     lock_storage()
     usage = get_storage_usage(access.organization)
@@ -238,28 +215,8 @@ def append_chunk(
         raise FileOperationError(
             "upload_data_missing", "The upload storage is unavailable.", 503
         )
-    lock_storage()
-    path, handle = open_blob_for_write(upload.blob_id)
-    with handle:
-        if os.fstat(handle.fileno()).st_size < offset:
-            raise FileOperationError(
-                "upload_data_missing",
-                "Previously confirmed upload data is unavailable.",
-                503,
-            )
-        handle.truncate(offset)
-        handle.flush()
-        os.fsync(handle.fileno())
-        # A failed database commit may leave an unconfirmed tail; discard it before checking disk space.
-        check_disk_capacity()
-        handle.seek(offset)
-        handle.write(chunkData)
-        handle.flush()
-        os.fsync(handle.fileno())
-    sync_directory(path.parent)
-    upload.offset += len(chunkData)
+    upload.offset = write_blob_chunk(upload.blob_id, offset, chunkData)
     upload.save(update_fields=["offset"])
-    StoredBlob.objects.filter(pk=upload.blob_id).update(written_bytes=upload.offset)
     UploadChunk.objects.create(
         upload=upload, offset=offset, size_bytes=len(chunkData), sha256=chunkSha256
     )
@@ -499,7 +456,7 @@ def delete_files(
     # Authorize the whole batch before checking any file's existence or changing anything.
     if not {department.pk for department, _ in targets} <= allowedDepartmentIds:
         raise PermissionDenied("The department is unavailable.")
-    _prune_receipts_and_require_capacity(access)
+    prune_file_receipts_and_require_capacity(access.organization)
     deletedPaths: list[str] = []
     missingPaths: list[str] = []
     for department, strName in targets:

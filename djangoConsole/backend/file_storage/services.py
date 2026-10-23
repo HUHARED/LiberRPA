@@ -10,7 +10,6 @@ import os
 import shutil
 import uuid
 from datetime import datetime, timedelta
-from io import BufferedRandom
 from pathlib import Path
 
 from django.conf import settings
@@ -52,14 +51,6 @@ def sync_directory(path: Path) -> None:
             os.close(intDescriptor)
 
 
-def open_blob_for_write(blobId: uuid.UUID) -> tuple[Path, BufferedRandom]:
-    path = get_blob_path(blobId)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    sync_directory(path.parent.parent)
-    # The reservation commits before disk creation, so failed writes remain owned and charged.
-    return path, path.open("r+b" if path.exists() else "w+b")
-
-
 def lock_storage() -> None:
     if not transaction.get_connection().in_atomic_block:
         raise RuntimeError(
@@ -90,6 +81,35 @@ def check_disk_capacity(additionalBytes: int = 0) -> None:
         )
 
 
+def write_blob_chunk(blobId: uuid.UUID, offset: int, chunkData: bytes) -> int:
+    """Write a validated chunk under the caller's organization transaction and return its end offset."""
+    lock_storage()
+    path = get_blob_path(blobId)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sync_directory(path.parent.parent)
+    # The reservation commits before disk creation, so failed writes remain owned and charged.
+    with path.open("r+b" if path.exists() else "w+b") as handle:
+        if os.fstat(handle.fileno()).st_size < offset:
+            raise FileOperationError(
+                "upload_data_missing",
+                "Previously confirmed upload data is unavailable.",
+                503,
+            )
+        handle.truncate(offset)
+        handle.flush()
+        os.fsync(handle.fileno())
+        # A failed database commit may leave an unconfirmed tail; discard it before checking disk space.
+        check_disk_capacity()
+        handle.seek(offset)
+        handle.write(chunkData)
+        handle.flush()
+        os.fsync(handle.fileno())
+    sync_directory(path.parent)
+    intWrittenBytes = offset + len(chunkData)
+    StoredBlob.objects.filter(pk=blobId).update(written_bytes=intWrittenBytes)
+    return intWrittenBytes
+
+
 def get_storage_usage(organization: Organization) -> dict[str, int]:
     limits = get_organization_limits(organization)
     totals = {
@@ -106,6 +126,38 @@ def get_storage_usage(organization: Organization) -> dict[str, int]:
         "pending_cleanup_bytes": totals.get(StoredBlobState.GARBAGE, 0),
         "limit_bytes": limits.maxStoredBytesPerOrganization,
     }
+
+
+def prune_file_receipts_and_require_capacity(organization: Organization) -> None:
+    """Expire abandoned uploads, prune old receipts, and check shared capacity under the organization lock."""
+    from packages.cleanup import expire_uploads as expire_package_uploads
+    from packages.models import PackageUpload
+    from shared_files.cleanup import expire_uploads as expire_file_uploads
+    from shared_files.contracts import UploadState
+    from shared_files.models import UploadSession, FileDeletionReceipt
+
+    expire_package_uploads(organization.pk)
+    expire_file_uploads(organization.pk)
+    cutoff = timezone.now() - timedelta(
+        days=settings.CONSOLE_LIMITS.fileReceiptRetentionDays
+    )
+    # Never evict an unexpired identity or an active upload to make room for a new mutation.
+    UploadSession.objects.filter(
+        organization=organization, created_at__lt=cutoff
+    ).exclude(state=UploadState.RECEIVING).delete()
+    FileDeletionReceipt.objects.filter(
+        organization=organization, created_at__lt=cutoff
+    ).delete()
+    intReceiptCount = (
+        PackageUpload.objects.filter(organization=organization).count()
+        + UploadSession.objects.filter(organization=organization).count()
+        + FileDeletionReceipt.objects.filter(organization=organization).count()
+    )
+    if intReceiptCount >= settings.CONSOLE_LIMITS.maxFileReceiptsPerOrganization:
+        raise FileOperationError(
+            "file_receipt_limit",
+            "The file request history is full. Please try again later.",
+        )
 
 
 def _expire_downloads(
@@ -269,13 +321,14 @@ def _collect_blob(
             except OSError as e:
                 if e.errno not in (errno.ENOENT, errno.ENOTEMPTY, errno.EEXIST):
                     _LOGGER.warning(
-                        "Empty storage directory cleanup failed: %s", path.parent, exc_info=True
+                        "Empty storage directory cleanup failed: %s",
+                        path.parent,
+                        exc_info=True,
                     )
             return True
     except LocalLockUnavailableError:
         # An online backup protects immutable files until its actual copying process ends.
         return False
-
 
 
 def clean_organization_storage(organizationId: uuid.UUID) -> bool:

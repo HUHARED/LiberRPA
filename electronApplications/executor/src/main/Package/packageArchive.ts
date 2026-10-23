@@ -5,6 +5,7 @@ import path from "path";
 import AdmZip from "adm-zip";
 
 import { getWindowsFolderNameError } from "../Common/validation";
+import { INT_MAX_PROJECT_FLOW_BYTES } from "../../shared/package";
 
 // Large datasets and other heavyweight resources should remain outside the Flow Package.
 const INT_MAX_PACKAGE_ARCHIVE_SIZE_BYTES = 512 * 1024 ** 2;
@@ -91,6 +92,12 @@ function validateZipEntries(zipObj: AdmZip): void {
     if (entryObj.header.size > INT_MAX_ZIP_ENTRY_SIZE_BYTES) {
       throw new Error(`ZIP entry is larger than 512 MiB: ${strNormalizedName}`);
     }
+    if (
+      strNormalizedName === "project.flow" &&
+      entryObj.header.size > INT_MAX_PROJECT_FLOW_BYTES
+    ) {
+      throw new Error("project.flow exceeds the 8 MiB limit.");
+    }
     intUncompressedSizeBytes += entryObj.header.size;
     if (intUncompressedSizeBytes > INT_MAX_UNCOMPRESSED_SIZE_BYTES) {
       throw new Error("ZIP uncompressed content is larger than 2 GiB.");
@@ -137,6 +144,14 @@ function validateExtractedTree(rootPath: string): void {
       }
       if (statObj.size > INT_MAX_ZIP_ENTRY_SIZE_BYTES) {
         throw new Error(`Extracted Package file is larger than 512 MiB: ${strEntryPath}`);
+      }
+
+      if (
+        strCurrentPath === rootPath &&
+        entryObj.name === "project.flow" &&
+        statObj.size > INT_MAX_PROJECT_FLOW_BYTES
+      ) {
+        throw new Error("project.flow exceeds the 8 MiB limit.");
       }
 
       intUncompressedSizeBytes += statObj.size;

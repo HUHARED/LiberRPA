@@ -38,6 +38,8 @@ import type {
 
 const PROJECT_PACKAGE_MANIFEST_ENTRY_DATE = new Date(1984, 4, 4);
 const INT_MAX_PACKAGE_BYTES = 512 * 1024 ** 2; // 512 MiB per archive or file.
+// NOTE: Keep the project.flow limit aligned with Console and Executor.
+const INT_MAX_PROJECT_FLOW_BYTES = 8 * 1024 ** 2;
 const INT_MAX_PACKAGE_ENTRY_COUNT = 20_000;
 const INT_MAX_EXPANDED_BYTES = 2 * 1024 ** 3; // 2 GiB including generated metadata.
 
@@ -260,6 +262,9 @@ export async function loadPackageProjectData(
     const projectFlowStat = await fs.promises.lstat(strProjectFlowPath);
     if (!projectFlowStat.isFile() || projectFlowStat.isSymbolicLink()) {
       throw new Error("project.flow must be a regular file at the Project root.");
+    }
+    if (projectFlowStat.size > INT_MAX_PROJECT_FLOW_BYTES) {
+      throw new Error("File exceeds the 8 MiB limit.");
     }
     const content = await fs.promises.readFile(strProjectFlowPath);
     validateProjectFlowCustomArguments(

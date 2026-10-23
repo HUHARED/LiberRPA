@@ -26,11 +26,11 @@ from file_storage.proxy import DownloadProxySnapshot
 from file_storage.services import (
     FileOperationError,
     get_blob_path,
-    sync_directory,
-    open_blob_for_write,
     lock_storage,
     check_disk_capacity,
+    write_blob_chunk,
     get_storage_usage,
+    prune_file_receipts_and_require_capacity,
     require_upload_slot,
     require_download_slot,
     get_download_expiry,
@@ -43,7 +43,6 @@ from organizations.permissions import OrganizationAccessContext
 from organizations.validators import get_path_name_key
 
 from .archive import PackageArchiveMetadata, read_package_archive
-from .cleanup import expire_uploads
 from .contracts import (
     PackageReferenceKind,
     PackagePreparationState,
@@ -102,14 +101,7 @@ def create_upload(
         raise FileOperationError(
             "package_too_large", "The Package exceeds the archive size limit.", 413
         )
-    expire_uploads(access.organization.pk)
-    if (
-        PackageUpload.objects.filter(organization=access.organization).count()
-        >= settings.CONSOLE_LIMITS.maxFileReceiptsPerOrganization
-    ):
-        raise FileOperationError(
-            "upload_receipt_limit", "The upload request history is full."
-        )
+    prune_file_receipts_and_require_capacity(access.organization)
     require_upload_slot(access.organization)
     lock_storage()
     usage = get_storage_usage(access.organization)
@@ -163,25 +155,8 @@ def append_chunk(
         raise FileOperationError(
             "upload_data_missing", "The upload storage is unavailable.", 503
         )
-    lock_storage()
-    path, handle = open_blob_for_write(upload.blob_id)
-    with handle:
-        if os.fstat(handle.fileno()).st_size < offset:
-            raise FileOperationError(
-                "upload_data_missing", "Confirmed upload bytes are unavailable.", 503
-            )
-        handle.truncate(offset)
-        handle.flush()
-        os.fsync(handle.fileno())
-        check_disk_capacity()
-        handle.seek(offset)
-        handle.write(chunkData)
-        handle.flush()
-        os.fsync(handle.fileno())
-    sync_directory(path.parent)
-    upload.offset += len(chunkData)
+    upload.offset = write_blob_chunk(upload.blob_id, offset, chunkData)
     upload.save(update_fields=["offset"])
-    StoredBlob.objects.filter(pk=upload.blob_id).update(written_bytes=upload.offset)
     PackageUploadChunk.objects.create(
         upload=upload, offset=offset, size_bytes=len(chunkData), sha256=chunkSha256
     )

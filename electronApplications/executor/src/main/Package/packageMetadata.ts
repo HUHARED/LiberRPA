@@ -24,7 +24,7 @@ import {
   getPythonEnvironmentPath,
 } from "../Config/environment";
 import { getPackageFolderName } from "../FileSystem/executorFiles";
-import type { PackageCreateData } from "../../shared/package";
+import { INT_MAX_PROJECT_FLOW_BYTES, type PackageCreateData } from "../../shared/package";
 import type { CustomProjectArgs, LogLevel } from "../../shared/runSettings";
 
 interface FlowManifest {
@@ -195,8 +195,15 @@ function parseProjectFlowRuntimeSettings(value: unknown): ProjectRuntimeSettings
 
 function readRequiredRootJson(packagePath: string, fileName: string): unknown {
   const strFilePath = path.join(packagePath, fileName);
-  if (!fs.existsSync(strFilePath) || !fs.statSync(strFilePath).isFile()) {
+  const fileStat = fs.existsSync(strFilePath) ? fs.statSync(strFilePath) : null;
+  if (!fileStat?.isFile()) {
     throw new Error(`The Package does not contain ${fileName} at its root.`);
+  }
+  if (
+    fileName === STR_PROJECT_FLOW_FILE_NAME &&
+    fileStat.size > INT_MAX_PROJECT_FLOW_BYTES
+  ) {
+    throw new Error("project.flow exceeds the 8 MiB limit.");
   }
   return readJsonFile(strFilePath, fileName);
 }

@@ -32,7 +32,6 @@ export interface ConsolePackageInfo {
 
 const INT_MAX_PACKAGE_BYTES = 512 * 1024 ** 2; // 512 MiB.
 const INT_PACKAGE_DOWNLOAD_IDLE_MS = 60_000;
-const INT_PACKAGE_DOWNLOAD_TIMEOUT_MS = 30 * 60 * 1000;
 const abortPreparation = new AbortController();
 const mapPackageFilePreparation = new Map<
   string,
@@ -111,11 +110,7 @@ async function preparePackageFiles(
     if (metadata.sha256 !== packageInfo.sha256)
       throw new Error("Package digest changed during preparation.");
     const abortDownload = new AbortController();
-    const signalDownload = AbortSignal.any([
-      abortDownload.signal,
-      AbortSignal.timeout(INT_PACKAGE_DOWNLOAD_TIMEOUT_MS),
-      abortPreparation.signal,
-    ]);
+    const signalDownload = AbortSignal.any([abortDownload.signal, abortPreparation.signal]);
     let timerProgress: NodeJS.Timeout | undefined;
     function markDownloadProgress(): void {
       clearTimeout(timerProgress);

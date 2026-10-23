@@ -13,6 +13,7 @@ interface ApiRequestOptions {
 }
 
 const INT_REQUEST_TIMEOUT_MS = 15000;
+const INT_DOWNLOAD_IDLE_TIMEOUT_MS = 60000;
 let strCsrfToken: string | null = null;
 let intCsrfRevision = 0;
 let csrfRequest: Promise<string> | null = null;
@@ -54,10 +55,12 @@ async function fetchApi(
   if (csrfToken !== undefined) requestHeaders.set("X-CSRFToken", csrfToken);
 
   const abortController = new AbortController();
-  const intTimeoutHandle = setTimeout(
-    () => abortController.abort(),
-    options.timeoutMs ?? INT_REQUEST_TIMEOUT_MS,
-  );
+  const intTimeoutMs =
+    options.timeoutMs ??
+    (options.responseType === "blob"
+      ? INT_DOWNLOAD_IDLE_TIMEOUT_MS
+      : INT_REQUEST_TIMEOUT_MS);
+  let intTimeoutHandle = setTimeout(() => abortController.abort(), intTimeoutMs);
   let response: Response;
   let responsePayload: unknown = null;
   try {
@@ -71,7 +74,25 @@ async function fetchApi(
       signal: abortController.signal,
     });
     if (response.ok && options.responseType === "blob") {
-      responsePayload = await response.blob();
+      const arrChunk: BlobPart[] = [];
+      const reader = response.body?.getReader();
+      if (reader) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (!value.byteLength) continue;
+            clearTimeout(intTimeoutHandle);
+            intTimeoutHandle = setTimeout(() => abortController.abort(), intTimeoutMs);
+            arrChunk.push(value);
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      }
+      responsePayload = new Blob(arrChunk, {
+        type: response.headers.get("Content-Type") ?? "",
+      });
     } else if (
       response.headers.get("Content-Type")?.split(";", 1)[0]?.trim().toLowerCase() ===
       "application/json"

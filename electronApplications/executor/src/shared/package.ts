@@ -2,6 +2,9 @@
 
 import type { RunSettings, PythonEnvironmentSelection } from "./runSettings";
 
+// NOTE: Keep the project.flow limit aligned with Console and Project Manager.
+export const INT_MAX_PROJECT_FLOW_BYTES = 8 * 1024 ** 2;
+
 export interface PackageDetails extends RunSettings, PythonEnvironmentSelection {
   id: number;
   project_name: string;

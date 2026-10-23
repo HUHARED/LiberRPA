@@ -189,7 +189,7 @@ export async function downloadSharedFile(path: string): Promise<void> {
   const transfer = result as unknown as FileDownloadResponse;
   const fileBlob = await requestApi(
     `${API_ROOT}downloads/${encodeURIComponent(transfer.transfer_id)}/`,
-    { responseType: "blob", timeoutMs: 300000 },
+    { responseType: "blob" },
   );
   if (
     !(fileBlob instanceof Blob) ||
