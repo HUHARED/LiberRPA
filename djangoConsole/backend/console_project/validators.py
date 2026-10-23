@@ -6,7 +6,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import math
 import re
-from datetime import datetime, UTC
+from datetime import date, datetime, time, timedelta, UTC
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.core.exceptions import ValidationError
@@ -100,3 +100,44 @@ def parse_zoned_time(value: str, timeZone: str) -> datetime:
     if firstTime.utcoffset() != dateTime.replace(tzinfo=zone, fold=1).utcoffset():
         raise ValidationError("This local time is ambiguous. Include its UTC offset.")
     return utcTime
+
+
+def parse_date_range(
+    dateFrom: str | None, dateTo: str | None, timeZone: ZoneInfo
+) -> tuple[datetime | None, datetime | None]:
+    """Parse inclusive date filters into local start and exclusive end times."""
+    dictDate: dict[str, date] = {}
+    for strField, strDate in (("date_from", dateFrom), ("date_to", dateTo)):
+        if strDate is None:
+            continue
+        try:
+            if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", strDate) is None:
+                raise ValueError
+            dictDate[strField] = date.fromisoformat(strDate)
+        except ValueError:
+            raise ValidationError({
+                strField: "Enter a valid date in YYYY-MM-DD format."
+            }) from None
+    if (
+        "date_from" in dictDate
+        and "date_to" in dictDate
+        and dictDate["date_from"] > dictDate["date_to"]
+    ):
+        raise ValidationError({
+            "date_to": "The end date must not be earlier than the start date."
+        })
+    fromTime = (
+        datetime.combine(dictDate["date_from"], time.min, timeZone)
+        if "date_from" in dictDate
+        else None
+    )
+    try:
+        # The inclusive end date becomes the next local midnight, including 23/25-hour days.
+        untilTime = (
+            datetime.combine(dictDate["date_to"] + timedelta(days=1), time.min, timeZone)
+            if "date_to" in dictDate
+            else None
+        )
+    except OverflowError:
+        raise ValidationError({"date_to": "Select an earlier end date."}) from None
+    return fromTime, untilTime

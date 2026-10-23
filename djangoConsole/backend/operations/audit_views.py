@@ -8,7 +8,6 @@ import json
 import logging
 import re
 import uuid
-from datetime import date, datetime, time, timedelta
 from typing import cast
 from zoneinfo import ZoneInfo
 
@@ -29,7 +28,7 @@ from console_project.http import (
     build_service_unavailable_response,
     parse_page_number,
 )
-from console_project.validators import validate_time_zone
+from console_project.validators import validate_time_zone, parse_date_range
 from organizations.limits import LIMIT_DEFINITIONS, LimitUnit
 from organizations.permissions import (
     AccessChannel,
@@ -103,42 +102,9 @@ def _parse_audit_filters(
         validate_time_zone(strTimeZone)
     except ValidationError as e:
         raise ValidationError({"time_zone": e.messages}) from None
-    auditZone = ZoneInfo(strTimeZone)
-    dictDate: dict[str, date] = {}
-    for strField in ("date_from", "date_to"):
-        strDate = query.get(strField)
-        if strDate is None:
-            continue
-        try:
-            if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", strDate) is None:
-                raise ValueError
-            dictDate[strField] = date.fromisoformat(strDate)
-        except ValueError:
-            raise ValidationError({
-                strField: "Enter a valid date in YYYY-MM-DD format."
-            }) from None
-    if (
-        "date_from" in dictDate
-        and "date_to" in dictDate
-        and dictDate["date_from"] > dictDate["date_to"]
-    ):
-        raise ValidationError({
-            "date_to": "The end date must not be earlier than the start date."
-        })
-    fromTime = (
-        datetime.combine(dictDate["date_from"], time.min, auditZone)
-        if "date_from" in dictDate
-        else None
+    fromTime, untilTime = parse_date_range(
+        query.get("date_from"), query.get("date_to"), ZoneInfo(strTimeZone)
     )
-    try:
-        # The inclusive end date becomes the next local midnight, including 23/25-hour days.
-        untilTime = (
-            datetime.combine(dictDate["date_to"] + timedelta(days=1), time.min, auditZone)
-            if "date_to" in dictDate
-            else None
-        )
-    except OverflowError:
-        raise ValidationError({"date_to": "Select an earlier end date."}) from None
     listActor = query.getlist("actor_id")
     tupleActorId = tuple(
         uuid.UUID(strValue) for strValue in listActor if strValue != "system"

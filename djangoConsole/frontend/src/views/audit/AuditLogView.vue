@@ -6,10 +6,6 @@
         Platform Audit Log
       </h1>
       <h2 v-else class="text-h6 mb-2">Audit Log</h2>
-
-      <p v-if="!props.platform" class="text-medium-emphasis">
-        Retained activity in your organization, newest first.
-      </p>
     </v-col>
 
     <v-col cols="auto">

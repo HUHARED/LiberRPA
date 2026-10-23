@@ -5,14 +5,13 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import logging
-import re
 import uuid
-from datetime import date, datetime, time, timedelta
+from datetime import datetime, time, timedelta
 from typing import cast
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured, PermissionDenied
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage, Paginator
 from django.db import DatabaseError
 from django.db.models import Count, F, Q, Window
@@ -33,6 +32,7 @@ from console_project.http import (
     build_service_unavailable_response,
     parse_page_number,
 )
+from console_project.validators import parse_date_range
 from notifications.contracts import EmailStatus, EmailReasonCode, TUPLE_EMAIL_ISSUE_STATUS
 from notifications.models import EmailType, EmailDelivery
 from notifications.delivery import EMAIL_BUDGET_WINDOW
@@ -91,31 +91,8 @@ def list_email_issues(request: HttpRequest) -> JsonResponse:
             if any(len(query.getlist(key)) > 100 for key in setMultipleField):
                 raise ValueError("Too many email filters.")
             intPage = parse_page_number(query)
-            dictDate: dict[str, date] = {}
-            for strField in ("date_from", "date_to"):
-                strDate = query.get(strField)
-                if strDate is None:
-                    continue
-                if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", strDate) is None:
-                    raise ValueError("Use YYYY-MM-DD for email dates.")
-                dictDate[strField] = date.fromisoformat(strDate)
-            if (
-                "date_from" in dictDate
-                and "date_to" in dictDate
-                and dictDate["date_from"] > dictDate["date_to"]
-            ):
-                raise ValueError("The end date precedes the start date.")
-            fromTime = (
-                datetime.combine(dictDate["date_from"], time.min, displayZone)
-                if "date_from" in dictDate
-                else None
-            )
-            untilTime = (
-                datetime.combine(
-                    dictDate["date_to"] + timedelta(days=1), time.min, displayZone
-                )
-                if "date_to" in dictDate
-                else None
+            fromTime, untilTime = parse_date_range(
+                query.get("date_from"), query.get("date_to"), displayZone
             )
             listOrganization = query.getlist("organization_id")
             listOrganizationId = [
@@ -124,7 +101,14 @@ def list_email_issues(request: HttpRequest) -> JsonResponse:
             listStatus = [EmailStatus(value) for value in query.getlist("status")]
             if any(status not in TUPLE_EMAIL_ISSUE_STATUS for status in listStatus):
                 raise ValueError("Select an email issue status.")
-        except (ValueError, OverflowError):
+        except ValidationError as e:
+            return build_error_response(
+                "invalid_email_filters",
+                "Some email filters are invalid.",
+                statusCode=400,
+                fields=e.message_dict,
+            )
+        except ValueError:
             return build_error_response(
                 "invalid_email_filters",
                 "Select valid email filters and a valid page.",

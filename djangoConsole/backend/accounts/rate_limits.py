@@ -69,7 +69,7 @@ def _apply_source_and_subject_rate_limits(
 
 
 @sensitive_variables()
-def _apply_sensitive_action_rate_limit(
+def apply_sensitive_action_rate_limit(
     clientAddress: str, *, actorId: str, scope: str
 ) -> int:
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
@@ -85,7 +85,7 @@ def _apply_sensitive_action_rate_limit(
 
 
 @sensitive_variables()
-def _apply_email_token_rate_limit(clientAddress: str, *, token: str, scope: str) -> int:
+def apply_email_token_rate_limit(clientAddress: str, *, token: str, scope: str) -> int:
     limits = cast(LimitsConfig, settings.CONSOLE_LIMITS)
     return _apply_source_and_subject_rate_limits(
         clientAddress,
@@ -117,7 +117,7 @@ def apply_registration_email_rate_limit(clientAddress: str) -> int:
 @sensitive_variables()
 def apply_registration_token_rate_limit(clientAddress: str, *, token: str) -> int:
     """Limit link reads and registration submissions by both source IP and email proof."""
-    return _apply_email_token_rate_limit(
+    return apply_email_token_rate_limit(
         clientAddress, token=token, scope="accounts.registration_token"
     )
 
@@ -199,7 +199,7 @@ def apply_native_resource_authentication_rate_limit(clientAddress: str) -> int:
 @sensitive_variables()
 def apply_api_key_creation_rate_limit(clientAddress: str, *, actorId: str) -> int:
     """Limit credential creation separately; revoking a key never consumes this allowance."""
-    return _apply_sensitive_action_rate_limit(
+    return apply_sensitive_action_rate_limit(
         clientAddress, actorId=actorId, scope="accounts.api_key_creation"
     )
 
@@ -210,7 +210,7 @@ def apply_password_change_rate_limit(clientAddress: str, *, actorId: str) -> int
 
     Counters commit before credential checks and remain independent of login requests.
     """
-    return _apply_sensitive_action_rate_limit(
+    return apply_sensitive_action_rate_limit(
         clientAddress, actorId=actorId, scope="accounts.password_change"
     )
 
@@ -218,7 +218,7 @@ def apply_password_change_rate_limit(clientAddress: str, *, actorId: str) -> int
 @sensitive_variables()
 def apply_session_revocation_rate_limit(clientAddress: str, *, actorId: str) -> int:
     """Limit requests to sign out other sessions independently from login and password changes."""
-    return _apply_sensitive_action_rate_limit(
+    return apply_sensitive_action_rate_limit(
         clientAddress, actorId=actorId, scope="accounts.session_revocation"
     )
 
@@ -226,7 +226,7 @@ def apply_session_revocation_rate_limit(clientAddress: str, *, actorId: str) -> 
 @sensitive_variables()
 def apply_account_deletion_rate_limit(clientAddress: str, *, actorId: str) -> int:
     """Limit deletion attempts by the source IP and acting account, across all targets."""
-    return _apply_sensitive_action_rate_limit(
+    return apply_sensitive_action_rate_limit(
         clientAddress, actorId=actorId, scope="accounts.account_deletion"
     )
 
@@ -234,7 +234,7 @@ def apply_account_deletion_rate_limit(clientAddress: str, *, actorId: str) -> in
 @sensitive_variables()
 def apply_organization_deletion_rate_limit(clientAddress: str, *, actorId: str) -> int:
     """Limit password checks for scheduling organization deletion; cancellation stays available."""
-    return _apply_sensitive_action_rate_limit(
+    return apply_sensitive_action_rate_limit(
         clientAddress, actorId=actorId, scope="organizations.deletion"
     )
 
@@ -254,7 +254,7 @@ def apply_password_reset_email_rate_limit(clientAddress: str) -> int:
 @sensitive_variables()
 def apply_password_reset_token_rate_limit(clientAddress: str, *, token: str) -> int:
     """Share source and proof limits across reset-link checks and final submissions."""
-    return _apply_email_token_rate_limit(
+    return apply_email_token_rate_limit(
         clientAddress, token=token, scope="accounts.password_reset_token"
     )
 
@@ -262,7 +262,7 @@ def apply_password_reset_token_rate_limit(clientAddress: str, *, token: str) -> 
 @sensitive_variables()
 def apply_email_change_email_rate_limit(clientAddress: str, *, actorId: str) -> int:
     """Limit authenticated email-change attempts, including failed password checks."""
-    return _apply_sensitive_action_rate_limit(
+    return apply_sensitive_action_rate_limit(
         clientAddress, actorId=actorId, scope="accounts.email_change_email"
     )
 
@@ -270,7 +270,7 @@ def apply_email_change_email_rate_limit(clientAddress: str, *, actorId: str) -> 
 @sensitive_variables()
 def apply_email_change_token_rate_limit(clientAddress: str, *, token: str) -> int:
     """Share source and proof limits across email-change checks and confirmations."""
-    return _apply_email_token_rate_limit(
+    return apply_email_token_rate_limit(
         clientAddress, token=token, scope="accounts.email_change_token"
     )
 
@@ -278,6 +278,6 @@ def apply_email_change_token_rate_limit(clientAddress: str, *, token: str) -> in
 @sensitive_variables()
 def apply_invitation_email_rate_limit(clientAddress: str, *, actorId: str) -> int:
     """Limit administrator invitation requests independently from public registration."""
-    return _apply_sensitive_action_rate_limit(
+    return apply_sensitive_action_rate_limit(
         clientAddress, actorId=actorId, scope="accounts.invitation_email"
     )

@@ -14,8 +14,8 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
 from accounts.rate_limits import (
-    _apply_email_token_rate_limit,
-    _apply_sensitive_action_rate_limit,
+    apply_sensitive_action_rate_limit,
+    apply_email_token_rate_limit,
 )
 from console_project.http import build_rate_limited_response, parse_json_request
 from operations.audit_contracts import AuditAction
@@ -77,7 +77,7 @@ def list_or_create_recipients(request: HttpRequest) -> JsonResponse:
         )
         if isinstance(form, JsonResponse):
             return form
-        intRetry = _apply_sensitive_action_rate_limit(
+        intRetry = apply_sensitive_action_rate_limit(
             request.META.get("REMOTE_ADDR", ""),
             actorId=str(membership.user_id),
             scope="run_recipient_email",
@@ -129,7 +129,7 @@ def change_recipient(
     if isinstance(form, JsonResponse):
         return form
     if action == "resend":
-        intRetry = _apply_sensitive_action_rate_limit(
+        intRetry = apply_sensitive_action_rate_limit(
             request.META.get("REMOTE_ADDR", ""),
             actorId=str(membership.user_id),
             scope="run_recipient_email",
@@ -146,7 +146,7 @@ def change_recipient(
         )
         if isinstance(form, RecipientNotesRequest):
             if "\x00" in form.notes:
-                raise ValidationError("Notes cannot contain null characters.")
+                raise ValidationError({"notes": "Notes cannot contain null characters."})
             recipient.notes = form.notes
             recipient.save(update_fields=["notes"])
         elif action == "resend":
@@ -160,7 +160,7 @@ def change_recipient(
                     {
                         "error": {
                             "code": "recipient_referenced",
-                            "message": "Remove these references before deleting this address.",
+                            "message": "This email address is still in use.",
                             "references": listReference,
                         }
                     },
@@ -199,7 +199,7 @@ def verify_recipient(request: HttpRequest) -> JsonResponse:
         strToken = request.GET.get("token", "")
         if not strToken or len(strToken) > 1000:
             raise ValidationError("The confirmation link is invalid.")
-    intRetry = _apply_email_token_rate_limit(
+    intRetry = apply_email_token_rate_limit(
         request.META.get("REMOTE_ADDR", ""), token=strToken, scope="run_recipient_token"
     )
     if intRetry:

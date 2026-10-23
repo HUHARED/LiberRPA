@@ -283,4 +283,4 @@ class AuditRecord(models.Model):
 
 
 # Django discovers backup models through this application model module.
-from .backup_models import BackupState, BackupRecord
+from .backup_models import BackupState, BackupRecord  # noqa: F401

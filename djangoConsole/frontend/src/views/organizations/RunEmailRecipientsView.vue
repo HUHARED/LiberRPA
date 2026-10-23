@@ -172,8 +172,9 @@
         <p class="text-anywhere">
           Delete
           <span class="text-highlight font-weight-bold">{{ recipientDelete?.email }}?</span>
-          References from packages, schedules, active Jobs and pending messages must be
-          removed first. Verification links become invalid.
+          Remove this address from packages and schedules first. Wait for active Jobs and
+          pending Run email deliveries using this address to finish. Verification links will
+          stop working.
         </p>
 
         <v-alert v-if="strDeleteError" type="error" variant="tonal" class="mt-4">

@@ -26,7 +26,7 @@ from organizations.permissions import (
     require_organization_business_available,
 )
 
-from .contracts import EmailStatus, EmailReasonCode, RunEmailRecipientStatus
+from .contracts import EmailStatus, RunEmailRecipientStatus
 from .models import (
     EmailType,
     EmailDelivery,
@@ -90,15 +90,21 @@ def create_recipient(
 ) -> RunEmailRecipient:
     require_organization_admin(access)
     strEmail = email.strip().lower()
-    validate_email(strEmail)
-    if len(strEmail) > 254 or len(notes) > 2000 or "\x00" in notes:
-        raise ValidationError("The email address or notes are too long or invalid.")
+    # Normalization can expand Unicode characters in the domain.
+    if len(strEmail) > 254:
+        raise ValidationError({"email": "Email addresses cannot exceed 254 characters."})
+    try:
+        validate_email(strEmail)
+    except ValidationError as e:
+        raise ValidationError({"email": e.messages}) from None
+    if "\x00" in notes:
+        raise ValidationError({"notes": "Notes cannot contain null characters."})
     if RunEmailRecipient.objects.filter(
         organization=access.organization, email=strEmail
     ).exists():
-        raise ValidationError(
-            "This email address is already registered for this organization."
-        )
+        raise ValidationError({
+            "email": "This email address is already registered for this organization."
+        })
     limits = get_organization_limits(access.organization)
     if (
         get_recipient_query(access.organization.pk)
@@ -200,13 +206,6 @@ def delete_recipient(recipient: RunEmailRecipient) -> None:
         raise ValidationError(
             "Current member email addresses are available automatically."
         )
-    EmailDelivery.objects.filter(
-        runrecipientverification__recipient=recipient, status=EmailStatus.PENDING
-    ).update(
-        status=EmailStatus.NOT_SENT,
-        finished_at=timezone.now(),
-        reason_code=EmailReasonCode.RECIPIENT_NOT_ELIGIBLE,
-    )
     recipient.delete()
 
 

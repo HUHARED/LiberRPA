@@ -38,8 +38,14 @@ def handle_notification_errors[**P](
                 "not_found", "This record is unavailable.", statusCode=404
             )
         except ValidationError as e:
+            dictField = e.message_dict if hasattr(e, "error_dict") else None
             return build_error_response(
-                "invalid_request", " ".join(e.messages), statusCode=400
+                "invalid_request",
+                "One or more request fields are invalid."
+                if dictField is not None
+                else " ".join(e.messages),
+                statusCode=400,
+                fields=dictField,
             )
 
     return wrapped
