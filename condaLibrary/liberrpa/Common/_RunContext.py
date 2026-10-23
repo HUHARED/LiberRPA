@@ -59,7 +59,6 @@ class ExecutionErrorSummary(TypedDict):
 INT_MAX_CUSTOM_ARGS_BYTES = 64 * 1024
 _INT_MAX_JSON_DEPTH = 64
 _INT_MAX_EMAIL_OUTPUT_BYTES = 64 * 1024
-_INT_MAX_EMAIL_OUTPUT_DEPTH = 8
 _INT_MAX_SAFE_INTEGER = 2**53 - 1
 _INT_MAX_ERROR_MESSAGE_LENGTH = 2000
 
@@ -107,26 +106,26 @@ class _JsonLimitError(ValueError):
 
 def _validate_json_value(
     value: object, depth: int = 0, ancestorIds: set[int] | None = None
-) -> int:
+) -> None:
     if depth > _INT_MAX_JSON_DEPTH:
         raise _JsonLimitError("JSON must not exceed 64 levels of nesting.")
     if value is None or type(value) is bool:
-        return depth
+        return
     if type(value) is int:
         if abs(value) > _INT_MAX_SAFE_INTEGER:
             raise ValueError("The integer exceeds the shared safe JSON integer range.")
-        return depth
+        return
     if type(value) is float:
         if not math.isfinite(value) or (
             value.is_integer() and abs(value) > _INT_MAX_SAFE_INTEGER
         ):
             raise ValueError("The number is not a finite safe JSON number.")
-        return depth
+        return
     if type(value) is str:
         if "\0" in value:
             raise ValueError("JSON text must not contain NUL characters.")
         value.encode("utf-8")
-        return depth
+        return
     if type(value) not in (list, dict):
         raise ValueError("The value is not ordinary JSON.")
 
@@ -136,13 +135,10 @@ def _validate_json_value(
     if intValueId in ancestorIds:
         raise ValueError("JSON must not contain circular references.")
     ancestorIds.add(intValueId)
-    intMaxDepth = depth
     try:
         if type(value) is list:
             for child in value:
-                intMaxDepth = max(
-                    intMaxDepth, _validate_json_value(child, depth + 1, ancestorIds)
-                )
+                _validate_json_value(child, depth + 1, ancestorIds)
         elif type(value) is dict:
             for strKey, child in value.items():
                 if type(strKey) is not str:
@@ -150,10 +146,7 @@ def _validate_json_value(
                 if "\0" in strKey:
                     raise ValueError("JSON object keys must not contain NUL characters.")
                 strKey.encode("utf-8")
-                intMaxDepth = max(
-                    intMaxDepth, _validate_json_value(child, depth + 1, ancestorIds)
-                )
-        return intMaxDepth
+                _validate_json_value(child, depth + 1, ancestorIds)
     finally:
         ancestorIds.remove(intValueId)
 
@@ -216,7 +209,8 @@ def capture_output_snapshot(
             if not boolOutputsAvailable and emailItem is None:
                 continue
             try:
-                intDepth = _validate_json_value(value)
+                # Include the ordered list and each [key, value] pair in the shared depth limit.
+                _validate_json_value(value, depth=2)
             except _JsonLimitError:
                 if boolOutputsAvailable:
                     setUnavailableKey.add(strKey)
@@ -230,17 +224,8 @@ def capture_output_snapshot(
                     emailItem["status"] = EmailOutputStatus.UNAVAILABLE
                 continue
 
-            # Business outputs also count the ordered list and each [key, value] pair.
-            boolCaptureOutput = (
-                boolOutputsAvailable and intDepth + 2 <= _INT_MAX_JSON_DEPTH
-            )
-            if boolOutputsAvailable and not boolCaptureOutput:
-                setUnavailableKey.add(strKey)
-            boolCaptureEmail = (
-                emailItem is not None and intDepth <= _INT_MAX_EMAIL_OUTPUT_DEPTH
-            )
-            if emailItem is not None and not boolCaptureEmail:
-                emailItem["status"] = EmailOutputStatus.LIMIT
+            boolCaptureOutput = boolOutputsAvailable
+            boolCaptureEmail = emailItem is not None
 
             intRemainingBytes = 0
             strKeyJson = ""

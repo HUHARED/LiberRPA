@@ -34,7 +34,6 @@ _RE_FIELD = re.compile(
 )
 _RE_SUBJECT_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 _INT_MAX_SUBJECT_LENGTH = 256
-_INT_MAX_VALUE_DEPTH = 8
 DICT_RUN_EMAIL_EVENT_KEY = {
     RunEmailEvent.START: "on_start",
     RunEmailEvent.COMPLETED: "on_completed",
@@ -210,22 +209,6 @@ def _format_time(value: datetime | None, zone: ZoneInfo) -> str:
     return strValue[:-2] + ":" + strValue[-2:]
 
 
-def _has_valid_value_depth(value: object, depth: int = 0) -> bool:
-    if depth > _INT_MAX_VALUE_DEPTH:
-        return False
-    if isinstance(value, dict):
-        return all(_has_valid_value_depth(entry, depth + 1) for entry in value.values())
-    if isinstance(value, list):
-        return all(_has_valid_value_depth(entry, depth + 1) for entry in value)
-    return True
-
-
-def _render_value(value: object) -> str:
-    if not _has_valid_value_depth(value):
-        return "Not available (value exceeds email depth limit)"
-    return json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
-
-
 def build_run_email(run: "Run", *, event: RunEmailEvent, recipient: str) -> EmailMessage:
     job = run.job
     jobRequest = job.request
@@ -278,7 +261,12 @@ def build_run_email(run: "Run", *, event: RunEmailEvent, recipient: str) -> Emai
         if strField.startswith("Input_CustomArgs["):
             strName = json.loads(strField[len("Input_CustomArgs[") : -1])
             dictField[strField] = (
-                _render_value(dictInput[strName])
+                json.dumps(
+                    dictInput[strName],
+                    ensure_ascii=False,
+                    allow_nan=False,
+                    separators=(",", ":"),
+                )
                 if strName in dictInput
                 else "Not available (input key is missing)"
             )
