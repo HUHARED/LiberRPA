@@ -20,10 +20,16 @@ from smtplib import SMTPResponseException
 from tempfile import TemporaryFile
 from traceback import walk_tb
 from types import TracebackType
+from typing import get_args
 
+from pydantic import BaseModel, ValidationError
+from pydantic_core import ErrorType
 from psycopg import Error as PsycopgError
 
 _REQUEST_ID: ContextVar[uuid.UUID | None] = ContextVar("console_request_id", default=None)
+
+_INT_VALIDATION_ERROR_LIMIT = 8
+_SET_VALIDATION_ERROR_TYPE = frozenset(get_args(ErrorType))
 
 _INT_COMMAND_DIAGNOSTIC_BYTES = 16384
 _INT_COMMAND_DIAGNOSTIC_LENGTH = 2000
@@ -42,6 +48,39 @@ _QUOTED_DIAGNOSTIC_VALUE = re.compile(
 def get_exception_summary(error: BaseException) -> str:
     """Describe the error without its message, command arguments, or file contents."""
     listDetail = [type(error).__name__]
+    if isinstance(error, ValidationError):
+        # Validation locations can contain user keys; only declared field names and aliases are public.
+        setFieldName: set[str] = set()
+        setModelClass: set[type[BaseModel]] = set()
+        listModelClass = [BaseModel]
+        while listModelClass:
+            modelClass = listModelClass.pop()
+            if modelClass in setModelClass:
+                continue
+            setModelClass.add(modelClass)
+            for strFieldName, fieldInfo in modelClass.model_fields.items():
+                setFieldName.add(strFieldName)
+                if fieldInfo.alias is not None:
+                    setFieldName.add(fieldInfo.alias)
+            listModelClass.extend(modelClass.__subclasses__())
+
+        intErrorCount = error.error_count()
+        listDetail.append(f"Validation errors: {intErrorCount}")
+        for detail in error.errors(
+            include_url=False, include_input=False, include_context=False
+        )[:_INT_VALIDATION_ERROR_LIMIT]:
+            strPath = ".".join(
+                str(part) if isinstance(part, int) or part in setFieldName else "[key]"
+                for part in detail["loc"]
+            )
+            strErrorType = (
+                detail["type"]
+                if detail["type"] in _SET_VALIDATION_ERROR_TYPE
+                else "custom_error"
+            )
+            listDetail.append(f"{strPath or '<root>'}: {strErrorType}")
+        if intErrorCount > _INT_VALIDATION_ERROR_LIMIT:
+            listDetail.append("Additional validation errors omitted")
     if isinstance(error, OSError) and error.errno is not None:
         strCode = errno.errorcode.get(error.errno, "UNKNOWN")
         listDetail.append(
@@ -230,7 +269,16 @@ class ConsoleFormatter(logging.Formatter):
         logRecord.requestId = str(get_request_id() or "-")
         # Django error messages can contain URLs, Host headers, SQL, or exception text.
         if logRecord.name.startswith("django."):
-            logRecord.msg = "Django diagnostic."
+            intStatusCode = getattr(logRecord, "status_code", None)
+            strStatus = (
+                f" status={intStatusCode}"
+                if isinstance(intStatusCode, int) and 100 <= intStatusCode <= 599
+                else ""
+            )
+            logRecord.msg = (
+                f"Django diagnostic{strStatus} at {logRecord.filename}:"
+                f"{logRecord.lineno} in {logRecord.funcName}."
+            )
             logRecord.args = ()
         logRecord.exc_text = None
         logRecord.stack_info = None

@@ -28,6 +28,7 @@ _DICT_COMMAND = {
     CleanupTask.EMAIL_HISTORY: "prune_email_deliveries",
     CleanupTask.AUDIT_HISTORY: "prune_audit_records",
     CleanupTask.API_KEYS: "prune_api_keys",
+    CleanupTask.SESSIONS_AND_REGISTRATION: "prune_sessions_and_registration",
 }
 
 
@@ -59,8 +60,8 @@ def main() -> None:
                     call_command(_DICT_COMMAND[task])
                 except DatabaseError:
                     raise
-                except Exception as e:
-                    _LOGGER.error("%s cleanup failed: %s", task.label, type(e).__name__)
+                except Exception:
+                    _LOGGER.exception("%s cleanup failed.", task.label)
             floatNextRun = min(dictNextRun.values())
             if not boolFiles:
                 floatNextRun = min(floatNextRun, floatNextCapacityCheck)

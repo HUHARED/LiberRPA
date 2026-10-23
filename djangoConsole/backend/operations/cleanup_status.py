@@ -21,6 +21,7 @@ DICT_CLEANUP_INTERVAL_SECONDS = {
     CleanupTask.EMAIL_HISTORY: 3600,
     CleanupTask.AUDIT_HISTORY: 3600,
     CleanupTask.API_KEYS: 3600,
+    CleanupTask.SESSIONS_AND_REGISTRATION: 3600,
 }
 DICT_CLEANUP_MAX_AGE_SECONDS = {
     task: 2 * intInterval for task, intInterval in DICT_CLEANUP_INTERVAL_SECONDS.items()

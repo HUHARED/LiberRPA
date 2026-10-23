@@ -6,34 +6,21 @@ import { requestApi } from "./client";
 import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./responses";
 import { isRunSettings, cloneRunSettings, type RunSettings } from "./runSettings";
 import {
+  type PackageDetailsResponse,
+  type PackageResponse,
   type PackageListEntryResponse,
   type PackageOptionEntryResponse,
-  type PackageResponse,
-  type PackageDetailsResponse,
-  type PackageProjectGroupResponse,
-  type PackageProjectGroupEntryResponse,
   type PackageProjectGroupListResponse,
-  type ProjectPackageEntryResponse,
-  type ProjectPackageListResponse,
+  type PackageProjectGroupEntryResponse,
   type PackageUploadResponse,
-  type PackageReferenceResponse,
-  type PackagePreparationResponse,
+  type ProjectPackageListResponse,
+  type ProjectPackageEntryResponse,
+  type PackageProjectGroupResponse,
   PackageReferenceKind,
   PackagePreparationState,
   PackageUploadState,
 } from "./generated/browserApi";
 
-export type PackageListEntry = PackageListEntryResponse;
-export type PackageOptionEntry = PackageOptionEntryResponse;
-export type PackageInfo = PackageResponse;
-export type PackageDetails = PackageDetailsResponse;
-export type PackageProjectGroup = PackageProjectGroupResponse;
-export type PackageProjectGroupEntry = PackageProjectGroupEntryResponse;
-export type PackageProjectGroupPage = PackageProjectGroupListResponse;
-export type ProjectPackagePage = ProjectPackageListResponse;
-export type PackageReference = PackageReferenceResponse;
-export type PackagePreparation = PackagePreparationResponse;
-export type PackageUpload = PackageUploadResponse;
 export type { PackageReferenceKind, PackagePreparationState, PackageUploadState };
 export const PACKAGE_REFERENCE_LABELS: Record<PackageReferenceKind, string> = {
   schedule: "Schedule",
@@ -42,7 +29,7 @@ export const PACKAGE_REFERENCE_LABELS: Record<PackageReferenceKind, string> = {
   download: "Download",
 };
 
-function isPackageListEntry(value: unknown): value is PackageListEntry {
+function isPackageListEntry(value: unknown): value is PackageListEntryResponse {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
@@ -57,7 +44,7 @@ function isPackageListEntry(value: unknown): value is PackageListEntry {
     typeof value.uploaded_by_name === "string"
   );
 }
-export function isPackageInfo(value: unknown): value is PackageInfo {
+export function isPackageInfo(value: unknown): value is PackageResponse {
   return (
     isRecord(value) &&
     isPackageListEntry(value) &&
@@ -72,7 +59,7 @@ export function isPackageInfo(value: unknown): value is PackageInfo {
     isRecord(value.component_dependencies)
   );
 }
-function parsePackageDetails(value: unknown): PackageDetails {
+function parsePackageDetails(value: unknown): PackageDetailsResponse {
   if (
     !isRecord(value) ||
     !isPackageInfo(value.package) ||
@@ -98,9 +85,9 @@ function parsePackageDetails(value: unknown): PackageDetails {
     )
   )
     return rejectInvalidResponse();
-  return value as unknown as PackageDetails;
+  return value as unknown as PackageDetailsResponse;
 }
-function parseUpload(value: unknown): PackageUpload {
+function parseUpload(value: unknown): PackageUploadResponse {
   if (
     !isRecord(value) ||
     typeof value.upload_id !== "string" ||
@@ -110,9 +97,9 @@ function parseUpload(value: unknown): PackageUpload {
     !(value.package === null || isPackageInfo(value.package))
   )
     return rejectInvalidResponse();
-  return value as unknown as PackageUpload;
+  return value as unknown as PackageUploadResponse;
 }
-function isPackageProjectGroup(value: unknown): value is PackageProjectGroup {
+function isPackageProjectGroup(value: unknown): value is PackageProjectGroupResponse {
   return (
     isRecord(value) &&
     typeof value.department_id === "string" &&
@@ -122,7 +109,9 @@ function isPackageProjectGroup(value: unknown): value is PackageProjectGroup {
   );
 }
 
-function isPackageProjectGroupEntry(value: unknown): value is PackageProjectGroupEntry {
+function isPackageProjectGroupEntry(
+  value: unknown,
+): value is PackageProjectGroupEntryResponse {
   return (
     isPackageProjectGroup(value) &&
     "latest_package_id" in value &&
@@ -134,7 +123,7 @@ export async function getPackageProjectGroups(
   departmentIds: string[],
   page = 1,
   locatePackageId?: string,
-): Promise<PackageProjectGroupPage> {
+): Promise<PackageProjectGroupListResponse> {
   const query = new URLSearchParams({ page: String(page) });
   for (const strId of departmentIds) query.append("department_id", strId);
   if (locatePackageId) query.set("locate_package_id", locatePackageId);
@@ -156,7 +145,7 @@ export async function getPackageProjectGroups(
 export async function getProjectPackages(
   packageId: string,
   page?: number,
-): Promise<ProjectPackagePage> {
+): Promise<ProjectPackageListResponse> {
   const query = page === undefined ? "" : `?page=${page}`;
   const response = await requestApi(
     `/packages/${encodeURIComponent(packageId)}/project-packages/${query}`,
@@ -183,7 +172,7 @@ export async function getProjectPackages(
 
 export async function getPackageOptions(
   departmentId: string,
-): Promise<PackageOptionEntry[]> {
+): Promise<PackageOptionEntryResponse[]> {
   const response = await requestApi(
     `/packages/options/?${new URLSearchParams({ department_id: departmentId })}`,
   );
@@ -191,7 +180,7 @@ export async function getPackageOptions(
     !isRecord(response) ||
     !Array.isArray(response.packages) ||
     !response.packages.every(
-      (packageEntry): packageEntry is PackageOptionEntry =>
+      (packageEntry): packageEntry is PackageOptionEntryResponse =>
         isPackageListEntry(packageEntry) &&
         "project_name_key" in packageEntry &&
         typeof packageEntry.project_name_key === "string",
@@ -200,7 +189,7 @@ export async function getPackageOptions(
     return rejectInvalidResponse();
   return response.packages;
 }
-export async function getPackageDetails(id: string): Promise<PackageDetails> {
+export async function getPackageDetails(id: string): Promise<PackageDetailsResponse> {
   return parsePackageDetails(await requestApi(`/packages/${encodeURIComponent(id)}/`));
 }
 export async function savePackageSettings(
@@ -208,7 +197,7 @@ export async function savePackageSettings(
   environment: string,
   settings: RunSettings,
   apiInputKeys: string[],
-): Promise<PackageDetails> {
+): Promise<PackageDetailsResponse> {
   const response = await requestApi(`/packages/${encodeURIComponent(id)}/settings/`, {
     method: "POST",
     body: {
@@ -243,7 +232,7 @@ export async function createPackageUpload(
   file: File,
   departmentId: string,
   requestId: string,
-): Promise<PackageUpload> {
+): Promise<PackageUploadResponse> {
   return parseUpload(
     await requestApi("/packages/uploads/", {
       method: "POST",
@@ -256,14 +245,14 @@ export async function createPackageUpload(
     }),
   );
 }
-export async function getPackageUpload(id: string): Promise<PackageUpload> {
+export async function getPackageUpload(id: string): Promise<PackageUploadResponse> {
   return parseUpload(await requestApi(`/packages/uploads/${encodeURIComponent(id)}/`));
 }
 export async function appendPackageChunk(
   id: string,
   offset: number,
   chunk: Blob,
-): Promise<PackageUpload> {
+): Promise<PackageUploadResponse> {
   return parseUpload(
     await requestApi(`/packages/uploads/${encodeURIComponent(id)}/chunks/${offset}/`, {
       method: "PUT",
@@ -276,7 +265,7 @@ export async function appendPackageChunk(
 export async function finishPackageUpload(
   id: string,
   action: "complete" | "cancel",
-): Promise<PackageUpload> {
+): Promise<PackageUploadResponse> {
   return parseUpload(
     await requestApi(`/packages/uploads/${encodeURIComponent(id)}/${action}/`, {
       method: "POST",
@@ -285,7 +274,7 @@ export async function finishPackageUpload(
     }),
   );
 }
-export async function downloadPackage(packageInfo: PackageInfo): Promise<void> {
+export async function downloadPackage(packageInfo: PackageResponse): Promise<void> {
   const response = await requestApi(
     `/packages/${encodeURIComponent(packageInfo.id)}/downloads/`,
     { method: "POST", body: {} },

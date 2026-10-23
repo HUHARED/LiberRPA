@@ -263,6 +263,20 @@ def main() -> int:
     )
     arguments = argumentParser.parse_args()
     strService: str = arguments.service
+    pathConfig = Path(
+        os.environ.get("LIBERRPA_CONSOLE_CONFIG", _PATH_CONSOLE / ".local/Console.jsonc")
+    )
+    if not pathConfig.is_absolute():
+        pathConfig = _PATH_CONSOLE / "backend" / pathConfig
+    if not pathConfig.is_file():
+        print(
+            f"Console configuration not found: {pathConfig.resolve()}\n"
+            "Run 'python create_dev_config.py' from the Console directory, "
+            "or set LIBERRPA_CONSOLE_CONFIG to an existing configuration.",
+            file=sys.stderr,
+        )
+        return 1
+
     pathLogs = _PATH_CONSOLE / ".local/logs"
     pathLogs.mkdir(parents=True, exist_ok=True)
     pathLog = pathLogs / f"{strService}.log"

@@ -136,7 +136,16 @@ def load_backup_status() -> BackupSummary:
             <= currentTime
         )
         if not boolRecentReport or state is None:
-            strHealthMessage = "No recent backup worker activity is available."
+            if current is None:
+                strHealthMessage = "No recent backup worker activity is available."
+            else:
+                strRecordedStatus = BackupStatus(current.status).label
+                if current.stage is not None:
+                    strRecordedStatus += f" ({BackupStage(current.stage).label})"
+                strHealthMessage = (
+                    f"Backup recorded as {strRecordedStatus}; "
+                    "recent worker activity is unknown."
+                )
         elif state.worker_status == BackupWorkerStatus.FAILED:
             healthStatus = InstanceHealthStatus.ERROR
             strHealthMessage = "Backup worker stopped after an error."

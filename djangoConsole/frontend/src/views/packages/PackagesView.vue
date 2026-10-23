@@ -192,11 +192,13 @@ import {
   getPackageProjectGroups,
   getProjectPackages,
   getPackageDetails,
-  type PackageDetails,
-  type PackageInfo,
-  type PackageProjectGroupPage,
-  type ProjectPackagePage,
 } from "@/api/packages";
+import type {
+  PackageDetailsResponse,
+  PackageResponse,
+  PackageProjectGroupListResponse,
+  ProjectPackageListResponse,
+} from "@/api/generated/browserApi";
 import { getApiError } from "@/api/errors";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -222,9 +224,9 @@ const arrDepartmentId = computed(() => {
   );
 });
 
-const projectGroupPage = shallowRef<PackageProjectGroupPage | null>(null);
-const projectPackagePage = shallowRef<ProjectPackagePage | null>(null);
-const details = shallowRef<PackageDetails | null>(null);
+const projectGroupPage = shallowRef<PackageProjectGroupListResponse | null>(null);
+const projectPackagePage = shallowRef<ProjectPackageListResponse | null>(null);
+const details = shallowRef<PackageDetailsResponse | null>(null);
 
 const selectedProjectGroup = computed(() =>
   projectGroupPage.value?.project_groups.find(
@@ -324,7 +326,7 @@ async function changeProjectPackagePage(page: number): Promise<void> {
   }
 }
 
-function handleUploaded(packageInfo: PackageInfo): void {
+function handleUploaded(packageInfo: PackageResponse): void {
   boolUpload.value = false;
   const departmentIds = arrDepartmentId.value;
   void router.push({

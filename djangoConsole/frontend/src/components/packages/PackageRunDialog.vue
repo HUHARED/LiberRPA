@@ -134,7 +134,8 @@ import RunArgumentsEditor from "@/components/runSettings/RunArgumentsEditor.vue"
 import RunDispatchEmailEditor from "@/components/runSettings/RunDispatchEmailEditor.vue";
 import TargetSelector from "@/components/runSettings/TargetSelector.vue";
 
-import { getPackageDetails, type PackageInfo } from "@/api/packages";
+import { getPackageDetails } from "@/api/packages";
+import type { PackageResponse } from "@/api/generated/browserApi";
 import { createJobs } from "@/api/runs";
 import { cloneRunSettings, type RunSettings } from "@/api/runSettings";
 import { getApiError } from "@/api/errors";
@@ -148,7 +149,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: []; "view-job-queue": [] }>();
 const form = ref<InstanceType<typeof VForm> | null>(null);
-const packageInfo = shallowRef<PackageInfo | null>(null);
+const packageInfo = shallowRef<PackageResponse | null>(null);
 const settings: Ref<RunSettings | null> = ref(null);
 const arrExecutorId = ref([...(props.executorIds ?? [])]);
 const strGroupId = ref(props.groupId ?? null);

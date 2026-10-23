@@ -348,11 +348,8 @@ import RunArgumentsEditor from "@/components/runSettings/RunArgumentsEditor.vue"
 import RunEmailEditor from "@/components/runSettings/RunEmailEditor.vue";
 import TargetSelector from "@/components/runSettings/TargetSelector.vue";
 
-import {
-  type PackageOptionEntry,
-  getPackageOptions,
-  getPackageDetails,
-} from "@/api/packages";
+import { getPackageOptions, getPackageDetails } from "@/api/packages";
+import type { PackageOptionEntryResponse } from "@/api/generated/browserApi";
 import {
   type ScheduleInfo,
   getSchedule,
@@ -423,7 +420,7 @@ let boolDisposed = false;
 const strError = ref("");
 const dictFieldError = ref<Record<string, string[]>>({});
 const boolArgsValid = ref(true);
-const arrPackage = shallowRef<PackageOptionEntry[]>([]);
+const arrPackage = shallowRef<PackageOptionEntryResponse[]>([]);
 const settings: Ref<RunSettings | null> = ref(null);
 
 const selectedPackage = computed(() =>

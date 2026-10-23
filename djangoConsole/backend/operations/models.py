@@ -56,6 +56,7 @@ class CleanupTask(models.TextChoices):
     EMAIL_HISTORY = "email_history", "Email History"
     AUDIT_HISTORY = "audit_history", "Audit History"
     API_KEYS = "api_keys", "API Keys"
+    SESSIONS_AND_REGISTRATION = "sessions_and_registration", "Sessions and Registration"
 
 
 class CleanupStatus(models.TextChoices):

@@ -79,16 +79,18 @@ import {
   getPackageUpload,
   appendPackageChunk,
   finishPackageUpload,
-  type PackageUpload,
-  type PackageInfo,
 } from "@/api/packages";
 import { getApiError } from "@/api/errors";
-import { PackageUploadState } from "@/api/generated/browserApi";
+import {
+  type PackageResponse,
+  type PackageUploadResponse,
+  PackageUploadState,
+} from "@/api/generated/browserApi";
 
 import { formatFileSize } from "@/app/formatters";
 import { PACKAGE_UPLOAD_LABELS } from "@/app/runLabels";
 
-const emit = defineEmits<{ close: []; saved: [packageInfo: PackageInfo] }>();
+const emit = defineEmits<{ close: []; saved: [packageInfo: PackageResponse] }>();
 const sessionStore = useSessionStore();
 
 const arrDepartment = computed(
@@ -103,7 +105,7 @@ const strDepartmentId = ref(
 );
 
 const file = ref<File | null>(null);
-const upload = shallowRef<PackageUpload | null>(null);
+const upload = shallowRef<PackageUploadResponse | null>(null);
 const strError = ref("");
 const boolBusy = ref(false);
 let strRequestId = crypto.randomUUID();

@@ -397,8 +397,6 @@ import PackageRunDialog from "./PackageRunDialog.vue";
 
 import {
   PACKAGE_REFERENCE_LABELS,
-  type PackageReference,
-  type PackageDetails,
   getPackageDetails,
   savePackageSettings,
   cancelPackagePreparation,
@@ -407,7 +405,12 @@ import {
 } from "@/api/packages";
 import { cloneRunSettings, type RunSettings } from "@/api/runSettings";
 import { getApiError, getFieldErrors } from "@/api/errors";
-import { PackageReferenceKind, PackagePreparationState } from "@/api/generated/browserApi";
+import {
+  type PackageDetailsResponse,
+  type PackageReferenceResponse,
+  PackageReferenceKind,
+  PackagePreparationState,
+} from "@/api/generated/browserApi";
 
 import { PACKAGE_PREPARATION_LABELS } from "@/app/runLabels";
 import { formatDateTime, formatFileSize } from "@/app/formatters";
@@ -415,8 +418,8 @@ import { validateEnvironmentName } from "@/app/validators";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
-const props = defineProps<{ details: PackageDetails }>();
-const emit = defineEmits<{ updated: [details: PackageDetails]; deleted: [] }>();
+const props = defineProps<{ details: PackageDetailsResponse }>();
+const emit = defineEmits<{ updated: [details: PackageDetailsResponse]; deleted: [] }>();
 const sessionStore = useSessionStore();
 const router = useRouter();
 const form = ref<InstanceType<typeof VForm> | null>(null);
@@ -466,7 +469,9 @@ const strPreparationError = ref("");
 const strSuccess = ref("");
 let boolActive = true;
 
-function getReferenceLocation(reference: PackageReference): RouteLocationRaw | undefined {
+function getReferenceLocation(
+  reference: PackageReferenceResponse,
+): RouteLocationRaw | undefined {
   return reference.kind === PackageReferenceKind.Schedule
     ? { name: "schedule", params: { scheduleId: reference.id } }
     : reference.kind === PackageReferenceKind.Job
