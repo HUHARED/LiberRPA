@@ -177,7 +177,7 @@ class WorkPollRequest(JsonRequest):
     running_run_ids: list[UuidValue] = Field(default_factory=list, max_length=500)
     local_waiting_count: int = Field(ge=0, le=10000)
     other_active_run_count: int = Field(default=0, ge=0, le=10000)
-    received_assignment_ids: list[UuidValue] = Field(default_factory=list, max_length=50)
+    received_assignment_id: UuidValue | None = None
 
 
 class WorkEventRetentionRequest(JsonRequest):

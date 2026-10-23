@@ -23,7 +23,7 @@ from types import TracebackType
 from typing import get_args
 
 from pydantic import BaseModel, ValidationError
-from pydantic_core import ErrorType
+from pydantic_core.core_schema import ErrorType
 from psycopg import Error as PsycopgError
 
 _REQUEST_ID: ContextVar[uuid.UUID | None] = ContextVar("console_request_id", default=None)

@@ -126,9 +126,9 @@ def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> Jso
 
     session = authentication.session
     update_executor_work_state(session, payload)
-    if payload.received_assignment_ids:
+    if payload.received_assignment_id is not None:
         Assignment.objects.filter(
-            pk__in=payload.received_assignment_ids,
+            pk=payload.received_assignment_id,
             executor_id=session.executor_id,
             session_id=session.id,
             received_at__isnull=True,

@@ -14,7 +14,7 @@ from typing import cast
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Case, F, Q, QuerySet, When
+from django.db.models import Case, F, Q, QuerySet, TextField, When
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
@@ -201,7 +201,9 @@ def update_api_key_notes(
     )
     dictAuditBefore = get_audit_snapshot(apiKey)
     try:
-        apiKey.notes = ApiKey._meta.get_field("notes").clean(notes, apiKey)
+        apiKey.notes = cast(TextField, ApiKey._meta.get_field("notes")).clean(
+            notes, apiKey
+        )
     except ValidationError as e:
         raise ValidationError({"notes": e.messages}) from None
     apiKey.save(update_fields=["notes"])

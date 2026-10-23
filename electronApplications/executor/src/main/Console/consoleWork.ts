@@ -82,6 +82,7 @@ const setFileTransfers = new Set<Promise<void>>();
 let timerLogs: NodeJS.Timeout | undefined;
 let timerRetry: NodeJS.Timeout | undefined;
 let promiseSync: Promise<void> | undefined;
+let strReceivedAssignmentId: string | undefined;
 let boolStopped = true;
 let boolWorkRequested = false;
 let boolContactFailureLogged = false;
@@ -560,9 +561,14 @@ async function syncConsoleWork(
     credential.consoleUrl,
     "executor/work/poll/",
     credential.token,
-    getConsoleWorkState(),
+    {
+      ...getConsoleWorkState(),
+      received_assignment_id: strReceivedAssignmentId,
+    },
   );
   if (boolStopped || !isCurrentConsoleControlCredential(credential)) return;
+  strReceivedAssignmentId = undefined;
+
   if (!Array.isArray(response.stop_requests))
     throw new Error("Console returned invalid stop requests.");
   for (const value of response.stop_requests) {
@@ -587,7 +593,11 @@ async function syncConsoleWork(
   if (Array.isArray(response.assignments))
     for (const value of response.assignments) {
       const assignment = parseAssignmentData(value);
-      if (getConsoleWork(assignment.id) || mapPreparingWork.has(assignment.id)) continue;
+      if (getConsoleWork(assignment.id) || mapPreparingWork.has(assignment.id)) {
+        strReceivedAssignmentId = assignment.id;
+        boolWorkRequested = true;
+        continue;
+      }
       const record: ConsoleWorkRecord = {
         assignment,
         sessionKey: strSessionKey,
@@ -596,6 +606,8 @@ async function syncConsoleWork(
         logsFinished: false,
       };
       saveConsoleWork(record);
+      strReceivedAssignmentId = assignment.id;
+      boolWorkRequested = true;
       const promiseWork = prepareAndStartRun(record, credential).finally(() => {
         mapPreparingWork.delete(assignment.id);
       });
@@ -661,6 +673,7 @@ function updateConsoleWorkRetrySession(strSessionKey: string): void {
   clearTimeout(timerRetry);
   timerRetry = undefined;
   strWorkRetrySessionKey = strSessionKey;
+  strReceivedAssignmentId = undefined;
   intPreparationRetryDelayMs = INT_MIN_PACKAGE_RETRY_MS;
   floatWorkRetryAt = 0;
   intRetryDelayMs = 2000;
@@ -744,6 +757,7 @@ export function startConsoleWork(): void {
 
 export async function stopConsoleWork(): Promise<void> {
   boolStopped = true;
+  strReceivedAssignmentId = undefined;
   for (const checkRetry of mapPermitWaiter.values()) checkRetry();
   stopWorkListener?.();
   stopEventListener?.();
