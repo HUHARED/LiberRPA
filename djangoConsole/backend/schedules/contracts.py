@@ -96,10 +96,6 @@ class ScheduleDetailsResponse(JsonResponsePayload):
     schedule: ScheduleResponse
 
 
-class ScheduleDefaultsResponse(JsonResponsePayload):
-    time_zone: str
-
-
 class SchedulePreviewResponse(JsonResponsePayload):
     normalized_cron: str
     upcoming_triggers: list[datetime]

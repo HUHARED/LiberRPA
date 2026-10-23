@@ -347,16 +347,3 @@ def preview_schedule(request: HttpRequest) -> JsonResponse:
             strCron, form.time_zone, activeFrom, activeUntil, timezone.now()
         ),
     })
-
-
-@never_cache
-@require_http_methods(["GET"])
-@_handle_errors
-def schedule_defaults(request: HttpRequest) -> JsonResponse:
-    membership = get_request_membership(request)
-    if isinstance(membership, JsonResponse):
-        return membership
-    access = build_organization_access(membership, channel=AccessChannel.SESSION)
-    return JsonResponse({
-        "time_zone": access.actor.time_zone,
-    })

@@ -60,7 +60,7 @@
               <th scope="row" class="text-caption text-medium-emphasis">Target</th>
               <td>
                 {{ job.target_name }}
-                <span v-if="job.target_type === 'group' && job.executor_id">
+                <span v-if="job.target_type === JobTargetType.Group && job.executor_id">
                   → {{ job.executor_name }}
                 </span>
               </td>
@@ -148,7 +148,7 @@ import RunTable from "@/components/runs/RunTable.vue";
 import RunArgumentsDetails from "@/components/runSettings/RunArgumentsDetails.vue";
 
 import { getJob, type JobDetails } from "@/api/runs";
-import { JobState } from "@/api/generated/browserApi";
+import { JobTargetType, JobState } from "@/api/generated/browserApi";
 import { getApiError } from "@/api/errors";
 
 import {

@@ -356,7 +356,6 @@ import {
 import {
   type ScheduleInfo,
   getSchedule,
-  getScheduleDefaults,
   saveSchedule,
   previewSchedule,
 } from "@/api/schedules";
@@ -398,7 +397,7 @@ const arrExecutorId = ref<string[]>([]);
 const strGroupId = ref<string | null>(null);
 const boolEnabled = ref(true);
 const strNotes = ref("");
-const strTimeZone = ref("UTC");
+const strTimeZone = ref(sessionStore.session?.user.time_zone ?? "UTC");
 const arrSupportedTimeZone = Intl.supportedValuesOf("timeZone");
 
 const arrTimeZone = computed(() =>
@@ -664,16 +663,6 @@ watch(
 
 onMounted(async () => {
   try {
-    if (!props.scheduleId) {
-      const defaults = await getScheduleDefaults();
-      if (boolDisposed) return;
-      strTimeZone.value = defaults.time_zone;
-      strActiveFrom.value =
-        formatDateTimeInput(new Date().toISOString(), strTimeZone.value, true).slice(
-          0,
-          10,
-        ) + "T00:00:00";
-    }
     if (props.scheduleId) {
       const schedule = await getSchedule(props.scheduleId);
       if (boolDisposed) return;

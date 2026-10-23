@@ -144,7 +144,6 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (scheduleContracts.ScheduleEnabledRequest, "validation"),
     (scheduleContracts.ScheduleListResponse, "serialization"),
     (scheduleContracts.ScheduleDetailsResponse, "serialization"),
-    (scheduleContracts.ScheduleDefaultsResponse, "serialization"),
     (scheduleContracts.SchedulePreviewResponse, "serialization"),
     # Jobs, actual runs, logs and original files.
     (runContracts.JobCreationRequest, "validation"),

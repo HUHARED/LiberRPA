@@ -27,7 +27,7 @@ from executors.models import Executor, ExecutorGroup
 from packages.contracts import RUN_PRIORITY_ORDER
 from schedules.models import Schedule
 
-from .contracts import JobState, ACTIVE_ASSIGNMENT_STATES, RunStatus
+from .contracts import JobTargetType, JobState, ACTIVE_ASSIGNMENT_STATES, RunStatus
 from .models import Job, Assignment, Run
 
 _INT_MAX_SELECTED_RUNS = 20000
@@ -117,7 +117,9 @@ def build_job_payload(
         "project_name": job.project_name,
         "project_version": job.project_version,
         "package_id": job.package_id,
-        "target_type": "group" if job.target_group_id else "executor",
+        "target_type": (
+            JobTargetType.GROUP if job.target_group_id else JobTargetType.EXECUTOR
+        ),
         "target_id": job.target_group_id or job.target_executor_id,
         "target_name": job.target_name,
         "executor_id": assignment.executor_id if assignment else None,

@@ -10,6 +10,7 @@ import {
   parsePaginationResponse,
 } from "./responses";
 import {
+  JobTargetType,
   JobState,
   RunStatus,
   OutputsStatus,
@@ -101,6 +102,7 @@ function isJob(value: unknown): value is JobInfo {
     typeof value.id === "string" &&
     typeof value.job_request_id === "string" &&
     Object.values(JobState).some((state) => value.state === state) &&
+    Object.values(JobTargetType).some((targetType) => value.target_type === targetType) &&
     ARR_JOB_SOURCE.some((source) => value.source === source) &&
     ARR_PRIORITY.some((priority) => value.priority === priority) &&
     typeof value.project_name === "string" &&

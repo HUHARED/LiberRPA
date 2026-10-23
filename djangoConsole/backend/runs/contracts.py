@@ -45,6 +45,11 @@ class JobSource(TextChoices):
     SCHEDULE = "schedule", "Schedule"
 
 
+class JobTargetType(TextChoices):
+    EXECUTOR = "executor", "Executor"
+    GROUP = "group", "Executor Group"
+
+
 class JobState(TextChoices):
     WAITING = "waiting", "Waiting"
     PREPARING = "preparing", "Preparing"
@@ -172,6 +177,7 @@ class WorkPollRequest(JsonRequest):
     running_run_ids: list[UuidValue] = Field(default_factory=list, max_length=500)
     local_waiting_count: int = Field(ge=0, le=10000)
     other_active_run_count: int = Field(default=0, ge=0, le=10000)
+    received_assignment_ids: list[UuidValue] = Field(default_factory=list, max_length=50)
 
 
 class WorkEventRetentionRequest(JsonRequest):
@@ -348,7 +354,7 @@ class JobResponse(JsonResponsePayload):
     project_name: str
     project_version: str
     package_id: uuid.UUID | None
-    target_type: Literal["executor", "group"]
+    target_type: JobTargetType
     target_id: uuid.UUID
     target_name: str
     executor_id: uuid.UUID | None

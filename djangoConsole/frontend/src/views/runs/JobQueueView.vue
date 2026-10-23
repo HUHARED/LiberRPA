@@ -114,9 +114,11 @@
           v-if="item.can_view_target"
           :to="{
             name:
-              item.target_type === 'group' ? 'executor-group-details' : 'executor-details',
+              item.target_type === JobTargetType.Group
+                ? 'executor-group-details'
+                : 'executor-details',
             params:
-              item.target_type === 'group'
+              item.target_type === JobTargetType.Group
                 ? { groupId: item.target_id }
                 : { executorId: item.target_id },
           }"
@@ -124,7 +126,7 @@
           {{ item.target_name }}
         </RouterLink>
         <span v-else>{{ item.target_name }}</span>
-        <template v-if="item.target_type === 'group' && item.executor_id">
+        <template v-if="item.target_type === JobTargetType.Group && item.executor_id">
           →
           <RouterLink
             v-if="item.can_view_executor"
@@ -206,7 +208,7 @@ import JobActions from "@/components/runs/JobActions.vue";
 
 import { ARR_ACTIVE_JOB_STATE, getJobs, type JobPage, type JobFilters } from "@/api/runs";
 import { getApiError } from "@/api/errors";
-import { INT_LIST_PAGE_SIZE, JobState } from "@/api/generated/browserApi";
+import { INT_LIST_PAGE_SIZE, JobTargetType, JobState } from "@/api/generated/browserApi";
 
 import { PRIORITY_LABELS, JOB_STATE_LABELS, JOB_STATE_COLORS } from "@/app/runLabels";
 import { formatDateTime } from "@/app/formatters";
@@ -353,8 +355,7 @@ watch(
 
 onMounted(() => {
   refreshTimer = setInterval(() => {
-    if (!document.hidden && !boolLoading.value && intRetrySeconds.value === 0)
-      void load();
+    if (!document.hidden && !boolLoading.value && intRetrySeconds.value === 0) void load();
   }, 10000);
 });
 

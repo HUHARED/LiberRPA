@@ -14,8 +14,8 @@
         :readonly="readonly"
         :disabled="disabled || boolLoading || !departmentId"
         @update:model-value="changeType">
-        <v-radio label="Executors" value="executor" />
-        <v-radio label="Executor Group" value="group" />
+        <v-radio label="Executors" :value="JobTargetType.Executor" />
+        <v-radio label="Executor Group" :value="JobTargetType.Group" />
       </v-radio-group>
     </v-col>
 
@@ -33,7 +33,7 @@
       </v-alert>
 
       <v-select
-        v-if="strTargetType === 'executor'"
+        v-if="strTargetType === JobTargetType.Executor"
         v-model="executorIds"
         :variant="readonly ? 'plain' : 'underlined'"
         :menu-icon="readonly ? '' : undefined"
@@ -96,9 +96,10 @@ import { onBeforeUnmount, ref, useId, watch } from "vue";
 import { getExecutorList } from "@/api/executors";
 import { getExecutorGroupList } from "@/api/executorGroups";
 import { getApiError, getFieldErrors } from "@/api/errors";
-import type {
-  ExecutorListEntryResponse,
-  ExecutorGroupListEntryResponse,
+import {
+  JobTargetType,
+  type ExecutorListEntryResponse,
+  type ExecutorGroupListEntryResponse,
 } from "@/api/generated/browserApi";
 
 const props = defineProps<{
@@ -113,9 +114,9 @@ const groupId = defineModel<string | null>("groupId", { required: true });
 
 const strLabelId = useId();
 
-type TargetType = "executor" | "group";
-
-const strTargetType = ref<TargetType>(groupId.value ? "group" : "executor");
+const strTargetType = ref<JobTargetType>(
+  groupId.value ? JobTargetType.Group : JobTargetType.Executor,
+);
 const arrExecutor = ref<ExecutorListEntryResponse[]>([]);
 const arrGroup = ref<ExecutorGroupListEntryResponse[]>([]);
 const boolLoading = ref(false);
@@ -145,14 +146,14 @@ async function loadTargets(): Promise<void> {
   boolLoading.value = false;
   if (
     !strDepartmentId ||
-    (strRequestedType === "executor" ? boolExecutorsLoaded : boolGroupsLoaded)
+    (strRequestedType === JobTargetType.Executor ? boolExecutorsLoaded : boolGroupsLoaded)
   )
     return;
   boolLoading.value = true;
   try {
     let intPage = 1;
     let intTotalPages = 1;
-    if (strRequestedType === "executor") {
+    if (strRequestedType === JobTargetType.Executor) {
       const arrResult: ExecutorListEntryResponse[] = [];
       do {
         const result = await getExecutorList(
@@ -188,11 +189,11 @@ async function loadTargets(): Promise<void> {
 
 // A Schedule may supply its saved target after this component has mounted.
 watch(groupId, (value) => {
-  if (value !== null) strTargetType.value = "group";
+  if (value !== null) strTargetType.value = JobTargetType.Group;
 });
 
 watch(executorIds, (value) => {
-  if (value.length) strTargetType.value = "executor";
+  if (value.length) strTargetType.value = JobTargetType.Executor;
 });
 
 watch([() => props.departmentId, strTargetType], () => void loadTargets(), {

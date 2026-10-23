@@ -4,10 +4,9 @@ import { requestApi } from "./client";
 import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./responses";
 import type {
   ScheduleSaveRequest,
-  ScheduleResponse,
   ScheduleListEntryResponse,
+  ScheduleResponse,
   ScheduleListResponse,
-  ScheduleDefaultsResponse,
   SchedulePreviewResponse,
 } from "./generated/browserApi";
 import { ARR_CONFLICT_POLICY, isRunSettings, type RunSettings } from "./runSettings";
@@ -18,6 +17,7 @@ export type ScheduleDraft = Omit<Required<ScheduleSaveRequest>, "settings"> & {
 export type ScheduleInfo = ScheduleResponse;
 export type ScheduleListEntry = ScheduleListEntryResponse;
 export type SchedulePage = ScheduleListResponse;
+
 export interface ScheduleFilters {
   name: string;
   departmentIds: string[];
@@ -25,6 +25,7 @@ export interface ScheduleFilters {
   enabled: "" | "true" | "false";
   targetId: string | null;
 }
+
 function parseScheduleListEntry(value: unknown): ScheduleListEntry {
   if (
     !isRecord(value) ||
@@ -41,6 +42,7 @@ function parseScheduleListEntry(value: unknown): ScheduleListEntry {
     return rejectInvalidResponse();
   return value as unknown as ScheduleListEntry;
 }
+
 function parseSchedule(value: unknown): ScheduleInfo {
   parseScheduleListEntry(value);
   if (
@@ -53,12 +55,7 @@ function parseSchedule(value: unknown): ScheduleInfo {
     return rejectInvalidResponse();
   return value as unknown as ScheduleInfo;
 }
-export async function getScheduleDefaults(): Promise<ScheduleDefaultsResponse> {
-  const result = await requestApi("/schedules/defaults/");
-  if (!isRecord(result) || typeof result.time_zone !== "string")
-    return rejectInvalidResponse();
-  return { time_zone: result.time_zone };
-}
+
 export async function getSchedules(
   filters: ScheduleFilters,
   page = 1,
@@ -78,11 +75,13 @@ export async function getSchedules(
     ...parsePaginationResponse(result),
   };
 }
+
 export async function getSchedule(id: string): Promise<ScheduleInfo> {
   const result = await requestApi(`/schedules/${encodeURIComponent(id)}/`);
   if (!isRecord(result)) return rejectInvalidResponse();
   return parseSchedule(result.schedule);
 }
+
 export async function saveSchedule(
   id: string | null,
   draft: ScheduleDraft,
@@ -94,18 +93,21 @@ export async function saveSchedule(
   if (!isRecord(result)) return rejectInvalidResponse();
   return parseSchedule(result.schedule);
 }
+
 export async function setScheduleEnabled(id: string, enabled: boolean): Promise<void> {
   await requestApi(`/schedules/${encodeURIComponent(id)}/enabled/`, {
     method: "POST",
     body: { enabled },
   });
 }
+
 export async function deleteSchedule(id: string): Promise<void> {
   await requestApi(`/schedules/${encodeURIComponent(id)}/delete/`, {
     method: "POST",
     body: {},
   });
 }
+
 export async function previewSchedule(
   body: Pick<ScheduleDraft, "cron" | "time_zone" | "active_from" | "active_until">,
 ): Promise<SchedulePreviewResponse> {

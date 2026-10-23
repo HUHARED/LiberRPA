@@ -126,10 +126,20 @@ def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> Jso
 
     session = authentication.session
     update_executor_work_state(session, payload)
+    if payload.received_assignment_ids:
+        Assignment.objects.filter(
+            pk__in=payload.received_assignment_ids,
+            executor_id=session.executor_id,
+            session_id=session.id,
+            received_at__isnull=True,
+        ).update(received_at=timezone.now())
+
     listAssignment = list(
         Assignment.objects
         .filter(
+            executor_id=session.executor_id,
             session_id=session.id,
+            received_at__isnull=True,
             state=AssignmentState.PREPARING,
             job__state=JobState.PREPARING,
             job__closed_at__isnull=True,

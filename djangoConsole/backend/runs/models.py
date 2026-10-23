@@ -184,6 +184,7 @@ class Assignment(models.Model):
         default=AssignmentState.PREPARING,
     )
     created_at = models.DateTimeField(default=timezone.now)
+    received_at = models.DateTimeField(null=True)
     permit_expires_at = models.DateTimeField(null=True)
     stop_requested_at = models.DateTimeField(null=True)
     reason = models.CharField(max_length=2000, blank=True)

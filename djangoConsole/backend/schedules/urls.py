@@ -10,7 +10,6 @@ from . import views
 
 urlpatterns = [
     path("", views.list_or_create_schedules),
-    path("defaults/", views.schedule_defaults),
     path("preview/", views.preview_schedule),
     path("<uuid:scheduleId>/", views.get_or_update_schedule),
     path("<uuid:scheduleId>/enabled/", views.change_schedule_enabled),

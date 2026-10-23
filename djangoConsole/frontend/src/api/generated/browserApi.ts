@@ -177,6 +177,7 @@ export type JobState =
   | "waiting_retry"
   | "needs_review"
   | "finished";
+export type JobTargetType = "executor" | "group";
 export type RunEventKind =
   "started" | "ended" | "preparation_failed" | "not_started" | "unknown" | "recording";
 export type RunLogLevel = "VERBOSE" | "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
@@ -368,7 +369,6 @@ export interface BrowserApiContracts {
   RunRerunResponse: RunRerunResponse;
   RunSelectionResponse: RunSelectionResponse;
   RunStatisticsResponse: RunStatisticsResponse;
-  ScheduleDefaultsResponse: ScheduleDefaultsResponse;
   ScheduleDetailsResponse: ScheduleDetailsResponse;
   ScheduleEnabledRequest: ScheduleEnabledRequest;
   ScheduleListResponse: ScheduleListResponse;
@@ -1111,7 +1111,7 @@ export interface JobResponse {
   stop_requested_at: string | null;
   target_id: string;
   target_name: string;
-  target_type: "executor" | "group";
+  target_type: JobTargetType;
 }
 export interface JobDetailsResponse {
   job: JobDetailsEntryResponse;
@@ -1145,7 +1145,7 @@ export interface JobDetailsEntryResponse {
   stop_requested_at: string | null;
   target_id: string;
   target_name: string;
-  target_type: "executor" | "group";
+  target_type: JobTargetType;
 }
 export interface JobEventResponse {
   kind: RunEventKind;
@@ -1249,7 +1249,7 @@ export interface JobListEntryResponse {
   stop_requested_at: string | null;
   target_id: string;
   target_name: string;
-  target_type: "executor" | "group";
+  target_type: JobTargetType;
 }
 export interface LoginRequest {
   email: string;
@@ -1959,9 +1959,6 @@ export interface ExecutorRunStatisticsResponse {
   results: RunResultCountResponse[];
   total_count: number;
 }
-export interface ScheduleDefaultsResponse {
-  time_zone: string;
-}
 export interface ScheduleDetailsResponse {
   schedule: ScheduleResponse;
 }
@@ -2476,6 +2473,10 @@ export const PackageUploadState = {
   Expired: "expired",
   Canceled: "canceled",
 } as const satisfies Record<string, PackageUploadState>;
+export const JobTargetType = {
+  Executor: "executor",
+  Group: "group",
+} as const satisfies Record<string, JobTargetType>;
 export const JobState = {
   Waiting: "waiting",
   Preparing: "preparing",

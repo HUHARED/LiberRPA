@@ -120,6 +120,7 @@ for (const strEnumName of [
   "PackageReferenceKind",
   "PackagePreparationState",
   "PackageUploadState",
+  "JobTargetType",
   "JobState",
   "RunStatus",
   "RunEventKind",
