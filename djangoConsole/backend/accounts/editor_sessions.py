@@ -86,7 +86,19 @@ def begin_editor_login(
             last_seen_at=currentTime,
             expires_at=currentTime + _SESSION_IDLE_LIFETIME,
         )
-        session.full_clean()
+        # Only client-provided labels need validation; identity and timestamps were established above.
+        session.clean_fields(
+            exclude=[
+                "id",
+                "user",
+                "organization",
+                "token_hash",
+                "auth_hash",
+                "created_at",
+                "last_seen_at",
+                "expires_at",
+            ]
+        )
         session.save(force_insert=True)
         record_audit(
             AuditAction.EDITOR_SESSION_LOGIN,

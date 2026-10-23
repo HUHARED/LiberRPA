@@ -30,8 +30,6 @@ from .contracts import (
     DepartmentCreationRequest,
     DepartmentDeletionRequest,
     DepartmentWriteResponse,
-    DepartmentListResponse,
-    DepartmentDetailsResponse,
     DepartmentDeletionPreviewResponse,
     DepartmentDeletionResponse,
 )
@@ -40,7 +38,6 @@ from .http import lock_request_write_access
 from .permissions import AccessChannel, get_current_membership, build_organization_access
 from .rate_limits import check_request_budget
 from .department_queries import (
-    DepartmentInfo,
     get_department_list,
     get_department_details,
 )
@@ -54,16 +51,6 @@ from .department_deletion import (
 
 _LOGGER = logging.getLogger("console.departments")
 _INT_MAX_DEPARTMENT_BODY_BYTES = 32 * 1024
-
-
-def _build_department_payload(departmentInfo: DepartmentInfo) -> dict[str, object]:
-    return {
-        "id": departmentInfo.id,
-        "name": departmentInfo.name,
-        "parent_id": departmentInfo.parentId,
-        "path": departmentInfo.path,
-        "notes": departmentInfo.notes,
-    }
 
 
 def _build_saved_department_response(
@@ -157,20 +144,10 @@ def list_or_create_departments(request: HttpRequest) -> JsonResponse:
                 )
                 return _build_saved_department_response(department, statusCode=201)
 
-        listDepartmentInfo = get_department_list(
+        departmentListResponse = get_department_list(
             access=build_organization_access(membership, channel=AccessChannel.SESSION),
         )
-        dictListPayload = {
-            "departments": [
-                _build_department_payload(departmentInfo)
-                for departmentInfo in listDepartmentInfo
-            ]
-        }
-        return JsonResponse(
-            DepartmentListResponse.model_validate(dictListPayload).model_dump(
-                mode="python"
-            )
-        )
+        return JsonResponse(departmentListResponse.model_dump(mode="python"))
     except ValidationError as e:
         return _build_department_validation_response(e)
     except SessionInvalidatedError:
@@ -220,29 +197,11 @@ def get_or_update_department(
                 )
                 return _build_saved_department_response(department, statusCode=200)
 
-        detailsInfo = get_department_details(
+        departmentDetailsResponse = get_department_details(
             access=build_organization_access(membership, channel=AccessChannel.SESSION),
             departmentId=departmentId,
         )
-        dictDetailsPayload = {
-            "department": _build_department_payload(detailsInfo.department),
-            "members": [
-                {
-                    "user": {
-                        "id": memberInfo.userId,
-                        "email": memberInfo.email,
-                        "username": memberInfo.username,
-                    },
-                    "role": memberInfo.role,
-                }
-                for memberInfo in detailsInfo.members
-            ],
-        }
-        return JsonResponse(
-            DepartmentDetailsResponse.model_validate(dictDetailsPayload).model_dump(
-                mode="python"
-            )
-        )
+        return JsonResponse(departmentDetailsResponse.model_dump(mode="python"))
     except ValidationError as e:
         return _build_department_validation_response(e)
     except Department.DoesNotExist:

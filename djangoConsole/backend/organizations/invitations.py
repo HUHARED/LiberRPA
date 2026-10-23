@@ -337,21 +337,29 @@ def issue_invitation_token(delivery: EmailDelivery) -> InvitationDeliveryInfo | 
 
 
 @sensitive_variables()
-def _get_invitation_by_token(token: str) -> tuple[MemberInvitation, Organization]:
+def _get_invitation_by_token(
+    token: str, *, forUpdate: bool
+) -> tuple[MemberInvitation, Organization]:
     if _INVITATION_TOKEN_PATTERN.fullmatch(token) is None:
         raise ValidationError(
             "The invitation link is invalid or expired.", code="invalid_invitation_token"
         )
     strTokenHash = hashlib.sha256(token.encode("ascii")).hexdigest()
     try:
-        # NOTE: The first read discovers the lock key only. Recheck the digest after locking.
-        organizationId = MemberInvitation.objects.values_list(
-            "organization_id", flat=True
-        ).get(token_hash=strTokenHash)
-        organization = Organization.objects.select_for_update().get(pk=organizationId)
-        invitation = MemberInvitation.objects.select_for_update().get(
-            token_hash=strTokenHash, organization=organization
-        )
+        if forUpdate:
+            # NOTE: The first read discovers the lock key only. Recheck the digest after locking.
+            organizationId = MemberInvitation.objects.values_list(
+                "organization_id", flat=True
+            ).get(token_hash=strTokenHash)
+            organization = Organization.objects.select_for_update().get(pk=organizationId)
+            invitation = MemberInvitation.objects.select_for_update().get(
+                token_hash=strTokenHash, organization=organization
+            )
+        else:
+            invitation = MemberInvitation.objects.select_related("organization").get(
+                token_hash=strTokenHash
+            )
+            organization = invitation.organization
     except (MemberInvitation.DoesNotExist, Organization.DoesNotExist):
         raise ValidationError(
             "The invitation link is invalid or expired.", code="invalid_invitation_token"
@@ -361,10 +369,9 @@ def _get_invitation_by_token(token: str) -> tuple[MemberInvitation, Organization
 
 
 @sensitive_variables()
-@transaction.atomic
 def get_invitation_registration_info(token: str) -> tuple[str, str]:
-    """Validate a link without consuming it or exposing administrator-only notes."""
-    invitation, organization = _get_invitation_by_token(token)
+    """Read current link eligibility without locks, consumption, or administrator-only notes."""
+    invitation, organization = _get_invitation_by_token(token, forUpdate=False)
     return invitation.email, organization.name
 
 
@@ -373,7 +380,7 @@ def get_invitation_registration_info(token: str) -> tuple[str, str]:
 def complete_invitation_registration(
     *, token: str, password: str, username: str = ""
 ) -> None:
-    invitation, organization = _get_invitation_by_token(token)
+    invitation, organization = _get_invitation_by_token(token, forUpdate=True)
     if password is None:
         raise ValidationError({"password": "A password is required."})
     strDisplayName = (

@@ -27,12 +27,10 @@ from console_project.http import (
 
 from .contracts import (
     DepartmentRole,
-    MemberListResponse,
-    MemberDetailsResponse,
     MembershipUpdateRequest,
     MembershipWriteResponse,
 )
-from .member_queries import MemberInfo, get_member_details, get_member_list
+from .member_queries import get_member_details, get_member_list
 from .models import Membership
 from .http import lock_request_write_access
 from .permissions import AccessChannel, get_current_membership, build_organization_access
@@ -40,30 +38,6 @@ from .rate_limits import check_request_budget
 from .member_services import update_membership
 
 _INT_MAX_MEMBERSHIP_BODY_BYTES = 64 * 1024
-
-
-def _build_member_payload(memberInfo: MemberInfo) -> dict[str, object]:
-    return {
-        "user": {
-            "id": memberInfo.userId,
-            "email": memberInfo.email,
-            "username": memberInfo.username,
-        },
-        "is_org_admin": memberInfo.isOrgAdmin,
-        "department_roles": [
-            {
-                "department": {
-                    "id": roleInfo.departmentId,
-                    "name": roleInfo.departmentName,
-                    "path": roleInfo.departmentPath,
-                },
-                "role": roleInfo.role,
-            }
-            for roleInfo in memberInfo.departmentRoles
-        ],
-        "notes": memberInfo.notes,
-        "joined_at": memberInfo.joinedAt,
-    }
 
 
 def _build_saved_member_response(
@@ -130,23 +104,11 @@ def list_members(request: HttpRequest) -> JsonResponse:
         pageNumberResult = _get_page_number(request)
         if isinstance(pageNumberResult, JsonResponse):
             return pageNumberResult
-        memberPage = get_member_list(
+        memberListResponse = get_member_list(
             access=build_organization_access(membership, channel=AccessChannel.SESSION),
             pageNumber=pageNumberResult,
         )
-        return JsonResponse(
-            MemberListResponse.model_validate({
-                "members": [
-                    _build_member_payload(memberInfo) for memberInfo in memberPage.members
-                ],
-                "pagination": {
-                    "page": memberPage.page,
-                    "page_size": memberPage.pageSize,
-                    "total_count": memberPage.totalCount,
-                    "total_pages": memberPage.totalPages,
-                },
-            }).model_dump(mode="python")
-        )
+        return JsonResponse(memberListResponse.model_dump(mode="python"))
     except InvalidPage:
         return build_error_response(
             "member_page_not_found", "Member page not found.", statusCode=404
@@ -194,18 +156,14 @@ def get_or_update_member(request: HttpRequest, userId: uuid.UUID) -> JsonRespons
                 )
             return _build_saved_member_response(membership, dictDepartmentRole)
 
-        memberInfo = get_member_details(
+        memberDetailsResponse = get_member_details(
             access=build_organization_access(
                 currentMembership, channel=AccessChannel.SESSION
             ),
             userId=userId,
         )
         # API key metadata is loaded separately through the member's api-keys endpoint.
-        return JsonResponse(
-            MemberDetailsResponse.model_validate({
-                "member": _build_member_payload(memberInfo)
-            }).model_dump(mode="python")
-        )
+        return JsonResponse(memberDetailsResponse.model_dump(mode="python"))
     except SessionInvalidatedError:
         return build_authentication_required_response(
             "The current session is no longer valid. Sign in again."

@@ -26,7 +26,7 @@ from .permissions import (
 def _prepare_department_memberships(
     membership: Membership, departmentRoles: Mapping[uuid.UUID, DepartmentRole]
 ) -> list[DepartmentMembership]:
-    """Resolve departments in one query and validate the requested explicit roles."""
+    """Resolve current departments once for roles already validated by the request contract."""
     dictDepartmentById = Department.objects.filter(
         organization_id=membership.organization_id, deleted_at__isnull=True
     ).in_bulk(departmentRoles)
@@ -38,20 +38,12 @@ def _prepare_department_memberships(
             )
         })
 
-    listDepartmentMembership: list[DepartmentMembership] = []
-    for departmentId, role in departmentRoles.items():
-        departmentMembership = DepartmentMembership(
+    return [
+        DepartmentMembership(
             membership=membership, department=dictDepartmentById[departmentId], role=role
         )
-        # Reuse the resolved references and the model's role and organization rules.
-        # Mapping keys prevent duplicate departments; the database enforces stored constraints.
-        departmentMembership.full_clean(
-            exclude=["membership", "department"],
-            validate_unique=False,
-            validate_constraints=False,
-        )
-        listDepartmentMembership.append(departmentMembership)
-    return listDepartmentMembership
+        for departmentId, role in departmentRoles.items()
+    ]
 
 
 def _save_department_memberships(
@@ -112,11 +104,7 @@ def update_membership(
     dictAuditBefore = get_audit_snapshot(membership)
     membership.is_org_admin = isOrgAdmin
     membership.notes = notes
-    membership.full_clean(
-        exclude=["user", "organization"],
-        validate_unique=False,
-        validate_constraints=False,
-    )
+    membership.clean_fields(exclude=["user", "organization", "is_org_admin", "joined_at"])
 
     # The organization lock makes competing demotions observe the preceding commit.
     # Only active accounts count; being signed in or online is not required.

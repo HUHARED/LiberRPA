@@ -6,49 +6,28 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 from collections.abc import Sequence
-from dataclasses import dataclass
-from datetime import datetime
 from typing import cast
 
 from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.db.models.functions import Lower
 
+from accounts.contracts import UserResponse
 from accounts.models import User
 from console_project.constants import INT_LIST_PAGE_SIZE
+from console_project.contracts import PaginationResponse
 
 from .department_queries import get_department_path
-from .contracts import DepartmentRole
+from .contracts import (
+    DepartmentRole,
+    MemberDepartmentResponse,
+    MemberDepartmentRoleResponse,
+    MemberResponse,
+    MemberListResponse,
+    MemberDetailsResponse,
+)
 from .models import Membership, Department, DepartmentMembership
 from .permissions import OrganizationAccessContext, require_organization_admin
-
-
-@dataclass(frozen=True)
-class MemberDepartmentRoleInfo:
-    departmentId: uuid.UUID
-    departmentName: str
-    departmentPath: str
-    role: DepartmentRole
-
-
-@dataclass(frozen=True)
-class MemberInfo:
-    userId: uuid.UUID
-    email: str
-    username: str
-    isOrgAdmin: bool
-    departmentRoles: tuple[MemberDepartmentRoleInfo, ...]
-    notes: str
-    joinedAt: datetime
-
-
-@dataclass(frozen=True)
-class MemberPageInfo:
-    members: tuple[MemberInfo, ...]
-    page: int
-    pageSize: int
-    totalCount: int
-    totalPages: int
 
 
 def _get_member_query(access: OrganizationAccessContext) -> QuerySet[Membership]:
@@ -69,18 +48,18 @@ def _get_member_query(access: OrganizationAccessContext) -> QuerySet[Membership]
     )
 
 
-def _get_member_info_list(
+def _get_member_response_list(
     memberships: Sequence[Membership], organizationId: uuid.UUID
-) -> tuple[MemberInfo, ...]:
+) -> list[MemberResponse]:
     if not memberships:
-        return ()
+        return []
     dictDepartmentById = (
         Department.objects
         .filter(organization_id=organizationId, deleted_at__isnull=True)
         .only("id", "name", "parent")
         .in_bulk()
     )
-    dictRoleByMemberId: dict[uuid.UUID, list[MemberDepartmentRoleInfo]] = {
+    dictRoleByMemberId: dict[uuid.UUID, list[MemberDepartmentRoleResponse]] = {
         membership.user_id: [] for membership in memberships
     }
     for memberId, departmentId, strRole in DepartmentMembership.objects.filter(
@@ -89,58 +68,58 @@ def _get_member_info_list(
     ).values_list("membership_id", "department_id", "role"):
         department = dictDepartmentById[departmentId]
         dictRoleByMemberId[memberId].append(
-            MemberDepartmentRoleInfo(
-                departmentId=department.id,
-                departmentName=department.name,
-                departmentPath=get_department_path(department, dictDepartmentById),
+            MemberDepartmentRoleResponse(
+                department=MemberDepartmentResponse(
+                    id=department.id,
+                    name=department.name,
+                    path=get_department_path(department, dictDepartmentById),
+                ),
                 role=DepartmentRole(strRole),
             )
         )
 
-    listMemberInfo: list[MemberInfo] = []
+    listMember: list[MemberResponse] = []
     for membership in memberships:
         user = cast(User, membership.user)
-        listMemberInfo.append(
-            MemberInfo(
-                userId=user.id,
-                email=user.email,
-                username=user.username,
-                isOrgAdmin=membership.is_org_admin,
-                departmentRoles=tuple(
-                    sorted(
-                        dictRoleByMemberId[user.id],
-                        key=lambda roleInfo: (
-                            roleInfo.departmentPath.casefold(),
-                            roleInfo.departmentId,
-                        ),
-                    )
+        listMember.append(
+            MemberResponse(
+                user=UserResponse(id=user.id, email=user.email, username=user.username),
+                is_org_admin=membership.is_org_admin,
+                department_roles=sorted(
+                    dictRoleByMemberId[user.id],
+                    key=lambda role: (
+                        role.department.path.casefold(),
+                        role.department.id,
+                    ),
                 ),
                 notes=membership.notes,
-                joinedAt=membership.joined_at,
+                joined_at=membership.joined_at,
             )
         )
-    return tuple(listMemberInfo)
+    return listMember
 
 
 def get_member_list(
     *,
     access: OrganizationAccessContext,
     pageNumber: int = 1,
-) -> MemberPageInfo:
+) -> MemberListResponse:
     """Read one ordered page of current members and their explicit department roles."""
     membershipQuery = _get_member_query(access).order_by(
         Lower("user__username"), "user__email", "user_id"
     )
     paginator = Paginator(membershipQuery, INT_LIST_PAGE_SIZE)
     memberPage = paginator.page(pageNumber)
-    return MemberPageInfo(
-        members=_get_member_info_list(
+    return MemberListResponse(
+        members=_get_member_response_list(
             list(memberPage.object_list), access.organization.pk
         ),
-        page=memberPage.number,
-        pageSize=INT_LIST_PAGE_SIZE,
-        totalCount=paginator.count,
-        totalPages=paginator.num_pages,
+        pagination=PaginationResponse(
+            page=memberPage.number,
+            page_size=INT_LIST_PAGE_SIZE,
+            total_count=paginator.count,
+            total_pages=paginator.num_pages,
+        ),
     )
 
 
@@ -148,7 +127,9 @@ def get_member_details(
     *,
     access: OrganizationAccessContext,
     userId: uuid.UUID,
-) -> MemberInfo:
+) -> MemberDetailsResponse:
     """Read one current organization member without exposing account credentials."""
     membership = _get_member_query(access).get(user_id=userId)
-    return _get_member_info_list([membership], access.organization.pk)[0]
+    return MemberDetailsResponse(
+        member=_get_member_response_list([membership], access.organization.pk)[0]
+    )

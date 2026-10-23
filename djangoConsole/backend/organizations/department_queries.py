@@ -6,35 +6,19 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 from collections.abc import Mapping
-from dataclasses import dataclass
 
-from .contracts import DepartmentRole
+from accounts.contracts import UserResponse
+
+from .contracts import (
+    DepartmentRole,
+    DepartmentListEntryResponse,
+    DepartmentListResponse,
+    DepartmentMemberResponse,
+    DepartmentDetailsResponse,
+)
 from .models import Department, DepartmentMembership
 from .validators import get_path_name_key
 from .permissions import OrganizationAccessContext, require_organization_admin
-
-
-@dataclass(frozen=True)
-class DepartmentInfo:
-    id: uuid.UUID
-    name: str
-    parentId: uuid.UUID | None
-    path: str
-    notes: str
-
-
-@dataclass(frozen=True)
-class DepartmentMemberInfo:
-    userId: uuid.UUID
-    email: str
-    username: str
-    role: DepartmentRole
-
-
-@dataclass(frozen=True)
-class DepartmentDetailsInfo:
-    department: DepartmentInfo
-    members: tuple[DepartmentMemberInfo, ...]
 
 
 def get_department_tree(organizationId: uuid.UUID) -> dict[uuid.UUID, Department]:
@@ -87,30 +71,29 @@ def _get_admin_department_tree(
     return get_department_tree(access.organization.pk)
 
 
-def _build_department_info(
+def _build_department_response(
     department: Department, departmentsById: Mapping[uuid.UUID, Department]
-) -> DepartmentInfo:
-    return DepartmentInfo(
+) -> DepartmentListEntryResponse:
+    return DepartmentListEntryResponse(
         id=department.id,
         name=department.name,
-        parentId=department.parent_id,
+        parent_id=department.parent_id,
         path=get_department_path(department, departmentsById),
         notes=department.notes,
     )
 
 
-def get_department_list(*, access: OrganizationAccessContext) -> list[DepartmentInfo]:
+def get_department_list(*, access: OrganizationAccessContext) -> DepartmentListResponse:
     """Return the active tree for organization administration, ordered by full path."""
     dictDepartmentById = _get_admin_department_tree(access)
-    listDepartmentInfo = [
-        _build_department_info(department, dictDepartmentById)
+    listDepartment = [
+        _build_department_response(department, dictDepartmentById)
         for department in dictDepartmentById.values()
     ]
-    return sorted(
-        listDepartmentInfo,
-        key=lambda departmentInfo: (
-            get_path_name_key(departmentInfo.path),
-            departmentInfo.id,
+    return DepartmentListResponse(
+        departments=sorted(
+            listDepartment,
+            key=lambda department: (get_path_name_key(department.path), department.id),
         ),
     )
 
@@ -119,7 +102,7 @@ def get_department_details(
     *,
     access: OrganizationAccessContext,
     departmentId: uuid.UUID,
-) -> DepartmentDetailsInfo:
+) -> DepartmentDetailsResponse:
     """Return one active department and its explicit current membership assignments."""
     dictDepartmentById = _get_admin_department_tree(access)
     department = dictDepartmentById.get(departmentId)
@@ -127,11 +110,9 @@ def get_department_details(
         raise Department.DoesNotExist
 
     # An organization administrator without an explicit department role is not a row here.
-    listDepartmentMemberInfo = [
-        DepartmentMemberInfo(
-            userId=userId,
-            email=strEmail,
-            username=strUsername,
+    listDepartmentMember = [
+        DepartmentMemberResponse(
+            user=UserResponse(id=userId, email=strEmail, username=strUsername),
             role=DepartmentRole(strRole),
         )
         for userId, strEmail, strUsername, strRole in DepartmentMembership.objects.filter(
@@ -143,16 +124,14 @@ def get_department_details(
             "role",
         )
     ]
-    return DepartmentDetailsInfo(
-        department=_build_department_info(department, dictDepartmentById),
-        members=tuple(
-            sorted(
-                listDepartmentMemberInfo,
-                key=lambda memberInfo: (
-                    memberInfo.username.casefold(),
-                    memberInfo.email,
-                    memberInfo.userId,
-                ),
-            )
+    return DepartmentDetailsResponse(
+        department=_build_department_response(department, dictDepartmentById),
+        members=sorted(
+            listDepartmentMember,
+            key=lambda member: (
+                member.user.username.casefold(),
+                member.user.email,
+                member.user.id,
+            ),
         ),
     )

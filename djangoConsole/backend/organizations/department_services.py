@@ -47,11 +47,17 @@ def _prepare_department_values(department: Department) -> None:
     except ValidationError as e:
         raise ValidationError({"name": e}) from None
     department.name_key = get_path_name_key(department.name)
-    # The name and related objects are already validated; constraints are checked once before saving.
-    department.full_clean(
-        exclude=["name", "organization", "parent"],
-        validate_unique=False,
-        validate_constraints=False,
+    # Only Notes still needs field validation; the service checks names, parents, and constraints.
+    department.clean_fields(
+        exclude=[
+            "id",
+            "name",
+            "name_key",
+            "organization",
+            "parent",
+            "created_at",
+            "deleted_at",
+        ]
     )
 
 

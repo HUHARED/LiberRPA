@@ -5,11 +5,9 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from typing import cast
 
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
-from django.core.exceptions import ValidationError
 from django.core.validators import (
     MaxLengthValidator,
     MinValueValidator,
@@ -232,27 +230,6 @@ class Department(models.Model):
             ),
         ]
 
-    def clean(self) -> None:
-        """Check the direct parent; the write service handles tree-wide rules and locks."""
-        super().clean()
-        if self.parent_id is None:
-            return
-        if self.parent_id == self.pk:
-            raise ValidationError({"parent": "A department cannot be its own parent."})
-
-        try:
-            # A non-null parent_id resolves to a Department or raises DoesNotExist.
-            parentDepartment = cast(Department, self.parent)
-        except Department.DoesNotExist:
-            # full_clean() reports a missing reference during field validation.
-            return
-        if parentDepartment.organization_id != self.organization_id:
-            raise ValidationError({
-                "parent": "The parent department must belong to the same organization."
-            })
-        if self.deleted_at is None and parentDepartment.deleted_at is not None:
-            raise ValidationError({"parent": "The parent department has been deleted."})
-
     def __str__(self) -> str:
         return self.name
 
@@ -297,30 +274,6 @@ class DepartmentMembership(models.Model):
                 violation_error_message="Select Developer or Operator.",
             ),
         ]
-
-    def clean(self) -> None:
-        """Require an active department in the member's current organization."""
-        super().clean()
-        try:
-            membership = self.membership
-            department = self.department
-        except (Membership.DoesNotExist, Department.DoesNotExist):
-            # full_clean() reports missing references during field validation.
-            return
-        if membership.organization_id != department.organization_id:
-            raise ValidationError({
-                "department": ValidationError(
-                    "The department must belong to the member's organization.",
-                    code="department_organization_mismatch",
-                )
-            })
-        if department.deleted_at is not None:
-            raise ValidationError({
-                "department": ValidationError(
-                    "The department has been deleted.",
-                    code="invalid_department",
-                )
-            })
 
     def __str__(self) -> str:
         return (
