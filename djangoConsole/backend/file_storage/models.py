@@ -9,6 +9,8 @@ import uuid
 from django.db import models
 from django.utils import timezone
 
+from console_project.constants import INT_WINDOWS_NAME_MAX_LENGTH
+
 
 class StorageLock(models.Model):
     """One lock for all reservations on the configured storage volume."""
@@ -81,7 +83,7 @@ class DownloadSession(models.Model):
     blob = models.ForeignKey(StoredBlob, on_delete=models.PROTECT)
     # Snapshot the authorized resource path and download name; renames cannot alter this transfer.
     resource_path = models.TextField(blank=True, default="")
-    name = models.CharField(max_length=128)
+    name = models.CharField(max_length=INT_WINDOWS_NAME_MAX_LENGTH)
     started = models.BooleanField(default=False)
     expires_at = models.DateTimeField()
 

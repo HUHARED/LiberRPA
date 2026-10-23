@@ -416,15 +416,12 @@ def prepare_download(
         raise FileOperationError(
             "package_content_unavailable", "The Package content is unavailable.", 503
         )
-    strSuffix = ".rpa.zip"
-    strName = f"{package.project_name}_{package.project_version}"
     transfer = DownloadSession.objects.create(
         organization=access.organization,
         actor_id=access.actorId,
         department_id=package.department_id,
         blob=package.blob,
-        # Preserve the suffix within DownloadSession.name's 128-character limit.
-        name=strName[: 128 - len(strSuffix)] + strSuffix,
+        name=f"{package.project_name}_{package.project_version}.rpa.zip",
         expires_at=get_download_expiry(),
     )
     return {

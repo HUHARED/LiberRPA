@@ -1,6 +1,6 @@
 // FileName: sharedFiles.ts
 
-import { getSha256, saveBlob } from "@/app/files";
+import { getSha256, downloadFile } from "@/app/files";
 
 import { requestApi } from "./client";
 import { ApiError } from "./errors";
@@ -187,17 +187,8 @@ export async function downloadSharedFile(path: string): Promise<void> {
   )
     return rejectInvalidFileResponse();
   const transfer = result as unknown as FileDownloadResponse;
-  const fileBlob = await requestApi(
-    `${API_ROOT}downloads/${encodeURIComponent(transfer.transfer_id)}/`,
-    { responseType: "blob" },
+  downloadFile(
+    `/api${API_ROOT}downloads/${encodeURIComponent(transfer.transfer_id)}/`,
+    transfer.file.name,
   );
-  if (
-    !(fileBlob instanceof Blob) ||
-    fileBlob.size !== transfer.file.size_bytes ||
-    (await getSha256(fileBlob)) !== transfer.file.sha256
-  )
-    throw new ApiError(
-      "The downloaded file failed its integrity check. Download it again.",
-    );
-  saveBlob(fileBlob, transfer.file.name);
 }

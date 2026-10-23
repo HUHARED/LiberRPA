@@ -1,5 +1,7 @@
 // FileName: runs.ts
 
+import { downloadFile } from "@/app/files";
+
 import { requestApi } from "./client";
 import {
   isRecord,
@@ -353,10 +355,7 @@ export async function downloadRunFile(id: string, kind: RunFileKind): Promise<vo
     !/^\/api\/run-files\/[0-9a-f-]+\/$/i.test(result.download_url)
   )
     return rejectInvalidResponse();
-  const link = document.createElement("a");
-  link.href = result.download_url;
-  link.download = "";
-  link.click();
+  downloadFile(result.download_url);
 }
 
 export async function getRunDepartments(): Promise<RunDepartmentInfo[]> {

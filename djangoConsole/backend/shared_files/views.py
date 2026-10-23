@@ -21,7 +21,7 @@ from file_storage.http import (
 )
 from file_storage.proxy import get_download_proxy_snapshot
 from file_storage.services import FileOperationError, release_unstarted_download
-from file_storage.streaming import SyncFileStream, AsyncFileStream
+from file_storage.streaming import AsyncFileStream
 from organizations.validators import get_path_name_key, parse_resource_path
 from organizations.rate_limits import RequestBudget, check_request_budget, request_budget
 
@@ -248,9 +248,7 @@ def download_file_content(
             transfer, handle = open_download(
                 access, transferId, apiKeyId=get_file_api_key_id(authentication)
             )
-            stream = (AsyncFileStream if hasattr(request, "scope") else SyncFileStream)(
-                transfer, handle
-            )
+            stream = AsyncFileStream(transfer, handle)
             response = StreamingHttpResponse(
                 stream, content_type="application/octet-stream"
             )

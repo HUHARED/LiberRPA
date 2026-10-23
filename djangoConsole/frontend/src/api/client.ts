@@ -8,12 +8,10 @@ interface ApiRequestOptions {
   // JSON objects and arrays are serialized; Blob bodies are sent unchanged.
   body?: object;
   headers?: HeadersInit;
-  responseType?: "json" | "blob";
   timeoutMs?: number;
 }
 
 const INT_REQUEST_TIMEOUT_MS = 15000;
-const INT_DOWNLOAD_IDLE_TIMEOUT_MS = 60000;
 let strCsrfToken: string | null = null;
 let intCsrfRevision = 0;
 let csrfRequest: Promise<string> | null = null;
@@ -36,12 +34,7 @@ async function fetchApi(
 ): Promise<unknown> {
   const intRequestRevision = intCsrfRevision;
   const requestHeaders = new Headers(options.headers);
-  requestHeaders.set(
-    "Accept",
-    options.responseType === "blob"
-      ? "application/octet-stream, application/json"
-      : "application/json",
-  );
+  requestHeaders.set("Accept", "application/json");
 
   let requestBody: string | Blob | undefined;
   if (options.body instanceof Blob) {
@@ -55,12 +48,10 @@ async function fetchApi(
   if (csrfToken !== undefined) requestHeaders.set("X-CSRFToken", csrfToken);
 
   const abortController = new AbortController();
-  const intTimeoutMs =
-    options.timeoutMs ??
-    (options.responseType === "blob"
-      ? INT_DOWNLOAD_IDLE_TIMEOUT_MS
-      : INT_REQUEST_TIMEOUT_MS);
-  let intTimeoutHandle = setTimeout(() => abortController.abort(), intTimeoutMs);
+  const intTimeoutHandle = setTimeout(
+    () => abortController.abort(),
+    options.timeoutMs ?? INT_REQUEST_TIMEOUT_MS,
+  );
   let response: Response;
   let responsePayload: unknown = null;
   try {
@@ -73,27 +64,7 @@ async function fetchApi(
       body: requestBody,
       signal: abortController.signal,
     });
-    if (response.ok && options.responseType === "blob") {
-      const arrChunk: BlobPart[] = [];
-      const reader = response.body?.getReader();
-      if (reader) {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (!value.byteLength) continue;
-            clearTimeout(intTimeoutHandle);
-            intTimeoutHandle = setTimeout(() => abortController.abort(), intTimeoutMs);
-            arrChunk.push(value);
-          }
-        } finally {
-          reader.releaseLock();
-        }
-      }
-      responsePayload = new Blob(arrChunk, {
-        type: response.headers.get("Content-Type") ?? "",
-      });
-    } else if (
+    if (
       response.headers.get("Content-Type")?.split(";", 1)[0]?.trim().toLowerCase() ===
       "application/json"
     ) {

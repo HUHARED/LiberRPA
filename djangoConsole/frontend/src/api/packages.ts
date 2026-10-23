@@ -1,6 +1,6 @@
 // FileName: packages.ts
 
-import { getSha256, saveBlob } from "@/app/files";
+import { getSha256, downloadFile } from "@/app/files";
 
 import { requestApi } from "./client";
 import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./responses";
@@ -274,9 +274,9 @@ export async function finishPackageUpload(
     }),
   );
 }
-export async function downloadPackage(packageInfo: PackageResponse): Promise<void> {
+export async function downloadPackage(packageId: string): Promise<void> {
   const response = await requestApi(
-    `/packages/${encodeURIComponent(packageInfo.id)}/downloads/`,
+    `/packages/${encodeURIComponent(packageId)}/downloads/`,
     { method: "POST", body: {} },
   );
   if (
@@ -286,15 +286,8 @@ export async function downloadPackage(packageInfo: PackageResponse): Promise<voi
     !response.file_name.endsWith(".rpa.zip")
   )
     return rejectInvalidResponse();
-  const blob = await requestApi(
-    `/packages/downloads/${encodeURIComponent(response.transfer_id)}/content/`,
-    { responseType: "blob" },
+  downloadFile(
+    `/api/packages/downloads/${encodeURIComponent(response.transfer_id)}/content/`,
+    response.file_name,
   );
-  if (
-    !(blob instanceof Blob) ||
-    blob.size !== packageInfo.size_bytes ||
-    (await getSha256(blob)) !== packageInfo.sha256
-  )
-    throw new Error("The package download failed its integrity check.");
-  saveBlob(blob, response.file_name);
 }

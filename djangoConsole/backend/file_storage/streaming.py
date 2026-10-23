@@ -16,7 +16,7 @@ from .services import release_download, renew_download
 _LOGGER = logging.getLogger("console.file_storage")
 
 
-class _FileStream:
+class AsyncFileStream:
     def __init__(self, transfer: DownloadSession, handle: BinaryIO) -> None:
         self.transfer = transfer
         self.handle = handle
@@ -42,24 +42,6 @@ class _FileStream:
             # An expired lease is also reclaimed by cleanup_file_storage.
             _LOGGER.exception("Could not release a download slot immediately.")
 
-
-class SyncFileStream(_FileStream):
-    def __iter__(self) -> Self:
-        return self
-
-    def __next__(self) -> bytes:
-        try:
-            chunkData = self.read()
-            if chunkData:
-                return chunkData
-        except Exception:
-            self.close()
-            raise
-        self.close()
-        raise StopIteration
-
-
-class AsyncFileStream(_FileStream):
     def __aiter__(self) -> Self:
         return self
 

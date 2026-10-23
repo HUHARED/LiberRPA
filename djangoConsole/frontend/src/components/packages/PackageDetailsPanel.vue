@@ -495,7 +495,7 @@ async function download(): Promise<void> {
   boolDownload.value = true;
   strError.value = "";
   try {
-    await downloadPackage(props.details.package);
+    await downloadPackage(props.details.package.id);
   } catch (e) {
     strError.value = getApiError(e).message;
   } finally {

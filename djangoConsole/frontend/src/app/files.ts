@@ -7,17 +7,9 @@ export async function getSha256(data: Blob | Uint8Array<ArrayBuffer>): Promise<s
   ).join("");
 }
 
-export function saveBlob(blob: Blob, name: string): void {
+export function downloadFile(path: string, name = ""): void {
   const link = document.createElement("a");
-  const strUrl = URL.createObjectURL(blob);
-  link.href = strUrl;
+  link.href = path;
   link.download = name;
-  try {
-    document.body.append(link);
-    link.click();
-  } finally {
-    link.remove();
-    // Leave enough time for the browser to accept the save request.
-    setTimeout(() => URL.revokeObjectURL(strUrl), 60000);
-  }
+  link.click();
 }
