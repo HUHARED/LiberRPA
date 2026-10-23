@@ -7,7 +7,7 @@
       variant="tonal"
       prepend-icon="mdi-refresh"
       :loading="boolLoading"
-      :disabled="boolLoading || boolSaving || serviceTarget !== null"
+      :disabled="boolLoading || serviceTarget !== null"
       @click="loadOrganization()">
       Refresh
     </v-btn>
@@ -122,7 +122,11 @@
               ? 'mdi-play-circle-outline'
               : 'mdi-pause-circle-outline'
           "
-          :disabled="boolLoading || boolSaving || organization.deletion_started_at !== null"
+          :disabled="
+            boolLoading ||
+            serviceTarget !== null ||
+            organization.deletion_started_at !== null
+          "
           @click="openServiceDialog">
           {{ organization.suspended_at ? "Resume Service" : "Suspend Service" }}
         </v-btn>
@@ -154,128 +158,26 @@
     </v-card>
   </template>
 
-  <v-dialog
-    :model-value="serviceTarget !== null"
-    :persistent="boolSaving || boolLoading"
-    max-width="720"
-    scrollable
-    @update:model-value="!$event && closeServiceDialog()">
-    <v-card v-if="serviceTarget">
-      <v-card-title>{{ boolSuspend ? "Suspend Service" : "Resume Service" }}</v-card-title>
-
-      <v-card-text>
-        <v-text-field
-          :model-value="serviceTarget.name"
-          label="Organization"
-          variant="plain"
-          readonly
-          hide-details
-          class="mb-4" />
-
-        <v-text-field
-          :model-value="serviceTarget.id"
-          label="Organization ID"
-          variant="plain"
-          readonly
-          hide-details
-          class="mb-4" />
-
-        <v-alert :type="boolSuspend ? 'warning' : 'info'" variant="tonal" class="mb-4">
-          <template v-if="boolSuspend">
-            Suspend all Console business requests for this organization, including Executor
-            heartbeats and result reports. Waiting work will not resume after service is
-            restored. Running processes may continue on their computers.
-          </template>
-          <template v-else>
-            Allow eligible new business requests. Previously canceled work and missed
-            Schedule triggers will not run again. A scheduled organization deletion will
-            remain in place.
-          </template>
-        </v-alert>
-
-        <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
-          {{ saveError.message }}
-          <div v-if="boolRefreshRequired" class="mt-3">
-            <v-btn
-              variant="tonal"
-              prepend-icon="mdi-refresh"
-              :loading="boolLoading"
-              :disabled="boolSaving || boolLoading"
-              @click="loadOrganization(true)">
-              Refresh Organization
-            </v-btn>
-          </div>
-        </v-alert>
-
-        <v-alert v-if="strServiceUnavailable" type="info" variant="tonal" class="mb-4">
-          {{ strServiceUnavailable }}
-        </v-alert>
-
-        <v-form id="organization-service-form" @submit.prevent="saveService">
-          <v-textarea
-            v-model="strReason"
-            label="Reason"
-            variant="outlined"
-            rows="3"
-            auto-grow
-            :counter="INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH"
-            :counter-value="(value) => Array.from(value).length"
-            :error-messages="saveError?.fields.reason ?? []"
-            :disabled="
-              boolSaving || boolLoading || boolRefreshRequired || !!strServiceUnavailable
-            "
-            hint="Recorded in the platform audit log. Not included in the email to administrators."
-            persistent-hint />
-        </v-form>
-      </v-card-text>
-
-      <v-card-actions>
-        <v-btn
-          variant="tonal"
-          prepend-icon="mdi-close"
-          :disabled="boolSaving || boolLoading"
-          @click="closeServiceDialog">
-          Cancel
-        </v-btn>
-
-        <v-spacer />
-
-        <v-btn
-          type="submit"
-          form="organization-service-form"
-          :color="boolSuspend ? 'warning' : 'primary'"
-          variant="tonal"
-          :prepend-icon="
-            boolSuspend ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'
-          "
-          :loading="boolSaving"
-          :disabled="
-            boolLoading ||
-            boolRefreshRequired ||
-            !!strServiceUnavailable ||
-            !strReason.trim()
-          ">
-          {{ boolSuspend ? "Suspend Service" : "Resume Service" }}
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <OrganizationServiceDialog
+    v-if="serviceTarget"
+    :key="serviceTarget.id"
+    :organization="serviceTarget"
+    @close="serviceTarget = null"
+    @refreshed="applyOrganization"
+    @saved="handleServiceSaved"
+    @unavailable="handleOrganizationUnavailable" />
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 
+import OrganizationServiceDialog from "@/components/platform/OrganizationServiceDialog.vue";
+
 import { useSessionStore } from "@/stores/sessionStore";
 
-import { ApiError, getApiError } from "@/api/errors";
-import {
-  getPlatformOrganizationDetails,
-  updateOrganizationService,
-} from "@/api/platformOrganizations";
-import {
-  INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH,
-  type PlatformOrganizationDetailsResponse,
-} from "@/api/generated/browserApi";
+import { type ApiError, getApiError } from "@/api/errors";
+import { getPlatformOrganizationDetails } from "@/api/platformOrganizations";
+import type { PlatformOrganizationDetailsResponse } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
 
@@ -291,11 +193,6 @@ const strSuccess = ref("");
 const boolLoading = ref(false);
 
 const serviceTarget = shallowRef<PlatformOrganizationDetailsResponse | null>(null);
-const boolSuspend = ref(false);
-const strReason = ref("");
-const saveError = shallowRef<ApiError | null>(null);
-const boolSaving = ref(false);
-const boolRefreshRequired = ref(false);
 
 const arrInformationField = computed(() =>
   organization.value
@@ -335,47 +232,37 @@ const arrStateField = computed(() =>
       ]
     : [],
 );
-const strServiceUnavailable = computed(() => {
-  if (!serviceTarget.value) return "";
-  if (serviceTarget.value.deletion_started_at)
-    return "Organization deletion is in progress.";
-  if ((serviceTarget.value.suspended_at !== null) === boolSuspend.value)
-    return boolSuspend.value
-      ? "Service is already suspended."
-      : "Service is already resumed.";
-  return "";
-});
-
 let intRequestRevision = 0;
 
-async function loadOrganization(inDialog = false): Promise<void> {
-  if (!boolHasAccess.value || boolSaving.value) return;
+function applyOrganization(response: PlatformOrganizationDetailsResponse): void {
+  organization.value = response;
+  requestError.value = null;
+  strUpdatedAt.value = new Date().toISOString();
+}
+
+async function handleOrganizationUnavailable(error: ApiError): Promise<void> {
+  organization.value = null;
+  serviceTarget.value = null;
+  strUpdatedAt.value = null;
+  requestError.value = error;
+  if (error.statusCode === 403) await sessionStore.refreshSession();
+}
+
+async function loadOrganization(): Promise<void> {
+  if (!boolHasAccess.value) return;
   const intCurrentRevision = ++intRequestRevision;
   boolLoading.value = true;
-  if (inDialog) saveError.value = null;
-  else requestError.value = null;
+  requestError.value = null;
   try {
     const response = await getPlatformOrganizationDetails(props.organizationId);
     if (intCurrentRevision !== intRequestRevision) return;
-    organization.value = response;
-    requestError.value = null;
-    strUpdatedAt.value = new Date().toISOString();
-    if (inDialog) {
-      serviceTarget.value = response;
-      boolRefreshRequired.value = false;
-    }
+    applyOrganization(response);
   } catch (e) {
     if (intCurrentRevision !== intRequestRevision) return;
     const error = getApiError(e);
-    if (inDialog) saveError.value = error;
+    if ([401, 403, 404].includes(error.statusCode))
+      await handleOrganizationUnavailable(error);
     else requestError.value = error;
-    if ([401, 403, 404].includes(error.statusCode)) {
-      organization.value = null;
-      serviceTarget.value = null;
-      strUpdatedAt.value = null;
-      requestError.value = error;
-      if (error.statusCode === 403) await sessionStore.refreshSession();
-    }
   } finally {
     if (intCurrentRevision === intRequestRevision) boolLoading.value = false;
   }
@@ -385,80 +272,20 @@ function openServiceDialog(): void {
   if (
     !organization.value ||
     boolLoading.value ||
-    boolSaving.value ||
+    serviceTarget.value ||
     organization.value.deletion_started_at
   )
     return;
   serviceTarget.value = organization.value;
-  boolSuspend.value = organization.value.suspended_at === null;
-  strReason.value = "";
   strSuccess.value = "";
-  saveError.value = null;
-  boolRefreshRequired.value = false;
 }
 
-function closeServiceDialog(): void {
-  if (boolLoading.value || boolSaving.value) return;
+function handleServiceSaved(response: PlatformOrganizationDetailsResponse): void {
+  applyOrganization(response);
+  strSuccess.value = response.suspended_at
+    ? "Organization service suspended."
+    : "Organization service resumed.";
   serviceTarget.value = null;
-  saveError.value = null;
-}
-
-async function saveService(): Promise<void> {
-  if (
-    !boolHasAccess.value ||
-    !serviceTarget.value ||
-    boolLoading.value ||
-    boolSaving.value ||
-    boolRefreshRequired.value ||
-    strServiceUnavailable.value
-  )
-    return;
-  const strTrimmedReason = strReason.value.trim();
-  if (
-    !strTrimmedReason ||
-    Array.from(strTrimmedReason).length > INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH
-  ) {
-    saveError.value = new ApiError("Enter a reason for this change.", {
-      fields: {
-        reason: [`Enter 1 to ${INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH} characters.`],
-      },
-    });
-    return;
-  }
-
-  const intCurrentRevision = ++intRequestRevision;
-  boolSaving.value = true;
-  saveError.value = null;
-  try {
-    const response = await updateOrganizationService(serviceTarget.value.id, {
-      suspended: boolSuspend.value,
-      reason: strTrimmedReason,
-      expected_suspended_at: serviceTarget.value.suspended_at,
-      expected_deletion_requested_at: serviceTarget.value.deletion_requested_at,
-    });
-    if (intCurrentRevision !== intRequestRevision) return;
-    organization.value = response;
-    requestError.value = null;
-    strUpdatedAt.value = new Date().toISOString();
-    strSuccess.value = boolSuspend.value
-      ? "Organization service suspended."
-      : "Organization service resumed.";
-    serviceTarget.value = null;
-  } catch (e) {
-    if (intCurrentRevision !== intRequestRevision) return;
-    const error = getApiError(e);
-    saveError.value = error;
-    if (error.statusCode === 409) boolRefreshRequired.value = true;
-    if ([401, 403, 404].includes(error.statusCode)) {
-      organization.value = null;
-      serviceTarget.value = null;
-      strUpdatedAt.value = null;
-      requestError.value = error;
-      if (error.statusCode === 403) await sessionStore.refreshSession();
-    }
-  } finally {
-    if (intCurrentRevision === intRequestRevision) boolSaving.value = false;
-  }
 }
 
 watch(
@@ -468,10 +295,8 @@ watch(
     organization.value = null;
     serviceTarget.value = null;
     requestError.value = null;
-    saveError.value = null;
     strUpdatedAt.value = null;
     strSuccess.value = "";
-    boolSaving.value = false;
     boolLoading.value = false;
     void loadOrganization();
   },

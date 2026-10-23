@@ -92,7 +92,6 @@ class User(AbstractBaseUser):
     time_zone = models.CharField(
         max_length=100, default="UTC", validators=[validate_time_zone]
     )
-    # Reserved for platform suspension, not an ordinary member-management switch.
     is_active = models.BooleanField(default=True)
     is_platform_admin = models.BooleanField(default=False)
     session_version = models.PositiveBigIntegerField(default=0, editable=False)

@@ -6,7 +6,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import logging
 
-from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.db import DatabaseError, transaction
 from django.http import HttpRequest, JsonResponse
@@ -80,8 +79,6 @@ def get_or_update_service_settings(request: HttpRequest) -> JsonResponse:
 
         response = ServiceSettingsResponse(
             allow_organization_creation=serviceSettings.allow_organization_creation,
-            console_url=settings.CONSOLE_URL,
-            support_email=settings.CONSOLE_SUPPORT_EMAIL,
         )
         return JsonResponse(response.model_dump(mode="python"))
     except SessionInvalidatedError:

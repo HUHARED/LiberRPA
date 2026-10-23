@@ -25,18 +25,11 @@ import type {
 } from "./generated/browserApi";
 
 function parseServiceSettingsResponse(payload: unknown): ServiceSettingsResponse {
-  if (
-    !isRecord(payload) ||
-    typeof payload.allow_organization_creation !== "boolean" ||
-    typeof payload.console_url !== "string" ||
-    typeof payload.support_email !== "string"
-  )
+  if (!isRecord(payload) || typeof payload.allow_organization_creation !== "boolean")
     return rejectInvalidResponse();
 
   return {
     allow_organization_creation: payload.allow_organization_creation,
-    console_url: payload.console_url,
-    support_email: payload.support_email,
   };
 }
 

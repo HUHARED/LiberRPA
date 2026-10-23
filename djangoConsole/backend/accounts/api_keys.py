@@ -194,10 +194,16 @@ def update_api_key_notes(
 ) -> ApiKey:
     """Edit only the owner's Notes without changing credential state or retention."""
     _require_management_access(access, access.actorId, forUpdate=True)
-    apiKey = _get_retained_api_keys(access.actorId, timezone.now()).get(pk=apiKeyId)
+    apiKey = (
+        _get_retained_api_keys(access.actorId, timezone.now())
+        .defer("token_hash")
+        .get(pk=apiKeyId)
+    )
     dictAuditBefore = get_audit_snapshot(apiKey)
-    apiKey.notes = notes
-    apiKey.full_clean(validate_unique=False, validate_constraints=False)
+    try:
+        apiKey.notes = ApiKey._meta.get_field("notes").clean(notes, apiKey)
+    except ValidationError as e:
+        raise ValidationError({"notes": e.messages}) from None
     apiKey.save(update_fields=["notes"])
     record_audit(
         AuditAction.API_KEY_UPDATE,

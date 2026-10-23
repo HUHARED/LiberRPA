@@ -121,8 +121,6 @@ class ServiceSettingsRequest(JsonRequest):
 
 class ServiceSettingsResponse(JsonResponsePayload):
     allow_organization_creation: bool
-    console_url: str
-    support_email: str
 
 
 class ServiceState(TextChoices):

@@ -2064,8 +2064,6 @@ export interface ServiceSettingsRequest {
 }
 export interface ServiceSettingsResponse {
   allow_organization_creation: boolean;
-  console_url: string;
-  support_email: string;
 }
 export interface SessionResponse {
   csrf_token: string;
