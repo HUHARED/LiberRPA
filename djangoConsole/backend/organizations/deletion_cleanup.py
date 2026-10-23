@@ -13,6 +13,8 @@ from django.db.models import Q
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
+from console_project.recovery import is_restored_service_pending_review
+
 from accounts.models import User, EditorSession
 from executors.models import Executor, ExecutorSession, ExecutorGroup
 from assets.models import Asset
@@ -97,6 +99,9 @@ def _delete_organization_departments(organizationId: uuid.UUID) -> None:
 @transaction.atomic(durable=True)
 def start_next_organization_deletion() -> uuid.UUID | None:
     """Commit the irreversible start boundary while the caller owns the cleanup worker session."""
+    if is_restored_service_pending_review():
+        return None
+
     organization = (
         Organization.objects
         .select_for_update(skip_locked=True)
