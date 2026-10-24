@@ -30,7 +30,7 @@ from organizations.permissions import (
 from .models import EditorSession
 
 _SESSION_IDLE_LIFETIME = timedelta(days=14)
-_EDITOR_BEARER_PATTERN = re.compile(r"(?i:Bearer) +(lred_[A-Za-z0-9_-]{43})")
+_EDITOR_BEARER_PATTERN = re.compile(r"(?i:Bearer) +(liberrpa_editor_[A-Za-z0-9_-]{43})")
 
 
 class InvalidEditorSessionError(Exception):
@@ -74,7 +74,7 @@ def begin_editor_login(
         EditorSession.objects.filter(
             organization=access.organization, expires_at__lte=currentTime
         ).delete()
-        strToken = f"lred_{secrets.token_urlsafe(32)}"
+        strToken = f"liberrpa_editor_{secrets.token_urlsafe(32)}"
         session = EditorSession(
             user=user,
             organization=access.organization,

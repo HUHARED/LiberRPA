@@ -25,7 +25,7 @@ from organizations.permissions import (
 
 from .models import ApiKey
 
-_BEARER_PATTERN = re.compile(r"(?i:Bearer) +(lrpa_[A-Za-z0-9_-]{43})")
+_BEARER_PATTERN = re.compile(r"(?i:Bearer) +(liberrpa_api_[A-Za-z0-9_-]{43})")
 
 
 class InvalidApiKeyError(Exception):

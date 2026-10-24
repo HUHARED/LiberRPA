@@ -76,9 +76,9 @@ def _get_credential_channel(authorizationHeader: str) -> AccessChannel:
     listHeaderPart = authorizationHeader.split(" ", 1)
     if len(listHeaderPart) == 2 and listHeaderPart[0].lower() == "bearer":
         strCredential = listHeaderPart[1].lstrip(" ")
-        if strCredential.startswith("lred_"):
+        if strCredential.startswith("liberrpa_editor_"):
             return AccessChannel.EDITOR
-        if strCredential.startswith("lrex_"):
+        if strCredential.startswith("liberrpa_executor_"):
             return AccessChannel.EXECUTOR
     return AccessChannel.API_KEY
 

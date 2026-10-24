@@ -44,7 +44,7 @@ from .session_state import (
 
 _SELECTION_LIFETIME = timedelta(minutes=10)
 _SESSION_IDLE_LIFETIME = timedelta(days=14)
-_CLIENT_BEARER_PATTERN = re.compile(r"(?i:Bearer) +(lrex_[A-Za-z0-9_-]{43})")
+_CLIENT_BEARER_PATTERN = re.compile(r"(?i:Bearer) +(liberrpa_executor_[A-Za-z0-9_-]{43})")
 
 
 class InvalidExecutorSessionError(Exception):
@@ -106,7 +106,7 @@ def begin_executor_login(
         listExpiredSessionId = list(expiredSessions.values_list("id", flat=True))
         expiredSessions.delete()
         update_jobs_for_revoked_sessions(listExpiredSessionId)
-        strToken = f"lrex_{secrets.token_urlsafe(32)}"
+        strToken = f"liberrpa_executor_{secrets.token_urlsafe(32)}"
         session = ExecutorSession(
             user=user,
             organization=access.organization,

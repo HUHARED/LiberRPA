@@ -336,7 +336,7 @@ export async function signInConsole(args: ConsoleSignInArgs): Promise<ConsoleAcc
       client_version: app.getVersion(),
     });
     const strNewToken = ensureNonEmptyString(dictResponse.token, "Console token");
-    if (!/^lrex_[A-Za-z0-9_-]{43}$/.test(strNewToken)) {
+    if (!/^liberrpa_executor_[A-Za-z0-9_-]{43}$/.test(strNewToken)) {
       throw new Error("Console returned an invalid session credential.");
     }
     // Persist the protected selection credential before any association request can commit remotely.

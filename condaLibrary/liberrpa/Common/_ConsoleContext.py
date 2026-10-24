@@ -134,7 +134,11 @@ def _parse_host_context(
         or urlObj.fragment
     ):
         raise ValueError("The Console host address is invalid.")
-    strTokenPrefix = "lred_" if clientType == ConsoleClientType.EDITOR else "lrex_"
+    strTokenPrefix = (
+        "liberrpa_editor_"
+        if clientType == ConsoleClientType.EDITOR
+        else "liberrpa_executor_"
+    )
     if re.fullmatch(re.escape(strTokenPrefix) + r"[A-Za-z0-9_-]{43}", strToken) is None:
         raise ValueError("The Console host credential is invalid.")
 

@@ -159,7 +159,7 @@ def create_api_key(
             "The active API key limit has been reached.", code="api_key_limit"
         )
 
-    strSecretValue = f"lrpa_{secrets.token_urlsafe(32)}"
+    strSecretValue = f"liberrpa_api_{secrets.token_urlsafe(32)}"
     apiKey = ApiKey(
         user_id=access.actorId,
         name=name.strip(),
