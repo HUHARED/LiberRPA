@@ -126,7 +126,7 @@ def claim_package_preparations(
 def cancel_package_preparation(
     access: OrganizationAccessContext, package: Package
 ) -> int:
-    require_package_department(access, package.department_id, manage=True)
+    """Cancel preparation for a Package already authorized for management under the caller's organization lock."""
     preparations = PackagePreparation.objects.filter(
         package=package,
         state__in=[PackagePreparationState.PENDING, PackagePreparationState.PREPARING],

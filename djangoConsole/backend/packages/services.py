@@ -74,7 +74,6 @@ class PackageUploadValidationResult:
     blobId: uuid.UUID
     sizeBytes: int
     sha256: str
-    fileSignature: tuple[int, int, int, int]
     metadata: PackageArchiveMetadata
 
 
@@ -178,15 +177,6 @@ def _require_uploaded_blob(upload: PackageUpload) -> uuid.UUID:
     return upload.blob_id
 
 
-def _get_file_signature(fileStat: os.stat_result) -> tuple[int, int, int, int]:
-    return (
-        fileStat.st_dev,
-        fileStat.st_ino,
-        fileStat.st_size,
-        fileStat.st_mtime_ns,
-    )
-
-
 def validate_upload_content(
     upload: PackageUpload,
 ) -> PackageUploadValidationResult | FileOperationError:
@@ -205,18 +195,11 @@ def validate_upload_content(
                 )
             handle.seek(0)
             metadata = read_package_archive(handle)
-            fileSignature = _get_file_signature(fileStat)
-            if _get_file_signature(os.fstat(handle.fileno())) != fileSignature:
-                raise FileOperationError(
-                    "upload_content_changed",
-                    "The uploaded content changed during validation. Upload the Package again.",
-                )
         return PackageUploadValidationResult(
             uploadId=upload.pk,
             blobId=blobId,
             sizeBytes=upload.size_bytes,
             sha256=upload.sha256,
-            fileSignature=fileSignature,
             metadata=metadata,
         )
     except ValidationError as e:
@@ -282,15 +265,8 @@ def complete_upload(
     try:
         if isinstance(validationResult, FileOperationError):
             raise validationResult
-        # Fully received uploads cannot grow; duplicate chunks return without rewriting the file.
-        if (
-            _get_file_signature(get_blob_path(blobId).stat())
-            != validationResult.fileSignature
-        ):
-            raise FileOperationError(
-                "upload_content_changed",
-                "The uploaded content changed during validation. Upload the Package again.",
-            )
+        # Confirm the validated file still exists before committing the Package.
+        get_blob_path(blobId).stat()
         metadata = validationResult.metadata
         strNameKey = get_path_name_key(metadata.projectName)
         strVersionKey = get_path_name_key(metadata.projectVersion)
@@ -363,7 +339,7 @@ def save_package_settings(
     package: Package,
     payload: PackageSettingsRequest,
 ) -> None:
-    require_package_department(access, package.department_id, manage=True)
+    """Update a Package already authorized for management under the caller's organization lock."""
     runSettings = validate_run_settings(package, payload.settings)
     if not set(payload.api_input_keys) <= set(package.argument_names):
         raise ValidationError({
@@ -524,7 +500,7 @@ def get_package_references(package: Package) -> list[dict[str, str]]:
 
 
 def delete_package(access: OrganizationAccessContext, package: Package) -> None:
-    require_package_department(access, package.department_id, manage=True)
+    """Delete a Package already authorized for management under the caller's organization lock."""
     if get_package_references(package):
         raise FileOperationError(
             "package_in_use",

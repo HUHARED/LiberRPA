@@ -85,7 +85,6 @@ class FileUploadValidationResult:
     blobId: uuid.UUID
     sizeBytes: int
     sha256: str
-    fileSignature: tuple[int, int, int, int]
 
 
 def _get_request_digest(payload: object) -> str:
@@ -258,15 +257,6 @@ def prepare_upload_validation(upload: UploadSession) -> None:
                 pass
 
 
-def _get_file_signature(fileStat: os.stat_result) -> tuple[int, int, int, int]:
-    return (
-        fileStat.st_dev,
-        fileStat.st_ino,
-        fileStat.st_size,
-        fileStat.st_mtime_ns,
-    )
-
-
 def validate_upload_content(
     upload: UploadSession,
 ) -> FileUploadValidationResult | FileOperationError:
@@ -293,12 +283,6 @@ def validate_upload_content(
                 )
             if upload.size_bytes == 0:
                 os.fsync(handle.fileno())
-            fileSignature = _get_file_signature(fileStat)
-            if _get_file_signature(os.fstat(handle.fileno())) != fileSignature:
-                return FileOperationError(
-                    "upload_content_changed",
-                    "The uploaded content changed during validation. Upload the file again.",
-                )
         if upload.size_bytes == 0:
             sync_directory(path.parent.parent)
             sync_directory(path.parent)
@@ -311,7 +295,6 @@ def validate_upload_content(
         blobId=blobId,
         sizeBytes=upload.size_bytes,
         sha256=upload.sha256,
-        fileSignature=fileSignature,
     )
 
 
@@ -351,14 +334,7 @@ def complete_upload(
         if isinstance(validationResult, FileOperationError):
             raise validationResult
         # Fully received uploads cannot grow; duplicate chunks never rewrite confirmed content.
-        if (
-            _get_file_signature(get_blob_path(blobId).stat())
-            != validationResult.fileSignature
-        ):
-            raise FileOperationError(
-                "upload_content_changed",
-                "The uploaded content changed during validation. Upload the file again.",
-            )
+        get_blob_path(blobId).stat()
         existingFile = SharedFile.objects.filter(
             department_id=upload.department_id, name_key=get_path_name_key(upload.name)
         ).first()
