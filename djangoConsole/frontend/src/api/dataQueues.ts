@@ -2,67 +2,23 @@
 
 import { requestApi } from "./client";
 import { ApiError } from "./errors";
-import {
-  isRecord,
-  rejectInvalidResponse,
-  parsePaginationResponse,
-  parseMessageResponse,
-} from "./responses";
+import { isRecord, rejectInvalidResponse, parseMessageResponse } from "./responses";
 
-import {
-  ARR_QUEUE_ITEM_STATUS,
-  type QueueItemFilterStatus,
-  type QueueItemOrder,
-  type QueueCreationRequest,
-  type QueueDetailsRequest,
-  type QueueDetailsResponse,
-  type QueueEntryResponse,
-  type QueueItemDetailsResponse,
-  type QueueItemResponse,
-  type QueueItemsResponse,
-  type QueueListResponse,
-  type QueueMutationResponse,
-  type JsonValue,
+import type {
+  QueueItemFilterStatus,
+  QueueItemOrder,
+  QueueCreationRequest,
+  QueueDetailsRequest,
+  QueueDetailsResponse,
+  QueueItemDetailsResponse,
+  QueueItemsResponse,
+  QueueListResponse,
+  QueueMutationResponse,
+  JsonValue,
 } from "./generated/browserApi";
 
 const API_ROOT = "/data-queues/";
 
-function isQueue(value: unknown): value is QueueEntryResponse {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.name === "string" &&
-    typeof value.path === "string" &&
-    typeof value.notes === "string" &&
-    isRecord(value.department) &&
-    typeof value.department.id === "string" &&
-    typeof value.department.path === "string" &&
-    typeof value.can_manage === "boolean" &&
-    typeof value.unclaimed_count === "number" &&
-    typeof value.claimed_count === "number" &&
-    typeof value.created_at === "string" &&
-    typeof value.updated_at === "string"
-  );
-}
-function isItem(value: unknown): value is QueueItemResponse {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.sequence === "number" &&
-    ARR_QUEUE_ITEM_STATUS.some((status) => status === value.status) &&
-    typeof value.data_summary === "string" &&
-    typeof value.uploaded_by_id === "string" &&
-    typeof value.uploaded_by_name === "string" &&
-    typeof value.uploaded_at === "string" &&
-    (value.last_claimed_by_id === null || typeof value.last_claimed_by_id === "string") &&
-    typeof value.last_claimed_by_name === "string" &&
-    (value.last_claimed_at === null || typeof value.last_claimed_at === "string")
-  );
-}
-function parseQueueDetailsResponse(payload: unknown): QueueDetailsResponse {
-  if (!isRecord(payload) || !isQueue(payload.queue)) return rejectInvalidResponse();
-  return { queue: payload.queue };
-}
 export async function getQueues(
   name: string,
   departmentIds: string[],
@@ -70,24 +26,15 @@ export async function getQueues(
 ): Promise<QueueListResponse> {
   const query = new URLSearchParams({ name, page: String(page) });
   departmentIds.forEach((id) => query.append("department_id", id));
-  const result = await requestApi(`${API_ROOT}?${query}`);
-  if (!isRecord(result) || !Array.isArray(result.queues) || !result.queues.every(isQueue))
-    return rejectInvalidResponse();
-  return {
-    ...result,
-    queues: result.queues,
-    ...parsePaginationResponse(result),
-  };
+  return requestApi<QueueListResponse>(`${API_ROOT}?${query}`);
 }
 export async function saveQueue(
   body: QueueCreationRequest | QueueDetailsRequest,
   queueId?: string,
 ): Promise<QueueDetailsResponse> {
-  return parseQueueDetailsResponse(
-    await requestApi(queueId ? `${API_ROOT}${encodeURIComponent(queueId)}/` : API_ROOT, {
-      method: "POST",
-      body,
-    }),
+  return requestApi<QueueDetailsResponse>(
+    queueId ? `${API_ROOT}${encodeURIComponent(queueId)}/` : API_ROOT,
+    { method: "POST", body },
   );
 }
 export async function getQueueItems(
@@ -99,32 +46,17 @@ export async function getQueueItems(
 ): Promise<QueueItemsResponse> {
   const query = new URLSearchParams({ status, order, page: String(page) });
   if (itemId) query.set("item_id", itemId);
-  const result = await requestApi(
+  return requestApi<QueueItemsResponse>(
     `${API_ROOT}${encodeURIComponent(queueId)}/items/?${query}`,
   );
-  if (
-    !isRecord(result) ||
-    !isQueue(result.queue) ||
-    !Array.isArray(result.items) ||
-    !result.items.every(isItem)
-  )
-    return rejectInvalidResponse();
-  return {
-    ...result,
-    queue: result.queue,
-    items: result.items,
-    ...parsePaginationResponse(result),
-  };
 }
 export async function getQueueItem(
   queueId: string,
   itemId: string,
 ): Promise<QueueItemDetailsResponse> {
-  const result = await requestApi(
+  return requestApi<QueueItemDetailsResponse>(
     `${API_ROOT}${encodeURIComponent(queueId)}/items/${encodeURIComponent(itemId)}/`,
   );
-  if (!isItem(result) || !("data" in result)) return rejectInvalidResponse();
-  return result as QueueItemDetailsResponse;
 }
 export async function deleteQueue(queueId: string): Promise<void> {
   const result = await requestApi(`${API_ROOT}${encodeURIComponent(queueId)}/deletion/`, {

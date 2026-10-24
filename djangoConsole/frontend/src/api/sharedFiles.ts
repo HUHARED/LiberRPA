@@ -4,7 +4,7 @@ import { getSha256, downloadFile } from "@/app/files";
 
 import { requestApi } from "./client";
 import { ApiError } from "./errors";
-import { isRecord, isNonnegativeInteger, parsePaginationResponse } from "./responses";
+import { isRecord, isNonnegativeInteger } from "./responses";
 
 import {
   ARR_FILE_UPLOAD_STATE,
@@ -86,32 +86,7 @@ export function clearFileRequestIdentity(identity: {
     sessionStorage.removeItem(identity.key);
 }
 export async function getSharedFiles(body: FileListRequest): Promise<FileListResponse> {
-  const value = await requestApi(`${API_ROOT}list/`, { method: "POST", body });
-  if (
-    !isRecord(value) ||
-    !Array.isArray(value.files) ||
-    !value.files.every(isFileInfoResponse) ||
-    !(value.department_path === null || typeof value.department_path === "string") ||
-    !isRecord(value.usage) ||
-    !isNonnegativeInteger(value.usage.used_bytes) ||
-    !isNonnegativeInteger(value.usage.reserved_bytes) ||
-    !isNonnegativeInteger(value.usage.pending_cleanup_bytes) ||
-    !isNonnegativeInteger(value.usage.limit_bytes) ||
-    !isNonnegativeInteger(value.usage.max_file_bytes)
-  )
-    return rejectInvalidFileResponse();
-  return {
-    files: value.files,
-    department_path: value.department_path,
-    usage: {
-      used_bytes: value.usage.used_bytes,
-      reserved_bytes: value.usage.reserved_bytes,
-      pending_cleanup_bytes: value.usage.pending_cleanup_bytes,
-      limit_bytes: value.usage.limit_bytes,
-      max_file_bytes: value.usage.max_file_bytes,
-    },
-    ...parsePaginationResponse(value),
-  };
+  return requestApi<FileListResponse>(`${API_ROOT}list/`, { method: "POST", body });
 }
 export async function createSharedUpload(
   body: FileUploadRequest,

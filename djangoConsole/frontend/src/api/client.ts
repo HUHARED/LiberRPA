@@ -99,7 +99,7 @@ async function fetchApi(
     }
     throw apiError;
   }
-  if (responsePayload === null) {
+  if (!isRecord(responsePayload)) {
     throw new ApiError("The service returned an unexpected response. Please try again.", {
       statusCode: response.status,
       code: "invalid_response",
@@ -142,10 +142,11 @@ async function getCsrfToken(): Promise<string> {
   return pendingRequest;
 }
 
-export async function requestApi(
+// Generated response types support display endpoints; action protocols still validate unknown values.
+export async function requestApi<TResponse = unknown>(
   path: string,
   options: ApiRequestOptions = {},
-): Promise<unknown> {
+): Promise<TResponse> {
   if (!path.startsWith("/") || path.startsWith("//") || /[\\\r\n]/.test(path)) {
     throw new Error("API paths must be relative to this Console instance.");
   }
@@ -154,5 +155,5 @@ export async function requestApi(
       ? await getCsrfToken()
       : undefined;
   // Do not replay mutations after a network or CSRF failure; the user keeps control of retries.
-  return fetchApi(path, options, strToken);
+  return (await fetchApi(path, options, strToken)) as TResponse;
 }
