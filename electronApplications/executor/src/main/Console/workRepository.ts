@@ -11,11 +11,7 @@ import type {
 import { getDatabase } from "../Database/connection";
 import type { RunStartedFact, RunEndedFact, RunTerminationReason } from "../Run/types";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
-import {
-  ConsoleEventKind,
-  resetConsoleEventRetention,
-  saveConsoleEvent,
-} from "./eventRepository";
+import { ConsoleEventKind, saveConsoleEvent } from "./eventRepository";
 
 export enum ConsoleWorkState {
   Preparing = "preparing",
@@ -100,7 +96,6 @@ export function getConsoleWork(id: string): ConsoleWorkRecord | undefined {
 }
 
 export function saveConsoleWork(record: ConsoleWorkRecord): void {
-  resetConsoleEventRetention(record);
   const existing = getConsoleWork(record.assignment.id);
   if (existing) {
     record.logOffsets = { ...record.logOffsets, ...existing.logOffsets };
@@ -201,7 +196,6 @@ export function saveConsoleLogProgress(
 ): void {
   const record = getConsoleWork(id);
   if (!record) return;
-  resetConsoleEventRetention(record);
   record.logOffsets = offsets;
   // Cleanup may remove the logs while an upload is waiting for a response; keep the reason that still needs to be reported.
   record.logsFinished ||=

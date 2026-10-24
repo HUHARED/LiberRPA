@@ -180,16 +180,6 @@ class WorkPollRequest(JsonRequest):
     received_assignment_id: UuidValue | None = None
 
 
-class WorkEventRetentionRequest(JsonRequest):
-    assignment_ids: list[UuidValue] = Field(min_length=1, max_length=50)
-
-    @model_validator(mode="after")
-    def validate_assignments(self) -> Self:
-        if len(set(self.assignment_ids)) != len(self.assignment_ids):
-            raise ValueError("Include each assignment only once.")
-        return self
-
-
 class WorkPermitRequest(JsonRequest):
     assignment_id: UuidValue
 

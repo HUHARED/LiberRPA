@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, TypedDict, cast
 
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import DatabaseError
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Q
 from django.http import HttpRequest, JsonResponse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -38,14 +38,12 @@ from operations.maintenance import ServiceMaintenanceError
 from .contracts import (
     JobState,
     AssignmentState,
-    RunStatus,
     RunEventKind,
     WorkPollRequest,
-    WorkEventRetentionRequest,
     WorkPermitRequest,
     WorkEventsRequest,
 )
-from .models import Assignment, Run, RunEvent
+from .models import Assignment
 from .executor_state import update_executor_work_state
 from .dispatch import get_start_evidence_not_before, issue_start_permit
 from .events import receive_event
@@ -96,15 +94,6 @@ class WorkEventRejection(TypedDict):
 class WorkEventsResponse(TypedDict):
     accepted_event_ids: list[uuid.UUID]
     rejected_events: list[WorkEventRejection]
-
-
-class ResolvedEventAssignment(TypedDict):
-    assignment_id: uuid.UUID
-    run_started: bool
-
-
-class WorkEventRetentionResponse(TypedDict):
-    resolved_assignments: list[ResolvedEventAssignment]
 
 
 def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> JsonResponse:
@@ -181,55 +170,6 @@ def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> Jso
     return JsonResponse(dictResponse)
 
 
-def _check_event_retention(
-    authentication: ExecutorClientResult, payload: WorkEventRetentionRequest
-) -> JsonResponse:
-    """Check whether the original work has finished, without accepting, retrying or deleting events."""
-    session = authentication.session
-    nonStartReceipts = RunEvent.objects.filter(
-        assignment_id=OuterRef("pk"), kind=RunEventKind.NOT_STARTED
-    )
-    endedRuns = Run.objects.filter(
-        assignment_id=OuterRef("pk"), ended_at__isnull=False
-    ).exclude(status=RunStatus.RUNNING)
-    unfinishedAssignments = Assignment.objects.filter(job_id=OuterRef("job_id")).filter(
-        ~Q(state__in=(AssignmentState.FINISHED, AssignmentState.WITHDRAWN))
-        | (
-            Q(permit_expires_at__isnull=False)
-            & ~Exists(nonStartReceipts)
-            & ~Exists(endedRuns)
-        )
-    )
-    unfinishedRuns = Run.objects.filter(job_id=OuterRef("job_id")).filter(
-        Q(ended_at__isnull=True) | Q(status=RunStatus.RUNNING)
-    )
-    assignments = (
-        Assignment.objects
-        .filter(
-            ~Exists(unfinishedAssignments),
-            ~Exists(unfinishedRuns),
-            pk__in=payload.assignment_ids,
-            session_id=session.id,
-            executor_id=session.executor_id,
-            job__request__organization_id=authentication.access.organization.id,
-            job__state=JobState.FINISHED,
-            job__ended_at__isnull=False,
-            job__retry_at__isnull=True,
-        )
-        .annotate(has_run=Exists(Run.objects.filter(assignment_id=OuterRef("pk"))))
-        .order_by("id")
-        .values_list("id", "has_run")
-    )
-    # A missing assignment is not evidence of completion (for example after backup restore).
-    dictResponse: WorkEventRetentionResponse = {
-        "resolved_assignments": [
-            {"assignment_id": assignmentId, "run_started": boolHasRun}
-            for assignmentId, boolHasRun in assignments
-        ]
-    }
-    return JsonResponse(dictResponse)
-
-
 @csrf_exempt
 @never_cache
 @require_POST
@@ -245,7 +185,6 @@ def executor_work_endpoint(request: HttpRequest, action: str) -> JsonResponse:
             "poll": WorkPollRequest,
             "permit": WorkPermitRequest,
             "events": WorkEventsRequest,
-            "event-retention": WorkEventRetentionRequest,
         }[action]
         payload = parse_json_request(request, requestClass, maxBodyBytes=1024 * 1024)
         if isinstance(payload, JsonResponse):
@@ -257,10 +196,6 @@ def executor_work_endpoint(request: HttpRequest, action: str) -> JsonResponse:
                 authentication = cast(ExecutorClientResult, result)
                 if action == "poll":
                     return _poll(authentication, cast(WorkPollRequest, payload))
-                if action == "event-retention":
-                    return _check_event_retention(
-                        authentication, cast(WorkEventRetentionRequest, payload)
-                    )
                 if action == "permit":
                     session = authentication.session
                     assignment = issue_start_permit(

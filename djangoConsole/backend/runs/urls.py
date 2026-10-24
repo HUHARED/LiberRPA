@@ -56,12 +56,6 @@ urlpatterns = [
         {"action": "events"},
         name="executor-work-events",
     ),
-    path(
-        "clients/executor/work/event-retention/",
-        executor_work_endpoint,
-        {"action": "event-retention"},
-        name="executor-work-event-retention",
-    ),
     path("clients/executor/runs/<uuid:runId>/logs/", upload_logs),
     path("clients/executor/file-transfers/<uuid:transferId>/ready/", set_file_ready),
 ]

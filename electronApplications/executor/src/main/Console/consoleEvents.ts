@@ -2,12 +2,7 @@
 
 import { getErrorMessage } from "../../shared/error";
 
-import {
-  ensureRecord,
-  ensureString,
-  ensureNonEmptyString,
-  ensureBoolean,
-} from "../Common/validation";
+import { ensureRecord, ensureString, ensureNonEmptyString } from "../Common/validation";
 import { loggerMain } from "../Logging/logger";
 import { ConsoleRequestError, requestConsole } from "./consoleApi";
 import type { ConsoleCredentialSnapshot } from "./consoleContextBridge";
@@ -18,12 +13,9 @@ import {
 import { getConsoleWorkSessionKey } from "./workRepository";
 import {
   type ConsoleEventReceipt,
-  type ConsoleEventRetentionResolution,
   onConsoleEventSaved,
   getPendingConsoleEvents,
   acknowledgeConsoleEvents,
-  getConsoleEventRetentionCandidates,
-  confirmConsoleEventRetention,
   deleteExpiredConsoleEventDiagnostics,
 } from "./eventRepository";
 
@@ -31,9 +23,6 @@ const INT_EVENT_MAINTENANCE_INTERVAL_MS = 60 * 60 * 1000;
 const INT_EVENT_SHUTDOWN_TIMEOUT_MS = 10_000;
 let timerEventRetry: NodeJS.Timeout | undefined;
 let promiseEvents: Promise<void> | undefined;
-let promiseEventMaintenance: Promise<void> | undefined;
-let floatNextEventMaintenanceAt = 0;
-let strEventMaintenanceSessionKey: string | undefined;
 let boolEventsRequested = false;
 let boolEventFailureLogged = false;
 let intEventRetryDelayMs = 2000;
@@ -153,58 +142,13 @@ export function requestConsoleEvents(): void {
     });
 }
 
-async function maintainConsoleEventDiagnostics(
-  credential: ConsoleCredentialSnapshot | null,
-): Promise<void> {
-  const intDeleted = deleteExpiredConsoleEventDiagnostics();
-  if (intDeleted) loggerMain.info(`Removed ${intDeleted} expired Run event diagnostics.`);
-  if (!credential) return;
-  const strSessionKey = getConsoleWorkSessionKey(credential);
-  const arrCandidate = getConsoleEventRetentionCandidates(strSessionKey);
-  if (!arrCandidate.length) return;
-  const setAssignmentId = new Set(arrCandidate.map((entry) => entry.assignmentId));
-  const response = await requestConsole(
-    credential.consoleUrl,
-    "executor/work/event-retention/",
-    credential.token,
-    { assignment_ids: [...setAssignmentId] },
-  );
-  if (boolStopped || !isCurrentConsoleControlCredential(credential)) return;
-  if (!Array.isArray(response.resolved_assignments))
-    throw new Error("Console returned invalid event retention information.");
-  const setResolvedId = new Set<string>();
-  const arrResolution: ConsoleEventRetentionResolution[] = [];
-  for (const value of response.resolved_assignments) {
-    const item = ensureRecord(value, "Resolved assignment");
-    const strAssignmentId = ensureNonEmptyString(item.assignment_id, "Assignment ID");
-    if (!setAssignmentId.has(strAssignmentId) || setResolvedId.has(strAssignmentId))
-      throw new Error("Console returned an unexpected event retention identity.");
-    const boolRunStarted = ensureBoolean(item.run_started, "Run started");
-    setResolvedId.add(strAssignmentId);
-    arrResolution.push({ assignmentId: strAssignmentId, runStarted: boolRunStarted });
+function maintainConsoleEventDiagnostics(): void {
+  try {
+    const intDeleted = deleteExpiredConsoleEventDiagnostics();
+    if (intDeleted) loggerMain.info(`Removed ${intDeleted} expired Run event diagnostics.`);
+  } catch (e: unknown) {
+    loggerMain.warn(`Run event diagnostic cleanup: ${getErrorMessage(e)}`);
   }
-  confirmConsoleEventRetention(strSessionKey, arrCandidate, arrResolution);
-}
-
-function requestEventDiagnosticMaintenance(): void {
-  if (boolStopped || promiseEventMaintenance) return;
-  const credential = getConsoleControlCredential();
-  const strSessionKey = credential ? getConsoleWorkSessionKey(credential) : undefined;
-  if (
-    performance.now() < floatNextEventMaintenanceAt &&
-    strSessionKey === strEventMaintenanceSessionKey
-  )
-    return;
-  strEventMaintenanceSessionKey = strSessionKey;
-  floatNextEventMaintenanceAt = performance.now() + INT_EVENT_MAINTENANCE_INTERVAL_MS;
-  // Independent of control and event delivery; no diagnostics means no extra HTTP request.
-  promiseEventMaintenance = maintainConsoleEventDiagnostics(credential)
-    .catch((e: unknown) => {
-      loggerMain.warn(`Run event diagnostic cleanup: ${getErrorMessage(e)}`);
-    })
-    .finally(() => {
-      promiseEventMaintenance = undefined;
-    });
 }
 
 export function startConsoleEvents(): void {
@@ -213,12 +157,13 @@ export function startConsoleEvents(): void {
   floatEventRetryAt = 0;
   strEventRetrySessionKey = undefined;
   boolEventFailureLogged = false;
-  floatNextEventMaintenanceAt = 0;
-  strEventMaintenanceSessionKey = undefined;
   stopEventListener = onConsoleEventSaved(requestConsoleEvents);
-  timerEventMaintenance = setInterval(requestEventDiagnosticMaintenance, 2000);
+  timerEventMaintenance = setInterval(
+    maintainConsoleEventDiagnostics,
+    INT_EVENT_MAINTENANCE_INTERVAL_MS,
+  );
   requestConsoleEvents();
-  requestEventDiagnosticMaintenance();
+  maintainConsoleEventDiagnostics();
 }
 
 export async function stopConsoleEvents(): Promise<void> {
@@ -231,7 +176,7 @@ export async function stopConsoleEvents(): Promise<void> {
   timerEventRetry = undefined;
   timerEventMaintenance = undefined;
   boolEventsRequested = false;
-  await Promise.allSettled([promiseEvents, promiseEventMaintenance]);
+  await Promise.allSettled([promiseEvents]);
 
   const credential = getConsoleControlCredential();
   if (!credential) return;
