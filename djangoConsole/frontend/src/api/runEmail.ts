@@ -3,8 +3,8 @@
 import { requestApi } from "./client";
 import { isRecord, rejectInvalidResponse } from "./responses";
 
-import { RunEmailRecipientStatus } from "./generated/browserApi";
 import type {
+  RunEmailRecipientStatus,
   RunEmailRecipientResponse,
   RunEmailRecipientListResponse,
   RunEmailVerificationResponse,
@@ -22,43 +22,18 @@ export type RunEmailTemplates = Record<
 >;
 
 export async function getRunEmailTemplates(): Promise<RunEmailTemplates> {
-  const response = await requestApi("/run-email-recipients/templates/");
-  if (!isRecord(response) || !isRecord(response.defaults)) return rejectInvalidResponse();
-  const defaults = response.defaults;
-  if (
-    !["on_start", "on_completed", "on_error"].every((key) => {
-      const template = defaults[key];
-      return (
-        isRecord(template) &&
-        typeof template.subject === "string" &&
-        typeof template.body === "string"
-      );
-    })
-  )
-    return rejectInvalidResponse();
-  return defaults as RunEmailTemplates;
+  const response = await requestApi<{ defaults: RunEmailTemplates }>(
+    "/run-email-recipients/templates/",
+  );
+  return response.defaults;
 }
 
 export async function getRunEmailRecipients(
   status: RunEmailRecipientFilter = "eligible",
 ): Promise<RunEmailRecipientListResponse> {
-  const response = await requestApi(
+  return requestApi<RunEmailRecipientListResponse>(
     `/run-email-recipients/?${new URLSearchParams({ status })}`,
   );
-  if (
-    !isRecord(response) ||
-    !Array.isArray(response.recipients) ||
-    !response.recipients.every(
-      (value: unknown) =>
-        isRecord(value) &&
-        typeof value.id === "string" &&
-        typeof value.email === "string" &&
-        Object.values(RunEmailRecipientStatus).some((status) => status === value.status),
-    ) ||
-    typeof response.can_manage !== "boolean"
-  )
-    return rejectInvalidResponse();
-  return response as unknown as RunEmailRecipientListResponse;
 }
 
 export async function saveRunEmailRecipient(

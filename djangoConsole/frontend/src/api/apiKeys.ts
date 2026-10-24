@@ -1,83 +1,45 @@
 // FileName: apiKeys.ts
 
 import { requestApi } from "./client";
-import {
-  isRecord,
-  isNonnegativeInteger,
-  isDateString,
-  isNullableDateString,
-  rejectInvalidResponse,
-} from "./responses";
+import { isRecord, isDateString, rejectInvalidResponse } from "./responses";
 
-import {
-  ARR_API_KEY_STATUS,
-  type ApiKeyStatus,
-  type ApiKeyCreateRequest,
-  type ApiKeyCreationResponse,
-  type ApiKeyResponse,
-  type ApiKeyListResponse,
-  type ApiKeyNotesRequest,
-  type ApiKeyWriteResponse,
+import type {
+  ApiKeyStatus,
+  ApiKeyCreateRequest,
+  ApiKeyCreationResponse,
+  ApiKeyResponse,
+  ApiKeyListResponse,
+  ApiKeyNotesRequest,
+  ApiKeyWriteResponse,
 } from "./generated/browserApi";
 
-function parseApiKey(payload: unknown): ApiKeyResponse {
-  if (!isRecord(payload)) return rejectInvalidResponse();
-  const status = ARR_API_KEY_STATUS.find((value) => value === payload.status);
-  if (
-    typeof payload.id !== "string" ||
-    typeof payload.name !== "string" ||
-    status === undefined ||
-    !isDateString(payload.expires_at) ||
-    !isNullableDateString(payload.last_used_at) ||
-    typeof payload.notes !== "string" ||
-    !isDateString(payload.created_at) ||
-    !isNullableDateString(payload.revoked_at)
-  )
-    return rejectInvalidResponse();
+function getApiKeyMetadata(apiKey: ApiKeyResponse): ApiKeyResponse {
   // Keep only metadata in tables and events; credentials belong only in the creation dialog.
   return {
-    id: payload.id,
-    name: payload.name,
-    status,
-    expires_at: payload.expires_at,
-    last_used_at: payload.last_used_at,
-    notes: payload.notes,
-    created_at: payload.created_at,
-    revoked_at: payload.revoked_at,
+    id: apiKey.id,
+    name: apiKey.name,
+    status: apiKey.status,
+    expires_at: apiKey.expires_at,
+    last_used_at: apiKey.last_used_at,
+    notes: apiKey.notes,
+    created_at: apiKey.created_at,
+    revoked_at: apiKey.revoked_at,
   };
-}
-
-export function parseApiKeyListResponse(payload: unknown): ApiKeyListResponse {
-  if (
-    !isRecord(payload) ||
-    !Array.isArray(payload.api_keys) ||
-    !isDateString(payload.default_expires_at) ||
-    !isRecord(payload.limits) ||
-    !isNonnegativeInteger(payload.limits.active_keys) ||
-    !isNonnegativeInteger(payload.limits.inactive_retention_days) ||
-    !isNonnegativeInteger(payload.limits.inactive_records)
-  )
-    return rejectInvalidResponse();
-  return {
-    api_keys: payload.api_keys.map(parseApiKey),
-    default_expires_at: payload.default_expires_at,
-    limits: {
-      active_keys: payload.limits.active_keys,
-      inactive_retention_days: payload.limits.inactive_retention_days,
-      inactive_records: payload.limits.inactive_records,
-    },
-  };
-}
-
-export function parseApiKeyWriteResponse(payload: unknown): ApiKeyWriteResponse {
-  if (!isRecord(payload)) return rejectInvalidResponse();
-  return { api_key: parseApiKey(payload.api_key) };
 }
 
 export function parseApiKeyCreationResponse(payload: unknown): ApiKeyCreationResponse {
-  if (!isRecord(payload) || typeof payload.secret !== "string" || !payload.secret)
+  if (
+    !isRecord(payload) ||
+    typeof payload.secret !== "string" ||
+    !payload.secret ||
+    !isRecord(payload.api_key) ||
+    typeof payload.api_key.id !== "string"
+  )
     return rejectInvalidResponse();
-  return { api_key: parseApiKey(payload.api_key), secret: payload.secret };
+  return {
+    api_key: getApiKeyMetadata(payload.api_key as unknown as ApiKeyResponse),
+    secret: payload.secret,
+  };
 }
 
 function getApiKeyCollectionPath(memberId?: string): string {
@@ -92,9 +54,19 @@ export async function getApiKeyList(
 ): Promise<ApiKeyListResponse> {
   const parameters = new URLSearchParams();
   for (const strStatus of statuses) parameters.append("status", strStatus);
-  return parseApiKeyListResponse(
-    await requestApi(`${getApiKeyCollectionPath(memberId)}?${parameters}`),
+  const response = await requestApi<ApiKeyListResponse>(
+    `${getApiKeyCollectionPath(memberId)}?${parameters}`,
   );
+  if (!isDateString(response.default_expires_at)) return rejectInvalidResponse();
+  return {
+    api_keys: response.api_keys.map(getApiKeyMetadata),
+    default_expires_at: response.default_expires_at,
+    limits: {
+      active_keys: response.limits.active_keys,
+      inactive_retention_days: response.limits.inactive_retention_days,
+      inactive_records: response.limits.inactive_records,
+    },
+  };
 }
 
 export async function createApiKey(
@@ -110,24 +82,22 @@ export async function updateApiKeyNotes(
   notes: string,
 ): Promise<ApiKeyWriteResponse> {
   const request: ApiKeyNotesRequest = { notes };
-  return parseApiKeyWriteResponse(
-    await requestApi(`/auth/api-keys/${encodeURIComponent(apiKeyId)}/`, {
-      method: "POST",
-      body: request,
-    }),
+  const response = await requestApi<ApiKeyWriteResponse>(
+    `/auth/api-keys/${encodeURIComponent(apiKeyId)}/`,
+    { method: "POST", body: request },
   );
+  return { api_key: getApiKeyMetadata(response.api_key) };
 }
 
 export async function revokeApiKey(
   apiKeyId: string,
   memberId?: string,
 ): Promise<ApiKeyWriteResponse> {
-  return parseApiKeyWriteResponse(
-    await requestApi(
-      `${getApiKeyCollectionPath(memberId)}${encodeURIComponent(apiKeyId)}/revoke/`,
-      { method: "POST", body: {} },
-    ),
+  const response = await requestApi<ApiKeyWriteResponse>(
+    `${getApiKeyCollectionPath(memberId)}${encodeURIComponent(apiKeyId)}/revoke/`,
+    { method: "POST", body: {} },
   );
+  return { api_key: getApiKeyMetadata(response.api_key) };
 }
 
 export function getApiKeyStatus(

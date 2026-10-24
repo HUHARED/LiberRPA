@@ -2,7 +2,7 @@
 
 import { ApiError } from "./errors";
 
-import type { PaginationResponse, MessageResponse } from "./generated/browserApi";
+import type { MessageResponse } from "./generated/browserApi";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -28,26 +28,6 @@ export function rejectInvalidResponse(): never {
   throw new ApiError("The service returned an unexpected response. Please try again.", {
     code: "invalid_response",
   });
-}
-
-export function parsePaginationResponse(payload: unknown): PaginationResponse {
-  if (
-    !isRecord(payload) ||
-    !isNonnegativeInteger(payload.page) ||
-    payload.page < 1 ||
-    !isNonnegativeInteger(payload.page_size) ||
-    payload.page_size < 1 ||
-    !isNonnegativeInteger(payload.total_count) ||
-    !isNonnegativeInteger(payload.total_pages) ||
-    payload.total_pages < 1
-  )
-    return rejectInvalidResponse();
-  return {
-    page: payload.page,
-    page_size: payload.page_size,
-    total_count: payload.total_count,
-    total_pages: payload.total_pages,
-  };
 }
 
 export function parseMessageResponse(payload: unknown): MessageResponse {

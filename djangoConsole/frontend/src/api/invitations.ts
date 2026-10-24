@@ -1,129 +1,51 @@
 // FileName: invitations.ts
 
 import { requestApi } from "./client";
-import {
-  isRecord,
-  isDateString,
-  isNullableDateString,
-  rejectInvalidResponse,
-  parsePaginationResponse,
-  parseMessageResponse,
-} from "./responses";
+import { isRecord, rejectInvalidResponse, parseMessageResponse } from "./responses";
 
-import {
-  ARR_DEPARTMENT_ROLE,
-  ARR_INVITATION_STATUS,
-  ARR_EMAIL_STATUS,
-  ARR_EMAIL_REASON_CODE,
-  type InvitationCompletionRequest,
-  type InvitationCreateRequest,
-  type InvitationDetailsResponse,
-  type InvitationResponse,
-  type InvitationDepartmentRoleResponse,
-  type InvitationEmailDeliveryResponse,
-  type InvitationListResponse,
-  type InvitationRegistrationResponse,
-  type InvitationTokenRequest,
+import type {
+  InvitationCompletionRequest,
+  InvitationCreateRequest,
+  InvitationDetailsResponse,
+  InvitationResponse,
+  InvitationEmailDeliveryResponse,
+  InvitationListResponse,
+  InvitationRegistrationResponse,
+  InvitationTokenRequest,
 } from "./generated/browserApi";
-
-function isNullableDeliveryResponse(
-  value: unknown,
-): value is InvitationEmailDeliveryResponse | null {
-  return (
-    value === null ||
-    (isRecord(value) &&
-      typeof value.id === "string" &&
-      ARR_EMAIL_STATUS.some((status) => status === value.status) &&
-      ARR_EMAIL_REASON_CODE.some((reasonCode) => reasonCode === value.reason_code) &&
-      isNullableDateString(value.attempted_at) &&
-      isNullableDateString(value.finished_at))
-  );
-}
-
-function isInvitation(value: unknown): value is InvitationResponse {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.email === "string" &&
-    typeof value.is_org_admin === "boolean" &&
-    typeof value.notes === "string" &&
-    ARR_INVITATION_STATUS.some((status) => status === value.status) &&
-    isDateString(value.created_at) &&
-    isDateString(value.requested_at) &&
-    isDateString(value.expires_at) &&
-    isDateString(value.resend_available_at) &&
-    isNullableDateString(value.accepted_at) &&
-    isNullableDateString(value.revoked_at) &&
-    isNullableDeliveryResponse(value.email_delivery) &&
-    Array.isArray(value.department_roles) &&
-    value.department_roles.every(
-      (assignment: unknown): assignment is InvitationDepartmentRoleResponse =>
-        isRecord(assignment) &&
-        typeof assignment.department_id === "string" &&
-        typeof assignment.department_name === "string" &&
-        typeof assignment.department_path === "string" &&
-        typeof assignment.department_deleted === "boolean" &&
-        ARR_DEPARTMENT_ROLE.some((role) => role === assignment.role),
-    )
-  );
-}
-
-export function parseInvitationDetailsResponse(
-  payload: unknown,
-): InvitationDetailsResponse {
-  if (!isRecord(payload) || !isInvitation(payload.invitation))
-    return rejectInvalidResponse();
-  return { invitation: payload.invitation };
-}
-
-export function parseInvitationListResponse(payload: unknown): InvitationListResponse {
-  if (
-    !isRecord(payload) ||
-    !Array.isArray(payload.invitations) ||
-    !payload.invitations.every(isInvitation)
-  )
-    return rejectInvalidResponse();
-  return {
-    invitations: payload.invitations,
-    pagination: parsePaginationResponse(payload.pagination),
-  };
-}
 
 export async function getInvitationList(
   pageNumber: number = 1,
 ): Promise<InvitationListResponse> {
-  return parseInvitationListResponse(
-    await requestApi(
-      `/organization/invitations/?${new URLSearchParams({ page: String(pageNumber) })}`,
-    ),
+  return requestApi<InvitationListResponse>(
+    `/organization/invitations/?${new URLSearchParams({ page: String(pageNumber) })}`,
   );
 }
 
 export async function getInvitationDetails(
   invitationId: string,
 ): Promise<InvitationDetailsResponse> {
-  return parseInvitationDetailsResponse(
-    await requestApi(`/organization/invitations/${encodeURIComponent(invitationId)}/`),
+  return requestApi<InvitationDetailsResponse>(
+    `/organization/invitations/${encodeURIComponent(invitationId)}/`,
   );
 }
 
 export async function createInvitation(
   request: InvitationCreateRequest,
 ): Promise<InvitationDetailsResponse> {
-  return parseInvitationDetailsResponse(
-    await requestApi("/organization/invitations/", { method: "POST", body: request }),
-  );
+  return requestApi<InvitationDetailsResponse>("/organization/invitations/", {
+    method: "POST",
+    body: request,
+  });
 }
 
 export async function updateInvitation(
   invitationId: string,
   action: "resend" | "revoke",
 ): Promise<InvitationDetailsResponse> {
-  return parseInvitationDetailsResponse(
-    await requestApi(
-      `/organization/invitations/${encodeURIComponent(invitationId)}/${action}/`,
-      { method: "POST", body: {} },
-    ),
+  return requestApi<InvitationDetailsResponse>(
+    `/organization/invitations/${encodeURIComponent(invitationId)}/${action}/`,
+    { method: "POST", body: {} },
   );
 }
 

@@ -3,7 +3,6 @@
 import { requestApi } from "./client";
 import {
   isRecord,
-  isNonnegativeInteger,
   isDateString,
   isNullableDateString,
   rejectInvalidResponse,
@@ -13,52 +12,32 @@ import {
 import type {
   NotificationResponse,
   NotificationListResponse,
+  NotificationDetailsResponse,
   NotificationDetailsRecordResponse,
   NotificationReadResponse,
 } from "./generated/browserApi";
 
 export type { NotificationResponse, NotificationDetailsRecordResponse };
 
-function isNotificationResponse(value: unknown): value is NotificationResponse {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    value.id.length > 0 &&
-    typeof value.title === "string" &&
-    isDateString(value.created_at) &&
-    isNullableDateString(value.read_at)
-  );
-}
-
 export async function getNotifications(): Promise<NotificationListResponse> {
-  const response = await requestApi("/notifications/");
-  if (
-    !isRecord(response) ||
-    !Array.isArray(response.notifications) ||
-    !response.notifications.every(isNotificationResponse) ||
-    !isNonnegativeInteger(response.unread_count) ||
-    response.unread_count > response.notifications.length
-  )
-    return rejectInvalidResponse();
-  return {
-    notifications: response.notifications,
-    unread_count: response.unread_count,
-  };
+  return requestApi<NotificationListResponse>("/notifications/");
 }
 
 export async function getNotificationDetails(
   id: string,
 ): Promise<NotificationDetailsRecordResponse> {
-  const response = await requestApi(`/notifications/${encodeURIComponent(id)}/`);
+  const response = await requestApi<NotificationDetailsResponse>(
+    `/notifications/${encodeURIComponent(id)}/`,
+  );
   if (
     !isRecord(response) ||
     !isRecord(response.notification) ||
-    !isNotificationResponse(response.notification) ||
     response.notification.id !== id ||
+    !isNullableDateString(response.notification.read_at) ||
     typeof response.notification.detail !== "string"
   )
     return rejectInvalidResponse();
-  return { ...response.notification, detail: response.notification.detail };
+  return response.notification;
 }
 
 export async function markNotificationRead(id: string): Promise<NotificationReadResponse> {
