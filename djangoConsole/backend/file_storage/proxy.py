@@ -32,6 +32,7 @@ def get_download_proxy_snapshot() -> DownloadProxySnapshot | None:
 
     capturedAt = timezone.now()
     activeIds: set[uuid.UUID] = set()
+    strFailureReason = "The proxy response could not be read or parsed."
     try:
         with socket.create_connection(
             (proxyConfig.host, proxyConfig.port), timeout=2
@@ -39,7 +40,8 @@ def get_download_proxy_snapshot() -> DownloadProxySnapshot | None:
             connection.sendall(b"show table download_transfers data.conn_cur gt 0\n")
             with connection.makefile("r", encoding="ascii") as response:
                 if not response.readline().startswith("# table: download_transfers,"):
-                    raise ValueError("The download tracking table is unavailable.")
+                    strFailureReason = "The download tracking table is unavailable."
+                    raise ValueError(strFailureReason)
                 for line in response:
                     if not line.strip():
                         break
@@ -49,9 +51,13 @@ def get_download_proxy_snapshot() -> DownloadProxySnapshot | None:
                     if int(fields["conn_cur"]) > 0:
                         activeIds.add(uuid.UUID(fields["key"]))
                 else:
-                    raise ValueError("The download tracking response is incomplete.")
+                    strFailureReason = "The download tracking response is incomplete."
+                    raise ValueError(strFailureReason)
     except (OSError, ValueError, KeyError, UnicodeError):
-        _LOGGER.exception("Could not read active downloads from the transfer proxy.")
+        _LOGGER.exception(
+            "Could not read active downloads from the transfer proxy. %s",
+            strFailureReason,
+        )
         raise FileOperationError(
             "transfer_proxy_unavailable",
             "File downloads are temporarily unavailable. Please try again later.",

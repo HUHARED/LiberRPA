@@ -53,12 +53,12 @@ def _listen_for_notifications(
                         eventLoop.call_soon_threadsafe(
                             onNotification, notification.payload
                         )
-        except (psycopg.Error, OSError) as e:
+        except (psycopg.Error, OSError):
             if not boolUnavailable:
                 _LOGGER.warning(
-                    "Database notification listener disconnected; reconnecting: channel=%s error=%s",
+                    "Database notification listener disconnected; reconnecting: channel=%s.",
                     channel.value,
-                    type(e).__name__,
+                    exc_info=True,
                 )
             boolUnavailable = True
             stopEvent.wait(_INT_RECONNECT_SECONDS)

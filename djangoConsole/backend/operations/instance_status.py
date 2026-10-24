@@ -71,10 +71,10 @@ def load_instance_summary() -> InstanceSummary:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             cursor.fetchone()
-    except DatabaseError as e:
+    except DatabaseError:
         databaseStatus = InstanceHealthStatus.ERROR
         strDatabaseMessage = "Database query failed."
-        _LOGGER.warning("Instance database check failed: %s", type(e).__name__)
+        _LOGGER.warning("Instance database check failed.", exc_info=True)
     databaseCheckedAt = timezone.now()
 
     serviceState = None
@@ -89,9 +89,9 @@ def load_instance_summary() -> InstanceSummary:
                 or is_restored_service_pending_review()
                 else ServiceState.NORMAL
             )
-        except (DatabaseError, OSError) as e:
+        except (DatabaseError, OSError):
             _LOGGER.warning(
-                "Instance maintenance state could not be read: %s", type(e).__name__
+                "Instance maintenance state could not be read.", exc_info=True
             )
 
     schedulerStatus = InstanceHealthStatus.UNKNOWN
@@ -138,9 +138,9 @@ def load_instance_summary() -> InstanceSummary:
                     strSchedulerMessage = (
                         "Schedule scanning and run control have recent activity."
                     )
-        except DatabaseError as e:
+        except DatabaseError:
             strSchedulerMessage = "Scheduler status could not be read."
-            _LOGGER.warning("Instance scheduler check failed: %s", type(e).__name__)
+            _LOGGER.warning("Instance scheduler check failed.", exc_info=True)
 
     emailStatus = InstanceHealthStatus.UNKNOWN
     emailCheckedAt = None
@@ -170,9 +170,9 @@ def load_instance_summary() -> InstanceSummary:
                 elif emailWorker.status == EmailWorkerStatus.FAILED:
                     emailStatus = InstanceHealthStatus.ERROR
                     strEmailMessage = "Email worker stopped after an error."
-        except DatabaseError as e:
+        except DatabaseError:
             strEmailMessage = "Email worker status could not be read."
-            _LOGGER.warning("Instance email worker check failed: %s", type(e).__name__)
+            _LOGGER.warning("Instance email worker check failed.", exc_info=True)
 
     cleanupStatus = InstanceHealthStatus.UNKNOWN
     cleanupCheckedAt = None
@@ -241,9 +241,9 @@ def load_instance_summary() -> InstanceSummary:
                         "Recent routine cleanup runs completed successfully."
                     )
                 break
-        except DatabaseError as e:
+        except DatabaseError:
             strCleanupMessage = "Cleanup status could not be read."
-            _LOGGER.warning("Instance cleanup check failed: %s", type(e).__name__)
+            _LOGGER.warning("Instance cleanup check failed.", exc_info=True)
 
     backupStatus = InstanceHealthStatus.UNKNOWN
     backupCheckedAt = None
@@ -263,11 +263,9 @@ def load_instance_summary() -> InstanceSummary:
                 and lastSuccess.sizeBytes is not None
             ):
                 lastSuccessfulBackup = lastSuccess
-        except (DatabaseError, OSError) as e:
+        except (DatabaseError, OSError):
             strBackupMessage = "Backup status could not be read."
-            _LOGGER.warning(
-                "Instance backup status could not be read: %s", type(e).__name__
-            )
+            _LOGGER.warning("Instance backup status could not be read.", exc_info=True)
 
     listComponent = [
         InstanceComponentInfo(
@@ -324,9 +322,9 @@ def load_instance_summary() -> InstanceSummary:
             else:
                 storageStatus = InstanceHealthStatus.HEALTHY
                 strStorageMessage = "File storage has sufficient free space."
-    except OSError as e:
+    except OSError:
         strStorageMessage = "File storage space could not be read."
-        _LOGGER.warning("Instance storage check failed: %s", type(e).__name__)
+        _LOGGER.warning("Instance storage check failed.", exc_info=True)
     storageCheckedAt = timezone.now()
 
     return InstanceSummary(

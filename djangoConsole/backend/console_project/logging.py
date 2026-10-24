@@ -22,7 +22,7 @@ from traceback import walk_tb
 from types import TracebackType
 from typing import get_args
 
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 from pydantic_core.core_schema import ErrorType
 from psycopg import Error as PsycopgError
 
@@ -49,36 +49,17 @@ def get_exception_summary(error: BaseException) -> str:
     """Describe the error without its message, command arguments, or file contents."""
     listDetail = [type(error).__name__]
     if isinstance(error, ValidationError):
-        # Validation locations can contain user keys; only declared field names and aliases are public.
-        setFieldName: set[str] = set()
-        setModelClass: set[type[BaseModel]] = set()
-        listModelClass = [BaseModel]
-        while listModelClass:
-            modelClass = listModelClass.pop()
-            if modelClass in setModelClass:
-                continue
-            setModelClass.add(modelClass)
-            for strFieldName, fieldInfo in modelClass.model_fields.items():
-                setFieldName.add(strFieldName)
-                if fieldInfo.alias is not None:
-                    setFieldName.add(fieldInfo.alias)
-            listModelClass.extend(modelClass.__subclasses__())
-
         intErrorCount = error.error_count()
         listDetail.append(f"Validation errors: {intErrorCount}")
         for detail in error.errors(
             include_url=False, include_input=False, include_context=False
         )[:_INT_VALIDATION_ERROR_LIMIT]:
-            strPath = ".".join(
-                str(part) if isinstance(part, int) or part in setFieldName else "[key]"
-                for part in detail["loc"]
-            )
             strErrorType = (
                 detail["type"]
                 if detail["type"] in _SET_VALIDATION_ERROR_TYPE
                 else "custom_error"
             )
-            listDetail.append(f"{strPath or '<root>'}: {strErrorType}")
+            listDetail.append(strErrorType)
         if intErrorCount > _INT_VALIDATION_ERROR_LIMIT:
             listDetail.append("Additional validation errors omitted")
     if isinstance(error, OSError) and error.errno is not None:

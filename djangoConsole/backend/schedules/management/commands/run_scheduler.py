@@ -8,7 +8,6 @@ import logging
 from threading import Event
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
-from django.db import DatabaseError
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
@@ -76,6 +75,6 @@ class Command(BaseCommand):
                     if options["once"]:
                         break
                     stopEvent.wait(0.01 if scanWindow is not None else 0.5)
-        except (WorkerAlreadyRunningError, DatabaseError) as e:
-            raise CommandError("Schedule worker stopped: " + type(e).__name__) from None
+        except WorkerAlreadyRunningError as e:
+            raise CommandError(str(e)) from None
         _LOGGER.info("Schedule worker stopped.")
