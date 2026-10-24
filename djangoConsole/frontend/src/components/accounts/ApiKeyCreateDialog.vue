@@ -84,10 +84,11 @@
 
           <v-text-field
             v-model="strExpiresAt"
-            :label="`Expires At (${strTimeZone})`"
             type="datetime-local"
+            step="1"
+            :label="`Expires At (${strTimeZone})`"
             variant="outlined"
-            :rules="[validateExpiry]"
+            :rules="[(value) => !!value || 'Enter an expiry time.']"
             :error-messages="saveError?.fields.expires_at ?? []"
             :disabled="boolSaving || boolUncertain"
             required />
@@ -188,7 +189,7 @@ const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 const strName = ref("");
 
 const strExpiresAt = ref(
-  `${formatDateTimeInput(props.defaultExpiresAt, strTimeZone).slice(0, 10)}T00:00`,
+  `${formatDateTimeInput(props.defaultExpiresAt, strTimeZone).slice(0, 10)}T00:00:00`,
 );
 
 const strNotes = ref("");
@@ -215,10 +216,6 @@ let boolUnmounted = false;
 
 function validateName(value: string): true | string {
   return value.trim() ? true : "Enter a name.";
-}
-
-function validateExpiry(value: string): true | string {
-  return value ? true : "Choose an expiry date and time.";
 }
 
 function closeDialog(): void {

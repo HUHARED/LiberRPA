@@ -8,7 +8,11 @@ import {
 } from "@/api/runSettings";
 import type { PackagePreparationState, PackageUploadState } from "@/api/packages";
 import type { JobSource, RunEventKind } from "@/api/runs";
-import { JobState, RunStatus } from "@/api/generated/browserApi";
+import {
+  type ExecutorAssociationStatus,
+  JobState,
+  RunStatus,
+} from "@/api/generated/browserApi";
 
 export const CONFLICT_POLICY_LABELS: Record<ConflictPolicy, string> = {
   skip: "Skip This Run",
@@ -29,6 +33,15 @@ export const ARR_PRIORITY_OPTION = ARR_PRIORITY.map((value) => ({
   title: PRIORITY_LABELS[value],
 }));
 
+export const DICT_ASSOCIATION_STATE: Record<
+  ExecutorAssociationStatus,
+  { title: string; color: string }
+> = {
+  unassociated: { title: "Unassociated", color: "secondary" },
+  online: { title: "Online", color: "success" },
+  offline: { title: "Offline", color: "warning" },
+};
+
 export const PACKAGE_UPLOAD_LABELS: Record<PackageUploadState, string> = {
   receiving: "Receiving",
   completed: "Completed",
@@ -41,6 +54,12 @@ export const PACKAGE_PREPARATION_LABELS: Record<PackagePreparationState, string>
   preparing: "Preparing",
   ready: "Ready",
   failed: "Failed",
+};
+export const PACKAGE_PREPARATION_COLORS: Record<PackagePreparationState, string> = {
+  pending: "inactive",
+  preparing: "info",
+  ready: "success",
+  failed: "error",
 };
 
 export const JOB_SOURCE_LABELS: Record<JobSource, string> = {

@@ -1,5 +1,7 @@
 <!-- FileName: RunTable.vue -->
 <template>
+  <TimeZoneHint :time-zone="timeZone" class="px-4" />
+
   <v-table>
     <thead>
       <tr>
@@ -16,9 +18,9 @@
       <tr v-for="run in runs" :key="run.id">
         <td>{{ run.attempt_number }}</td>
         <td>{{ run.executor_name }}</td>
-        <td class="text-no-wrap">{{ formatDateTime(run.started_at, timeZone) }}</td>
+        <td class="text-no-wrap">{{ formatDateTime(run.started_at, timeZone, false) }}</td>
         <td class="text-no-wrap">
-          {{ formatRunEndTime(run, timeZone) }}
+          {{ formatRunEndTime(run, timeZone, false) }}
         </td>
         <td>
           <v-chip
@@ -48,6 +50,8 @@
 
 <script setup lang="ts">
 import type { LocationQueryRaw } from "vue-router";
+
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 
 import type { RunInfo } from "@/api/runs";
 import { RUN_STATUS_LABELS, RUN_STATUS_COLORS } from "@/app/runLabels";

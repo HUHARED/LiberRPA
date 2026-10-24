@@ -11,7 +11,7 @@
       <v-card-title id="file-upload-title">Upload File</v-card-title>
 
       <v-card-text>
-        <v-form id="file-upload-form" validate-on="blur" @submit.prevent="submit">
+        <v-form id="file-upload-form" validate-on="input" @submit.prevent="submit">
           <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
             {{ error.message }}
             <p v-if="error.statusCode === 0 || error.code === 'invalid_response'">

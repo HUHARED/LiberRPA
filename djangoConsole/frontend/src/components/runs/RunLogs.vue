@@ -80,10 +80,12 @@
     </v-col>
   </v-row>
 
-  <p class="text-body-2 text-medium-emphasis my-3">
-    Filters apply to loaded logs. {{ arrLog.length }} loaded entries ·
-    {{ formatFileSize(intLoadedBytes) }} · Time zone: {{ timeZone }}
-  </p>
+  <TimeZoneHint :time-zone="timeZone" class="mt-3">
+    <span>
+      Filters apply to loaded logs. {{ arrLog.length }} loaded entries ·
+      {{ formatFileSize(intLoadedBytes) }}
+    </span>
+  </TimeZoneHint>
 
   <v-data-table
     v-model:expanded="arrExpanded"
@@ -96,7 +98,7 @@
     disable-sort
     @update:expanded="pauseFollow">
     <template #item.timestamp="{ item }">
-      {{ formatDateTime(item.timestamp, timeZone) }}
+      {{ formatDateTime(item.timestamp, timeZone, false) }}
     </template>
 
     <template #item.level="{ item }">
@@ -176,6 +178,7 @@
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from "vue";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import RunLogMessage from "./RunLogMessage.vue";
 
 import { type LogEntry, getRunLogs } from "@/api/runs";
@@ -198,7 +201,7 @@ const props = defineProps<{
 const emit = defineEmits<{ download: []; refresh: [] }>();
 
 const ARR_HEADER = [
-  { title: "Timestamp", key: "timestamp", width: 235 },
+  { title: "Timestamp", key: "timestamp", width: 200 },
   { title: "Level", key: "level", width: 95 },
   { title: "Process", key: "process", width: 180 },
   { title: "Message", key: "message_text", maxWidth: 600 },

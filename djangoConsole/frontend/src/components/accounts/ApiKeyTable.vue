@@ -78,9 +78,7 @@
     Inactive keys do not count toward the active key limit.
   </p>
 
-  <p v-if="strUpdatedAt" class="text-body-2 text-medium-emphasis mb-3">
-    Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
-  </p>
+  <TimeZoneHint :time-zone="strTimeZone" :updated-at="strUpdatedAt" />
 
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table
@@ -97,15 +95,20 @@
       </template>
 
       <template #item.status="{ item }">
-        <span class="text-capitalize">{{ getApiKeyStatus(item, intCurrentTimeMs) }}</span>
+        <v-chip
+          :color="DICT_STATUS_COLOR[getApiKeyStatus(item, intCurrentTimeMs)]"
+          size="small"
+          variant="tonal">
+          {{ DICT_STATUS_LABEL[getApiKeyStatus(item, intCurrentTimeMs)] }}
+        </v-chip>
       </template>
 
       <template #item.expires_at="{ item }">
-        {{ formatDateTime(item.expires_at, strTimeZone) }}
+        {{ formatDateTime(item.expires_at, strTimeZone, false) }}
       </template>
 
       <template #item.last_used_at="{ item }">
-        {{ formatDateTime(item.last_used_at, strTimeZone) }}
+        {{ formatDateTime(item.last_used_at, strTimeZone, false) }}
       </template>
 
       <template #item.notes="{ item }">
@@ -167,6 +170,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import ApiKeyCreateDialog from "./ApiKeyCreateDialog.vue";
 import ApiKeyActionDialog from "./ApiKeyActionDialog.vue";
 
@@ -193,6 +197,11 @@ const DICT_STATUS_LABEL: Record<ApiKeyStatus, string> = {
   active: "Active",
   expired: "Expired",
   revoked: "Revoked",
+};
+const DICT_STATUS_COLOR: Record<ApiKeyStatus, string> = {
+  active: "success",
+  expired: "inactive",
+  revoked: "inactive",
 };
 const ARR_STATUS_OPTION = ARR_API_KEY_STATUS.map((status) => ({
   title: DICT_STATUS_LABEL[status],

@@ -178,7 +178,7 @@
       </v-btn>
     </div>
 
-    <p class="text-body-2 text-medium-emphasis mb-3">Time zone: {{ strTimeZone }}</p>
+    <TimeZoneHint :time-zone="strTimeZone" />
 
     <v-card variant="outlined">
       <v-data-table-server
@@ -201,7 +201,9 @@
         </template>
 
         <template #item.status="{ item }">
-          {{ item.status === "claimed" ? "Claimed" : "Unclaimed" }}
+          <v-chip size="small" variant="tonal" :color="DICT_STATUS_COLOR[item.status]">
+            {{ DICT_STATUS_LABEL[item.status] }}
+          </v-chip>
         </template>
 
         <template #item.uploaded_by_name="{ item }">
@@ -210,7 +212,7 @@
 
         <template #item.uploaded_at="{ item }">
           <span class="text-no-wrap">
-            {{ formatDateTime(item.uploaded_at, strTimeZone) }}
+            {{ formatDateTime(item.uploaded_at, strTimeZone, false) }}
           </span>
         </template>
 
@@ -222,7 +224,7 @@
 
         <template #item.last_claimed_at="{ item }">
           <span class="text-no-wrap">
-            {{ formatDateTime(item.last_claimed_at, strTimeZone) }}
+            {{ formatDateTime(item.last_claimed_at, strTimeZone, false) }}
           </span>
         </template>
 
@@ -331,6 +333,7 @@
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import DataQueueItemUploadDialog from "@/components/dataQueues/DataQueueItemUploadDialog.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -342,6 +345,7 @@ import {
   ARR_QUEUE_ITEM_ORDER,
   type QueueItemFilterStatus,
   type QueueItemOrder,
+  type QueueItemStatus,
   type QueueItemsResponse,
   type QueueMutationResponse,
 } from "@/api/generated/browserApi";
@@ -358,9 +362,9 @@ const ARR_HEADER = [
   { title: "Data", key: "data_summary", minWidth: 220 },
   { title: "Status", key: "status" },
   { title: "Uploaded By", key: "uploaded_by_name", minWidth: 180 },
-  { title: "Uploaded At", key: "uploaded_at", minWidth: 240 },
+  { title: "Uploaded At", key: "uploaded_at", minWidth: 200 },
   { title: "Last Claimed By", key: "last_claimed_by_name", minWidth: 180 },
-  { title: "Last Claimed At", key: "last_claimed_at", minWidth: 240 },
+  { title: "Last Claimed At", key: "last_claimed_at", minWidth: 200 },
   { title: "Actions", key: "actions" },
 ];
 
@@ -368,6 +372,10 @@ const DICT_STATUS_LABEL: Record<QueueItemFilterStatus, string> = {
   all: "All",
   unclaimed: "Unclaimed",
   claimed: "Claimed",
+};
+const DICT_STATUS_COLOR: Record<QueueItemStatus, string> = {
+  unclaimed: "inactive",
+  claimed: "info",
 };
 const ARR_STATUS_OPTION = ARR_QUEUE_ITEM_FILTER_STATUS.map((status) => ({
   title: DICT_STATUS_LABEL[status],

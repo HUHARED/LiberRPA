@@ -20,10 +20,6 @@
     </p>
   </v-alert>
 
-  <p v-if="issuePage" class="text-body-2 text-medium-emphasis mb-4">
-    Updated at {{ formatDateTime(issuePage.updated_at, issuePage.time_zone) }}
-  </p>
-
   <v-row class="mb-2" aria-label="Instance email usage">
     <v-col cols="12" sm="6" lg="3">
       <h2 class="text-subtitle-1">SMTP Budget</h2>
@@ -171,6 +167,8 @@
     </v-card-text>
   </v-card>
 
+  <TimeZoneHint :time-zone="strTimeZone" :updated-at="issuePage?.updated_at" />
+
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
       :headers="ARR_HEADER"
@@ -185,7 +183,7 @@
       disable-sort
       hide-default-footer>
       <template #item.finished_at="{ item }">
-        {{ formatDateTime(item.finished_at, strTimeZone) }}
+        {{ formatDateTime(item.finished_at, strTimeZone, false) }}
       </template>
 
       <template #item.organization_name="{ item }">
@@ -199,7 +197,9 @@
       </template>
 
       <template #item.status_label="{ item }">
-        <v-chip size="small">{{ item.status_label }}</v-chip>
+        <v-chip :color="DICT_STATUS_COLOR[item.status]" size="small" variant="tonal">
+          {{ item.status_label }}
+        </v-chip>
       </template>
 
       <template #item.reason_text="{ item }">
@@ -295,6 +295,8 @@ import {
   watch,
 } from "vue";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
+
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
@@ -308,9 +310,16 @@ import {
   type EmailIssueResponse,
   type EmailIssueListResponse,
   type EmailIssueFiltersResponse,
+  type EmailStatus,
 } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
+
+const DICT_STATUS_COLOR: Partial<Record<EmailStatus, string>> = {
+  failed: "error",
+  not_sent: "inactive",
+  unknown: "warning",
+};
 
 const ARR_HEADER = [
   { title: "Time", key: "finished_at", minWidth: 180 },
@@ -373,15 +382,15 @@ const arrDetailField = computed(() => {
     { label: "Record ID", value: issue.id },
     {
       label: `Created At (${strTimeZone.value})`,
-      value: formatDateTime(issue.created_at, strTimeZone.value),
+      value: formatDateTime(issue.created_at, strTimeZone.value, false),
     },
     {
       label: `Attempted At (${strTimeZone.value})`,
-      value: formatDateTime(issue.attempted_at, strTimeZone.value),
+      value: formatDateTime(issue.attempted_at, strTimeZone.value, false),
     },
     {
       label: `Finished At (${strTimeZone.value})`,
-      value: formatDateTime(issue.finished_at, strTimeZone.value),
+      value: formatDateTime(issue.finished_at, strTimeZone.value, false),
     },
   ];
 });

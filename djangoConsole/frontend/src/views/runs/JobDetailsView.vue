@@ -39,6 +39,8 @@
       <v-card-title>Job Information</v-card-title>
 
       <v-card-text>
+        <TimeZoneHint :time-zone="strTimeZone" />
+
         <v-table>
           <tbody>
             <tr>
@@ -53,7 +55,7 @@
 
             <tr>
               <th scope="row" class="text-caption text-medium-emphasis">Scheduled At</th>
-              <td>{{ formatDateTime(job.scheduled_at, strTimeZone) }}</td>
+              <td>{{ formatDateTime(job.scheduled_at, strTimeZone, false) }}</td>
             </tr>
 
             <tr>
@@ -68,17 +70,17 @@
 
             <tr>
               <th scope="row" class="text-caption text-medium-emphasis">Queued At</th>
-              <td>{{ formatDateTime(job.queued_at, strTimeZone) }}</td>
+              <td>{{ formatDateTime(job.queued_at, strTimeZone, false) }}</td>
             </tr>
 
             <tr>
               <th scope="row" class="text-caption text-medium-emphasis">Retry At</th>
-              <td>{{ formatDateTime(job.retry_at, strTimeZone) }}</td>
+              <td>{{ formatDateTime(job.retry_at, strTimeZone, false) }}</td>
             </tr>
 
             <tr v-if="job.state === JobState.Finished">
               <th scope="row" class="text-caption text-medium-emphasis">Ended At</th>
-              <td>{{ formatDateTime(job.ended_at, strTimeZone) }}</td>
+              <td>{{ formatDateTime(job.ended_at, strTimeZone, false) }}</td>
             </tr>
 
             <tr>
@@ -88,7 +90,7 @@
 
             <tr v-if="job.closed_at">
               <th scope="row" class="text-caption text-medium-emphasis">Closed At</th>
-              <td>{{ formatDateTime(job.closed_at, strTimeZone) }}</td>
+              <td>{{ formatDateTime(job.closed_at, strTimeZone, false) }}</td>
             </tr>
           </tbody>
         </v-table>
@@ -114,6 +116,8 @@
     <v-card variant="outlined" class="mb-4">
       <v-card-title>Events</v-card-title>
 
+      <TimeZoneHint :time-zone="strTimeZone" class="px-4" />
+
       <v-table>
         <thead>
           <tr>
@@ -125,7 +129,7 @@
 
         <tbody>
           <tr v-for="(event, index) in job.events" :key="index">
-            <td>{{ formatDateTime(event.occurred_at, strTimeZone) }}</td>
+            <td>{{ formatDateTime(event.occurred_at, strTimeZone, false) }}</td>
             <td>{{ RUN_EVENT_LABELS[event.kind] }}</td>
             <td>{{ event.reason || "—" }}</td>
           </tr>
@@ -143,6 +147,7 @@
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import JobActions from "@/components/runs/JobActions.vue";
 import RunTable from "@/components/runs/RunTable.vue";
 import RunArgumentsDetails from "@/components/runSettings/RunArgumentsDetails.vue";

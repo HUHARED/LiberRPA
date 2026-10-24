@@ -58,7 +58,7 @@
             <v-text-field
               v-model="filters.dateFrom"
               label="Ended From"
-              variant="underlined"
+              :variant="dateRange === DateRange.Custom ? 'underlined' : 'plain'"
               type="date"
               :max="filters.dateUntil || undefined"
               :readonly="dateRange !== DateRange.Custom"
@@ -72,7 +72,7 @@
             <v-text-field
               v-model="filters.dateUntil"
               label="Ended Through"
-              variant="underlined"
+              :variant="dateRange === DateRange.Custom ? 'underlined' : 'plain'"
               type="date"
               :min="filters.dateFrom || undefined"
               :readonly="dateRange !== DateRange.Custom"
@@ -119,7 +119,7 @@
     <p class="text-body-2 text-medium-emphasis mb-3">
       {{ statistics.date_from }} – {{ statistics.date_until }} ·
       {{ statistics.time_zone }} · Updated At:
-      {{ formatDateTime(statistics.updated_at, statistics.time_zone) }}
+      {{ formatDateTime(statistics.updated_at, statistics.time_zone, false) }}
     </p>
 
     <div class="d-flex flex-wrap ga-6 mb-4">
@@ -235,6 +235,7 @@ import {
 
 import { RUN_STATUS_LABELS, RUN_STATUS_COLORS } from "@/app/runLabels";
 import { formatDateTime, formatDateTimeInput, formatDuration } from "@/app/formatters";
+
 import { useSessionStore } from "@/stores/sessionStore";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Legend);

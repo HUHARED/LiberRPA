@@ -53,7 +53,9 @@
 
   <v-data-table :headers="ARR_HEADER" :items="arrFiltered" :loading="boolLoading">
     <template #item.status="{ item }">
-      {{ DICT_STATUS_LABEL[item.status] }}
+      <v-chip :color="DICT_STATUS_COLOR[item.status]" size="small" variant="tonal">
+        {{ DICT_STATUS_LABEL[item.status] }}
+      </v-chip>
     </template>
 
     <template #item.actions="{ item }">
@@ -249,6 +251,11 @@ const DICT_STATUS_LABEL: Record<RunEmailRecipientStatus, string> = {
   [RunEmailRecipientStatus.Member]: "Member",
   [RunEmailRecipientStatus.Verified]: "Verified",
   [RunEmailRecipientStatus.Pending]: "Pending",
+};
+const DICT_STATUS_COLOR: Record<RunEmailRecipientStatus, string> = {
+  [RunEmailRecipientStatus.Member]: "info",
+  [RunEmailRecipientStatus.Verified]: "success",
+  [RunEmailRecipientStatus.Pending]: "warning",
 };
 const ARR_STATUS = [
   { title: "All", value: "all" },

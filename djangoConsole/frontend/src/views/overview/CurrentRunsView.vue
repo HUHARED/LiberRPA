@@ -82,9 +82,7 @@
   <v-progress-linear v-if="boolLoading" indeterminate color="primary" class="mb-4" />
 
   <template v-if="page">
-    <p class="text-body-2 text-medium-emphasis mb-3">
-      Updated At: {{ formatDateTime(page.updated_at, strTimeZone) }}
-    </p>
+    <TimeZoneHint :time-zone="strTimeZone" :updated-at="page.updated_at" />
 
     <v-card variant="outlined">
       <v-data-table-server
@@ -96,7 +94,7 @@
         disable-sort
         hide-default-footer>
         <template #item.started_at="{ item }">
-          {{ formatDateTime(item.started_at, strTimeZone) }}
+          {{ formatDateTime(item.started_at, strTimeZone, false) }}
         </template>
 
         <template #item.elapsed="{ item }">
@@ -137,6 +135,8 @@ import {
   shallowRef,
   watch,
 } from "vue";
+
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 
 import { getCurrentRuns, type OverviewFilters } from "@/api/overview";
 import { getRunDepartments, type RunDepartmentInfo } from "@/api/runs";

@@ -135,13 +135,7 @@
     access.
   </v-alert>
 
-  <div
-    class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
-    <span>Time zone: {{ strTimeZone }}</span>
-    <span v-if="strUpdatedAt">
-      Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
-    </span>
-  </div>
+  <TimeZoneHint :time-zone="strTimeZone" :updated-at="strUpdatedAt" />
 
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
@@ -166,7 +160,12 @@
       </template>
 
       <template #item.asset_type="{ item }">
-        {{ getAssetTypeLabel(item.asset_type) }}
+        <v-chip
+          :color="ASSET_TYPE_COLORS[item.asset_type][strAssetTheme]"
+          size="small"
+          variant="tonal">
+          {{ getAssetTypeLabel(item.asset_type) }}
+        </v-chip>
       </template>
 
       <template #item.value_summary="{ item }">
@@ -178,7 +177,9 @@
       </template>
 
       <template #item.updated_at="{ item }">
-        <span class="text-no-wrap">{{ formatDateTime(item.updated_at, strTimeZone) }}</span>
+        <span class="text-no-wrap">
+          {{ formatDateTime(item.updated_at, strTimeZone, false) }}
+        </span>
       </template>
 
       <template #item.actions="{ item }">
@@ -269,7 +270,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { useRoute } from "vue-router";
+import { useTheme } from "vuetify";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import AssetFormDialog from "@/components/assets/AssetFormDialog.vue";
 import AssetDeleteDialog from "@/components/assets/AssetDeleteDialog.vue";
 
@@ -293,18 +296,30 @@ import {
 
 import { formatDateTime } from "@/app/formatters";
 
+const ASSET_TYPE_COLORS: Record<AssetType, { light: string; dark: string }> = {
+  text: { light: "blue-grey-darken-3", dark: "blue-grey-lighten-3" },
+  integer: { light: "blue-darken-3", dark: "blue-lighten-3" },
+  number: { light: "teal-darken-3", dark: "teal-lighten-3" },
+  boolean: { light: "green-darken-4", dark: "green-lighten-3" },
+  json: { light: "deep-purple-darken-3", dark: "deep-purple-lighten-3" },
+  secret_text: { light: "brown-darken-3", dark: "brown-lighten-3" },
+  credential: { light: "indigo-darken-3", dark: "indigo-lighten-3" },
+};
+
 const ARR_HEADER = [
   { title: "Name", key: "name", minWidth: 160 },
   { title: "Department", key: "department", minWidth: 160 },
   { title: "Type", key: "asset_type", minWidth: 120 },
   { title: "Value", key: "value_summary", minWidth: 220 },
   { title: "Notes", key: "notes", minWidth: 200 },
-  { title: "Updated At", key: "updated_at", minWidth: 240 },
+  { title: "Updated At", key: "updated_at", minWidth: 200 },
   { title: "Actions", key: "actions", width: 152 },
 ];
 
 const sessionStore = useSessionStore();
 const route = useRoute();
+const theme = useTheme();
+const strAssetTheme = computed(() => (theme.current.value.dark ? "dark" : "light"));
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 
 const arrRouteDepartmentId = computed(() => {

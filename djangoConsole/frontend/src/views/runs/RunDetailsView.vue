@@ -194,6 +194,8 @@
         <template v-if="strTab === 'details'">
           <h2 class="text-h6 mb-3">Job Information</h2>
 
+          <TimeZoneHint :time-zone="strTimeZone" />
+
           <v-table>
             <tbody>
               <tr>
@@ -216,7 +218,7 @@
 
               <tr>
                 <th scope="row" class="text-caption text-medium-emphasis">Scheduled At</th>
-                <td>{{ formatDateTime(run.job.scheduled_at, strTimeZone) }}</td>
+                <td>{{ formatDateTime(run.job.scheduled_at, strTimeZone, false) }}</td>
               </tr>
 
               <tr>
@@ -228,7 +230,7 @@
 
               <tr>
                 <th scope="row" class="text-caption text-medium-emphasis">Queued At</th>
-                <td>{{ formatDateTime(run.job.queued_at, strTimeZone) }}</td>
+                <td>{{ formatDateTime(run.job.queued_at, strTimeZone, false) }}</td>
               </tr>
 
               <tr>
@@ -368,6 +370,7 @@
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import RunArgumentsDetails from "@/components/runSettings/RunArgumentsDetails.vue";
 import RunLogs from "@/components/runs/RunLogs.vue";
 import RunTable from "@/components/runs/RunTable.vue";

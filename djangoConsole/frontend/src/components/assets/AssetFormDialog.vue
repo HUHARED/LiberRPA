@@ -24,7 +24,7 @@
               <v-text-field
                 v-model="strName"
                 label="Name"
-                variant="outlined"
+                :variant="boolCanEditDetails ? 'outlined' : 'plain'"
                 :rules="[validatePathName]"
                 :error-messages="[
                   ...getFieldErrors(saveError?.fields, 'name'),
@@ -39,7 +39,7 @@
                 v-if="asset"
                 :model-value="asset.department.path"
                 label="Department"
-                variant="outlined"
+                variant="plain"
                 readonly />
 
               <v-select
@@ -56,7 +56,7 @@
             </v-col>
           </v-row>
 
-          <v-text-field :model-value="strPath" label="Path" variant="outlined" readonly />
+          <v-text-field :model-value="strPath" label="Path" variant="plain" readonly />
 
           <v-alert
             v-if="mode === 'edit' && asset && strName !== asset.name"
@@ -82,13 +82,13 @@
             v-else
             :model-value="getAssetTypeLabel(strAssetType)"
             label="Type"
-            variant="outlined"
+            variant="plain"
             readonly />
 
           <v-textarea
             v-model="strNotes"
             label="Notes"
-            variant="outlined"
+            :variant="boolCanEditDetails ? 'outlined' : 'plain'"
             rows="3"
             maxlength="2000"
             counter="2000"
@@ -149,8 +149,8 @@
               :key="strAssetType"
               v-model="floatValue"
               label="Value"
-              variant="outlined"
-              control-variant="stacked"
+              :variant="boolCanEditValue ? 'outlined' : 'plain'"
+              :control-variant="boolCanEditValue ? 'stacked' : 'hidden'"
               inset
               :min="Number.MIN_SAFE_INTEGER"
               :max="Number.MAX_SAFE_INTEGER"
@@ -164,7 +164,7 @@
               v-else
               v-model="strValue"
               :label="strAssetType === 'json' ? 'Value (JSON)' : 'Value'"
-              variant="outlined"
+              :variant="boolCanEditValue ? 'outlined' : 'plain'"
               rows="6"
               :rules="[validateValue]"
               :readonly="!boolCanEditValue"

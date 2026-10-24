@@ -29,9 +29,7 @@
     </template>
   </v-alert>
 
-  <p v-if="strUpdatedAt" class="text-body-2 text-medium-emphasis mb-3">
-    Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
-  </p>
+  <TimeZoneHint :time-zone="strTimeZone" :updated-at="strUpdatedAt" />
 
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
@@ -91,7 +89,7 @@
       </template>
 
       <template #item.joined_at="{ item }">
-        {{ formatDateTime(item.joined_at, strTimeZone) }}
+        {{ formatDateTime(item.joined_at, strTimeZone, false) }}
       </template>
 
       <template #item.actions="{ item }">
@@ -164,6 +162,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { RouterLink } from "vue-router";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import MembershipFormDialog from "@/components/organizations/MembershipFormDialog.vue";
 import MemberDeleteDialog from "@/components/organizations/MemberDeleteDialog.vue";
 import MemberInvitations from "@/components/organizations/MemberInvitations.vue";

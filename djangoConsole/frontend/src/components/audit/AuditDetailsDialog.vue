@@ -164,10 +164,10 @@
                 <tr v-for="change in record.changes" :key="change.field">
                   <td>{{ formatAuditLabel(change.field) }}</td>
                   <td class="text-pre-wrap text-anywhere">
-                    {{ formatChangeValue(change.before) }}
+                    {{ formatChangeValue(change.field, change.before) }}
                   </td>
                   <td class="text-pre-wrap text-anywhere">
-                    {{ formatChangeValue(change.after) }}
+                    {{ formatChangeValue(change.field, change.after) }}
                   </td>
                 </tr>
               </tbody>
@@ -204,6 +204,20 @@ import {
 import { AUDIT_CHANNEL_LABEL, formatAuditLabel } from "@/app/audit";
 import { formatDateTime } from "@/app/formatters";
 
+const SET_DATE_TIME_FIELD = new Set([
+  "expires_at",
+  "revoked_at",
+  "suspended_at",
+  "deletion_requested_at",
+  "deletion_due_at",
+  "deletion_started_at",
+  "deleted_at",
+  "accepted_at",
+  "entered_at",
+  "active_from",
+  "active_until",
+]);
+
 const props = withDefaults(defineProps<{ auditId: string; platform?: boolean }>(), {
   platform: false,
 });
@@ -220,8 +234,12 @@ const boolValuesOmitted = computed(() =>
 
 let intDetailsRevision = 0;
 
-function formatChangeValue(value: string | null): string {
-  return value === null ? "Not recorded" : value === "" ? "(empty)" : value;
+function formatChangeValue(field: string, value: string | null): string {
+  if (value === null) return "Not recorded";
+  if (value === "") return "(empty)";
+  if (value !== "null" && SET_DATE_TIME_FIELD.has(field))
+    return formatDateTime(value, strTimeZone.value);
+  return value;
 }
 
 async function loadDetails(): Promise<void> {

@@ -7,7 +7,11 @@ export function getDisplayName(username: string, email: string): string {
   return username || email;
 }
 
-export function formatDateTime(value: string | null, timeZone: string): string {
+export function formatDateTime(
+  value: string | null,
+  timeZone: string,
+  includeOffset = true,
+): string {
   if (value === null) return "—";
 
   const dateValue = new Date(value);
@@ -28,22 +32,19 @@ export function formatDateTime(value: string | null, timeZone: string): string {
   const strOffset = mapPart.get("timeZoneName")?.replace("GMT", "") || "+00:00";
   const strDate = `${mapPart.get("year")}-${mapPart.get("month")}-${mapPart.get("day")}`;
   const strTime = `${mapPart.get("hour")}:${mapPart.get("minute")}:${mapPart.get("second")}`;
-  return `${strDate} ${strTime} ${strOffset}`;
+  return `${strDate} ${strTime}${includeOffset ? ` ${strOffset}` : ""}`;
 }
 
 export function formatRunEndTime(
   run: Pick<RunInfo, "status" | "ended_at">,
   timeZone: string,
+  includeOffset = true,
 ): string {
-  if (run.ended_at !== null) return formatDateTime(run.ended_at, timeZone);
+  if (run.ended_at !== null) return formatDateTime(run.ended_at, timeZone, includeOffset);
   return run.status === RunStatus.Running ? "—" : "Unknown";
 }
 
-export function formatDateTimeInput(
-  value: string,
-  timeZone: string,
-  includeSeconds = false,
-): string {
+export function formatDateTimeInput(value: string, timeZone: string): string {
   const arrPart = new Intl.DateTimeFormat("en", {
     timeZone,
     year: "numeric",
@@ -51,13 +52,13 @@ export function formatDateTimeInput(
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    second: includeSeconds ? "2-digit" : undefined,
+    second: "2-digit",
     hourCycle: "h23",
   }).formatToParts(new Date(value));
   const mapPart = new Map(arrPart.map((part) => [part.type, part.value]));
   const strDate = `${mapPart.get("year")}-${mapPart.get("month")}-${mapPart.get("day")}`;
   const strTime = `${mapPart.get("hour")}:${mapPart.get("minute")}`;
-  return `${strDate}T${strTime}${includeSeconds ? `:${mapPart.get("second")}` : ""}`;
+  return `${strDate}T${strTime}:${mapPart.get("second")}`;
 }
 
 export function formatFileSize(bytes: number): string {

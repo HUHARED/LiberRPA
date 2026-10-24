@@ -64,23 +64,19 @@
           <v-col cols="12" md="4">
             <v-text-field
               v-model="filters.startedFrom"
-              label="Started From"
-              variant="underlined"
               type="datetime-local"
               step="1"
-              :hint="strTimeZone"
-              persistent-hint />
+              label="Started From"
+              variant="underlined" />
           </v-col>
 
           <v-col cols="12" md="4">
             <v-text-field
               v-model="filters.startedUntil"
-              label="Started Before"
-              variant="underlined"
               type="datetime-local"
               step="1"
-              :hint="strTimeZone"
-              persistent-hint />
+              label="Started Before"
+              variant="underlined" />
           </v-col>
         </v-row>
 
@@ -150,6 +146,8 @@
     </v-btn>
   </div>
 
+  <TimeZoneHint :time-zone="strTimeZone" />
+
   <v-card variant="outlined">
     <v-data-table-server
       :model-value="arrSelectedId"
@@ -167,11 +165,11 @@
       <template #item.schedule_name="{ item }">{{ item.schedule_name || "—" }}</template>
 
       <template #item.started_at="{ item }">
-        {{ formatDateTime(item.started_at, strTimeZone) }}
+        {{ formatDateTime(item.started_at, strTimeZone, false) }}
       </template>
 
       <template #item.ended_at="{ item }">
-        {{ formatRunEndTime(item, strTimeZone) }}
+        {{ formatRunEndTime(item, strTimeZone, false) }}
       </template>
 
       <template #item.status="{ item }">
@@ -290,6 +288,7 @@
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import PackageRunDialog from "@/components/packages/PackageRunDialog.vue";
 
 import {

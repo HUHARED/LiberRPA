@@ -176,9 +176,9 @@
             <v-col cols="12" md="4">
               <v-text-field
                 v-model="strActiveFrom"
-                :error-messages="getFieldErrors(dictFieldError, 'active_from')"
                 type="datetime-local"
                 step="1"
+                :error-messages="getFieldErrors(dictFieldError, 'active_from')"
                 label="Active From"
                 :variant="boolReadonly ? 'plain' : 'underlined'"
                 density="compact"
@@ -189,9 +189,9 @@
             <v-col cols="12" md="4">
               <v-text-field
                 v-model="strActiveUntil"
-                :error-messages="getFieldErrors(dictFieldError, 'active_until')"
                 type="datetime-local"
                 step="1"
+                :error-messages="getFieldErrors(dictFieldError, 'active_until')"
                 label="Active Until"
                 :variant="boolReadonly ? 'plain' : 'underlined'"
                 density="compact"
@@ -245,9 +245,7 @@
             Next:
             {{
               arrPreview
-                .map((time) =>
-                  formatDateTimeInput(time, strTimeZone, true).replace("T", " "),
-                )
+                .map((time) => formatDateTimeInput(time, strTimeZone).replace("T", " "))
                 .join(" · ") || "No upcoming trigger within the active period."
             }}
           </v-alert>
@@ -402,7 +400,7 @@ const arrTimeZone = computed(() =>
 );
 
 const strActiveFrom = ref(
-  formatDateTimeInput(new Date().toISOString(), strTimeZone.value, true).slice(0, 10) +
+  formatDateTimeInput(new Date().toISOString(), strTimeZone.value).slice(0, 10) +
     "T00:00:00",
 );
 
@@ -672,16 +670,8 @@ onMounted(async () => {
       boolEnabled.value = schedule.enabled;
       strNotes.value = schedule.notes;
       strTimeZone.value = schedule.time_zone;
-      strActiveFrom.value = formatDateTimeInput(
-        schedule.active_from,
-        schedule.time_zone,
-        true,
-      );
-      strActiveUntil.value = formatDateTimeInput(
-        schedule.active_until,
-        schedule.time_zone,
-        true,
-      );
+      strActiveFrom.value = formatDateTimeInput(schedule.active_from, schedule.time_zone);
+      strActiveUntil.value = formatDateTimeInput(schedule.active_until, schedule.time_zone);
       strCron.value = schedule.cron;
       settings.value = cloneRunSettings(schedule.settings);
     }

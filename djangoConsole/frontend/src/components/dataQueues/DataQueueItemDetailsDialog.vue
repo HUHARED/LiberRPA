@@ -62,7 +62,7 @@
                 Uploaded At ({{ strTimeZone }})
               </dt>
 
-              <dd>{{ formatDateTime(item.uploaded_at, strTimeZone) }}</dd>
+              <dd>{{ formatDateTime(item.uploaded_at, strTimeZone, false) }}</dd>
             </div>
 
             <div>
@@ -75,7 +75,7 @@
                 Last Claimed At ({{ strTimeZone }})
               </dt>
 
-              <dd>{{ formatDateTime(item.last_claimed_at, strTimeZone) }}</dd>
+              <dd>{{ formatDateTime(item.last_claimed_at, strTimeZone, false) }}</dd>
             </div>
           </dl>
 

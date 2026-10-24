@@ -133,6 +133,8 @@
                 {{ details.package.description || "No description." }}
               </p>
 
+              <TimeZoneHint :time-zone="strTimeZone" />
+
               <v-table>
                 <tbody>
                   <tr>
@@ -160,7 +162,9 @@
                     <th scope="row" class="text-caption text-medium-emphasis">
                       Uploaded At
                     </th>
-                    <td>{{ formatDateTime(details.package.uploaded_at, strTimeZone) }}</td>
+                    <td>
+                      {{ formatDateTime(details.package.uploaded_at, strTimeZone, false) }}
+                    </td>
                   </tr>
 
                   <tr>
@@ -219,16 +223,24 @@
                       </RouterLink>
                     </td>
                     <td>
-                      <span
+                      <v-chip
                         v-if="preparation.from_previous_association"
                         v-tooltip:bottom="
                           'The current client has not reported a preparation result.'
-                        ">
+                        "
+                        color="warning"
+                        size="small"
+                        variant="tonal">
                         Not confirmed
-                      </span>
-                      <span v-else>
+                      </v-chip>
+
+                      <v-chip
+                        v-else
+                        :color="PACKAGE_PREPARATION_COLORS[preparation.state]"
+                        size="small"
+                        variant="tonal">
                         {{ PACKAGE_PREPARATION_LABELS[preparation.state] }}
-                      </span>
+                      </v-chip>
                     </td>
                     <td>
                       {{
@@ -391,6 +403,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import type { VForm } from "vuetify/components";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import RunArgumentsEditor from "@/components/runSettings/RunArgumentsEditor.vue";
 import RunDispatchEmailEditor from "@/components/runSettings/RunDispatchEmailEditor.vue";
 import PackageRunDialog from "./PackageRunDialog.vue";
@@ -412,7 +425,7 @@ import {
   PackagePreparationState,
 } from "@/api/generated/browserApi";
 
-import { PACKAGE_PREPARATION_LABELS } from "@/app/runLabels";
+import { PACKAGE_PREPARATION_LABELS, PACKAGE_PREPARATION_COLORS } from "@/app/runLabels";
 import { formatDateTime, formatFileSize } from "@/app/formatters";
 import { validateEnvironmentName } from "@/app/validators";
 

@@ -214,11 +214,21 @@
               </template>
 
               <template #item.association_status="{ item }">
-                <span class="text-capitalize">{{ item.association_status }}</span>
+                <v-chip
+                  size="small"
+                  variant="tonal"
+                  :color="DICT_ASSOCIATION_STATE[item.association_status].color">
+                  {{ DICT_ASSOCIATION_STATE[item.association_status].title }}
+                </v-chip>
               </template>
 
               <template #item.dispatch_enabled="{ item }">
-                {{ item.dispatch_enabled ? "Enabled" : "Paused" }}
+                <v-chip
+                  size="small"
+                  variant="tonal"
+                  :color="item.dispatch_enabled ? 'primary' : 'warning'">
+                  {{ item.dispatch_enabled ? "Enabled" : "Paused" }}
+                </v-chip>
               </template>
 
               <template #no-data>
@@ -296,6 +306,8 @@ import {
   type ExecutorGroupWriteResponse,
   type ExecutorListResponse,
 } from "@/api/generated/browserApi";
+
+import { DICT_ASSOCIATION_STATE } from "@/app/runLabels";
 
 const props = defineProps<{
   departments: DepartmentAccessResponse[];

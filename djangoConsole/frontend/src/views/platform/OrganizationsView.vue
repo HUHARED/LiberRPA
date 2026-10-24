@@ -194,9 +194,7 @@
     </p>
   </v-alert>
 
-  <p v-if="strUpdatedAt" class="text-body-2 text-medium-emphasis mb-3">
-    Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
-  </p>
+  <TimeZoneHint :time-zone="strTimeZone" :updated-at="strUpdatedAt" />
 
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
@@ -244,7 +242,7 @@
       </template>
 
       <template #item.created_at="{ item }">
-        {{ formatDateTime(item.created_at, strTimeZone) }}
+        {{ formatDateTime(item.created_at, strTimeZone, false) }}
       </template>
 
       <template #item.status="{ item }">
@@ -313,6 +311,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { RouterLink } from "vue-router";
+
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 

@@ -119,7 +119,7 @@
 
           <div>
             <dt class="text-caption text-medium-emphasis">Joined At ({{ strTimeZone }})</dt>
-            <dd>{{ formatDateTime(memberInfo.joined_at, strTimeZone) }}</dd>
+            <dd>{{ formatDateTime(memberInfo.joined_at, strTimeZone, false) }}</dd>
           </div>
 
           <div class="full-width-field">

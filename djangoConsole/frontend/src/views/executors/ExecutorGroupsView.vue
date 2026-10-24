@@ -147,13 +147,7 @@
     No department access. Ask an organization administrator to assign a role.
   </v-alert>
 
-  <div
-    class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
-    <span>Time zone: {{ strTimeZone }}</span>
-    <span v-if="strUpdatedAt">
-      Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
-    </span>
-  </div>
+  <TimeZoneHint :time-zone="strTimeZone" :updated-at="strUpdatedAt" />
 
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
@@ -240,6 +234,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { RouterLink, RouterView, useRoute } from "vue-router";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import ExecutorGroupFormDialog from "@/components/executors/ExecutorGroupFormDialog.vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -251,8 +246,6 @@ import {
   type ExecutorGroupListResponse,
   type ExecutorGroupWriteResponse,
 } from "@/api/generated/browserApi";
-
-import { formatDateTime } from "@/app/formatters";
 
 const ARR_HEADER = [
   { title: "Name", key: "name", minWidth: 180 },

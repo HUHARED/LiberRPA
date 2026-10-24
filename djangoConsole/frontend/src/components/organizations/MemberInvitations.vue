@@ -48,9 +48,7 @@
     </template>
   </v-alert>
 
-  <p v-if="strUpdatedAt" class="text-body-2 text-medium-emphasis mb-3">
-    Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
-  </p>
+  <TimeZoneHint :time-zone="strTimeZone" :updated-at="strUpdatedAt" />
 
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
@@ -95,7 +93,7 @@
       </template>
 
       <template #item.expires_at="{ item }">
-        {{ formatDateTime(item.expires_at, strTimeZone) }}
+        {{ formatDateTime(item.expires_at, strTimeZone, false) }}
       </template>
 
       <template #item.email_delivery="{ item }">
@@ -181,6 +179,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import MembershipFormDialog from "./MembershipFormDialog.vue";
 import InvitationDialog from "./InvitationDialog.vue";
 

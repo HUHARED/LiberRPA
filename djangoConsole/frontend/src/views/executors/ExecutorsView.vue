@@ -141,13 +141,7 @@
     No department access. Ask an organization administrator to assign a role.
   </v-alert>
 
-  <div
-    class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
-    <span>Time zone: {{ strTimeZone }}</span>
-    <span v-if="strUpdatedAt">
-      Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
-    </span>
-  </div>
+  <TimeZoneHint :time-zone="strTimeZone" :updated-at="strUpdatedAt" />
 
   <v-card variant="outlined" :aria-busy="boolLoading">
     <v-data-table-server
@@ -211,7 +205,7 @@
       <template #item.client_version="{ item }">{{ item.client_version ?? "—" }}</template>
 
       <template #item.last_seen_at="{ item }">
-        {{ formatDateTime(item.last_seen_at, strTimeZone) }}
+        {{ formatDateTime(item.last_seen_at, strTimeZone, false) }}
       </template>
 
       <template #item.notes="{ item }">
@@ -362,6 +356,8 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vu
 import { RouterLink, useRoute } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
+
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
@@ -373,6 +369,7 @@ import {
 } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
+import { DICT_ASSOCIATION_STATE } from "@/app/runLabels";
 
 const ARR_HEADER = [
   { title: "Name", key: "name", minWidth: 160 },
@@ -382,7 +379,7 @@ const ARR_HEADER = [
   { title: "Console Dispatch", key: "dispatch_enabled", minWidth: 170 },
   { title: "Computer", key: "computer_name", minWidth: 150 },
   { title: "Version", key: "client_version", minWidth: 100 },
-  { title: "Last Seen", key: "last_seen_at", minWidth: 220 },
+  { title: "Last Seen", key: "last_seen_at", minWidth: 200 },
   { title: "Notes", key: "notes", minWidth: 200 },
 ];
 
@@ -390,12 +387,6 @@ const ARR_DISPATCH_OPTION = [
   { title: "Enabled", value: true },
   { title: "Paused", value: false },
 ];
-
-const DICT_ASSOCIATION_STATE = {
-  unassociated: { title: "Unassociated", color: "secondary" },
-  online: { title: "Online", color: "success" },
-  offline: { title: "Offline", color: "warning" },
-};
 
 const sessionStore = useSessionStore();
 const route = useRoute();

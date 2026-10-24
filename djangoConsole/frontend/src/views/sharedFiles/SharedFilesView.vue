@@ -157,6 +157,8 @@
     </p>
   </div>
 
+  <TimeZoneHint :time-zone="strTimeZone" />
+
   <v-card variant="outlined">
     <v-data-table-server
       v-model="selectedFilePaths"
@@ -188,7 +190,7 @@
       </template>
 
       <template #item.uploaded_at="{ item }">
-        {{ formatDateTime(item.uploaded_at, strTimeZone) }}
+        {{ formatDateTime(item.uploaded_at, strTimeZone, false) }}
       </template>
 
       <template #item.actions="{ item }">
@@ -265,6 +267,7 @@
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import SharedFileDeleteDialog from "@/components/sharedFiles/SharedFileDeleteDialog.vue";
 import SharedFileUploadDialog from "@/components/sharedFiles/SharedFileUploadDialog.vue";
 

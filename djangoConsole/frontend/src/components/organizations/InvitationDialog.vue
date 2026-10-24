@@ -71,7 +71,7 @@
                 Expires At ({{ strTimeZone }})
               </dt>
 
-              <dd>{{ formatDateTime(invitationInfo.expires_at, strTimeZone) }}</dd>
+              <dd>{{ formatDateTime(invitationInfo.expires_at, strTimeZone, false) }}</dd>
             </div>
 
             <div>
@@ -79,7 +79,7 @@
                 Last Requested At ({{ strTimeZone }})
               </dt>
 
-              <dd>{{ formatDateTime(invitationInfo.requested_at, strTimeZone) }}</dd>
+              <dd>{{ formatDateTime(invitationInfo.requested_at, strTimeZone, false) }}</dd>
             </div>
 
             <div class="full-width-field">

@@ -88,7 +88,7 @@
     <p v-if="page">The displayed results may be out of date.</p>
   </v-alert>
 
-  <p class="text-body-2 text-medium-emphasis mb-3">Time zone: {{ strTimeZone }}</p>
+  <TimeZoneHint :time-zone="strTimeZone" />
 
   <v-card variant="outlined">
     <v-data-table-server
@@ -141,11 +141,11 @@
       <template #item.priority="{ item }">{{ PRIORITY_LABELS[item.priority] }}</template>
 
       <template #item.queued_at="{ item }">
-        {{ formatDateTime(item.queued_at, strTimeZone) }}
+        {{ formatDateTime(item.queued_at, strTimeZone, false) }}
       </template>
 
       <template #item.ended_at="{ item }">
-        {{ formatDateTime(item.ended_at, strTimeZone) }}
+        {{ formatDateTime(item.ended_at, strTimeZone, false) }}
       </template>
 
       <template #item.state="{ item }">
@@ -204,6 +204,7 @@ import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vu
 import { RouterLink, useRoute, useRouter } from "vue-router";
 import type { DataTableHeader } from "vuetify";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
 import JobActions from "@/components/runs/JobActions.vue";
 
 import { ARR_ACTIVE_JOB_STATE, getJobs, type JobPage, type JobFilters } from "@/api/runs";

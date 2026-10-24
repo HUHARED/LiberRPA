@@ -97,13 +97,7 @@
     aria-label="Loading executor details" />
 
   <template v-if="executorInfo">
-    <div
-      class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
-      <span>Time zone: {{ strTimeZone }}</span>
-      <span v-if="strUpdatedAt">
-        Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
-      </span>
-    </div>
+    <TimeZoneHint :time-zone="strTimeZone" :updated-at="strUpdatedAt" />
 
     <v-card variant="outlined" class="mb-4" :aria-busy="boolLoading">
       <v-card-title>Executor Information</v-card-title>
@@ -127,15 +121,8 @@
               <v-chip
                 size="small"
                 variant="tonal"
-                class="text-capitalize"
-                :color="
-                  executorInfo.association_status === 'online'
-                    ? 'success'
-                    : executorInfo.association_status === 'offline'
-                      ? 'warning'
-                      : 'secondary'
-                ">
-                {{ executorInfo.association_status }}
+                :color="DICT_ASSOCIATION_STATE[executorInfo.association_status].color">
+                {{ DICT_ASSOCIATION_STATE[executorInfo.association_status].title }}
               </v-chip>
             </dd>
           </div>
@@ -183,12 +170,12 @@
 
           <div>
             <dt class="text-caption text-medium-emphasis">Last Seen</dt>
-            <dd>{{ formatDateTime(executorInfo.last_seen_at, strTimeZone) }}</dd>
+            <dd>{{ formatDateTime(executorInfo.last_seen_at, strTimeZone, false) }}</dd>
           </div>
 
           <div>
             <dt class="text-caption text-medium-emphasis">Created At</dt>
-            <dd>{{ formatDateTime(executorInfo.created_at, strTimeZone) }}</dd>
+            <dd>{{ formatDateTime(executorInfo.created_at, strTimeZone, false) }}</dd>
           </div>
         </dl>
       </v-card-text>
@@ -207,7 +194,8 @@
 
       <v-card-text>
         <p class="mb-3">
-          Updated at {{ formatDateTime(executorInfo.last_work_reported_at, strTimeZone) }}.
+          Updated at
+          {{ formatDateTime(executorInfo.last_work_reported_at, strTimeZone, false) }}.
           Counts describe the last report from the current associated client.
         </p>
 
@@ -238,6 +226,8 @@
       <v-card-title>Package Preparation</v-card-title>
 
       <v-card-text>
+        <TimeZoneHint :time-zone="strTimeZone" />
+
         <p v-if="!executorInfo.preparation.items.length">No package preparation records.</p>
 
         <v-table v-else>
@@ -269,14 +259,24 @@
               <td>{{ preparation.project_version }}</td>
               <td class="text-anywhere">{{ preparation.python_environment_name }}</td>
               <td>
-                <span
+                <v-chip
                   v-if="preparation.from_previous_association"
                   v-tooltip:bottom="
                     'The current client has not reported a preparation result.'
-                  ">
+                  "
+                  color="warning"
+                  size="small"
+                  variant="tonal">
                   Not confirmed
-                </span>
-                <span v-else>{{ PACKAGE_PREPARATION_LABELS[preparation.state] }}</span>
+                </v-chip>
+
+                <v-chip
+                  v-else
+                  :color="PACKAGE_PREPARATION_COLORS[preparation.state]"
+                  size="small"
+                  variant="tonal">
+                  {{ PACKAGE_PREPARATION_LABELS[preparation.state] }}
+                </v-chip>
               </td>
               <td class="text-pre-wrap text-anywhere">
                 {{
@@ -287,7 +287,7 @@
                 {{
                   preparation.from_previous_association
                     ? "—"
-                    : formatDateTime(preparation.updated_at, strTimeZone)
+                    : formatDateTime(preparation.updated_at, strTimeZone, false)
                 }}
               </td>
             </tr>
@@ -634,6 +634,8 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { RouterLink } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
+import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
+
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
@@ -647,7 +649,11 @@ import {
 import type { ExecutorDetailsEntryResponse } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
-import { PACKAGE_PREPARATION_LABELS } from "@/app/runLabels";
+import {
+  DICT_ASSOCIATION_STATE,
+  PACKAGE_PREPARATION_LABELS,
+  PACKAGE_PREPARATION_COLORS,
+} from "@/app/runLabels";
 
 const props = defineProps<{ executorId: string }>();
 const sessionStore = useSessionStore();
