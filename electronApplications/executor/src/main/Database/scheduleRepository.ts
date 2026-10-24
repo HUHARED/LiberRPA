@@ -7,19 +7,24 @@ import type {
   ScheduleCreateData,
   ScheduleUpdateData,
 } from "../../shared/schedule";
+import type { RunSettings } from "../../shared/runSettings";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
+  type RunSettingsRow,
+  convertRunSettingsRow,
   ensureSingleRowAffected,
-  parseScheduleListRows,
-  parseScheduleDetailsRow,
-  parseScheduleRunConfigRow,
-} from "./rowValidation";
+} from "./rowConversion";
+
+type ScheduleListItemRow = Omit<ScheduleListItem, "enabled"> & { enabled: 0 | 1 };
+type ScheduleDetailsRow = Omit<ScheduleDetails, keyof RunSettings | "enabled"> &
+  RunSettingsRow & { enabled: 0 | 1 };
+type ScheduleRunConfigRow = Omit<RunConfig, keyof RunSettings> & RunSettingsRow;
 
 export function dbSelectScheduleList(): ScheduleListItem[] {
   loggerMain.debug("--dbSelectScheduleList--");
   const rows = getDatabase()
-    .prepare(
+    .prepare<[], ScheduleListItemRow>(
       `
       SELECT
           s.id,
@@ -39,13 +44,13 @@ export function dbSelectScheduleList(): ScheduleListItem[] {
       `,
     )
     .all();
-  return parseScheduleListRows(rows, "Schedule list query result");
+  return rows.map((row) => ({ ...row, enabled: row.enabled === 1 }));
 }
 
 export function dbSelectScheduleDetail(name: string): ScheduleDetails | undefined {
   loggerMain.debug("--dbSelectScheduleDetail--");
   const row = getDatabase()
-    .prepare(
+    .prepare<[string], ScheduleDetailsRow>(
       `
       SELECT
           s.id,
@@ -78,13 +83,13 @@ export function dbSelectScheduleDetail(name: string): ScheduleDetails | undefine
     .get(name);
   return row === undefined
     ? undefined
-    : parseScheduleDetailsRow(row, "Schedule detail query result");
+    : { ...row, ...convertRunSettingsRow(row), enabled: row.enabled === 1 };
 }
 
 export function dbSelectScheduleRunDetail(scheduleId: number): RunConfig | undefined {
   loggerMain.debug("--dbSelectScheduleRunDetail--");
   const row = getDatabase()
-    .prepare(
+    .prepare<[number], ScheduleRunConfigRow>(
       `
       SELECT
           s.name AS schedule_name,
@@ -108,9 +113,7 @@ export function dbSelectScheduleRunDetail(scheduleId: number): RunConfig | undef
       `,
     )
     .get(scheduleId);
-  return row === undefined
-    ? undefined
-    : parseScheduleRunConfigRow(row, "Schedule Run detail query result");
+  return row === undefined ? undefined : { ...row, ...convertRunSettingsRow(row) };
 }
 
 export function dbInsertSchedule(detailDict: ScheduleCreateData): void {

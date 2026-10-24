@@ -5,19 +5,25 @@ import type {
   PackageDetails,
   PackageSettings,
 } from "../../shared/package";
+import type { RunSettings } from "../../shared/runSettings";
 import { loggerMain } from "../Logging/logger";
 import { getDatabase } from "./connection";
 import {
+  type RunSettingsRow,
+  convertRunSettingsRow,
   ensureSingleRowAffected,
-  parseNameRows,
-  parseNonEmptyColumnRows,
-  parsePackageDetailsRow,
-} from "./rowValidation";
+} from "./rowConversion";
+
+type PackageDetailsRow = Omit<PackageDetails, keyof RunSettings> & RunSettingsRow;
+
+function convertPackageDetailsRow(row: PackageDetailsRow): PackageDetails {
+  return { ...row, ...convertRunSettingsRow(row) };
+}
 
 export function dbSelectProjectNames(): string[] {
   loggerMain.debug("--dbSelectProjectNames--");
   const rows = getDatabase()
-    .prepare(
+    .prepare<[], { project_name: string }>(
       `
       SELECT
           project_name
@@ -31,13 +37,13 @@ export function dbSelectProjectNames(): string[] {
       `,
     )
     .all();
-  return parseNonEmptyColumnRows(rows, "project_name", "Project name query result");
+  return rows.map((row) => row.project_name);
 }
 
 export function dbSelectProjectVersions(projectName: string): string[] {
   loggerMain.debug("--dbSelectProjectVersions--");
   const rows = getDatabase()
-    .prepare(
+    .prepare<[string], { project_version: string }>(
       `
       SELECT
           project_version
@@ -51,13 +57,13 @@ export function dbSelectProjectVersions(projectName: string): string[] {
       `,
     )
     .all(projectName);
-  return parseNonEmptyColumnRows(rows, "project_version", "Project version query result");
+  return rows.map((row) => row.project_version);
 }
 
 export function dbSelectPackageBoundSchedules(id: number): { name: string }[] {
   loggerMain.debug("--dbSelectPackageBoundSchedules--");
-  const rows = getDatabase()
-    .prepare(
+  return getDatabase()
+    .prepare<[number], { name: string }>(
       `
       SELECT
           name
@@ -70,7 +76,6 @@ export function dbSelectPackageBoundSchedules(id: number): { name: string }[] {
       `,
     )
     .all(id);
-  return parseNameRows(rows, "Bound Schedule query result");
 }
 
 export function dbSelectPackageDetails(
@@ -79,7 +84,7 @@ export function dbSelectPackageDetails(
 ): PackageDetails | undefined {
   loggerMain.debug("--dbSelectPackageDetails--");
   const row = getDatabase()
-    .prepare(
+    .prepare<[string, string], PackageDetailsRow>(
       `
       SELECT
           id,
@@ -105,15 +110,13 @@ export function dbSelectPackageDetails(
       `,
     )
     .get(projectName, projectVersion);
-  return row === undefined
-    ? undefined
-    : parsePackageDetailsRow(row, "Package details query result");
+  return row === undefined ? undefined : convertPackageDetailsRow(row);
 }
 
 export function dbSelectPackageDetailsById(id: number): PackageDetails | undefined {
   loggerMain.debug("--dbSelectPackageDetailsById--");
   const row = getDatabase()
-    .prepare(
+    .prepare<[number], PackageDetailsRow>(
       `
       SELECT
           id,
@@ -138,9 +141,7 @@ export function dbSelectPackageDetailsById(id: number): PackageDetails | undefin
       `,
     )
     .get(id);
-  return row === undefined
-    ? undefined
-    : parsePackageDetailsRow(row, "Package details by ID query result");
+  return row === undefined ? undefined : convertPackageDetailsRow(row);
 }
 
 export function dbInsertPackageDetails(dictDetail: PackageCreateData): void {
@@ -248,7 +249,7 @@ export function dbSelectMostRecentlyInstalledPackage(
 ): PackageDetails | undefined {
   loggerMain.debug("--dbSelectMostRecentlyInstalledPackage--");
   const row = getDatabase()
-    .prepare(
+    .prepare<[string], PackageDetailsRow>(
       `
       SELECT
           id,
@@ -277,7 +278,5 @@ export function dbSelectMostRecentlyInstalledPackage(
       `,
     )
     .get(projectName);
-  return row === undefined
-    ? undefined
-    : parsePackageDetailsRow(row, "Most recently installed Package query result");
+  return row === undefined ? undefined : convertPackageDetailsRow(row);
 }

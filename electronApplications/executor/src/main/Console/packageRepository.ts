@@ -2,7 +2,7 @@
 
 import { ensureExactRecord, ensureNonEmptyString } from "../Common/validation";
 import { getDatabase } from "../Database/connection";
-import { ensureSingleRowAffected } from "../Database/rowValidation";
+import { ensureSingleRowAffected } from "../Database/rowConversion";
 
 export function dbSelectConsolePackageId(folderName: string): string | undefined {
   const value = getDatabase()

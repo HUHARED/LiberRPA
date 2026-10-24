@@ -217,13 +217,6 @@ export function ensureRunTimeoutMinutes(value: unknown, sourceName: string): num
   return intValue;
 }
 
-export function ensureNullableString(value: unknown, sourceName: string): string | null {
-  if (value === null) {
-    return null;
-  }
-  return ensureString(value, sourceName);
-}
-
 export function ensureNullableNonNegativeInteger(
   value: unknown,
   sourceName: string,

@@ -2,7 +2,6 @@
 
 import type Database from "better-sqlite3";
 
-import { getErrorMessage } from "../../shared/error";
 import {
   RunSource,
   RunOutputsStatus,
@@ -11,21 +10,30 @@ import {
   type RunConfig,
   RunStatus,
   type RunEndedStatus,
+  type RunHistoryItem,
   type RunHistoryQueryOptions,
   type RunHistoryPage,
 } from "../../shared/run";
 
 import { loggerMain } from "../Logging/logger";
-import { ensureExactRecord, ensureNonEmptyString } from "../Common/validation";
 import { getDatabase } from "./connection";
-import {
-  ensureSingleRowAffected,
-  type RunLogLocation,
-  parseRunHistoryListRows,
-  parseCountRow,
-  parseRunHistoryLogLocationRow,
-} from "./rowValidation";
+import { ensureSingleRowAffected } from "./rowConversion";
 import { isRecoveredRunHistoryActive } from "../Run/recoveredRuns";
+
+export interface RunLogLocation {
+  id: number;
+  run_id: string;
+  log_path: string;
+  record_video: boolean;
+  finished_at_ms: number;
+}
+
+type RunLogLocationRow = Omit<RunLogLocation, "record_video"> & { record_video: 0 | 1 };
+type RunDetailsRow = Omit<RunDetails, "snapshot" | "outputs" | "error_summary"> & {
+  snapshot: string;
+  outputs: string;
+  error_summary: string | null;
+};
 
 interface RunHistoryInsertData {
   schedule_name: string | null;
@@ -179,10 +187,10 @@ export function dbHasEndedLocalRun(runId: string): boolean {
   // Recovery after restart leaves the end time empty; a finished status alone does not confirm when the process ended.
   return (
     getDatabase()
-      .prepare(
+      .prepare<[string, RunSource], { found: 1 }>(
         `
         SELECT
-            1
+            1 AS found
         FROM
             run_history
         WHERE
@@ -197,28 +205,33 @@ export function dbHasEndedLocalRun(runId: string): boolean {
 
 export function dbHasRunningRunForPackage(packageId: number): boolean {
   loggerMain.debug("--dbHasRunningRunForPackage--");
-  const row = getDatabase()
-    .prepare(
-      `
-      SELECT
-          COUNT(*) AS runningCount
-      FROM
-          run_history
-      WHERE
-          status = ?
-          AND local_package_id = ?;
-      `,
-    )
-    .get(RunStatus.Running, packageId);
   return (
-    parseCountRow(row, "runningCount", "Running Run count for Package query result") > 0
+    getDatabase()
+      .prepare<[RunStatus, number], { found: 1 }>(
+        `
+        SELECT
+            1 AS found
+        FROM
+            run_history
+        WHERE
+            status = ?
+            AND local_package_id = ?
+        LIMIT
+            1;
+        `,
+      )
+      .get(RunStatus.Running, packageId) !== undefined
   );
+}
+
+function convertRunLogLocationRow(row: RunLogLocationRow): RunLogLocation {
+  return { ...row, record_video: row.record_video === 1 };
 }
 
 export function dbSelectRunHistoryLogLocation(id: number): RunLogLocation | undefined {
   loggerMain.debug("--dbSelectRunHistoryLogLocation--");
   const row = getDatabase()
-    .prepare(
+    .prepare<[number], RunLogLocationRow>(
       `
       SELECT
           id,
@@ -233,16 +246,14 @@ export function dbSelectRunHistoryLogLocation(id: number): RunLogLocation | unde
       `,
     )
     .get(id);
-  return row === undefined
-    ? undefined
-    : parseRunHistoryLogLocationRow(row, "Run History log location query result");
+  return row === undefined ? undefined : convertRunLogLocationRow(row);
 }
 
 export function dbSelectFinishedLocalRunProjectName(
   runHistoryId: number,
 ): string | undefined {
   const row = getDatabase()
-    .prepare(
+    .prepare<[number, RunSource, RunStatus, RunStatus], { project_name: string }>(
       `
       SELECT
           project_name
@@ -256,12 +267,7 @@ export function dbSelectFinishedLocalRunProjectName(
       `,
     )
     .get(runHistoryId, RunSource.Local, RunStatus.Running, RunStatus.Unknown);
-  if (row === undefined) return undefined;
-  const strSourceName = "Run History rerun query result";
-  return ensureNonEmptyString(
-    ensureExactRecord(row, ["project_name"], strSourceName).project_name,
-    `${strSourceName}.project_name`,
-  );
+  return row?.project_name;
 }
 
 export function dbSelectRunHistoryPage(options: RunHistoryQueryOptions): RunHistoryPage {
@@ -304,7 +310,7 @@ export function dbSelectRunHistoryPage(options: RunHistoryQueryOptions): RunHist
   const strOrderByClause = arrOrderByClause.join(", ");
 
   const rows = getDatabase()
-    .prepare(
+    .prepare<(string | number)[], RunHistoryItem>(
       `
       SELECT
           id,
@@ -328,10 +334,10 @@ export function dbSelectRunHistoryPage(options: RunHistoryQueryOptions): RunHist
       `,
     )
     .all(...arrWhereParam, options.itemsPerPage, (options.page - 1) * options.itemsPerPage);
-  const arrRow = parseRunHistoryListRows(rows, "Run History query result");
 
-  const total = getDatabase()
-    .prepare(
+  // COUNT(*) without GROUP BY always returns one row, even when no Runs match.
+  const rowCount = getDatabase()
+    .prepare<string[], { total: number }>(
       `
       SELECT
           COUNT(*) AS total
@@ -340,29 +346,21 @@ export function dbSelectRunHistoryPage(options: RunHistoryQueryOptions): RunHist
       ${strWhereClause};
       `,
     )
-    .get(...arrWhereParam);
-  const intTotal = parseCountRow(total, "total", "Run History count query result");
+    .get(...arrWhereParam)!;
 
-  return { rows: arrRow, total: intTotal };
+  return { rows, total: rowCount.total };
 }
 
-function parseRetentionLogLocations(rows: unknown[], sourceName: string): RunLogLocation[] {
-  const arrLogLocation: RunLogLocation[] = [];
-  for (const [intIndex, row] of rows.entries()) {
-    try {
-      const location = parseRunHistoryLogLocationRow(row, `${sourceName}[${intIndex}]`);
-      if (!isRecoveredRunHistoryActive(location.id)) arrLogLocation.push(location);
-    } catch (e: unknown) {
-      loggerMain.warn(`Skip invalid Retention log location: ${getErrorMessage(e)}`);
-    }
-  }
-  return arrLogLocation;
+function getRetentionLogLocations(rows: RunLogLocationRow[]): RunLogLocation[] {
+  return rows
+    .filter((row) => !isRecoveredRunHistoryActive(row.id))
+    .map(convertRunLogLocationRow);
 }
 
 export function dbSelectLogFolderBefore(cutoffMs: number): RunLogLocation[] {
   loggerMain.debug("--dbSelectLogFolderBefore--");
   const rows = getDatabase()
-    .prepare(
+    .prepare<[RunStatus, number], RunLogLocationRow>(
       `
       SELECT
           id,
@@ -382,13 +380,13 @@ export function dbSelectLogFolderBefore(cutoffMs: number): RunLogLocation[] {
     )
     .all(RunStatus.Running, cutoffMs);
 
-  return parseRetentionLogLocations(rows, "Expired log folder query result");
+  return getRetentionLogLocations(rows);
 }
 
 export function dbSelectVideoBefore(cutoffMs: number): RunLogLocation[] {
   loggerMain.debug("--dbSelectVideoBefore--");
   const rows = getDatabase()
-    .prepare(
+    .prepare<[RunStatus, number], RunLogLocationRow>(
       `
       SELECT
           id,
@@ -408,13 +406,13 @@ export function dbSelectVideoBefore(cutoffMs: number): RunLogLocation[] {
     )
     .all(RunStatus.Running, cutoffMs);
 
-  return parseRetentionLogLocations(rows, "Expired video query result");
+  return getRetentionLogLocations(rows);
 }
 
 export function dbSelectVideo(): RunLogLocation[] {
   loggerMain.debug("--dbSelectVideo--");
   const rows = getDatabase()
-    .prepare(
+    .prepare<[RunStatus], RunLogLocationRow>(
       `
       SELECT
           id,
@@ -433,7 +431,7 @@ export function dbSelectVideo(): RunLogLocation[] {
     )
     .all(RunStatus.Running);
 
-  return parseRetentionLogLocations(rows, "Video query result");
+  return getRetentionLogLocations(rows);
 }
 
 export function dbUpdateNoLogFolderAndVideo(runHistoryId: number): void {
@@ -471,7 +469,7 @@ export function dbUpdateNoVideo(runHistoryId: number): void {
 
 export function dbSelectRunDetails(id: number): RunDetails {
   const row = getDatabase()
-    .prepare(
+    .prepare<[number], RunDetailsRow>(
       `
       SELECT
           source,
@@ -487,18 +485,8 @@ export function dbSelectRunDetails(id: number): RunDetails {
           id = ?;
       `,
     )
-    .get(id) as
-    | {
-        source: RunSource;
-        run_id: string;
-        job_id: string;
-        attempt_number: number;
-        snapshot: string;
-        outputs: string;
-        error_summary: string | null;
-      }
-    | undefined;
-  if (!row) throw new Error("Run History record not found.");
+    .get(id);
+  if (row === undefined) throw new Error("Run History record not found.");
   return {
     ...row,
     snapshot: JSON.parse(row.snapshot) as RunConfig,

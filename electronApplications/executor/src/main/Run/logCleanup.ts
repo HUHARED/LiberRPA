@@ -5,8 +5,8 @@ import path from "path";
 
 import { RunRecordingStatus } from "../../shared/run";
 import { getErrorMessage } from "../../shared/error";
-import type { RunLogLocation } from "../Database/rowValidation";
 import {
+  type RunLogLocation,
   dbSelectLogFolderBefore,
   dbSelectVideoBefore,
   dbSelectVideo,
