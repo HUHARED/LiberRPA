@@ -1,15 +1,15 @@
 // FileName: schedules.ts
 
 import { requestApi } from "./client";
-import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./responses";
 import type {
   ScheduleSaveRequest,
   ScheduleListEntryResponse,
   ScheduleResponse,
   ScheduleListResponse,
+  ScheduleDetailsResponse,
   SchedulePreviewResponse,
 } from "./generated/browserApi";
-import { ARR_CONFLICT_POLICY, isRunSettings, type RunSettings } from "./runSettings";
+import type { RunSettings } from "./runSettings";
 
 export type ScheduleDraft = Omit<Required<ScheduleSaveRequest>, "settings"> & {
   settings: RunSettings;
@@ -26,36 +26,6 @@ export interface ScheduleFilters {
   targetId: string | null;
 }
 
-function parseScheduleListEntry(value: unknown): ScheduleListEntry {
-  if (
-    !isRecord(value) ||
-    typeof value.id !== "string" ||
-    typeof value.name !== "string" ||
-    typeof value.cron !== "string" ||
-    !ARR_CONFLICT_POLICY.some((policy) => policy === value.run_conflict_policy) ||
-    typeof value.project_version !== "string" ||
-    !isRecord(value.department) ||
-    !Array.isArray(value.executor_ids) ||
-    !Array.isArray(value.executors) ||
-    typeof value.can_manage !== "boolean"
-  )
-    return rejectInvalidResponse();
-  return value as unknown as ScheduleListEntry;
-}
-
-function parseSchedule(value: unknown): ScheduleInfo {
-  parseScheduleListEntry(value);
-  if (
-    !isRecord(value) ||
-    !isRunSettings(value.settings) ||
-    typeof value.python_environment_name !== "string" ||
-    !Array.isArray(value.upcoming_triggers) ||
-    !value.upcoming_triggers.every((time: unknown) => typeof time === "string")
-  )
-    return rejectInvalidResponse();
-  return value as unknown as ScheduleInfo;
-}
-
 export async function getSchedules(
   filters: ScheduleFilters,
   page = 1,
@@ -68,30 +38,28 @@ export async function getSchedules(
   });
   if (filters.enabled) query.set("enabled", filters.enabled);
   for (const id of filters.departmentIds) query.append("department_id", id);
-  const result = await requestApi(`/schedules/?${query}`);
-  if (!isRecord(result) || !Array.isArray(result.schedules)) return rejectInvalidResponse();
-  return {
-    schedules: result.schedules.map(parseScheduleListEntry),
-    ...parsePaginationResponse(result),
-  };
+  return requestApi<ScheduleListResponse>(`/schedules/?${query}`);
 }
 
 export async function getSchedule(id: string): Promise<ScheduleInfo> {
-  const result = await requestApi(`/schedules/${encodeURIComponent(id)}/`);
-  if (!isRecord(result)) return rejectInvalidResponse();
-  return parseSchedule(result.schedule);
+  const result = await requestApi<ScheduleDetailsResponse>(
+    `/schedules/${encodeURIComponent(id)}/`,
+  );
+  return result.schedule;
 }
 
 export async function saveSchedule(
   id: string | null,
   draft: ScheduleDraft,
 ): Promise<ScheduleInfo> {
-  const result = await requestApi(`/schedules/${id ? `${encodeURIComponent(id)}/` : ""}`, {
-    method: "POST",
-    body: draft,
-  });
-  if (!isRecord(result)) return rejectInvalidResponse();
-  return parseSchedule(result.schedule);
+  const result = await requestApi<ScheduleDetailsResponse>(
+    `/schedules/${id ? `${encodeURIComponent(id)}/` : ""}`,
+    {
+      method: "POST",
+      body: draft,
+    },
+  );
+  return result.schedule;
 }
 
 export async function setScheduleEnabled(id: string, enabled: boolean): Promise<void> {
@@ -111,12 +79,8 @@ export async function deleteSchedule(id: string): Promise<void> {
 export async function previewSchedule(
   body: Pick<ScheduleDraft, "cron" | "time_zone" | "active_from" | "active_until">,
 ): Promise<SchedulePreviewResponse> {
-  const result = await requestApi("/schedules/preview/", { method: "POST", body });
-  if (
-    !isRecord(result) ||
-    typeof result.normalized_cron !== "string" ||
-    !Array.isArray(result.upcoming_triggers)
-  )
-    return rejectInvalidResponse();
-  return result as unknown as SchedulePreviewResponse;
+  return requestApi<SchedulePreviewResponse>("/schedules/preview/", {
+    method: "POST",
+    body,
+  });
 }

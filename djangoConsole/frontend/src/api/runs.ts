@@ -3,45 +3,33 @@
 import { downloadFile } from "@/app/files";
 
 import { requestApi } from "./client";
+import { isRecord, isNonnegativeInteger, rejectInvalidResponse } from "./responses";
 import {
-  isRecord,
-  isNonnegativeInteger,
-  isDateString,
-  isNullableDateString,
-  rejectInvalidResponse,
-  parsePaginationResponse,
-} from "./responses";
-import {
-  JobTargetType,
   JobState,
   RunStatus,
   OutputsStatus,
-  RunEventKind,
-  RunFileKind,
-  ARR_JOB_SOURCE,
+  type RunEventKind,
+  type RunFileKind,
   type JobSource,
   type JobControlAction,
   type RecordingStatus,
   type JobResponse,
-  type JobListEntryResponse,
+  type JobDetailsResponse,
   type JobDetailsEntryResponse,
   type JobListResponse,
   type JobCreationResponse,
   type RunResponse,
+  type RunDetailsResponse,
   type RunDetailsEntryResponse,
   type RunListResponse,
   type RunLogEntryResponse,
   type RunLogListResponse,
   type RunDepartmentResponse,
+  type RunDepartmentListResponse,
   type RunRerunResponse,
   type RunLogClearResponse,
 } from "./generated/browserApi";
-import {
-  type RunSettings,
-  ARR_PRIORITY,
-  ARR_LOG_LEVEL,
-  isRunSnapshot,
-} from "./runSettings";
+import type { RunSettings } from "./runSettings";
 
 export type {
   JobState,
@@ -98,59 +86,11 @@ function buildQuery(filters: JobFilters | RunFilters, page?: number): URLSearchP
     if (value && key) query.set(key, value);
   return query;
 }
-function isJob(value: unknown): value is JobInfo {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.job_request_id === "string" &&
-    Object.values(JobState).some((state) => value.state === state) &&
-    Object.values(JobTargetType).some((targetType) => value.target_type === targetType) &&
-    ARR_JOB_SOURCE.some((source) => value.source === source) &&
-    ARR_PRIORITY.some((priority) => value.priority === priority) &&
-    typeof value.project_name === "string" &&
-    typeof value.project_version === "string" &&
-    isNullableDateString(value.stop_requested_at) &&
-    typeof value.can_stop === "boolean"
-  );
-}
-function isRun(value: unknown): value is RunInfo {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    ARR_RUN_STATUS.some((status) => value.status === status) &&
-    ARR_OUTPUTS_STATUS.some((status) => value.outputs_status === status) &&
-    typeof value.project_name === "string" &&
-    typeof value.project_version === "string" &&
-    isNonnegativeInteger(value.attempt_number) &&
-    value.attempt_number > 0 &&
-    typeof value.computer_name === "string" &&
-    typeof value.stop_requested === "boolean" &&
-    typeof value.can_rerun === "boolean" &&
-    typeof value.can_stop === "boolean"
-  );
-}
 export async function getJobs(filters: JobFilters, page = 1): Promise<JobPage> {
-  const result = await requestApi(`/jobs/?${buildQuery(filters, page)}`);
-  if (
-    !isRecord(result) ||
-    !Array.isArray(result.jobs) ||
-    !result.jobs.every(
-      (job: unknown): job is JobListEntryResponse =>
-        isRecord(job) &&
-        isJob(job) &&
-        typeof job.can_view_schedule === "boolean" &&
-        typeof job.can_view_target === "boolean" &&
-        typeof job.can_view_executor === "boolean",
-    )
-  )
-    return rejectInvalidResponse();
-  return { jobs: result.jobs, ...parsePaginationResponse(result) };
+  return requestApi<JobListResponse>(`/jobs/?${buildQuery(filters, page)}`);
 }
 export async function getRuns(filters: RunFilters, page = 1): Promise<RunPage> {
-  const result = await requestApi(`/runs/?${buildQuery(filters, page)}`);
-  if (!isRecord(result) || !Array.isArray(result.runs) || !result.runs.every(isRun))
-    return rejectInvalidResponse();
-  return { runs: result.runs, ...parsePaginationResponse(result) };
+  return requestApi<RunListResponse>(`/runs/?${buildQuery(filters, page)}`);
 }
 export async function getMatchingRunIds(filters: RunFilters): Promise<string[]> {
   const result = await requestApi(`/runs/selection/?${buildQuery(filters)}`);
@@ -163,67 +103,12 @@ export async function getMatchingRunIds(filters: RunFilters): Promise<string[]> 
   return result.run_ids;
 }
 export async function getJob(id: string): Promise<JobDetails> {
-  const result = await requestApi(`/jobs/${encodeURIComponent(id)}/`);
-  if (
-    !isRecord(result) ||
-    !isRecord(result.job) ||
-    !isRunSnapshot(result.job.run_snapshot) ||
-    !isJob(result.job) ||
-    !Array.isArray(result.job.runs) ||
-    !result.job.runs.every(isRun) ||
-    !Array.isArray(result.job.events) ||
-    !result.job.events.every(
-      (event) =>
-        isRecord(event) &&
-        Object.values(RunEventKind).some((kind) => kind === event.kind) &&
-        isDateString(event.occurred_at) &&
-        typeof event.reason === "string",
-    )
-  )
-    return rejectInvalidResponse();
-  return result.job as unknown as JobDetails;
+  const result = await requestApi<JobDetailsResponse>(`/jobs/${encodeURIComponent(id)}/`);
+  return result.job;
 }
 export async function getRun(id: string): Promise<RunDetails> {
-  const result = await requestApi(`/runs/${encodeURIComponent(id)}/`);
-  if (
-    !isRecord(result) ||
-    !isRecord(result.run) ||
-    typeof result.run.department_path !== "string" ||
-    result.run.department_path.length === 0 ||
-    !isNullableDateString(result.run.department_deleted_at) ||
-    !isRunSnapshot(result.run.run_snapshot) ||
-    !isRun(result.run) ||
-    !isJob(result.run.job) ||
-    !Array.isArray(result.run.other_runs) ||
-    !result.run.other_runs.every(isRun) ||
-    !isRecord(result.run.recording) ||
-    typeof result.run.outputs_reason !== "string" ||
-    !Array.isArray(result.run.outputs_unavailable_keys) ||
-    !result.run.outputs_unavailable_keys.every((key: unknown) => typeof key === "string") ||
-    (result.run.outputs_status === "complete" || result.run.outputs_status === "partial"
-      ? !Array.isArray(result.run.outputs) ||
-        !result.run.outputs.every(
-          (entry: unknown) =>
-            Array.isArray(entry) && entry.length === 2 && typeof entry[0] === "string",
-        )
-      : result.run.outputs !== null)
-  )
-    return rejectInvalidResponse();
-  const dictFiles = result.run.files;
-  if (
-    !isRecord(dictFiles) ||
-    !Object.values(RunFileKind).every((kind) => {
-      const availability = dictFiles[kind];
-      return (
-        isRecord(availability) &&
-        typeof availability.available === "boolean" &&
-        typeof availability.reason === "string" &&
-        (availability.size_bytes === null || isNonnegativeInteger(availability.size_bytes))
-      );
-    })
-  )
-    return rejectInvalidResponse();
-  return result.run as unknown as RunDetails;
+  const result = await requestApi<RunDetailsResponse>(`/runs/${encodeURIComponent(id)}/`);
+  return result.run;
 }
 export async function createJobs(
   packageId: string,
@@ -248,15 +133,15 @@ export async function createJobs(
     typeof result.job_request_id !== "string" ||
     !Array.isArray(result.jobs) ||
     result.jobs.length === 0 ||
-    !result.jobs.every(isJob) ||
-    result.jobs.some((job) => job.job_request_id !== result.job_request_id)
+    !result.jobs.every(
+      (job: unknown) =>
+        isRecord(job) &&
+        typeof job.id === "string" &&
+        job.job_request_id === result.job_request_id,
+    )
   )
     return rejectInvalidResponse();
-  return {
-    request_id: clientRequestId,
-    job_request_id: result.job_request_id,
-    jobs: result.jobs,
-  };
+  return result as unknown as JobCreationResponse;
 }
 export async function controlJob(id: string, action: JobControlAction): Promise<void> {
   await requestApi(`/jobs/${encodeURIComponent(id)}/control/`, {
@@ -280,26 +165,6 @@ export async function getRerun(id: string): Promise<RunRerunResponse> {
     return rejectInvalidResponse();
   return result as unknown as RunRerunResponse;
 }
-function isLogEntry(value: unknown): value is LogEntry {
-  return (
-    isRecord(value) &&
-    typeof value.log_id === "string" &&
-    isNonnegativeInteger(value.sequence) &&
-    isDateString(value.timestamp) &&
-    isDateString(value.received_at) &&
-    ARR_LOG_LEVEL.some((level) => value.level === level) &&
-    typeof value.user_name === "string" &&
-    typeof value.machine_name === "string" &&
-    typeof value.process_name === "string" &&
-    typeof value.file_name === "string" &&
-    typeof value.line_no === "string" &&
-    /^(0|[1-9]\d*)$/.test(value.line_no) &&
-    typeof value.project_name === "string" &&
-    typeof value.message_text === "string" &&
-    isRecord(value.custom_fields) &&
-    Object.values(value.custom_fields).every((field) => typeof field === "string")
-  );
-}
 export async function getRunLogs(
   id: string,
   cursor: { before?: number; after?: number } = {},
@@ -311,7 +176,12 @@ export async function getRunLogs(
   if (
     !isRecord(result) ||
     !Array.isArray(result.logs) ||
-    !result.logs.every(isLogEntry) ||
+    !result.logs.every(
+      (entry: unknown) =>
+        isRecord(entry) &&
+        typeof entry.log_id === "string" &&
+        isNonnegativeInteger(entry.sequence),
+    ) ||
     !(result.before_cursor === null || isNonnegativeInteger(result.before_cursor)) ||
     !isNonnegativeInteger(result.after_cursor) ||
     typeof result.has_more !== "boolean" ||
@@ -320,15 +190,7 @@ export async function getRunLogs(
     typeof result.unavailable_reason !== "string"
   )
     return rejectInvalidResponse();
-  return {
-    logs: result.logs,
-    before_cursor: result.before_cursor,
-    after_cursor: result.after_cursor,
-    has_more: result.has_more,
-    cleared: result.cleared,
-    complete: result.complete,
-    unavailable_reason: result.unavailable_reason,
-  };
+  return result as unknown as RunLogListResponse;
 }
 export async function clearRunLogs(ids: string[]): Promise<RunLogClearResponse> {
   const result = await requestApi("/runs/clear-logs/", {
@@ -359,15 +221,6 @@ export async function downloadRunFile(id: string, kind: RunFileKind): Promise<vo
 }
 
 export async function getRunDepartments(): Promise<RunDepartmentInfo[]> {
-  const result = await requestApi("/runs/departments/");
-  if (
-    !isRecord(result) ||
-    !Array.isArray(result.departments) ||
-    !result.departments.every(
-      (entry: unknown) =>
-        isRecord(entry) && typeof entry.id === "string" && typeof entry.path === "string",
-    )
-  )
-    return rejectInvalidResponse();
-  return result.departments as RunDepartmentInfo[];
+  const result = await requestApi<RunDepartmentListResponse>("/runs/departments/");
+  return result.departments;
 }

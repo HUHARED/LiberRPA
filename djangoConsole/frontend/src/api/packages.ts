@@ -3,21 +3,17 @@
 import { getSha256, downloadFile } from "@/app/files";
 
 import { requestApi } from "./client";
-import { isRecord, parsePaginationResponse, rejectInvalidResponse } from "./responses";
-import { isRunSettings, cloneRunSettings, type RunSettings } from "./runSettings";
+import { isRecord, rejectInvalidResponse } from "./responses";
+import { cloneRunSettings, type RunSettings } from "./runSettings";
 import {
   type PackageDetailsResponse,
-  type PackageResponse,
-  type PackageListEntryResponse,
   type PackageOptionEntryResponse,
+  type PackageOptionsResponse,
   type PackageProjectGroupListResponse,
-  type PackageProjectGroupEntryResponse,
   type PackageUploadResponse,
   type ProjectPackageListResponse,
-  type ProjectPackageEntryResponse,
-  type PackageProjectGroupResponse,
-  PackageReferenceKind,
-  PackagePreparationState,
+  type PackageReferenceKind,
+  type PackagePreparationState,
   PackageUploadState,
 } from "./generated/browserApi";
 
@@ -29,64 +25,6 @@ export const PACKAGE_REFERENCE_LABELS: Record<PackageReferenceKind, string> = {
   download: "Download",
 };
 
-function isPackageListEntry(value: unknown): value is PackageListEntryResponse {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.department_id === "string" &&
-    typeof value.department_path === "string" &&
-    typeof value.project_name === "string" &&
-    typeof value.project_version === "string" &&
-    typeof value.python_environment_name === "string" &&
-    typeof value.can_manage === "boolean" &&
-    typeof value.size_bytes === "number" &&
-    typeof value.uploaded_at === "string" &&
-    typeof value.uploaded_by_name === "string"
-  );
-}
-export function isPackageInfo(value: unknown): value is PackageResponse {
-  return (
-    isRecord(value) &&
-    isPackageListEntry(value) &&
-    "settings" in value &&
-    isRunSettings(value.settings) &&
-    Array.isArray(value.api_input_keys) &&
-    value.api_input_keys.every((name: unknown) => typeof name === "string") &&
-    typeof value.description === "string" &&
-    typeof value.version_summary === "string" &&
-    typeof value.requires_liberrpa === "string" &&
-    typeof value.sha256 === "string" &&
-    isRecord(value.component_dependencies)
-  );
-}
-function parsePackageDetails(value: unknown): PackageDetailsResponse {
-  if (
-    !isRecord(value) ||
-    !isPackageInfo(value.package) ||
-    !Array.isArray(value.preparation) ||
-    !value.preparation.every(
-      (preparation) =>
-        isRecord(preparation) &&
-        typeof preparation.executor_id === "string" &&
-        typeof preparation.executor_name === "string" &&
-        Object.values(PackagePreparationState).some(
-          (state) => state === preparation.state,
-        ) &&
-        typeof preparation.reason === "string" &&
-        typeof preparation.from_previous_association === "boolean",
-    ) ||
-    !Array.isArray(value.references) ||
-    !value.references.every(
-      (reference) =>
-        isRecord(reference) &&
-        typeof reference.id === "string" &&
-        typeof reference.name === "string" &&
-        Object.values(PackageReferenceKind).some((kind) => kind === reference.kind),
-    )
-  )
-    return rejectInvalidResponse();
-  return value as unknown as PackageDetailsResponse;
-}
 function parseUpload(value: unknown): PackageUploadResponse {
   if (
     !isRecord(value) ||
@@ -94,31 +32,16 @@ function parseUpload(value: unknown): PackageUploadResponse {
     !Object.values(PackageUploadState).some((state) => state === value.state) ||
     typeof value.offset !== "number" ||
     typeof value.chunk_bytes !== "number" ||
-    !(value.package === null || isPackageInfo(value.package))
+    !(
+      value.package === null ||
+      (isRecord(value.package) &&
+        typeof value.package.id === "string" &&
+        typeof value.package.department_id === "string")
+    )
   )
     return rejectInvalidResponse();
   return value as unknown as PackageUploadResponse;
 }
-function isPackageProjectGroup(value: unknown): value is PackageProjectGroupResponse {
-  return (
-    isRecord(value) &&
-    typeof value.department_id === "string" &&
-    typeof value.department_path === "string" &&
-    typeof value.project_name === "string" &&
-    typeof value.project_name_key === "string"
-  );
-}
-
-function isPackageProjectGroupEntry(
-  value: unknown,
-): value is PackageProjectGroupEntryResponse {
-  return (
-    isPackageProjectGroup(value) &&
-    "latest_package_id" in value &&
-    typeof value.latest_package_id === "string"
-  );
-}
-
 export async function getPackageProjectGroups(
   departmentIds: string[],
   page = 1,
@@ -128,18 +51,7 @@ export async function getPackageProjectGroups(
   for (const strId of departmentIds) query.append("department_id", strId);
   if (locatePackageId) query.set("locate_package_id", locatePackageId);
 
-  const response = await requestApi(`/packages/project-groups/?${query}`);
-  if (
-    !isRecord(response) ||
-    !Array.isArray(response.project_groups) ||
-    !response.project_groups.every(isPackageProjectGroupEntry)
-  )
-    return rejectInvalidResponse();
-
-  return {
-    project_groups: response.project_groups,
-    ...parsePaginationResponse(response),
-  };
+  return requestApi<PackageProjectGroupListResponse>(`/packages/project-groups/?${query}`);
 }
 
 export async function getProjectPackages(
@@ -147,50 +59,21 @@ export async function getProjectPackages(
   page?: number,
 ): Promise<ProjectPackageListResponse> {
   const query = page === undefined ? "" : `?page=${page}`;
-  const response = await requestApi(
+  return requestApi<ProjectPackageListResponse>(
     `/packages/${encodeURIComponent(packageId)}/project-packages/${query}`,
   );
-  if (
-    !isRecord(response) ||
-    !isPackageProjectGroup(response.project_group) ||
-    !Array.isArray(response.packages) ||
-    !response.packages.every(
-      (packageEntry): packageEntry is ProjectPackageEntryResponse =>
-        isRecord(packageEntry) &&
-        typeof packageEntry.id === "string" &&
-        typeof packageEntry.project_version === "string",
-    )
-  )
-    return rejectInvalidResponse();
-
-  return {
-    project_group: response.project_group,
-    packages: response.packages,
-    ...parsePaginationResponse(response),
-  };
 }
 
 export async function getPackageOptions(
   departmentId: string,
 ): Promise<PackageOptionEntryResponse[]> {
-  const response = await requestApi(
+  const response = await requestApi<PackageOptionsResponse>(
     `/packages/options/?${new URLSearchParams({ department_id: departmentId })}`,
   );
-  if (
-    !isRecord(response) ||
-    !Array.isArray(response.packages) ||
-    !response.packages.every(
-      (packageEntry): packageEntry is PackageOptionEntryResponse =>
-        isPackageListEntry(packageEntry) &&
-        "project_name_key" in packageEntry &&
-        typeof packageEntry.project_name_key === "string",
-    )
-  )
-    return rejectInvalidResponse();
   return response.packages;
 }
 export async function getPackageDetails(id: string): Promise<PackageDetailsResponse> {
-  return parsePackageDetails(await requestApi(`/packages/${encodeURIComponent(id)}/`));
+  return requestApi<PackageDetailsResponse>(`/packages/${encodeURIComponent(id)}/`);
 }
 export async function savePackageSettings(
   id: string,
@@ -198,15 +81,17 @@ export async function savePackageSettings(
   settings: RunSettings,
   apiInputKeys: string[],
 ): Promise<PackageDetailsResponse> {
-  const response = await requestApi(`/packages/${encodeURIComponent(id)}/settings/`, {
-    method: "POST",
-    body: {
-      python_environment_name: environment,
-      settings: cloneRunSettings(settings),
-      api_input_keys: [...apiInputKeys],
+  return requestApi<PackageDetailsResponse>(
+    `/packages/${encodeURIComponent(id)}/settings/`,
+    {
+      method: "POST",
+      body: {
+        python_environment_name: environment,
+        settings: cloneRunSettings(settings),
+        api_input_keys: [...apiInputKeys],
+      },
     },
-  });
-  return parsePackageDetails(response);
+  );
 }
 export async function cancelPackagePreparation(id: string): Promise<number> {
   const response = await requestApi(
