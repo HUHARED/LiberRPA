@@ -29,7 +29,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--watch",
             action="store_true",
-            help="Repeat hourly by default; deployment uses the existing records loop.",
+            help="Repeat hourly by default; deployment uses the history-cleanup loop.",
         )
         parser.add_argument(
             "--interval-minutes",
