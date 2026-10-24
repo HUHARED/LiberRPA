@@ -4,19 +4,11 @@ import {
   ComponentManagementOperationError,
   getComponentRepositoryCatalog,
   getProjectDependencyState,
-  buildProjectDependencyPlan,
-  applyProjectDependencyPlan,
-  repairProjectComponents,
 } from "../../Adapter/Python/componentManagementClient";
-import type { ComponentManagementOperationResult } from "../../Adapter/Python/componentManagementClient";
 import type {
   DictComponentManagementWarning,
-  DictProtocolDependencyOperation,
   DictProtocolResult_RepositoryCatalog,
   DictProtocolResult_ProjectDependencyState,
-  DictProtocolResult_ProjectDependencyPlan,
-  DictProtocolResult_ProjectDependencyPlanApplied,
-  DictProtocolResult_ProjectComponentsRepaired,
 } from "../../Domain/ComponentManagement/componentManagementTypes";
 
 interface ManageComponentsData {
@@ -62,33 +54,4 @@ export async function loadManageComponentsData(
     repositoryCatalogError,
     warnings: [...arrRepositoryWarning, ...projectStateResult.warnings],
   };
-}
-
-export async function createProjectDependencyPlan(
-  projectPath: string,
-  dependencyOperation: DictProtocolDependencyOperation,
-): Promise<ComponentManagementOperationResult<DictProtocolResult_ProjectDependencyPlan>> {
-  return await buildProjectDependencyPlan(projectPath, dependencyOperation);
-}
-
-export async function confirmProjectDependencyPlan(
-  projectPath: string,
-  dependencyOperation: DictProtocolDependencyOperation,
-  confirmedPlanSha256: string,
-): Promise<
-  ComponentManagementOperationResult<DictProtocolResult_ProjectDependencyPlanApplied>
-> {
-  return await applyProjectDependencyPlan(
-    projectPath,
-    dependencyOperation,
-    confirmedPlanSha256,
-  );
-}
-
-export async function repairProjectComponentFolder(
-  projectPath: string,
-): Promise<
-  ComponentManagementOperationResult<DictProtocolResult_ProjectComponentsRepaired>
-> {
-  return await repairProjectComponents(projectPath);
 }

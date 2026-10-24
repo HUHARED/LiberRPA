@@ -11,7 +11,12 @@ import {
   showWarningMessageWithLogs,
 } from "../Adapter/VsCode/output";
 import { getErrorMessage } from "../Common/utils";
-import { ComponentManagementOperationError } from "../Adapter/Python/componentManagementClient";
+import {
+  ComponentManagementOperationError,
+  buildProjectDependencyPlan,
+  applyProjectDependencyPlan,
+  repairProjectComponents,
+} from "../Adapter/Python/componentManagementClient";
 import type {
   Theme,
   ProjectManagerOperation,
@@ -36,12 +41,7 @@ import {
   logComponentManagementWarnings,
   getComponentManagementWarningMessages,
 } from "./componentManagementOutput";
-import {
-  loadManageComponentsData,
-  createProjectDependencyPlan,
-  confirmProjectDependencyPlan,
-  repairProjectComponentFolder,
-} from "./Dependency/manageComponents";
+import { loadManageComponentsData } from "./Dependency/manageComponents";
 import {
   getProjectTemplates,
   selectTargetFolder,
@@ -593,7 +593,7 @@ export class ProjectManagerSession {
     await this.runBusyOperation(async () => {
       await this.saveAllProjectFiles();
       const workspaceFolder = this.getSingleWorkspaceFolder();
-      const operationResult = await createProjectDependencyPlan(
+      const operationResult = await buildProjectDependencyPlan(
         workspaceFolder.uri.fsPath,
         dependencyOperation,
       );
@@ -615,7 +615,7 @@ export class ProjectManagerSession {
     await this.runBusyOperation(async () => {
       await this.saveAllProjectFiles();
       const workspaceFolder = this.getSingleWorkspaceFolder();
-      const operationResult = await confirmProjectDependencyPlan(
+      const operationResult = await applyProjectDependencyPlan(
         workspaceFolder.uri.fsPath,
         dependencyOperation,
         confirmedPlanSha256,
@@ -642,9 +642,7 @@ export class ProjectManagerSession {
     await this.runBusyOperation(async () => {
       await this.saveAllProjectFiles();
       const workspaceFolder = this.getSingleWorkspaceFolder();
-      const operationResult = await repairProjectComponentFolder(
-        workspaceFolder.uri.fsPath,
-      );
+      const operationResult = await repairProjectComponents(workspaceFolder.uri.fsPath);
       logComponentManagementWarnings(operationResult.warnings);
 
       const boolHasWarning = operationResult.warnings.length > 0;

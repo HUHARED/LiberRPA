@@ -3,15 +3,6 @@
 import type {
   DictComponentManagementWarning,
   DictProtocolDependencyOperation,
-  DictProtocolResult_Publish,
-  DictProtocolResult_ComponentWheelsImported,
-  DictProtocolResult_RepositoryIndexRebuilt,
-  DictProtocolResult_RepositoryCatalog,
-  DictProtocolResult_ProjectManifestDefaults,
-  DictProtocolResult_ProjectDependencyState,
-  DictProtocolResult_ProjectDependencyPlan,
-  DictProtocolResult_ProjectDependencyPlanApplied,
-  DictProtocolResult_ProjectComponentsRepaired,
 } from "../../Domain/ComponentManagement/componentManagementTypes";
 
 export interface DictProtocolRequest_PublishComponent {
@@ -97,36 +88,6 @@ export interface DictProtocolResponse_Error {
   ok: false;
   error: DictProtocolError;
 }
-
-export type DictProtocolSuccess_PublishComponent =
-  DictProtocolSuccess<DictProtocolResult_Publish>;
-export type DictProtocolSuccess_ComponentWheelsImported =
-  DictProtocolSuccess<DictProtocolResult_ComponentWheelsImported>;
-export type DictProtocolSuccess_RepositoryIndexRebuilt =
-  DictProtocolSuccess<DictProtocolResult_RepositoryIndexRebuilt>;
-export type DictProtocolSuccess_RepositoryCatalog =
-  DictProtocolSuccess<DictProtocolResult_RepositoryCatalog>;
-export type DictProtocolSuccess_ProjectManifestDefaults =
-  DictProtocolSuccess<DictProtocolResult_ProjectManifestDefaults>;
-export type DictProtocolSuccess_ProjectDependencyState =
-  DictProtocolSuccess<DictProtocolResult_ProjectDependencyState>;
-export type DictProtocolSuccess_ProjectDependencyPlan =
-  DictProtocolSuccess<DictProtocolResult_ProjectDependencyPlan>;
-export type DictProtocolSuccess_ProjectDependencyPlanApplied =
-  DictProtocolSuccess<DictProtocolResult_ProjectDependencyPlanApplied>;
-export type DictProtocolSuccess_ProjectComponentsRepaired =
-  DictProtocolSuccess<DictProtocolResult_ProjectComponentsRepaired>;
-
-export type DictProtocolResult =
-  | DictProtocolResult_Publish
-  | DictProtocolResult_ComponentWheelsImported
-  | DictProtocolResult_RepositoryIndexRebuilt
-  | DictProtocolResult_RepositoryCatalog
-  | DictProtocolResult_ProjectManifestDefaults
-  | DictProtocolResult_ProjectDependencyState
-  | DictProtocolResult_ProjectDependencyPlan
-  | DictProtocolResult_ProjectDependencyPlanApplied
-  | DictProtocolResult_ProjectComponentsRepaired;
 
 export type DictProtocolSuccess_Raw = DictProtocolSuccess<Record<string, unknown>>;
 export type DictProtocolResponse_Raw = DictProtocolSuccess_Raw | DictProtocolResponse_Error;

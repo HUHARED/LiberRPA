@@ -15,6 +15,10 @@ const SET_ALWAYS_EXCLUDED_FOLDER_NAME = new Set([
 const STR_PROJECT_TEST_FOLDER_NAME_LOWERCASE = "_test";
 const STR_PROJECT_OPERATION_LOCK_FILE_NAME = ".liberrpa-project-manager.lock";
 
+export function getProjectPackageFileName(manifest: DictProjectManifest_Flow): string {
+  return `${manifest.name}_${manifest.version}.rpa.zip`;
+}
+
 export function getProjectPackageFileNameError(
   manifest: DictProjectManifest_Flow,
 ): string | undefined {
@@ -31,16 +35,10 @@ export function getProjectPackageFileNameError(
     return "flow.json version cannot start or end with whitespace.";
   }
 
-  const strPackageFileName = `${manifest.name}_${manifest.version}.rpa.zip`;
-  return getWindowsFileOrFolderNameError(strPackageFileName, "Package filename");
-}
-
-export function getProjectPackageFileName(manifest: DictProjectManifest_Flow): string {
-  const strError = getProjectPackageFileNameError(manifest);
-  if (strError !== undefined) {
-    throw new Error(strError);
-  }
-  return `${manifest.name}_${manifest.version}.rpa.zip`;
+  return getWindowsFileOrFolderNameError(
+    getProjectPackageFileName(manifest),
+    "Package filename",
+  );
 }
 
 export function getProjectPackageDependencyBlockingReasons(

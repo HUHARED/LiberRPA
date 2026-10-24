@@ -18,8 +18,8 @@ import type {
   DictProtocolResult_ProjectDependencyState,
 } from "../../Domain/ComponentManagement/componentManagementTypes";
 import {
-  getProjectPackageFileNameError,
   getProjectPackageFileName,
+  getProjectPackageFileNameError,
   getProjectPackageDependencyBlockingReasons,
   shouldExcludeProjectFolder,
   shouldExcludeProjectFile,
@@ -198,15 +198,10 @@ async function getOutputFolderError(
 
 async function getPackageBlockingReasons(
   projectPath: string,
-  manifest: DictProjectManifest_Flow,
   projectState: DictProtocolResult_ProjectDependencyState,
   input: DictPackageProjectInput,
 ): Promise<string[]> {
   const arrReason = getProjectPackageDependencyBlockingReasons(projectState);
-  const strFileNameError = getProjectPackageFileNameError(manifest);
-  if (strFileNameError !== undefined) {
-    arrReason.unshift(strFileNameError);
-  }
 
   const strVersionSummaryError = getVersionSummaryError(input.versionSummary);
   if (strVersionSummaryError !== undefined) {
@@ -243,19 +238,21 @@ export async function loadPackageProjectData(
     throw new Error("Component Management returned an invalid Flow Project manifest.");
   }
   const manifest = projectDependencyState.manifest;
+  const strFileNameError = getProjectPackageFileNameError(manifest);
   const packageFileName =
-    getProjectPackageFileNameError(manifest) === undefined
-      ? getProjectPackageFileName(manifest)
-      : null;
+    strFileNameError === undefined ? getProjectPackageFileName(manifest) : null;
   const packageFilePath =
     packageFileName === null ? null : path.join(input.outputFolderPath, packageFileName);
 
   const arrBlockingReason = await getPackageBlockingReasons(
     projectPath,
-    manifest,
     projectDependencyState,
     input,
   );
+  if (strFileNameError !== undefined) {
+    arrBlockingReason.unshift(strFileNameError);
+  }
+
   let projectFlowContent: Buffer | null = null;
   try {
     const strProjectFlowPath = path.join(projectPath, "project.flow");
@@ -501,7 +498,7 @@ export async function packageFlowProject(
   input: DictPackageProjectInput,
 ): Promise<PackageProjectOperationResult> {
   const data = await loadPackageProjectData(workspaceFolder, input);
-  if (data.blockingReasons.length > 0) {
+  if (data.blockingReasons.length > 0 || data.packageFileName === null) {
     throw new Error(
       "The Flow Project cannot be packaged:\n" +
         data.blockingReasons.map((reason) => `- ${reason}`).join("\n"),
@@ -512,7 +509,7 @@ export async function packageFlowProject(
     throw new Error("Validated project.flow content is unavailable.");
   }
 
-  const packageFileName = getProjectPackageFileName(data.manifest);
+  const packageFileName = data.packageFileName;
   const packageFilePath = path.join(input.outputFolderPath, packageFileName);
   if (data.packageFileExists || (await pathExists(packageFilePath))) {
     throw new Error(`Package file already exists: ${packageFilePath}`);
