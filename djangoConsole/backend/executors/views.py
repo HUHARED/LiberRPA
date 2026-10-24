@@ -272,7 +272,6 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
                     Schedule.objects
                     .filter(
                         department_id=details.executor.department_id,
-                        deleted_at__isnull=True,
                         executor_ids__contains=[str(details.executor.pk)],
                     )
                     .order_by("name", "id")

@@ -18,6 +18,7 @@ from pydantic import ValidationError as ContractValidationError
 from pydantic_core import PydanticSerializationError
 
 from accounts.session_revocation import SessionInvalidatedError
+from console_project.contracts import MessageResponse
 from console_project.http import (
     build_error_response,
     build_authentication_required_response,
@@ -40,7 +41,6 @@ from .contracts import (
     ExecutorGroupDeletionRequest,
     ExecutorGroupListResponse,
     ExecutorGroupDetailsResponse,
-    ExecutorGroupDeletionResponse,
     ExecutorGroupWriteResponse,
 )
 from .group_queries import (
@@ -82,7 +82,6 @@ def _build_group_payload(group: ExecutorGroup) -> dict[str, object]:
         "department_id": group.department_id,
         "notes": group.notes,
         "created_at": group.created_at,
-        "deleted_at": group.deleted_at,
     }
 
 
@@ -285,7 +284,7 @@ def get_or_update_executor_group(
                 ],
                 "referencing_schedules": list(
                     Schedule.objects
-                    .filter(group_id=groupId, deleted_at__isnull=True)
+                    .filter(group_id=groupId)
                     .order_by("name", "id")
                     .values("id", "name", "enabled")
                 ),
@@ -315,11 +314,11 @@ def delete_executor_group_record(
             return deletionRequest
         with transaction.atomic():
             access = lock_request_write_access(request, membership)
-            group = delete_executor_group(access, groupId=groupId)
+            delete_executor_group(access, groupId=groupId)
             return JsonResponse(
-                ExecutorGroupDeletionResponse.model_validate({
-                    "executor_group": _build_group_payload(group)
-                }).model_dump(mode="python")
+                MessageResponse(message="Executor group deleted.").model_dump(
+                    mode="python"
+                )
             )
     except _HANDLED_GROUP_ERRORS as e:
         return _build_group_error_response(e)

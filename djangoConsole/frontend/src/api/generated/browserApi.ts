@@ -277,7 +277,6 @@ export interface BrowserApiContracts {
   ExecutorDispatchRequest: ExecutorDispatchRequest;
   ExecutorGroupCreationRequest: ExecutorGroupCreationRequest;
   ExecutorGroupDeletionRequest: ExecutorGroupDeletionRequest;
-  ExecutorGroupDeletionResponse: ExecutorGroupDeletionResponse;
   ExecutorGroupDetailsResponse: ExecutorGroupDetailsResponse;
   ExecutorGroupListResponse: ExecutorGroupListResponse;
   ExecutorGroupUpdateRequest: ExecutorGroupUpdateRequest;
@@ -821,24 +820,12 @@ export interface ExecutorGroupCreationRequest {
  * The URL supplies the group identity; request data cannot bypass reference checks.
  */
 export interface ExecutorGroupDeletionRequest {}
-export interface ExecutorGroupDeletionResponse {
-  executor_group: ExecutorGroupRecordResponse;
-}
-export interface ExecutorGroupRecordResponse {
-  created_at: string;
-  deleted_at: string | null;
-  department_id: string;
-  id: string;
-  name: string;
-  notes: string;
-}
 export interface ExecutorGroupDetailsResponse {
   executor_group: ExecutorGroupDetailsEntryResponse;
 }
 export interface ExecutorGroupDetailsEntryResponse {
   can_manage: boolean;
   created_at: string;
-  deleted_at: string | null;
   department: ExecutorDepartmentResponse;
   department_id: string;
   id: string;
@@ -877,7 +864,6 @@ export interface ExecutorGroupListResponse {
 export interface ExecutorGroupListEntryResponse {
   can_manage: boolean;
   created_at: string;
-  deleted_at: string | null;
   department: ExecutorDepartmentResponse;
   department_id: string;
   id: string;
@@ -898,7 +884,6 @@ export interface ExecutorGroupWriteResponse {
 }
 export interface ExecutorGroupWriteEntryResponse {
   created_at: string;
-  deleted_at: string | null;
   department_id: string;
   executor_ids: string[];
   id: string;

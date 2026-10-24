@@ -142,7 +142,6 @@ class ExecutorGroupRecordResponse(JsonResponsePayload):
     department_id: UUID
     notes: str
     created_at: datetime
-    deleted_at: datetime | None
 
 
 class ExecutorGroupListEntryResponse(ExecutorGroupRecordResponse):
@@ -164,10 +163,6 @@ class ExecutorGroupDetailsEntryResponse(ExecutorGroupListEntryResponse):
 
 class ExecutorGroupDetailsResponse(JsonResponsePayload):
     executor_group: ExecutorGroupDetailsEntryResponse
-
-
-class ExecutorGroupDeletionResponse(JsonResponsePayload):
-    executor_group: ExecutorGroupRecordResponse
 
 
 class ExecutorGroupWriteEntryResponse(ExecutorGroupRecordResponse):

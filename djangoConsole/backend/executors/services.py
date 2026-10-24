@@ -144,17 +144,13 @@ def delete_executor(
 ) -> Executor:
     """Remove a current record while retaining its identity for future historical references."""
     executor = _get_executor_for_management(access, executorId)
-    if ExecutorGroupMember.objects.filter(
-        executor=executor, group__deleted_at__isnull=True
-    ).exists():
+    if ExecutorGroupMember.objects.filter(executor=executor).exists():
         raise ValidationError(
             "Remove this Executor from its groups before deleting it.",
             code="executor_group_reference",
         )
     if (
-        Schedule.objects.filter(
-            deleted_at__isnull=True, executor_ids__contains=[str(executor.pk)]
-        ).exists()
+        Schedule.objects.filter(executor_ids__contains=[str(executor.pk)]).exists()
         or Job.objects
         .filter(target_executor_id=executor.pk)
         .exclude(state=JobState.FINISHED)

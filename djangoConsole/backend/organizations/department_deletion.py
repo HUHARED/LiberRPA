@@ -92,9 +92,7 @@ def _build_department_deletion_info(department: Department) -> DepartmentDeletio
             )
         )
 
-    intGroupCount = ExecutorGroup.objects.filter(
-        department=department, deleted_at__isnull=True
-    ).count()
+    intGroupCount = ExecutorGroup.objects.filter(department=department).count()
     if intGroupCount:
         listBlocker.append(
             DepartmentDeletionBlocker(
@@ -150,9 +148,7 @@ def _build_department_deletion_info(department: Department) -> DepartmentDeletio
         ),
         DepartmentDeletionBlocker(
             DepartmentDeletionBlockerCode.SCHEDULES,
-            Schedule.objects.filter(
-                department=department, deleted_at__isnull=True
-            ).count(),
+            Schedule.objects.filter(department=department).count(),
         ),
         DepartmentDeletionBlocker(
             DepartmentDeletionBlockerCode.ACTIVE_JOBS,

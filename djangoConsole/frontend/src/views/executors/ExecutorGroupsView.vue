@@ -248,7 +248,6 @@ import { type ApiError, getApiError } from "@/api/errors";
 import { type ExecutorGroupListFilters, getExecutorGroupList } from "@/api/executorGroups";
 import {
   INT_LIST_PAGE_SIZE,
-  type ExecutorGroupRecordResponse,
   type ExecutorGroupListResponse,
   type ExecutorGroupWriteResponse,
 } from "@/api/generated/browserApi";
@@ -372,9 +371,9 @@ function handleGroupUpdated(): void {
   void loadGroups();
 }
 
-function handleGroupDeleted(group: ExecutorGroupRecordResponse): void {
+function handleGroupDeleted(): void {
   creationResult.value = null;
-  strSuccessMessage.value = `Group "${group.name}" deleted.`;
+  strSuccessMessage.value = "Executor group deleted.";
   void loadGroups();
 }
 

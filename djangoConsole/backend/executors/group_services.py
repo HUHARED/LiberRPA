@@ -8,7 +8,6 @@ import uuid
 from dataclasses import dataclass
 
 from django.core.exceptions import ValidationError
-from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from operations.audit_contracts import AuditAction
@@ -40,7 +39,6 @@ def _get_group_for_management(
 ) -> ExecutorGroup:
     group = ExecutorGroup.objects.get(
         pk=groupId,
-        deleted_at__isnull=True,
         department__in=get_authorized_departments(
             access, requiredRole=DepartmentRole.OPERATOR
         ),
@@ -96,9 +94,7 @@ def create_executor_group(
     _validate_group_members(group, executorIds)
     limits = get_organization_limits(access.organization)
     if (
-        ExecutorGroup.objects.filter(
-            department__organization=access.organization, deleted_at__isnull=True
-        ).count()
+        ExecutorGroup.objects.filter(department__organization=access.organization).count()
         >= limits.maxExecutorGroupsPerOrganization
     ):
         raise ValidationError(
@@ -153,11 +149,11 @@ def delete_executor_group(
     access: OrganizationAccessContext,
     *,
     groupId: uuid.UUID,
-) -> ExecutorGroup:
-    """Remove memberships and retain the group identity without changing any Executor."""
+) -> None:
+    """Delete the group and its memberships without changing Executors or accepted work."""
     group = _get_group_for_management(access, groupId)
     if (
-        Schedule.objects.filter(group_id=group.pk, deleted_at__isnull=True).exists()
+        Schedule.objects.filter(group_id=group.pk).exists()
         or Job.objects
         .filter(target_group_id=group.pk)
         .exclude(state=JobState.FINISHED)
@@ -168,9 +164,6 @@ def delete_executor_group(
             code="executor_group_work_reference",
         )
     # Reference creation must use the same organization lock; completed history must not block deletion.
-    ExecutorGroupMember.objects.filter(group=group).delete()
-    group.deleted_at = timezone.now()
-    group.save(update_fields=["deleted_at"])
     record_audit(
         AuditAction.EXECUTOR_GROUP_DELETE,
         actor=access.actor,
@@ -178,4 +171,4 @@ def delete_executor_group(
         target=group,
         channel=access.channel,
     )
-    return group
+    group.delete()

@@ -109,7 +109,6 @@ def _update_assignment_state(
         or ExecutorGroupMember.objects.filter(
             group_id=job.target_group_id,
             executor_id=assignment.executor_id,
-            group__deleted_at__isnull=True,
         ).exists()
     )
     if assignment.state == AssignmentState.PREPARING and (
@@ -145,7 +144,7 @@ def _get_candidates(job: Job) -> list[Executor]:
     if job.target_executor_id:
         return list(executorQuery.filter(pk=job.target_executor_id))
     if not ExecutorGroup.objects.filter(
-        pk=job.target_group_id, department_id=job.department_id, deleted_at__isnull=True
+        pk=job.target_group_id, department_id=job.department_id
     ).exists():
         return []
     return list(
@@ -506,7 +505,6 @@ def issue_start_permit(session: ExecutorSession, assignmentId: uuid.UUID) -> Ass
         and not ExecutorGroupMember.objects.filter(
             group_id=job.target_group_id,
             executor_id=assignment.executor_id,
-            group__deleted_at__isnull=True,
         ).exists()
     ):
         raise ValidationError(

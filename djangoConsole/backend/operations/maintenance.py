@@ -127,10 +127,7 @@ def update_maintenance(action: MaintenanceAction) -> bool:
         if boolRestored and not boolEnter:
             # Keep the file barrier until the future-only schedule boundary commits.
             for schedule in (
-                Schedule.objects
-                .select_for_update()
-                .filter(enabled=True, deleted_at__isnull=True)
-                .iterator()
+                Schedule.objects.select_for_update().filter(enabled=True).iterator()
             ):
                 schedule.next_trigger_at = get_next_trigger(
                     schedule.cron,

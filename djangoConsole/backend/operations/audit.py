@@ -63,7 +63,7 @@ _DICT_SNAPSHOT_FIELD = {
         "dispatch_enabled",
         "deleted_at",
     ),
-    "executors.executorgroup": ("name", "department_id", "notes", "deleted_at"),
+    "executors.executorgroup": ("name", "department_id", "notes"),
     "executors.executorsession": (
         "user_id",
         "executor_id",
@@ -85,7 +85,6 @@ _DICT_SNAPSHOT_FIELD = {
         "active_until",
         "enabled",
         "notes",
-        "deleted_at",
         "group_id",
         "executor_ids",
     ),

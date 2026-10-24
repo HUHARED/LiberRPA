@@ -252,7 +252,6 @@ import { type ApiError, getApiError } from "@/api/errors";
 import { getExecutorGroupDetails, deleteExecutorGroup } from "@/api/executorGroups";
 import {
   INT_LIST_PAGE_SIZE,
-  type ExecutorGroupRecordResponse,
   type ExecutorGroupDetailsEntryResponse,
   type ExecutorGroupWriteResponse,
   type ExecutorGroupWarningResponse,
@@ -263,7 +262,7 @@ import { formatDateTime } from "@/app/formatters";
 const props = defineProps<{ groupId: string }>();
 const route = useRoute();
 const router = useRouter();
-const emit = defineEmits<{ updated: []; deleted: [group: ExecutorGroupRecordResponse] }>();
+const emit = defineEmits<{ updated: []; deleted: [] }>();
 
 const ARR_MEMBER_HEADER = [
   { title: "Name", key: "name", minWidth: 180 },
@@ -375,8 +374,8 @@ async function submitDelete(): Promise<void> {
     groupInfo.value = null;
     boolConfirmDelete.value = false;
     boolDeleted.value = true;
-    strSuccessMessage.value = `Group "${response.executor_group.name}" deleted.`;
-    emit("deleted", response.executor_group);
+    strSuccessMessage.value = response.message;
+    emit("deleted");
   } catch (e) {
     if (boolUnmounted) return;
     deleteError.value = getApiError(e);

@@ -355,14 +355,12 @@ def list_work(access: OrganizationAccessContext, query: QueryDict, *, runs: bool
             Schedule.objects.filter(
                 pk__in=setScheduleId,
                 department__in=departmentQuery,
-                deleted_at__isnull=True,
             ).values_list("id", flat=True)
         )
         setVisibleGroupId = set(
             ExecutorGroup.objects.filter(
                 pk__in=setGroupId,
                 department__in=departmentQuery,
-                deleted_at__isnull=True,
             ).values_list("id", flat=True)
         )
         setVisibleExecutorId = set(

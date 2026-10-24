@@ -149,9 +149,7 @@ def _create_request(
     require_service_normal()
     dictSnapshot = get_run_snapshot(package, runSettings)
     if groupId:
-        group = ExecutorGroup.objects.get(
-            pk=groupId, department=department, deleted_at__isnull=True
-        )
+        group = ExecutorGroup.objects.get(pk=groupId, department=department)
         listExecutor = list(
             Executor.objects.filter(
                 group_memberships__group=group,

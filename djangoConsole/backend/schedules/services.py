@@ -39,7 +39,6 @@ def get_schedule_for_access(
     access: OrganizationAccessContext, scheduleId: uuid.UUID, *, forUpdate: bool = False
 ) -> Schedule:
     query = Schedule.objects.filter(
-        deleted_at__isnull=True,
         department__in=get_authorized_departments(
             access, requiredRole=DepartmentRole.OPERATOR
         ),
@@ -89,7 +88,7 @@ def save_schedule(
             raise ValidationError("Select distinct Executors or one Executor Group.")
         if groupId is not None:
             if not ExecutorGroup.objects.filter(
-                pk=groupId, department_id=departmentId, deleted_at__isnull=True
+                pk=groupId, department_id=departmentId
             ).exists():
                 raise ValidationError({"group_id": "Select a group in this department."})
         elif Executor.objects.filter(
@@ -118,7 +117,7 @@ def save_schedule(
     if schedule is None:
         limits = get_organization_limits(access.organization)
         intCount = Schedule.objects.filter(
-            department__organization=access.organization, deleted_at__isnull=True
+            department__organization=access.organization
         ).count()
         if intCount >= limits.maxSchedulesPerOrganization:
             raise ValidationError(
@@ -160,7 +159,7 @@ def save_schedule(
         )
     if (
         Schedule.objects
-        .filter(department_id=departmentId, deleted_at__isnull=True)
+        .filter(department_id=departmentId)
         .exclude(pk=schedule.pk)
         .alias(name_key=Lower("name"))
         .filter(name_key=Lower(Value(schedule.name)))
@@ -232,7 +231,6 @@ def skip_expired_schedule_triggers(
     for schedule in Schedule.objects.filter(
         department__organization=organization,
         enabled=True,
-        deleted_at__isnull=True,
         next_trigger_at__lte=resumedAt,
     ).select_for_update(of=("self",)):
         schedule.next_trigger_at = get_next_trigger(
@@ -247,13 +245,6 @@ def skip_expired_schedule_triggers(
 
 def delete_schedule(access: OrganizationAccessContext, schedule: Schedule) -> None:
     require_schedule_management(access, schedule.department_id)
-    schedule.enabled = False
-    schedule.next_trigger_at = None
-    schedule.deleted_at = timezone.now()
-    schedule.updated_at = schedule.deleted_at
-    schedule.save(
-        update_fields=["enabled", "next_trigger_at", "deleted_at", "updated_at"]
-    )
     # Accepted Jobs retain their independent snapshot and continue until explicitly controlled.
     record_audit(
         AuditAction.SCHEDULE_DELETE,
@@ -261,3 +252,4 @@ def delete_schedule(access: OrganizationAccessContext, schedule: Schedule) -> No
         organization=access.organization,
         target=schedule,
     )
+    schedule.delete()

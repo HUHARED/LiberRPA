@@ -163,17 +163,13 @@ def get_organization_usage(organization: Organization) -> OrganizationLimitsResp
             None,
         ),
         OrganizationLimit.EXECUTOR_GROUPS: (
-            ExecutorGroup.objects.filter(
-                department__organization=organization, deleted_at__isnull=True
-            ).count(),
+            ExecutorGroup.objects.filter(department__organization=organization).count(),
             None,
         ),
         OrganizationLimit.PROJECTS: (projects.count(), None),
         OrganizationLimit.PACKAGES_PER_PROJECT: (intMostPackages, None),
         OrganizationLimit.SCHEDULES: (
-            Schedule.objects.filter(
-                department__organization=organization, deleted_at__isnull=True
-            ).count(),
+            Schedule.objects.filter(department__organization=organization).count(),
             None,
         ),
         OrganizationLimit.ASSETS: (

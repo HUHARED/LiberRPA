@@ -457,7 +457,7 @@ def get_package_references(package: Package) -> list[dict[str, str]]:
             "id": str(schedule.pk),
             "name": schedule.name,
         }
-        for schedule in Schedule.objects.filter(package=package, deleted_at__isnull=True)
+        for schedule in Schedule.objects.filter(package=package)
     ]
     listReference.extend(
         {"kind": PackageReferenceKind.JOB, "id": str(job.pk), "name": str(job.pk)}
@@ -513,9 +513,6 @@ def delete_package(access: OrganizationAccessContext, package: Package) -> None:
         target=package,
         channel=access.channel,
     )
-    from schedules.models import Schedule
-
-    Schedule.objects.filter(package=package, deleted_at__isnull=False).delete()
     blobId = package.blob_id
     package.delete()
     StoredBlob.objects.filter(pk=blobId).update(state=StoredBlobState.GARBAGE)

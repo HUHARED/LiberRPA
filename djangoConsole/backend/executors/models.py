@@ -167,14 +167,12 @@ class ExecutorGroup(models.Model):
         validators=[MaxLengthValidator(2000), ProhibitNullCharactersValidator()],
     )
     created_at = models.DateTimeField(default=timezone.now, editable=False)
-    deleted_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 "department",
                 Lower("name"),
-                condition=models.Q(deleted_at__isnull=True),
                 name="executor_group_name_unique",
                 violation_error_code="duplicate_executor_group_name",
                 violation_error_message="An Executor group with this name already exists in this department.",
@@ -225,7 +223,5 @@ class ExecutorGroupMember(models.Model):
             raise ValidationError({
                 "executor": "Group members must belong to the group's department."
             })
-        if group.deleted_at is not None or executor.deleted_at is not None:
-            raise ValidationError(
-                "Deleted groups and Executors cannot have current memberships."
-            )
+        if executor.deleted_at is not None:
+            raise ValidationError("Deleted Executors cannot have current memberships.")

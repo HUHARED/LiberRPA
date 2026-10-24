@@ -128,9 +128,9 @@ def get_asset_references(
         ),
         (
             AssetReferenceKind.SCHEDULE,
-            Schedule.objects.filter(
-                department__in=departments, deleted_at__isnull=True
-            ).values("id", "name", "custom_arg_assets"),
+            Schedule.objects.filter(department__in=departments).values(
+                "id", "name", "custom_arg_assets"
+            ),
         ),
     ]
     for kind, rows in listSource:

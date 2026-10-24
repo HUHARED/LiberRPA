@@ -168,7 +168,6 @@ def get_recipient_references(recipient: RunEmailRecipient) -> list[dict]:
         })
     for schedule in Schedule.objects.filter(
         department__organization_id=recipient.organization_id,
-        deleted_at__isnull=True,
         run_email__recipient_ids__contains=[strId],
     ).select_related("department"):
         listReference.append({

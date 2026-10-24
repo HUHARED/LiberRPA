@@ -5,11 +5,11 @@ import { requestApi } from "./client";
 import type {
   ExecutorGroupCreationRequest,
   ExecutorGroupDeletionRequest,
-  ExecutorGroupDeletionResponse,
   ExecutorGroupDetailsResponse,
   ExecutorGroupListResponse,
   ExecutorGroupUpdateRequest,
   ExecutorGroupWriteResponse,
+  MessageResponse,
 } from "./generated/browserApi";
 
 export interface ExecutorGroupListFilters {
@@ -55,11 +55,9 @@ export async function updateExecutorGroup(
   );
 }
 
-export async function deleteExecutorGroup(
-  groupId: string,
-): Promise<ExecutorGroupDeletionResponse> {
+export async function deleteExecutorGroup(groupId: string): Promise<MessageResponse> {
   const deletionRequest: ExecutorGroupDeletionRequest = {};
-  return requestApi<ExecutorGroupDeletionResponse>(
+  return requestApi<MessageResponse>(
     `/executor-groups/${encodeURIComponent(groupId)}/deletion/`,
     { method: "POST", body: deletionRequest },
   );

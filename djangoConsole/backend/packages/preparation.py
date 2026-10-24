@@ -62,7 +62,7 @@ def request_package_preparation(package: Package, executorIds: list[uuid.UUID]) 
 def request_referenced_preparation(package: Package) -> None:
     from schedules.models import Schedule
 
-    schedules = Schedule.objects.filter(package=package, deleted_at__isnull=True)
+    schedules = Schedule.objects.filter(package=package)
     setExecutorId = {
         uuid.UUID(strExecutorId)
         for schedule in schedules

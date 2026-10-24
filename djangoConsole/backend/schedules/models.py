@@ -43,7 +43,6 @@ class Schedule(RunSettingsModel):
     )
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     updated_at = models.DateTimeField(default=timezone.now)
-    deleted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         indexes = [
@@ -53,7 +52,6 @@ class Schedule(RunSettingsModel):
             models.UniqueConstraint(
                 Lower("name"),
                 "department",
-                condition=models.Q(deleted_at__isnull=True),
                 name="schedule_department_name_unique",
                 violation_error_message="A Schedule with this name already exists in this department.",
             ),

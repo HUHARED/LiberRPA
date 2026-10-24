@@ -75,7 +75,6 @@ def _process_trigger(
         if (
             schedule is None
             or not schedule.enabled
-            or schedule.deleted_at is not None
             or schedule.next_trigger_at != scheduledAt
         ):
             return
@@ -156,9 +155,7 @@ def scan_schedules(
             previousScanAt=None if state is None else state.scanned_at
         )
     scanStartedAt = timezone.now()
-    query = Schedule.objects.filter(enabled=True, deleted_at__isnull=True).order_by(
-        "next_trigger_at", "id"
-    )
+    query = Schedule.objects.filter(enabled=True).order_by("next_trigger_at", "id")
     for _ in range(_INT_TRIGGER_BATCH_SIZE):
         # Advancing one Schedule may reveal the next earliest point across all Schedules.
         nextTrigger = (

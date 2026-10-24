@@ -220,7 +220,6 @@ def list_or_create_schedules(request: HttpRequest) -> JsonResponse:
         request.GET, extraFields=frozenset({"enabled", "project_name", "target"})
     )
     query = Schedule.objects.filter(
-        deleted_at__isnull=True,
         department__in=get_authorized_departments(
             access, requiredRole=DepartmentRole.OPERATOR
         ),

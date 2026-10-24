@@ -57,7 +57,6 @@ def _get_group_query(access: OrganizationAccessContext) -> QuerySet[ExecutorGrou
         department__in=get_authorized_departments(
             access, requiredRole=DepartmentRole.OPERATOR
         ),
-        deleted_at__isnull=True,
     ).select_related("department")
 
 
@@ -174,6 +173,5 @@ def get_executor_group_references(executor: Executor) -> tuple[ExecutorGroup, ..
         ExecutorGroup.objects.filter(
             memberships__executor=executor,
             department_id=executor.department_id,
-            deleted_at__isnull=True,
         ).order_by(Lower("name"), "id")
     )
