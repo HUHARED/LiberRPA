@@ -3,10 +3,8 @@
 import { requestApi } from "./client";
 import {
   isRecord,
-  isDateString,
   isNullableDateString,
   rejectInvalidResponse,
-  parsePaginationResponse,
   parseMessageResponse,
 } from "./responses";
 import { parseOrganizationLimitsResponse } from "./organization";
@@ -19,7 +17,6 @@ import type {
   OrganizationServiceRequest,
   PlatformOrganizationDetailsResponse,
   PlatformOrganizationListResponse,
-  PlatformOrganizationResponse,
   ServiceSettingsRequest,
   ServiceSettingsResponse,
 } from "./generated/browserApi";
@@ -33,68 +30,18 @@ function parseServiceSettingsResponse(payload: unknown): ServiceSettingsResponse
   };
 }
 
-function parsePlatformOrganizationResponse(payload: unknown): PlatformOrganizationResponse {
-  if (
-    !isRecord(payload) ||
-    typeof payload.id !== "string" ||
-    typeof payload.name !== "string" ||
-    typeof payload.notes !== "string" ||
-    !isDateString(payload.created_at) ||
-    !isNullableDateString(payload.suspended_at) ||
-    !isNullableDateString(payload.deletion_requested_at) ||
-    !isNullableDateString(payload.deletion_started_at) ||
-    !Array.isArray(payload.administrators)
-  )
-    return rejectInvalidResponse();
-
-  const arrAdministrator = payload.administrators.map((administrator: unknown) => {
-    if (
-      !isRecord(administrator) ||
-      typeof administrator.id !== "string" ||
-      typeof administrator.name !== "string" ||
-      typeof administrator.email !== "string"
-    )
-      return rejectInvalidResponse();
-    return { id: administrator.id, name: administrator.name, email: administrator.email };
-  });
-  return {
-    id: payload.id,
-    name: payload.name,
-    notes: payload.notes,
-    created_at: payload.created_at,
-    suspended_at: payload.suspended_at,
-    deletion_requested_at: payload.deletion_requested_at,
-    deletion_started_at: payload.deletion_started_at,
-    administrators: arrAdministrator,
-  };
-}
-
-export function parsePlatformOrganizationListResponse(
-  payload: unknown,
-): PlatformOrganizationListResponse {
-  if (!isRecord(payload) || !Array.isArray(payload.organizations))
-    return rejectInvalidResponse();
-  return {
-    organizations: payload.organizations.map(parsePlatformOrganizationResponse),
-    pagination: parsePaginationResponse(payload.pagination),
-  };
-}
-
 export function parsePlatformOrganizationDetailsResponse(
   payload: unknown,
 ): PlatformOrganizationDetailsResponse {
-  const organization = parsePlatformOrganizationResponse(payload);
   if (
     !isRecord(payload) ||
-    typeof payload.default_time_zone !== "string" ||
-    !isNullableDateString(payload.deletion_due_at)
+    typeof payload.id !== "string" ||
+    !isNullableDateString(payload.suspended_at) ||
+    !isNullableDateString(payload.deletion_requested_at) ||
+    !isNullableDateString(payload.deletion_started_at)
   )
     return rejectInvalidResponse();
-  return {
-    ...organization,
-    default_time_zone: payload.default_time_zone,
-    deletion_due_at: payload.deletion_due_at,
-  };
+  return payload as unknown as PlatformOrganizationDetailsResponse;
 }
 
 export async function getServiceSettings(): Promise<ServiceSettingsResponse> {
@@ -118,8 +65,8 @@ export async function getPlatformOrganizationList(
   if (filters.organizationId.trim())
     parameters.set("organization_id", filters.organizationId.trim());
   for (const strStatus of filters.statuses) parameters.append("status", strStatus);
-  return parsePlatformOrganizationListResponse(
-    await requestApi(`/platform/organizations/?${parameters}`),
+  return requestApi<PlatformOrganizationListResponse>(
+    `/platform/organizations/?${parameters}`,
   );
 }
 
