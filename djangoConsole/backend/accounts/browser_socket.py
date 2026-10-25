@@ -41,7 +41,10 @@ _STR_BROWSER_PATH = "/api/browser/events/"
 _SET_CHANGE_MESSAGE = frozenset({
     BrowserMessageType.SESSION_CHANGED,
     BrowserMessageType.NOTIFICATIONS_CHANGED,
+    BrowserMessageType.EXECUTION_CHANGED,
 })
+
+type _BrowserChange = tuple[BrowserMessageType, uuid.UUID | None]
 
 
 @dataclass(frozen=True)
@@ -82,10 +85,15 @@ def _load_browser_session(sessionKey: str | None) -> BrowserSession | None:
         close_old_connections()
 
 
-async def _send_message(send: ASGISendCallable, message: BrowserMessageType) -> None:
+async def _send_message(
+    send: ASGISendCallable, message: BrowserMessageType, jobId: uuid.UUID | None = None
+) -> None:
+    dictPayload: dict[str, str | None] = {"type": message}
+    if message == BrowserMessageType.EXECUTION_CHANGED:
+        dictPayload["job_id"] = str(jobId) if jobId is not None else None
     await send({
         "type": "websocket.send",
-        "text": json.dumps({"type": message}, separators=(",", ":")),
+        "text": json.dumps(dictPayload, separators=(",", ":")),
         "bytes": None,
     })
 
@@ -102,32 +110,40 @@ async def _close_connection(send: ASGISendCallable, code: int, reason: str) -> N
 
 
 class BrowserSocket:
-    """Share one browser connection between session and notification invalidations."""
+    """Share one browser connection between session, notification and execution invalidations."""
 
     def __init__(self, application: ASGI3Application) -> None:
         self.application = application
-        self.connections: dict[
-            uuid.UUID, dict[asyncio.Event, set[BrowserMessageType]]
-        ] = {}
+        self.connections: dict[uuid.UUID, dict[asyncio.Event, set[_BrowserChange]]] = {}
 
     def _notify_connections(self, payload: str | None) -> None:
         if payload is None:
             for subscriptions in self.connections.values():
                 for wakeup, pending in subscriptions.items():
-                    pending.update(_SET_CHANGE_MESSAGE)
+                    pending.update((message, None) for message in _SET_CHANGE_MESSAGE)
                     wakeup.set()
             return
         try:
-            strType, strUserId = payload.split(":", 1)
-            message = BrowserMessageType(strType)
-            userId = uuid.UUID(strUserId)
+            listPart = payload.split(":")
+            if len(listPart) not in (2, 3):
+                raise ValueError
+            message = BrowserMessageType(listPart[0])
+            userId = uuid.UUID(listPart[1])
             if message not in _SET_CHANGE_MESSAGE:
                 raise ValueError
+            if message == BrowserMessageType.EXECUTION_CHANGED:
+                if len(listPart) != 3:
+                    raise ValueError
+                jobId = uuid.UUID(listPart[2])
+            else:
+                if len(listPart) != 2:
+                    raise ValueError
+                jobId = None
         except ValueError:
             _LOGGER.warning("Ignored an invalid browser notification.")
             return
         for wakeup, pending in self.connections.get(userId, {}).items():
-            pending.add(message)
+            pending.add((message, jobId))
             wakeup.set()
 
     async def _handle_lifespan(
@@ -189,7 +205,7 @@ class BrowserSocket:
             return
 
         wakeup = asyncio.Event()
-        setPending: set[BrowserMessageType] = set()
+        setPending: set[_BrowserChange] = set()
         self.connections.setdefault(session.userId, {})[wakeup] = setPending
         receiveTask: asyncio.Future[ASGIReceiveEvent] | None = None
         wakeupTask: asyncio.Task[bool] | None = None
@@ -235,8 +251,10 @@ class BrowserSocket:
                         )
                         return
                     session = refreshed
-                    for message in sorted(setMessage):
-                        await _send_message(send, message)
+                    for message, jobId in sorted(
+                        setMessage, key=lambda change: (change[0], str(change[1] or ""))
+                    ):
+                        await _send_message(send, message, jobId)
                     wakeupTask = asyncio.create_task(wakeup.wait())
         finally:
             for task in (receiveTask, wakeupTask):

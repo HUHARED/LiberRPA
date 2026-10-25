@@ -200,7 +200,7 @@
 </template>
 
 <script setup lang="ts">
-import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { shallowRef, computed, onBeforeUnmount, ref, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 import type { DataTableHeader } from "vuetify";
 
@@ -216,6 +216,7 @@ import { formatDateTime } from "@/app/formatters";
 
 import { useSessionStore } from "@/stores/sessionStore";
 import { useRetryDelay } from "@/composables/useRetryDelay";
+import { useExecutionRefresh } from "@/composables/useExecutionRefresh";
 
 const sessionStore = useSessionStore();
 const route = useRoute();
@@ -269,10 +270,16 @@ const strUpdatedAt = ref<string | null>(null);
 const boolLoading = ref(false);
 const strError = ref("");
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
-let refreshTimer: ReturnType<typeof setInterval> | undefined;
 let intLoadRevision = 0;
+const { beginRefresh, requestRefresh } = useExecutionRefresh(
+  load,
+  boolLoading,
+  intRetrySeconds,
+);
 
 async function load(): Promise<void> {
+  if (!beginRefresh()) return;
+
   const intRevision = ++intLoadRevision;
   boolLoading.value = true;
   strError.value = "";
@@ -293,11 +300,17 @@ async function load(): Promise<void> {
     if (intRevision === intLoadRevision) {
       const error = getApiError(e);
       strError.value = error.message;
-      if (error.statusCode === 429 && (error.retryAfterSeconds ?? 0) > 0)
+      if (error.statusCode === 403 || error.statusCode === 404) {
+        page.value = null;
+        strUpdatedAt.value = null;
+      }
+      if (error.statusCode === 429 && (error.retryAfterSeconds ?? 0) > 0) {
         setRetryDelay(error.retryAfterSeconds);
+        requestRefresh();
+      }
     }
   } finally {
-    if (intRevision === intLoadRevision) boolLoading.value = false;
+    boolLoading.value = false;
   }
 }
 
@@ -347,6 +360,7 @@ watch(
         states: [...currentFilters.states],
       };
     }
+    intLoadRevision += 1;
     page.value = null;
     strUpdatedAt.value = null;
     void load();
@@ -354,15 +368,8 @@ watch(
   { immediate: true },
 );
 
-onMounted(() => {
-  refreshTimer = setInterval(() => {
-    if (!document.hidden && !boolLoading.value && intRetrySeconds.value === 0) void load();
-  }, 10000);
-});
-
 onBeforeUnmount(() => {
   intLoadRevision += 1;
-  clearInterval(refreshTimer);
 });
 </script>
 

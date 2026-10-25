@@ -115,7 +115,8 @@ export type AuditAction =
 export type AuditChannel = "session" | "editor" | "executor" | "api_key" | "system";
 export type AuditResult = "succeeded" | "failed";
 export type AuditStage = "operation" | "request";
-export type BrowserMessageType = "ready" | "session_changed" | "notifications_changed";
+export type BrowserMessageType =
+  "ready" | "session_changed" | "notifications_changed" | "execution_changed";
 export type DepartmentDeletionBlockerCode =
   | "child_departments"
   | "department_memberships"
@@ -595,6 +596,7 @@ export interface AuditRecordResponse {
   result: AuditResult;
 }
 export interface BrowserEventResponse {
+  job_id?: string | null;
   type: BrowserMessageType;
 }
 export interface ClearLogsRequest {
@@ -2513,6 +2515,7 @@ export const BrowserMessageType = {
   Ready: "ready",
   SessionChanged: "session_changed",
   NotificationsChanged: "notifications_changed",
+  ExecutionChanged: "execution_changed",
 } as const satisfies Record<string, BrowserMessageType>;
 export const OrganizationLimit = {
   MaxMembersPerOrganization: "maxMembersPerOrganization",

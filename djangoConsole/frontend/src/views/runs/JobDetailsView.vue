@@ -145,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { shallowRef, computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 
 import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
@@ -168,6 +168,7 @@ import { formatDateTime } from "@/app/formatters";
 
 import { useSessionStore } from "@/stores/sessionStore";
 import { useRetryDelay } from "@/composables/useRetryDelay";
+import { useExecutionRefresh } from "@/composables/useExecutionRefresh";
 
 const props = defineProps<{ jobId: string }>();
 const sessionStore = useSessionStore();
@@ -177,8 +178,13 @@ const job = shallowRef<JobDetails | null>(null);
 const boolLoading = ref(false);
 const strError = ref("");
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
-let timer: ReturnType<typeof setInterval> | undefined;
 let intLoadRevision = 0;
+const { beginRefresh, requestRefresh } = useExecutionRefresh(
+  load,
+  boolLoading,
+  intRetrySeconds,
+  (jobId) => jobId === props.jobId,
+);
 
 const listLocation = computed(() => {
   const strSource = route.query.from;
@@ -197,6 +203,8 @@ const detailsQuery = computed(() => ({
 }));
 
 async function load(): Promise<void> {
+  if (!beginRefresh()) return;
+
   const intRevision = ++intLoadRevision;
   boolLoading.value = true;
   strError.value = "";
@@ -210,36 +218,32 @@ async function load(): Promise<void> {
     if (intRevision === intLoadRevision) {
       const error = getApiError(e);
       strError.value = error.message;
-      if (error.statusCode === 429 && (error.retryAfterSeconds ?? 0) > 0)
+      if (error.statusCode === 403 || error.statusCode === 404) {
+        job.value = null;
+      }
+      if (error.statusCode === 429 && (error.retryAfterSeconds ?? 0) > 0) {
         setRetryDelay(error.retryAfterSeconds);
+        requestRefresh();
+      }
     }
   } finally {
-    if (intRevision === intLoadRevision) boolLoading.value = false;
+    boolLoading.value = false;
   }
 }
 
 watch(
   () => props.jobId,
   () => {
+    intLoadRevision += 1;
     job.value = null;
     void load();
   },
   { immediate: true },
 );
 
-onMounted(() => {
-  timer = setInterval(() => {
-    if (
-      !document.hidden &&
-      !boolLoading.value &&
-      intRetrySeconds.value === 0 &&
-      job.value?.state !== JobState.Finished
-    )
-      void load();
-  }, 10000);
+onBeforeUnmount(() => {
+  intLoadRevision += 1;
 });
-
-onBeforeUnmount(() => clearInterval(timer));
 </script>
 
 <style scoped></style>

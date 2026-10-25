@@ -13,6 +13,7 @@ from django.utils import timezone
 from .contracts import JobState, AssignmentState
 from .models import Job, ExecutorWorkState, Assignment, DispatchControl
 from .control_notifications import notify_executor_control
+from .browser_events import notify_jobs_changed
 
 _INT_CONTROL_MAX_AGE_SECONDS = 15
 
@@ -49,6 +50,7 @@ def start_control_cycle() -> None:
         Job.objects.filter(pk__in=listJobId, state=JobState.PREPARING).update(
             state=JobState.WAITING
         )
+        notify_jobs_changed(listJobId)
         # Every connected Executor must report fresh work state for this control cycle.
         for executorId in ExecutorWorkState.objects.values_list("executor_id", flat=True):
             notify_executor_control(executorId)

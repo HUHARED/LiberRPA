@@ -7,6 +7,8 @@ import { isRecord } from "../api/responses";
 import { BrowserMessageType } from "../api/generated/browserApi";
 import { useSessionStore } from "../stores/sessionStore";
 
+import { announceExecutionChange } from "./useExecutionRefresh";
+
 const BROWSER_CLOSE_CODE = {
   NORMAL: 1000,
   GOING_AWAY: 1001,
@@ -19,6 +21,7 @@ const INT_READY_TIMEOUT_MS = 10000;
 const INT_MAX_RETRY_MS = 30000;
 const INT_FOCUS_THROTTLE_MS = 5000;
 const STR_LOG_PREFIX = "[Browser WebSocket]";
+const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export function useSessionLifecycle(): void {
   const sessionStore = useSessionStore();
@@ -57,6 +60,13 @@ export function useSessionLifecycle(): void {
         }
         if (boolNotify && boolMounted && sessionStore.authenticated)
           announceNotifications();
+        if (
+          boolMounted &&
+          sessionStore.authenticated &&
+          !sessionStore.unavailable &&
+          !sessionStore.issue
+        )
+          announceExecutionChange(null);
       }
     } finally {
       boolRefreshing = false;
@@ -133,6 +143,16 @@ export function useSessionLifecycle(): void {
           break;
         case BrowserMessageType.NotificationsChanged:
           announceNotifications();
+          break;
+        case BrowserMessageType.ExecutionChanged:
+          if (
+            payload.job_id !== null &&
+            (typeof payload.job_id !== "string" || !JOB_ID_PATTERN.test(payload.job_id))
+          ) {
+            currentSocket.close(BROWSER_CLOSE_CODE.INVALID_MESSAGE);
+            return;
+          }
+          announceExecutionChange(payload.job_id);
           break;
         default:
           currentSocket.close(BROWSER_CLOSE_CODE.INVALID_MESSAGE);

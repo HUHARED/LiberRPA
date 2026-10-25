@@ -368,7 +368,7 @@
 </template>
 
 <script setup lang="ts">
-import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { shallowRef, computed, onBeforeUnmount, ref, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 
 import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
@@ -396,6 +396,7 @@ import {
 
 import { useSessionStore } from "@/stores/sessionStore";
 import { useRetryDelay } from "@/composables/useRetryDelay";
+import { useExecutionRefresh } from "@/composables/useExecutionRefresh";
 
 const props = defineProps<{ runId: string }>();
 const sessionStore = useSessionStore();
@@ -409,10 +410,15 @@ const boolDownloading = ref(false);
 const strError = ref("");
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 const rerunInfo = ref<Awaited<ReturnType<typeof getRerun>> | null>(null);
-let timer: ReturnType<typeof setInterval> | undefined;
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 
 let intLoadRevision = 0;
+const { beginRefresh, requestRefresh } = useExecutionRefresh(
+  load,
+  boolLoading,
+  intRetrySeconds,
+  (jobId) => (run.value ? run.value.job_id === jobId : boolLoading.value),
+);
 
 const listLocation = computed(() => {
   const strSource = route.query.from;
@@ -428,6 +434,8 @@ const detailsQuery = computed(() => ({
 }));
 
 async function load(): Promise<void> {
+  if (!beginRefresh()) return;
+
   const intRevision = ++intLoadRevision;
   boolLoading.value = true;
   strError.value = "";
@@ -441,11 +449,16 @@ async function load(): Promise<void> {
     if (intRevision === intLoadRevision) {
       const error = getApiError(e);
       strError.value = error.message;
-      if (error.statusCode === 429 && (error.retryAfterSeconds ?? 0) > 0)
+      if (error.statusCode === 403 || error.statusCode === 404) {
+        run.value = null;
+      }
+      if (error.statusCode === 429 && (error.retryAfterSeconds ?? 0) > 0) {
         setRetryDelay(error.retryAfterSeconds);
+        requestRefresh();
+      }
     }
   } finally {
-    if (intRevision === intLoadRevision) boolLoading.value = false;
+    boolLoading.value = false;
   }
 }
 
@@ -498,6 +511,7 @@ function viewJobQueue(): void {
 watch(
   () => props.runId,
   () => {
+    intLoadRevision += 1;
     run.value = null;
     rerunInfo.value = null;
     strTab.value = "logs";
@@ -506,23 +520,9 @@ watch(
   { immediate: true },
 );
 
-onMounted(() => {
-  timer = setInterval(() => {
-    if (
-      !document.hidden &&
-      !boolLoading.value &&
-      intRetrySeconds.value === 0 &&
-      run.value &&
-      (run.value.status === RunStatus.Running ||
-        (run.value.run_snapshot.builtin_record_video &&
-          run.value.recording.status !== RecordingStatus.Ready &&
-          run.value.recording.status !== RecordingStatus.Unavailable))
-    )
-      void load();
-  }, 10000);
+onBeforeUnmount(() => {
+  intLoadRevision += 1;
 });
-
-onBeforeUnmount(() => clearInterval(timer));
 </script>
 
 <style scoped></style>

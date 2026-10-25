@@ -19,10 +19,12 @@ class BrowserMessageType(StrEnum):
     READY = "ready"
     SESSION_CHANGED = "session_changed"
     NOTIFICATIONS_CHANGED = "notifications_changed"
+    EXECUTION_CHANGED = "execution_changed"
 
 
 class BrowserEventResponse(JsonResponsePayload):
     type: BrowserMessageType
+    job_id: UUID | None = None
 
 
 class LoginRequest(JsonRequest):

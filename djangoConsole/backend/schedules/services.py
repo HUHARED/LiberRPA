@@ -23,6 +23,8 @@ from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
 )
+from runs.models import Job
+from runs.browser_events import notify_jobs_changed
 from packages.models import Package
 from packages.run_settings import (
     parse_run_settings,
@@ -110,6 +112,9 @@ def save_schedule(
     validate_targets(departmentId, form.executor_ids, form.group_id)
     runSettings = validate_run_settings(package, form.settings)
     boolCreated = schedule is None
+    boolDepartmentChanged = (
+        schedule is not None and schedule.department_id != departmentId
+    )
     boolSettingsChanged = (
         schedule is not None and parse_run_settings(schedule) != runSettings
     )
@@ -169,6 +174,12 @@ def save_schedule(
             "name": "A Schedule with this name already exists in this department."
         })
     schedule.save()
+    if boolDepartmentChanged:
+        notify_jobs_changed(
+            Job.objects.filter(request__schedule_id=schedule.pk).values_list(
+                "id", flat=True
+            )
+        )
     from packages.preparation import request_package_preparation
     from executors.models import ExecutorGroupMember
 

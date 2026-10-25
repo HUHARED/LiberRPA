@@ -152,7 +152,7 @@ def cleanup_run_data(limit: int = 200) -> tuple[int, int]:
                 )
                 listRemovedRun = list(
                     Run.objects.filter(job_id__in=listRemovedJobId, log_bytes__gt=0).only(
-                        "id", "log_bytes"
+                        "id", "job_id", "log_bytes"
                     )
                 )
                 clear_run_logs(usage, listRemovedRun, currentTime)

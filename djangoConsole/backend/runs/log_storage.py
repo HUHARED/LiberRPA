@@ -16,6 +16,7 @@ from organizations.limits import get_organization_limits
 
 from .contracts import JobState
 from .models import Run, RunLog, RunLogUsage
+from .browser_events import notify_jobs_changed
 
 
 def get_or_create_run_log_usage(organizationId: uuid.UUID) -> RunLogUsage:
@@ -40,6 +41,7 @@ def clear_run_logs(usage: RunLogUsage, runs: Sequence[Run], clearedAt: datetime)
     for run in runs:
         run.log_bytes = 0
         run.logs_cleared_at = clearedAt
+    notify_jobs_changed(run.job_id for run in runs)
 
 
 def get_clearable_log_runs(organizationId: uuid.UUID) -> QuerySet[Run]:
