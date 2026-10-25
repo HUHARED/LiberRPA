@@ -35,4 +35,8 @@ class Command(BaseCommand):
                 intDeletedCount = prune_audit_records(batchSize=intBatchSize)
         except ValueError as e:
             raise CommandError(str(e)) from None
-        _LOGGER.info("Audit retention cleanup completed: deleted=%s.", intDeletedCount)
+        _LOGGER.log(
+            logging.INFO if intDeletedCount else logging.DEBUG,
+            "Audit retention cleanup completed: deleted=%s.",
+            intDeletedCount,
+        )

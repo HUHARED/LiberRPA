@@ -55,6 +55,8 @@ def _record_request_result(
         if response.status_code >= 500
         else logging.WARNING
         if response.status_code >= 400
+        else logging.DEBUG
+        if strRoute in ("health-live", "health-database")
         else logging.INFO
     )
     if settings.CONSOLE_LOG_REQUESTS or response.status_code >= 400:

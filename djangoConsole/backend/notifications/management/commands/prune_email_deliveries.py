@@ -35,4 +35,8 @@ class Command(BaseCommand):
                 intDeletedCount = prune_email_deliveries(batchSize=intBatchSize)
         except ValueError as e:
             raise CommandError(str(e)) from None
-        _LOGGER.info("Email history cleanup completed: deleted=%s.", intDeletedCount)
+        _LOGGER.log(
+            logging.INFO if intDeletedCount else logging.DEBUG,
+            "Email history cleanup completed: deleted=%s.",
+            intDeletedCount,
+        )

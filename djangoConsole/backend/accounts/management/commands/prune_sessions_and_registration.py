@@ -4,6 +4,8 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import logging
+
 from django.contrib.sessions.models import Session
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -12,6 +14,8 @@ from operations.models import CleanupTask
 from operations.cleanup_status import record_cleanup
 
 from accounts.models import RegistrationToken
+
+_LOGGER = logging.getLogger("console.cleanup")
 
 
 class Command(BaseCommand):
@@ -31,6 +35,9 @@ class Command(BaseCommand):
                 expires_at__lte=currentTime
             ).delete()
 
-        self.stdout.write(
-            f"Deleted {intSessionCount} expired session(s) and {intTokenCount} expired registration token(s)."
+        _LOGGER.log(
+            logging.INFO if intSessionCount or intTokenCount else logging.DEBUG,
+            "Session and registration cleanup completed: deleted_sessions=%s, deleted_tokens=%s.",
+            intSessionCount,
+            intTokenCount,
         )

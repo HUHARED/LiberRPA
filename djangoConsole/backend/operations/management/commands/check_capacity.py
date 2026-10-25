@@ -55,16 +55,19 @@ class Command(BaseCommand):
             with stop_on_signals(stopEvent) if boolWatch else nullcontext():
                 while not stopEvent.is_set():
                     if is_restored_service_pending_review():
-                        self.stdout.write(
+                        _LOGGER.debug(
                             "Capacity notices are paused until the restored instance is reviewed."
                         )
                     else:
                         result = check_capacity()
-                        self.stdout.write(
-                            f"Capacity check completed: organizations={result.organizationCount}, queued emails={result.queuedEmailCount}."
+                        _LOGGER.log(
+                            logging.INFO if result.queuedEmailCount else logging.DEBUG,
+                            "Capacity check completed: organizations=%s, queued_emails=%s.",
+                            result.organizationCount,
+                            result.queuedEmailCount,
                         )
                         if not result.storageAvailable:
-                            self.stderr.write(
+                            _LOGGER.warning(
                                 "Storage capacity is unknown. Check the configured storage directory and runtime log."
                             )
                     if not boolWatch:

@@ -14,13 +14,16 @@ urlpatterns = [
     path(
         "preparations/<uuid:preparationId>/complete/",
         package_view(views.preparation_result, channel=AccessChannel.EXECUTOR),
+        name="executor-package-preparation-complete",
     ),
     path(
         "<uuid:packageId>/downloads/",
         package_view(views.start_download, channel=AccessChannel.EXECUTOR),
+        name="executor-package-download",
     ),
     path(
         "downloads/<uuid:transferId>/content/",
         package_view(views.download_content, channel=AccessChannel.EXECUTOR),
+        name="executor-package-download-content",
     ),
 ]

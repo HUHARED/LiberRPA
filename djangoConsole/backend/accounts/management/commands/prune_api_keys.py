@@ -4,12 +4,16 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import logging
+
 from django.core.management.base import BaseCommand
 
 from operations.models import CleanupTask
 from operations.cleanup_status import record_cleanup
 
 from accounts.api_keys import prune_inactive_api_keys
+
+_LOGGER = logging.getLogger("console.cleanup")
 
 
 class Command(BaseCommand):
@@ -22,4 +26,8 @@ class Command(BaseCommand):
     def handle(self, *_args: object, **_options: object) -> None:
         with record_cleanup(CleanupTask.API_KEYS):
             intDeletedCount = prune_inactive_api_keys()
-        self.stdout.write(f"Deleted {intDeletedCount} inactive API key record(s).")
+        _LOGGER.log(
+            logging.INFO if intDeletedCount else logging.DEBUG,
+            "API key cleanup completed: deleted=%s.",
+            intDeletedCount,
+        )

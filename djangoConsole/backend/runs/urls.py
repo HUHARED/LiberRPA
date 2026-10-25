@@ -32,12 +32,12 @@ urlpatterns = [
     path("runs/statistics/", run_statistics, name="run-statistics"),
     path("runs/selection/", run_selection, name="run-selection"),
     path("runs/departments/", history_departments, name="run-history-departments"),
-    path("runs/clear-logs/", clear_logs),
+    path("runs/clear-logs/", clear_logs, name="run-clear-logs"),
     path("runs/<uuid:workId>/", run_detail, name="run"),
     path("runs/<uuid:workId>/stop/", stop_run, name="run-stop"),
     path("runs/<uuid:workId>/rerun/", rerun_options, name="run-rerun"),
-    path("runs/<uuid:runId>/logs/", list_logs),
-    path("runs/<uuid:runId>/files/", create_file_transfer),
+    path("runs/<uuid:runId>/logs/", list_logs, name="run-logs"),
+    path("runs/<uuid:runId>/files/", create_file_transfer, name="run-file-transfer"),
     path(
         "clients/executor/work/poll/",
         executor_work_endpoint,
@@ -56,6 +56,14 @@ urlpatterns = [
         {"action": "events"},
         name="executor-work-events",
     ),
-    path("clients/executor/runs/<uuid:runId>/logs/", upload_logs),
-    path("clients/executor/file-transfers/<uuid:transferId>/ready/", set_file_ready),
+    path(
+        "clients/executor/runs/<uuid:runId>/logs/",
+        upload_logs,
+        name="executor-run-logs",
+    ),
+    path(
+        "clients/executor/file-transfers/<uuid:transferId>/ready/",
+        set_file_ready,
+        name="executor-file-transfer-ready",
+    ),
 ]

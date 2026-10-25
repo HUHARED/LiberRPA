@@ -4,6 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
+import logging
 from typing import cast
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
@@ -14,6 +15,8 @@ from operations.cleanup_status import record_cleanup
 from file_storage.services import cleanup_storage
 from shared_files.cleanup import cleanup_uploads
 from packages.cleanup import cleanup_uploads as cleanup_package_uploads
+
+_LOGGER = logging.getLogger("console.cleanup")
 
 
 class Command(BaseCommand):
@@ -32,8 +35,15 @@ class Command(BaseCommand):
             cleanup_uploads(intLimit)
             cleanup_package_uploads(intLimit)
             intDeletedCount, intFailedCount = cleanup_storage(intLimit)
-            self.stdout.write(
-                f"Removed {intDeletedCount} stored files; {intFailedCount} cleanup failures."
+            _LOGGER.log(
+                logging.WARNING
+                if intFailedCount
+                else logging.INFO
+                if intDeletedCount
+                else logging.DEBUG,
+                "File storage cleanup completed: deleted=%s, failed=%s.",
+                intDeletedCount,
+                intFailedCount,
             )
             if intFailedCount:
                 raise CommandError(

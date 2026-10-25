@@ -9,7 +9,7 @@
   // Deployment manages process output separately.
   // Request summaries use route names and generated X-Request-ID values, never raw URLs.
   "logging": {
-    "level": "INFO",
+    "level": "DEBUG",
     "requests": true
   },
 
