@@ -1120,6 +1120,7 @@ export interface JobDetailsEntryResponse {
   queued_at: string;
   reason: string;
   retry_at: string | null;
+  run_email_recipients: RunEmailRecipientDisplayResponse[];
   run_snapshot: RunSnapshotResponse;
   runs: RunResponse[];
   schedule_id: string | null;
@@ -1136,6 +1137,10 @@ export interface JobEventResponse {
   kind: RunEventKind;
   occurred_at: string;
   reason: string;
+}
+export interface RunEmailRecipientDisplayResponse {
+  email: string | null;
+  id: string;
 }
 export interface RunSnapshotResponse {
   builtin_highlight_ui: boolean;
@@ -1815,6 +1820,7 @@ export interface RunDetailsEntryResponse {
   project_version: string;
   reason: string;
   recording: RunRecordingResponse;
+  run_email_recipients: RunEmailRecipientDisplayResponse[];
   run_snapshot: RunSnapshotResponse;
   schedule_name: string;
   started_at: string;

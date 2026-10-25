@@ -390,8 +390,14 @@ class RunResponse(JsonResponsePayload):
     can_stop: bool
 
 
+class RunEmailRecipientDisplayResponse(JsonResponsePayload):
+    id: uuid.UUID
+    email: str | None
+
+
 class JobDetailsEntryResponse(JobResponse):
     run_snapshot: RunSnapshotResponse
+    run_email_recipients: list[RunEmailRecipientDisplayResponse]
     runs: list[RunResponse]
     events: list[JobEventResponse]
 
@@ -439,6 +445,7 @@ class RunDetailsEntryResponse(RunResponse):
     department_path: str
     department_deleted_at: datetime | None
     run_snapshot: RunSnapshotResponse
+    run_email_recipients: list[RunEmailRecipientDisplayResponse]
     outputs: list[tuple[str, JsonValue]] | None
     outputs_reason: str
     outputs_unavailable_keys: list[str]

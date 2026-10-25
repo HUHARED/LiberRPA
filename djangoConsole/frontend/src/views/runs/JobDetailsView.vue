@@ -109,6 +109,7 @@
         <RunArgumentsDetails
           snapshot
           :settings="job.run_snapshot"
+          :email-recipients="job.run_email_recipients"
           :python-environment-name="job.run_snapshot.python_environment_name" />
       </v-card-text>
     </v-card>

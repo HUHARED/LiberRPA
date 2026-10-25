@@ -24,6 +24,7 @@ from organizations.permissions import (
 )
 
 from executors.models import Executor, ExecutorGroup
+from notifications.models import RunEmailRecipient
 from packages.contracts import RUN_PRIORITY_ORDER
 from schedules.models import Schedule
 
@@ -97,6 +98,21 @@ def _get_active_assignments(jobIds: list[uuid.UUID]) -> dict[uuid.UUID, Assignme
     }
 
 
+def _get_run_email_recipients(job: Job) -> list[dict[str, object]]:
+    listRecipientId = job.run_snapshot["run_email"]["recipient_ids"]
+    dictEmailById = {
+        str(recipientId): strEmail
+        for recipientId, strEmail in RunEmailRecipient.objects.filter(
+            organization_id=job.request.organization_id,
+            pk__in=listRecipientId,
+        ).values_list("id", "email")
+    }
+    return [
+        {"id": strRecipientId, "email": dictEmailById.get(strRecipientId)}
+        for strRecipientId in listRecipientId
+    ]
+
+
 def build_job_payload(
     job: Job,
     *,
@@ -147,6 +163,7 @@ def build_job_payload(
     if details:
         dictPayload.update({
             "run_snapshot": job.run_snapshot,
+            "run_email_recipients": _get_run_email_recipients(job),
             "runs": [
                 build_run_payload(run)
                 for run in job.runs.select_related("assignment", "job__request").order_by(
@@ -213,6 +230,7 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
             "department_deleted_at": department.deleted_at,
             "files": build_run_file_availability(run),
             "run_snapshot": job.run_snapshot,
+            "run_email_recipients": _get_run_email_recipients(job),
             "outputs": run.outputs,
             "outputs_reason": run.outputs_reason,
             "outputs_unavailable_keys": run.outputs_unavailable_keys,

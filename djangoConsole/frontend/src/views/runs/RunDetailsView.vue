@@ -127,6 +127,7 @@
           v-if="strTab === 'inputs'"
           snapshot
           :settings="run.run_snapshot"
+          :email-recipients="run.run_email_recipients"
           :python-environment-name="run.run_snapshot.python_environment_name" />
 
         <template v-if="strTab === 'outputs'">
