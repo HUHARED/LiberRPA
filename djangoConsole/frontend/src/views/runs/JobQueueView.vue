@@ -232,12 +232,9 @@ const arrHeader = computed<DataTableHeader[]>(() => [
   { title: "Project Name", key: "project_name" },
   { title: "Project Version", key: "project_version" },
   { title: "Target", key: "target_name" },
-  ...(boolFinished.value
-    ? [{ title: "Ended At", key: "ended_at" }]
-    : [
-        { title: "Priority", key: "priority" },
-        { title: "Queued At", key: "queued_at" },
-      ]),
+  ...(!boolFinished.value ? [{ title: "Priority", key: "priority" }] : []),
+  { title: "Queued At", key: "queued_at" },
+  ...(boolFinished.value ? [{ title: "Ended At", key: "ended_at" }] : []),
   { title: "Status", key: "state" },
   ...(boolFinished.value
     ? [{ title: "Reason", key: "reason", width: 320, maxWidth: 360 }]
