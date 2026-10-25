@@ -18,6 +18,7 @@ from django.core.mail import EmailMessage
 
 from console_project.contracts import JsonValue
 from packages.contracts import RunEmailTemplate, RunEmailSettings
+from runs.contracts import RunStatus
 
 from .contracts import (
     INT_RUN_EMAIL_MAX_BYTES,
@@ -89,13 +90,21 @@ DEFAULT_TEMPLATES = {
         + _STR_LINK_BODY,
     },
     "on_error": {
-        "subject": "{{project_name}} — Error",
-        "body": "The run ended with an error.\n\n"
+        "subject": "{{project_name}} — Run failed",
+        "body": "The run did not complete successfully.\n\n"
         + _STR_COMMON_BODY
         + "\nEnded at: {{ended_at}}\nDuration (seconds): {{elapsed_seconds}}\n\nError type: {{error_type}}\nError message:\n{{error_message}}\n\n"
         + _STR_LINK_BODY,
     },
 }
+
+
+def get_run_email_end_event(status: str) -> RunEmailEvent | None:
+    if status == RunStatus.COMPLETED:
+        return RunEmailEvent.COMPLETED
+    if status in (RunStatus.ERROR, RunStatus.TIMED_OUT):
+        return RunEmailEvent.ERROR
+    return None
 
 
 def get_template_metadata() -> dict:
@@ -247,6 +256,11 @@ def build_run_email(run: "Run", *, event: RunEmailEvent, recipient: str) -> Emai
         "error_type": (run.error_summary or {}).get("type", "Not available"),
         "error_message": (run.error_summary or {}).get("message", "Not available"),
     }
+    if run.status == RunStatus.TIMED_OUT:
+        dictField["error_type"] = "Timeout"
+        dictField["error_message"] = (
+            f"Run exceeded the configured timeout of {job.run_snapshot['timeout_min']} minute(s)."
+        )
     dictInput = dict(job.run_snapshot["custom_prj_args"])
     dictOutputContext = {
         entry["key"]: entry for entry in (run.email_output_context or [])

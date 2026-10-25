@@ -149,7 +149,7 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
         from organizations.models import Organization
         from organizations.permissions import is_organization_business_available
         from runs.models import Run
-        from .run_email import build_run_email
+        from .run_email import get_run_email_end_event, build_run_email
 
         reference = (
             RunEmailReference.objects
@@ -188,7 +188,8 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
         )
         emailEvent = RunEmailEvent(reference.event)
         if run is None or (
-            emailEvent != RunEmailEvent.START and run.status != emailEvent
+            emailEvent != RunEmailEvent.START
+            and get_run_email_end_event(run.status) != emailEvent
         ):
             return _mark_email_not_sent(
                 delivery, reasonCode=EmailReasonCode.RUN_NOT_ELIGIBLE

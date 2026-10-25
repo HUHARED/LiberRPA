@@ -209,10 +209,6 @@ const strArgumentsError = computed(() => {
   }
 });
 
-function publishValid(): void {
-  emit("valid", !strArgumentsError.value && arrError.value.every((value) => !value));
-}
-
 function updateValue(index: number, text: string): void {
   try {
     const value = JSON.parse(text, (_key, argumentValue: unknown) => {
@@ -226,7 +222,6 @@ function updateValue(index: number, text: string): void {
     arrError.value[index] =
       e instanceof Error && !(e instanceof SyntaxError) ? e.message : "Enter valid JSON.";
   }
-  publishValid();
 }
 
 function setSource(index: number, useAsset: boolean): void {
@@ -237,10 +232,7 @@ function setSource(index: number, useAsset: boolean): void {
     ? { name: "", asset_type: "text" }
     : null;
   if (!useAsset) updateValue(index, arrValue.value[index] ?? "");
-  else {
-    arrError.value[index] = "";
-    publishValid();
-  }
+  else arrError.value[index] = "";
 }
 
 function setAsset(index: number, name: string): void {
@@ -299,7 +291,16 @@ async function loadAssets(): Promise<void> {
   }
 }
 
-watch(strArgumentsError, publishValid, { immediate: true });
+watch(
+  () =>
+    !strArgumentsError.value &&
+    arrError.value.every((value) => !value) &&
+    settings.value.max_retry_count != null &&
+    settings.value.timeout_min != null &&
+    settings.value.custom_arg_assets.every((binding) => binding === null || !!binding.name),
+  (value) => emit("valid", value),
+  { immediate: true },
+);
 
 watch(
   [
@@ -317,7 +318,6 @@ watch(
       JSON.stringify(entry[1]),
     );
     arrError.value = [];
-    publishValid();
   },
 );
 

@@ -9,8 +9,15 @@
     <v-card>
       <v-card-title>Run Package</v-card-title>
 
-      <v-card-text>
-        <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
+      <v-card-text ref="feedbackContainer">
+        <v-alert
+          v-if="strError"
+          ref="errorAlert"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert"
+          tabindex="-1">
           {{ strError }}
         </v-alert>
 
@@ -116,7 +123,7 @@
           prepend-icon="mdi-play-outline"
           color="primary"
           :loading="boolBusy"
-          :disabled="!settings || boolLoading || boolBusy || !boolArgsValid"
+          :disabled="!boolCanRun"
           @click="submit">
           Run
         </v-btn>
@@ -126,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import { shallowRef, nextTick, onMounted, ref } from "vue";
+import { shallowRef, computed, nextTick, onMounted, ref } from "vue";
 import type { Ref } from "vue";
 import type { VForm } from "vuetify/components";
 
@@ -140,6 +147,8 @@ import { createJobs } from "@/api/runs";
 import { cloneRunSettings, type RunSettings } from "@/api/runSettings";
 import { getApiError } from "@/api/errors";
 
+import { revealFormFeedback } from "@/app/formFeedback";
+
 const props = defineProps<{
   packageId: string;
   executorIds?: string[];
@@ -149,6 +158,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: []; "view-job-queue": [] }>();
 const form = ref<InstanceType<typeof VForm> | null>(null);
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 const packageInfo = shallowRef<PackageResponse | null>(null);
 const settings: Ref<RunSettings | null> = ref(null);
 const arrExecutorId = ref([...(props.executorIds ?? [])]);
@@ -162,21 +173,28 @@ const intCreatedJobCount = ref<number | null>(null);
 let strClientRequestId = crypto.randomUUID();
 let strSubmittedBody = "";
 
+const boolCanRun = computed(
+  () =>
+    !!settings.value &&
+    !boolLoading.value &&
+    !boolBusy.value &&
+    boolArgsValid.value &&
+    intCreatedJobCount.value === null &&
+    (arrExecutorId.value.length > 0 || !!strGroupId.value),
+);
+
 async function submit(): Promise<void> {
-  if (
-    boolBusy.value ||
-    boolLoading.value ||
-    !settings.value ||
-    !boolArgsValid.value ||
-    intCreatedJobCount.value !== null
-  )
-    return;
+  if (!boolCanRun.value || !settings.value) return;
   boolBusy.value = true;
   strError.value = "";
   dictFieldError.value = {};
+  let boolShowFeedback = false;
   try {
     await nextTick();
-    if (!(await form.value?.validate())?.valid) return;
+    if (!(await form.value?.validate())?.valid) {
+      boolShowFeedback = true;
+      return;
+    }
     const runSettings = cloneRunSettings(settings.value);
     const arrTargetId = [...arrExecutorId.value];
     const strTargetGroupId = strGroupId.value;
@@ -196,8 +214,13 @@ async function submit(): Promise<void> {
     const error = getApiError(e);
     strError.value = error.message;
     dictFieldError.value = error.fields;
+    boolShowFeedback = true;
   } finally {
     boolBusy.value = false;
+    if (boolShowFeedback) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

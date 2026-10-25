@@ -162,7 +162,7 @@ const strEditorId = useId();
 const ARR_EVENT: { key: RunEmailEventKey; title: string }[] = [
   { key: "on_start", title: "On Start" },
   { key: "on_completed", title: "On End (Completed)" },
-  { key: "on_error", title: "On End (Error)" },
+  { key: "on_error", title: "On End (Error / Timeout)" },
 ];
 
 const ARR_SYSTEM_FIELD = [

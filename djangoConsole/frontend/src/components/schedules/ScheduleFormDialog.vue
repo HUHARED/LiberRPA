@@ -11,8 +11,15 @@
         {{ scheduleId ? (boolReadonly ? "Schedule" : "Edit Schedule") : "New Schedule" }}
       </v-card-title>
 
-      <v-card-text>
-        <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
+      <v-card-text ref="feedbackContainer">
+        <v-alert
+          v-if="strError"
+          ref="errorAlert"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert"
+          tabindex="-1">
           {{ strError }}
         </v-alert>
 
@@ -209,6 +216,7 @@
                 :variant="boolReadonly ? 'plain' : 'underlined'"
                 density="compact"
                 hint="Five fields, or six fields with seconds first."
+                :rules="[(value) => !!value.trim() || 'Enter a Cron expression.']"
                 persistent-hint
                 @update:model-value="changeCron">
                 <v-tooltip activator="parent" location="top">
@@ -312,14 +320,7 @@
           prepend-icon="mdi-content-save-outline"
           color="primary"
           :loading="boolBusy"
-          :disabled="
-            boolLoading ||
-            boolPackagesLoading ||
-            boolSettingsLoading ||
-            !boolInitialized ||
-            !settings ||
-            !boolArgsValid
-          "
+          :disabled="!boolCanSave"
           @click="save">
           Save
         </v-btn>
@@ -361,11 +362,14 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 import { ARR_CONFLICT_POLICY_OPTION, ARR_PRIORITY_OPTION } from "@/app/runLabels";
 import { formatDateTimeInput } from "@/app/formatters";
+import { revealFormFeedback } from "@/app/formFeedback";
 
 const props = defineProps<{ scheduleId?: string; readonly?: boolean }>();
 const emit = defineEmits<{ close: []; edit: []; saved: [schedule: ScheduleInfo] }>();
 const sessionStore = useSessionStore();
 const form = ref<InstanceType<typeof VForm> | null>(null);
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const boolCanManage = ref(!props.scheduleId);
 const boolReadonly = computed(() => props.readonly || !boolCanManage.value);
@@ -420,6 +424,27 @@ const dictFieldError = ref<Record<string, string[]>>({});
 const boolArgsValid = ref(true);
 const arrPackage = shallowRef<PackageOptionEntryResponse[]>([]);
 const settings: Ref<RunSettings | null> = ref(null);
+
+const boolCanSave = computed(
+  () =>
+    !boolReadonly.value &&
+    !boolBusy.value &&
+    !boolLoading.value &&
+    !boolPackagesLoading.value &&
+    !boolSettingsLoading.value &&
+    boolInitialized.value &&
+    !!settings.value &&
+    boolArgsValid.value &&
+    !!strName.value.trim() &&
+    !!strDepartmentId.value &&
+    !!strProjectNameKey.value &&
+    !!strPackageId.value &&
+    (arrExecutorId.value.length > 0 || !!strGroupId.value) &&
+    !!strTimeZone.value &&
+    !!strActiveFrom.value &&
+    !!strActiveUntil.value &&
+    !!strCron.value.trim(),
+);
 
 const selectedPackage = computed(() =>
   arrPackage.value.find((entry) => entry.id === strPackageId.value),
@@ -599,23 +624,18 @@ async function refreshPreview(intRevision: number): Promise<void> {
 }
 
 async function save(): Promise<void> {
-  if (
-    boolReadonly.value ||
-    boolBusy.value ||
-    boolLoading.value ||
-    boolPackagesLoading.value ||
-    boolSettingsLoading.value ||
-    !boolInitialized.value ||
-    !settings.value ||
-    !boolArgsValid.value
-  )
-    return;
+  if (!boolCanSave.value || !settings.value) return;
   boolBusy.value = true;
   strError.value = "";
   dictFieldError.value = {};
+  let boolShowFeedback = false;
   try {
     await nextTick();
-    if (!(await form.value?.validate())?.valid || boolDisposed) return;
+    if (!(await form.value?.validate())?.valid) {
+      boolShowFeedback = true;
+      return;
+    }
+    if (boolDisposed) return;
     const result = await saveSchedule(props.scheduleId ?? null, {
       name: strName.value,
       department_id: strDepartmentId.value,
@@ -636,9 +656,14 @@ async function save(): Promise<void> {
       const error = getApiError(e);
       strError.value = error.message;
       dictFieldError.value = error.fields;
+      boolShowFeedback = true;
     }
   } finally {
     boolBusy.value = false;
+    if (boolShowFeedback && !boolDisposed) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

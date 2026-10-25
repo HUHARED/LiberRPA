@@ -40,6 +40,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
     """Commit one stable event under the organization lock before acknowledging it."""
     from notifications.models import RunEmailEvent
     from notifications.run_events import notify_run_event
+    from notifications.run_email import get_run_email_end_event
 
     assignment = (
         Assignment.objects
@@ -135,8 +136,9 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             assignment.reason = event.reason
             assignment.save(update_fields=["state", "reason"])
             if job.closed_at is None:
-                if run.status in (RunStatus.COMPLETED, RunStatus.ERROR):
-                    notify_run_event(run, event=RunEmailEvent(run.status))
+                emailEvent = get_run_email_end_event(run.status)
+                if emailEvent is not None:
+                    notify_run_event(run, event=emailEvent)
                 boolRunRetryable = (
                     run.status == RunStatus.ERROR
                     and job.stop_requested_at is None
