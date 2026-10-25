@@ -157,7 +157,7 @@
     </p>
   </div>
 
-  <TimeZoneHint :time-zone="strTimeZone" />
+  <TimeZoneHint :time-zone="strTimeZone" :updated-at="strUpdatedAt" />
 
   <v-card variant="outlined">
     <v-data-table-server
@@ -333,6 +333,7 @@ const strName = ref<string | null>("");
 const strSortBy = ref<FileListRequest["sort_by"]>("uploaded_at");
 const strOrder = ref<FileListRequest["order"]>("desc");
 const page = shallowRef<FileListResponse | null>(null);
+const strUpdatedAt = ref<string | null>(null);
 const selectedFilePaths = ref<string[]>([]);
 const error = shallowRef<ApiError | null>(null);
 const strMessage = ref("");
@@ -380,7 +381,10 @@ async function load(): Promise<void> {
       order: strActiveOrder.value,
       page: Number(route.query.page) || 1,
     });
-    if (intCurrentRevision === intRevision) page.value = result;
+    if (intCurrentRevision === intRevision) {
+      page.value = result;
+      strUpdatedAt.value = new Date().toISOString();
+    }
   } catch (e) {
     if (intCurrentRevision !== intRevision) return;
     error.value = getApiError(e);
@@ -390,6 +394,7 @@ async function load(): Promise<void> {
     }
     if ([401, 403, 404].includes(error.value.statusCode)) {
       page.value = null;
+      strUpdatedAt.value = null;
       boolShowUpload.value = false;
       deletePaths.value = null;
       if (error.value.statusCode === 403) await sessionStore.refreshSession();
@@ -481,6 +486,7 @@ watch(
     strSortBy.value = strActiveSort.value;
     strOrder.value = strActiveOrder.value;
     page.value = null;
+    strUpdatedAt.value = null;
     boolShowUpload.value = false;
     deletePaths.value = null;
     void load();

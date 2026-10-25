@@ -178,7 +178,7 @@
       </v-btn>
     </div>
 
-    <TimeZoneHint :time-zone="strTimeZone" />
+    <TimeZoneHint :time-zone="strTimeZone" :updated-at="strUpdatedAt" />
 
     <v-card variant="outlined">
       <v-data-table-server
@@ -383,6 +383,7 @@ const ARR_STATUS_OPTION = ARR_QUEUE_ITEM_FILTER_STATUS.map((status) => ({
 }));
 
 const page = shallowRef<QueueItemsResponse | null>(null);
+const strUpdatedAt = ref<string | null>(null);
 const error = shallowRef<ApiError | null>(null);
 const mutationError = shallowRef<ApiError | null>(null);
 const strMessage = ref("");
@@ -451,6 +452,7 @@ async function load(): Promise<void> {
     );
     if (intCurrentRevision === intRevision) {
       page.value = result;
+      strUpdatedAt.value = new Date().toISOString();
       selectedItemIds.value = [];
     }
   } catch (e) {
@@ -462,6 +464,7 @@ async function load(): Promise<void> {
     }
     if ([401, 403, 404].includes(error.value.statusCode)) {
       page.value = null;
+      strUpdatedAt.value = null;
       boolUploadOpen.value = false;
       strConfirm.value = null;
       if (error.value.statusCode === 403) await sessionStore.refreshSession();
@@ -549,6 +552,7 @@ watch(
   () => props.queueId,
   () => {
     page.value = null;
+    strUpdatedAt.value = null;
     strMessage.value = "";
   },
 );

@@ -88,7 +88,7 @@
     <p v-if="page">The displayed results may be out of date.</p>
   </v-alert>
 
-  <TimeZoneHint :time-zone="strTimeZone" />
+  <TimeZoneHint :time-zone="strTimeZone" :updated-at="strUpdatedAt" />
 
   <v-card variant="outlined">
     <v-data-table-server
@@ -268,6 +268,7 @@ const appliedFilters = computed<JobFilters>(() => ({
 }));
 
 const page = shallowRef<JobPage | null>(null);
+const strUpdatedAt = ref<string | null>(null);
 const boolLoading = ref(false);
 const strError = ref("");
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
@@ -288,6 +289,7 @@ async function load(): Promise<void> {
     );
     if (intRevision === intLoadRevision) {
       page.value = response;
+      strUpdatedAt.value = new Date().toISOString();
       setRetryDelay(0);
     }
   } catch (e) {
@@ -349,6 +351,7 @@ watch(
       };
     }
     page.value = null;
+    strUpdatedAt.value = null;
     void load();
   },
   { immediate: true },

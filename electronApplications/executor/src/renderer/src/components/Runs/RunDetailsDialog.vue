@@ -21,6 +21,11 @@
             class="text-subtitle-1 font-weight-bold flex-shrink-0 py-2">
             Inputs
           </v-card-title>
+
+          <v-card-subtitle class="flex-shrink-0 pb-2 text-wrap">
+            Run settings and initial CustomArgs.
+          </v-card-subtitle>
+
           <v-divider />
 
           <v-card-text
@@ -42,6 +47,11 @@
             class="text-subtitle-1 font-weight-bold flex-shrink-0 py-2">
             Outputs — {{ details.outputs.status }}
           </v-card-title>
+
+          <v-card-subtitle class="flex-shrink-0 pb-2 text-wrap">
+            Final CustomArgs from the main process.
+          </v-card-subtitle>
+
           <v-divider />
 
           <v-card-text

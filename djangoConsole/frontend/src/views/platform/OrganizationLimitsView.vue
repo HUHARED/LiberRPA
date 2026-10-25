@@ -43,36 +43,34 @@
       </v-card-text>
     </v-card>
 
-    <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-3">
-      <p class="text-body-2 text-medium-emphasis">
-        Updated at {{ formatDateTime(usage.updated_at, strTimeZone) }}
-      </p>
+    <div class="d-flex flex-wrap justify-end ga-2 mb-3">
+      <v-btn
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-pencil-outline"
+        :disabled="boolLoading || boolDialog || !boolHasAccess || !!strEditingUnavailable"
+        @click="openDialog()">
+        Edit Limits
+      </v-btn>
 
-      <div class="d-flex flex-wrap ga-2">
-        <v-btn
-          color="primary"
-          variant="tonal"
-          prepend-icon="mdi-pencil-outline"
-          :disabled="boolLoading || boolDialog || !boolHasAccess || !!strEditingUnavailable"
-          @click="openDialog()">
-          Edit Limits
-        </v-btn>
-
-        <v-btn
-          variant="tonal"
-          prepend-icon="mdi-restore"
-          :disabled="
-            boolLoading ||
-            boolDialog ||
-            !boolHasAccess ||
-            !!strEditingUnavailable ||
-            !boolHasOverride
-          "
-          @click="openDialog(true)">
-          Reset to Defaults
-        </v-btn>
-      </div>
+      <v-btn
+        variant="tonal"
+        prepend-icon="mdi-restore"
+        :disabled="
+          boolLoading ||
+          boolDialog ||
+          !boolHasAccess ||
+          !!strEditingUnavailable ||
+          !boolHasOverride
+        "
+        @click="openDialog(true)">
+        Reset to Defaults
+      </v-btn>
     </div>
+
+    <p class="text-body-2 text-medium-emphasis text-end mb-3">
+      Updated at {{ formatDateTime(usage.updated_at, strTimeZone) }}
+    </p>
   </template>
 
   <OrganizationUsageTable

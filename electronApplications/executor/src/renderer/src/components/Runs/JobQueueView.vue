@@ -4,7 +4,7 @@
     <v-label class="header-label tab-header">Job Queue</v-label>
 
     <!-- Bug: The hover attribute only works when the window is on the primary screen. -->
-    <v-label class="align-self-start text-subtitle-2 my-2">Current Jobs</v-label>
+    <v-label class="align-self-start text-subtitle-2 my-2 ml-2">Current Jobs</v-label>
 
     <v-data-table
       :headers="ARR_CURRENT_HEADER"
@@ -19,7 +19,12 @@
       density="compact"
       hover>
       <template #item.source="{ item }">
-        {{ DICT_SOURCE_LABEL[item.source] }}
+        <v-chip
+          :border="`${DICT_SOURCE_COLOR[item.source]} thin opacity-25`"
+          :color="DICT_SOURCE_COLOR[item.source]"
+          :text="DICT_SOURCE_LABEL[item.source]"
+          variant="text"
+          size="x-small"></v-chip>
       </template>
 
       <template #item.schedule_name="{ value }">
@@ -69,7 +74,7 @@
       </template>
     </v-data-table>
 
-    <v-label class="align-self-start text-subtitle-2 my-2">Upcoming Triggers</v-label>
+    <v-label class="align-self-start text-subtitle-2 my-2 ml-2">Upcoming Triggers</v-label>
 
     <v-data-table
       :headers="ARR_UPCOMING_HEADER"
@@ -116,6 +121,11 @@ const arrUpcomingTrigger = computed(() =>
 const DICT_SOURCE_LABEL: Record<RunSource, string> = {
   [RunSource.Local]: "Local",
   [RunSource.Console]: "Console",
+};
+
+const DICT_SOURCE_COLOR: Record<RunSource, string> = {
+  [RunSource.Local]: "info",
+  [RunSource.Console]: "success",
 };
 
 const DICT_QUEUE_STATE: Record<JobQueueState, { label: string; color: string }> = {

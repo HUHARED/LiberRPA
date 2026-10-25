@@ -535,18 +535,29 @@ def record_screen(pid: int, folderName: str) -> None:
         Log.debug(f"Record end: {folderName} – clean exit.")
 
     pathLock = Path(folderName) / "video_record.lock"
+    boolLockAcquired = False
     # NOTE: Executor probes this byte lock; keep it held until all recording work has ended.
-    with pathLock.open("a+b") as fileLock:
-        if fileLock.tell() == 0:
-            fileLock.write(b"1")
-            fileLock.flush()
-        fileLock.seek(0)
-        msvcrt.locking(fileLock.fileno(), msvcrt.LK_NBLCK, 1)
-        try:
-            record()
-        except BaseException:
-            write_state(_RecordingStatus.UNAVAILABLE, "Video recording was interrupted.")
-            raise
-        finally:
+    try:
+        with pathLock.open("a+b") as fileLock:
+            if fileLock.tell() == 0:
+                fileLock.write(b"1")
+                fileLock.flush()
             fileLock.seek(0)
-            msvcrt.locking(fileLock.fileno(), msvcrt.LK_UNLCK, 1)
+            msvcrt.locking(fileLock.fileno(), msvcrt.LK_NBLCK, 1)
+            boolLockAcquired = True
+            try:
+                record()
+            except BaseException:
+                write_state(
+                    _RecordingStatus.UNAVAILABLE, "Video recording was interrupted."
+                )
+                raise
+            finally:
+                fileLock.seek(0)
+                msvcrt.locking(fileLock.fileno(), msvcrt.LK_UNLCK, 1)
+    finally:
+        if boolLockAcquired:
+            try:
+                pathLock.unlink(missing_ok=True)
+            except OSError as e:
+                Log.warning(f"Could not remove recording lock file: {e}")

@@ -116,11 +116,15 @@
   <v-progress-linear v-if="boolLoading" indeterminate color="primary" class="mb-4" />
 
   <template v-if="statistics">
-    <p class="text-body-2 text-medium-emphasis mb-3">
-      {{ statistics.date_from }} – {{ statistics.date_until }} ·
-      {{ statistics.time_zone }} · Updated At:
-      {{ formatDateTime(statistics.updated_at, statistics.time_zone, false) }}
-    </p>
+    <div class="d-flex flex-wrap ga-2 mb-3 text-body-2 text-medium-emphasis">
+      <span>
+        {{ statistics.date_from }} – {{ statistics.date_until }} ·
+        {{ statistics.time_zone }}
+      </span>
+      <span class="ms-auto text-end">
+        Updated at {{ formatDateTime(statistics.updated_at, statistics.time_zone, false) }}
+      </span>
+    </div>
 
     <div class="d-flex flex-wrap ga-6 mb-4">
       <p>

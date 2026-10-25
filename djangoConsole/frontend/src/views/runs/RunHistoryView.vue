@@ -146,7 +146,7 @@
     </v-btn>
   </div>
 
-  <TimeZoneHint :time-zone="strTimeZone" />
+  <TimeZoneHint :time-zone="strTimeZone" :updated-at="strUpdatedAt" />
 
   <v-card variant="outlined">
     <v-data-table-server
@@ -363,6 +363,7 @@ const appliedFilters = computed<RunFilters>(() => {
 });
 
 const page = shallowRef<RunPage | null>(null);
+const strUpdatedAt = ref<string | null>(null);
 const boolLoading = ref(false);
 const strError = ref("");
 const arrSelectedId = ref<string[]>([]);
@@ -393,7 +394,10 @@ async function load(): Promise<void> {
   strError.value = "";
   try {
     const response = await getRuns(appliedFilters.value, Number(route.query.page) || 1);
-    if (intRevision === intLoadRevision) page.value = response;
+    if (intRevision === intLoadRevision) {
+      page.value = response;
+      strUpdatedAt.value = new Date().toISOString();
+    }
   } catch (e) {
     if (intRevision === intLoadRevision) strError.value = getApiError(e).message;
   } finally {
@@ -421,6 +425,7 @@ async function apply(): Promise<void> {
   clearSelection();
   if (router.resolve(location).fullPath === route.fullPath) {
     page.value = null;
+    strUpdatedAt.value = null;
     await load();
   } else await router.replace(location);
 }
@@ -525,6 +530,7 @@ watch(
       clearSelection();
     }
     page.value = null;
+    strUpdatedAt.value = null;
     void load();
   },
   { immediate: true },

@@ -20,7 +20,7 @@
     </p>
   </v-alert>
 
-  <p v-if="usage" class="text-body-2 text-medium-emphasis mb-3">
+  <p v-if="usage" class="text-body-2 text-medium-emphasis text-end mb-3">
     Updated at {{ formatDateTime(usage.updated_at, strTimeZone) }}
   </p>
 

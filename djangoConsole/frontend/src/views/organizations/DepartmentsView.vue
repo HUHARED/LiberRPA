@@ -55,7 +55,7 @@
     <span v-if="arrDepartmentInfo" aria-live="polite">
       {{ arrDepartmentInfo.length }} departments
     </span>
-    <span v-if="strUpdatedAt">
+    <span v-if="strUpdatedAt" class="ms-auto text-end">
       Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
     </span>
   </div>

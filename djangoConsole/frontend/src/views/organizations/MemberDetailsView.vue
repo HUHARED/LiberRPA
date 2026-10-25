@@ -92,7 +92,7 @@
     aria-label="Loading member details" />
 
   <template v-if="memberInfo">
-    <p v-if="strUpdatedAt" class="text-body-2 text-medium-emphasis mb-3">
+    <p v-if="strUpdatedAt" class="text-body-2 text-medium-emphasis text-end mb-3">
       Updated at {{ formatDateTime(strUpdatedAt, strTimeZone) }}
     </p>
 

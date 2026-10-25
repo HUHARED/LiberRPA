@@ -4,7 +4,7 @@
     class="d-flex flex-wrap justify-space-between ga-2 mb-3 text-body-2 text-medium-emphasis">
     <span>Time zone: {{ timeZone }}</span>
     <slot>
-      <span v-if="updatedAt">
+      <span v-if="updatedAt" class="ms-auto text-end">
         Updated at {{ formatDateTime(updatedAt, timeZone, false) }}
       </span>
     </slot>
