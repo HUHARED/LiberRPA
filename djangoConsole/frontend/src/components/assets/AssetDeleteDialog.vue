@@ -10,10 +10,17 @@
     <v-card>
       <v-card-title id="asset-delete-title">Delete Asset</v-card-title>
 
-      <v-card-text>
+      <v-card-text ref="feedbackContainer">
         <v-progress-linear v-if="boolLoading" indeterminate class="mb-4" />
 
-        <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+        <v-alert
+          v-if="requestError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           {{ requestError.message }}
         </v-alert>
 
@@ -98,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { nextTick, computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { RouterLink } from "vue-router";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -106,6 +113,11 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { type ApiError, getApiError } from "@/api/errors";
 import { getAssetDetails, deleteAsset } from "@/api/assets";
 import type { AssetDetailsEntryResponse } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ assetId: string }>();
 const emit = defineEmits<{ close: []; deleted: [] }>();
@@ -153,6 +165,10 @@ async function submitDelete(): Promise<void> {
     }
   } finally {
     if (boolAlive) boolDeleting.value = false;
+    if (boolAlive && requestError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

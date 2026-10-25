@@ -10,7 +10,7 @@
     <v-card>
       <v-card-title id="queue-upload-title">Upload Items</v-card-title>
 
-      <v-card-text>
+      <v-card-text ref="feedbackContainer">
         <v-text-field :model-value="queue.path" label="Queue" variant="plain" readonly />
 
         <v-file-input
@@ -21,7 +21,14 @@
           :loading="boolReading"
           @update:model-value="selectFile" />
 
-        <v-alert v-if="strFileError" type="error" variant="tonal" class="mb-4" role="alert">
+        <v-alert
+          v-if="strFileError"
+          ref="fileErrorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           {{ strFileError }}
         </v-alert>
 
@@ -93,7 +100,14 @@
           </template>
         </template>
 
-        <v-alert v-if="error" type="error" variant="tonal" class="mt-4" role="alert">
+        <v-alert
+          v-if="error"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mt-4"
+          role="alert">
           Upload was not confirmed. {{ error.message }}
           <p v-for="strMessage in Object.values(error.fields).flat()" :key="strMessage">
             {{ strMessage }}
@@ -125,7 +139,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { nextTick, computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -139,6 +153,12 @@ import {
   convertQueueFile,
   type QueueImportSource,
 } from "@/app/queueImport";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
+const fileErrorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ queue: QueueEntryResponse }>();
 const emit = defineEmits<{ close: []; uploaded: [result: QueueMutationResponse] }>();
@@ -210,6 +230,10 @@ async function selectFile(value: File | File[] | null): Promise<void> {
       strFileError.value = e instanceof Error ? e.message : "The file could not be read.";
   } finally {
     if (intCurrentRevision === intRevision) boolReading.value = false;
+    if (intCurrentRevision === intRevision && strFileError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, fileErrorAlert.value?.$el);
+    }
   }
 }
 
@@ -234,6 +258,10 @@ async function submit(): Promise<void> {
     }
   } finally {
     boolSaving.value = false;
+    if (intCurrentRevision === intRevision && error.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

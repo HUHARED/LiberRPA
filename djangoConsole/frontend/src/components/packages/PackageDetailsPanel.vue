@@ -55,7 +55,7 @@
       <v-tab value="references">References</v-tab>
     </v-tabs>
 
-    <v-card-text class="pa-0 overflow-hidden" style="min-height: 0">
+    <v-card-text ref="feedbackContainer" class="pa-0 overflow-hidden" style="min-height: 0">
       <v-tabs-window v-model="strTab" class="h-100">
         <v-tabs-window-item value="settings" eager class="h-100 overflow-y-auto pa-4">
           <v-form
@@ -63,9 +63,13 @@
             ref="form"
             class="d-flex flex-column h-100"
             :disabled="boolBusy"
-            :readonly="!details.package.can_manage">
+            :readonly="!details.package.can_manage"
+            @submit.prevent="save">
             <v-alert
               v-if="strEditError"
+              ref="errorAlert"
+              role="alert"
+              tabindex="-1"
               type="error"
               variant="tonal"
               class="mb-4 flex-shrink-0">
@@ -299,7 +303,7 @@
         prepend-icon="mdi-content-save-outline"
         color="primary"
         :loading="boolBusy"
-        :disabled="!details.package.can_manage || !boolChanged || !boolArgsValid"
+        :disabled="!boolCanSave"
         @click="save">
         Save
       </v-btn>
@@ -310,7 +314,7 @@
     <v-card>
       <v-card-title>Delete Package</v-card-title>
 
-      <v-card-text>
+      <v-card-text ref="deleteFeedbackContainer">
         <p>Delete this package? Existing Run history is retained.</p>
 
         <p v-if="details?.references.length" class="mt-3">
@@ -332,7 +336,14 @@
           </v-list-item>
         </v-list>
 
-        <v-alert v-if="strDeleteError" type="error" variant="tonal" class="mt-4">
+        <v-alert
+          v-if="strDeleteError"
+          ref="deleteErrorAlert"
+          role="alert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mt-4">
           {{ strDeleteError }}
         </v-alert>
       </v-card-text>
@@ -359,13 +370,20 @@
   </v-dialog>
 
   <v-dialog v-model="boolCancelPreparation" :persistent="boolBusy" max-width="600">
-    <v-card>
+    <v-card ref="preparationFeedbackContainer">
       <v-card-title>Cancel Preparation Requests</v-card-title>
 
       <v-card-text>
         Cancel unfinished preparation requests for this package? Downloads already in
         progress may finish. Schedules, Jobs and files cached on Executors are unchanged.
-        <v-alert v-if="strPreparationError" type="error" variant="tonal" class="mt-4">
+        <v-alert
+          v-if="strPreparationError"
+          ref="preparationErrorAlert"
+          role="alert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mt-4">
           {{ strPreparationError }}
         </v-alert>
       </v-card-text>
@@ -428,6 +446,7 @@ import {
 import { PACKAGE_PREPARATION_LABELS, PACKAGE_PREPARATION_COLORS } from "@/app/runLabels";
 import { formatDateTime, formatFileSize } from "@/app/formatters";
 import { validateEnvironmentName } from "@/app/validators";
+import { revealFormFeedback } from "@/app/formFeedback";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -436,6 +455,12 @@ const emit = defineEmits<{ updated: [details: PackageDetailsResponse]; deleted: 
 const sessionStore = useSessionStore();
 const router = useRouter();
 const form = ref<InstanceType<typeof VForm> | null>(null);
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
+const deleteFeedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const deleteErrorAlert = ref<{ $el: HTMLElement } | null>(null);
+const preparationFeedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const preparationErrorAlert = ref<{ $el: HTMLElement } | null>(null);
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
 const strTab = ref("settings");
 
@@ -472,6 +497,15 @@ const boolHasPreparationRequests = computed(() =>
 );
 
 const boolBusy = ref(false);
+const boolCanSave = computed(
+  () =>
+    !boolBusy.value &&
+    !!draft.value &&
+    props.details.package.can_manage &&
+    boolChanged.value &&
+    boolArgsValid.value &&
+    !!strEnvironment.value.trim(),
+);
 const boolDownload = ref(false);
 const boolDelete = ref(false);
 const boolCancelPreparation = ref(false);
@@ -517,25 +551,20 @@ async function download(): Promise<void> {
 }
 
 async function save(): Promise<void> {
-  if (
-    boolBusy.value ||
-    !draft.value ||
-    !props.details.package.can_manage ||
-    !boolChanged.value ||
-    !boolArgsValid.value
-  )
-    return;
+  if (!boolCanSave.value || !draft.value) return;
 
   boolBusy.value = true;
   strEditError.value = "";
   strSuccess.value = "";
   dictFieldError.value = {};
+  let boolShowFeedback = false;
   try {
     await nextTick();
     const validation = await form.value?.validate();
     if (!boolActive) return;
     if (!validation?.valid) {
       strTab.value = "settings";
+      boolShowFeedback = true;
       return;
     }
 
@@ -555,8 +584,13 @@ async function save(): Promise<void> {
     strTab.value = "settings";
     strEditError.value = error.message;
     dictFieldError.value = error.fields;
+    boolShowFeedback = true;
   } finally {
     boolBusy.value = false;
+    if (boolActive && boolShowFeedback) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 
@@ -601,6 +635,13 @@ async function cancelPreparation(): Promise<void> {
     if (boolActive) strPreparationError.value = getApiError(e).message;
   } finally {
     boolBusy.value = false;
+    if (boolActive && boolCancelPreparation.value && strPreparationError.value) {
+      await nextTick();
+      revealFormFeedback(
+        preparationFeedbackContainer.value?.$el,
+        preparationErrorAlert.value?.$el,
+      );
+    }
   }
 }
 
@@ -616,6 +657,10 @@ async function remove(): Promise<void> {
     strDeleteError.value = getApiError(e).message;
   } finally {
     boolBusy.value = false;
+    if (boolActive && boolDelete.value && strDeleteError.value) {
+      await nextTick();
+      revealFormFeedback(deleteFeedbackContainer.value?.$el, deleteErrorAlert.value?.$el);
+    }
   }
 }
 

@@ -12,7 +12,7 @@
         {{ !reset ? "Edit Limits" : "Reset to Defaults" }}
       </v-card-title>
 
-      <v-card-text>
+      <v-card-text ref="feedbackContainer">
         <v-row>
           <v-col cols="12" sm="6">
             <v-text-field
@@ -33,7 +33,14 @@
           </v-col>
         </v-row>
 
-        <v-alert v-if="saveError" type="error" variant="tonal" class="mt-4" role="alert">
+        <v-alert
+          v-if="saveError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mt-4"
+          role="alert">
           {{ saveError.message }}
           <template v-if="boolRefreshRequired" #append>
             <v-btn
@@ -178,7 +185,7 @@
           variant="tonal"
           :prepend-icon="!reset ? 'mdi-content-save-outline' : 'mdi-restore'"
           :loading="boolSaving"
-          :disabled="boolSubmitBlocked"
+          :disabled="boolSubmitBlocked || !boolRequiredFieldsComplete"
           @click="saveLimits">
           {{ !reset ? "Save" : "Reset to Defaults" }}
         </v-btn>
@@ -188,7 +195,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from "vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -205,6 +212,8 @@ import {
 
 import { formatOrganizationLimit } from "@/app/organizationLimits";
 
+import { revealFormFeedback } from "@/app/formFeedback";
+
 enum LimitMode {
   Default = "default",
   Override = "override",
@@ -214,6 +223,9 @@ interface EditableLimit extends OrganizationLimitResponse {
   mode: LimitMode;
   input: string;
 }
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const ARR_MODE_OPTION = [
   { title: "Inherit Default", value: LimitMode.Default },
@@ -291,6 +303,14 @@ const boolSubmitBlocked = computed(
     (props.reset && !arrOverride.value.length),
 );
 
+const boolRequiredFieldsComplete = computed(
+  () =>
+    props.reset ||
+    arrEditLimit.value.every(
+      (limit) => limit.mode !== LimitMode.Override || !!String(limit.input ?? "").trim(),
+    ),
+);
+
 function showRequestError(error: ApiError): void {
   saveError.value = error;
   if (
@@ -328,7 +348,7 @@ function closeDialog(): void {
 }
 
 async function saveLimits(): Promise<void> {
-  if (boolUnmounted || boolSubmitBlocked.value) return;
+  if (boolUnmounted || boolSubmitBlocked.value || !boolRequiredFieldsComplete.value) return;
 
   const dictOverride: Record<string, number> = {};
   const dictFieldError: Record<string, string[]> = {};
@@ -359,6 +379,8 @@ async function saveLimits(): Promise<void> {
   }
   if (Object.keys(dictFieldError).length) {
     saveError.value = new ApiError("Check the limits below.", { fields: dictFieldError });
+    await nextTick();
+    revealFormFeedback(feedbackContainer.value?.$el);
     return;
   }
 
@@ -376,7 +398,13 @@ async function saveLimits(): Promise<void> {
     boolRefreshRequired.value = error.statusCode === 409 && error.code === "limits_changed";
     showRequestError(error);
   } finally {
-    if (!boolUnmounted) boolSaving.value = false;
+    if (!boolUnmounted) {
+      boolSaving.value = false;
+      if (saveError.value) {
+        await nextTick();
+        revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+      }
+    }
   }
 }
 

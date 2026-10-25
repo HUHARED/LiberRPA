@@ -7,7 +7,7 @@
     max-width="680"
     aria-labelledby="department-delete-title"
     @update:model-value="!$event && closeDialog()">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title id="department-delete-title">Delete Department</v-card-title>
 
       <v-card-text>
@@ -23,7 +23,14 @@
           }}
         </v-alert>
 
-        <v-alert v-if="deleteError" type="error" variant="tonal" class="mb-4" role="alert">
+        <v-alert
+          v-if="deleteError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           Deletion was not confirmed. {{ deleteError.message }}
           <p class="mt-2">Check the current department before trying again.</p>
         </v-alert>
@@ -37,6 +44,8 @@
 
         <template v-if="deletionInfo">
           <v-alert
+            ref="blockerAlert"
+            tabindex="-1"
             :type="deletionInfo.can_delete ? 'info' : 'warning'"
             variant="tonal"
             class="mb-4"
@@ -132,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { RouteLocationRaw } from "vue-router";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -145,6 +154,12 @@ import type {
   DepartmentIdentityResponse,
   DeletedDepartmentResponse,
 } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const blockerAlert = ref<{ $el: HTMLElement } | null>(null);
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ department: DepartmentIdentityResponse }>();
 
@@ -275,6 +290,13 @@ async function submitDelete(): Promise<void> {
     if (deleteError.value.statusCode === 403) await sessionStore.refreshSession();
   } finally {
     boolDeleting.value = false;
+    if ((deleteError.value || deletionInfo.value?.can_delete === false) && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(
+        feedbackContainer.value?.$el,
+        errorAlert.value?.$el ?? blockerAlert.value?.$el,
+      );
+    }
   }
 }
 

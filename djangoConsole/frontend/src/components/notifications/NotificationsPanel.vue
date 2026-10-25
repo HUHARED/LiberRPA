@@ -94,13 +94,20 @@
   </v-dialog>
 
   <v-dialog v-model="boolClear" :persistent="boolBusy" max-width="520">
-    <v-card>
+    <v-card ref="clearFeedbackContainer">
       <v-card-title>Clear All Notifications</v-card-title>
 
       <v-card-text>
         <p>Clear all your notifications?</p>
 
-        <v-alert v-if="strClearError" type="error" variant="tonal" class="mt-4">
+        <v-alert
+          v-if="strClearError"
+          ref="clearErrorAlert"
+          type="error"
+          variant="tonal"
+          class="mt-4"
+          role="alert"
+          tabindex="-1">
           {{ strClearError }}
         </v-alert>
       </v-card-text>
@@ -147,6 +154,7 @@ import { getApiError } from "@/api/errors";
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { formatDateTime } from "@/app/formatters";
+import { revealFormFeedback } from "@/app/formFeedback";
 
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
@@ -163,6 +171,8 @@ const strError = ref("");
 const strDetailsError = ref("");
 const strReadError = ref("");
 const strClearError = ref("");
+const clearFeedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const clearErrorAlert = ref<{ $el: HTMLElement } | null>(null);
 const intUnread = ref(0);
 const arrNotification = ref<NotificationResponse[]>([]);
 const details = ref<NotificationDetailsRecordResponse | null>(null);
@@ -270,7 +280,13 @@ async function applyChange(action: () => Promise<void>, clearAll = false): Promi
       else strError.value = getApiError(e).message;
     }
   } finally {
-    if (boolMounted && intCurrentRevision === intRevision) boolActing.value = false;
+    if (boolMounted && intCurrentRevision === intRevision) {
+      boolActing.value = false;
+      if (clearAll && boolClear.value && strClearError.value) {
+        await nextTick();
+        revealFormFeedback(clearFeedbackContainer.value?.$el, clearErrorAlert.value?.$el);
+      }
+    }
   }
 }
 

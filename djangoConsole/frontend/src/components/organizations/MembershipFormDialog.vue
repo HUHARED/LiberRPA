@@ -7,7 +7,7 @@
     max-width="760"
     aria-labelledby="membership-form-title"
     @update:model-value="!$event && closeForm()">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title id="membership-form-title">
         {{ member ? "Edit Membership" : "Invite Member" }}
       </v-card-title>
@@ -30,7 +30,14 @@
           :novalidate="false"
           validate-on="submit"
           @submit.prevent="submitMembership">
-          <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
+          <v-alert
+            v-if="saveError"
+            ref="errorAlert"
+            tabindex="-1"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+            role="alert">
             {{
               member ? "The update was not confirmed." : "The invitation was not confirmed."
             }}
@@ -218,7 +225,8 @@
             boolSaving ||
             arrDepartment === null ||
             !boolCanManage ||
-            intRetrySeconds > 0
+            intRetrySeconds > 0 ||
+            !boolRequiredFieldsComplete
           ">
           {{ member ? "Save" : "Invite Member" }}
         </v-btn>
@@ -228,7 +236,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -248,6 +256,11 @@ import {
   type MembershipUpdateRequest,
   type MembershipRecordResponse,
 } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ member?: UserResponse }>();
 
@@ -275,6 +288,10 @@ const boolSaving = ref(false);
 const requestError = shallowRef<ApiError | null>(null);
 const saveError = shallowRef<ApiError | null>(null);
 let boolUnmounted = false;
+
+const boolRequiredFieldsComplete = computed(
+  () => !!props.member || !!strEmail.value.trim(),
+);
 
 async function loadForm(): Promise<void> {
   if (boolUnmounted || boolLoading.value || boolSaving.value || !boolCanManage.value)
@@ -334,6 +351,7 @@ function closeForm(): void {
 
 async function submitMembership(event: SubmitEventPromise): Promise<void> {
   if (
+    !boolRequiredFieldsComplete.value ||
     boolUnmounted ||
     boolLoading.value ||
     boolSaving.value ||
@@ -343,8 +361,12 @@ async function submitMembership(event: SubmitEventPromise): Promise<void> {
   )
     return;
   const validation = await event;
+  if (!validation.valid) {
+    await nextTick();
+    if (!boolUnmounted) revealFormFeedback(feedbackContainer.value?.$el);
+    return;
+  }
   if (
-    !validation.valid ||
     boolUnmounted ||
     boolLoading.value ||
     boolSaving.value ||
@@ -375,6 +397,10 @@ async function submitMembership(event: SubmitEventPromise): Promise<void> {
     if (saveError.value.statusCode === 403) await sessionStore.refreshSession();
   } finally {
     boolSaving.value = false;
+    if (saveError.value && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

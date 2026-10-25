@@ -12,7 +12,7 @@
         {{ boolSuspend ? "Suspend Service" : "Resume Service" }}
       </v-card-title>
 
-      <v-card-text>
+      <v-card-text ref="feedbackContainer">
         <v-text-field
           :model-value="organization.name"
           label="Organization"
@@ -42,7 +42,14 @@
           </template>
         </v-alert>
 
-        <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
+        <v-alert
+          v-if="saveError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           {{ saveError.message }}
           <div v-if="boolRefreshRequired" class="mt-3">
             <v-btn
@@ -113,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from "vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -126,6 +133,11 @@ import {
   INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH,
   type PlatformOrganizationDetailsResponse,
 } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ organization: PlatformOrganizationDetailsResponse }>();
 const emit = defineEmits<{
@@ -186,7 +198,8 @@ async function saveService(): Promise<void> {
     boolLoading.value ||
     boolSaving.value ||
     boolRefreshRequired.value ||
-    strServiceUnavailable.value
+    strServiceUnavailable.value ||
+    !strReason.value.trim()
   )
     return;
   const strTrimmedReason = strReason.value.trim();
@@ -199,6 +212,8 @@ async function saveService(): Promise<void> {
         reason: [`Enter 1 to ${INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH} characters.`],
       },
     });
+    await nextTick();
+    revealFormFeedback(feedbackContainer.value?.$el);
     return;
   }
 
@@ -225,6 +240,10 @@ async function saveService(): Promise<void> {
       emit("unavailable", error);
   } finally {
     boolSaving.value = false;
+    if (!boolUnmounted && saveError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

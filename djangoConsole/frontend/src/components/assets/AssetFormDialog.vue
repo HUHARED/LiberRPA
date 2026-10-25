@@ -10,9 +10,16 @@
     <v-card>
       <v-card-title id="asset-form-title">{{ strTitle }}</v-card-title>
 
-      <v-card-text>
+      <v-card-text ref="feedbackContainer">
         <v-form id="asset-form" validate-on="submit" @submit.prevent="submitAsset">
-          <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
+          <v-alert
+            v-if="saveError"
+            ref="errorAlert"
+            tabindex="-1"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+            role="alert">
             Save was not confirmed. {{ saveError.message }}
             <p v-for="strMessage in saveError.fields.__all__" :key="strMessage">
               {{ strMessage }}
@@ -201,7 +208,7 @@
           variant="tonal"
           :prepend-icon="mode === 'create' ? 'mdi-plus' : 'mdi-content-save-outline'"
           :loading="boolSaving"
-          :disabled="boolSaving || !boolAllowed || !boolChanged">
+          :disabled="!boolCanSubmit">
           {{ mode === "create" ? "Create" : "Save" }}
         </v-btn>
       </v-card-actions>
@@ -210,7 +217,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { nextTick, computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import PasswordField from "@/components/common/PasswordField.vue";
@@ -234,6 +241,11 @@ import type {
   AssetCreationRequest,
   AssetUpdateRequest,
 } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{
   mode: "create" | "edit";
@@ -339,6 +351,22 @@ const boolChanged = computed(
   () => props.mode === "create" || boolDetailsChanged.value || boolValueChanged.value,
 );
 
+const boolValueComplete = computed(() => {
+  if (strAssetType.value === "integer" || strAssetType.value === "number")
+    return floatValue.value !== null;
+  if (strAssetType.value === "json") return !!strValue.value.trim();
+  return true;
+});
+
+const boolCanSubmit = computed(
+  () =>
+    !boolSaving.value &&
+    boolAllowed.value &&
+    boolChanged.value &&
+    !!strName.value.trim() &&
+    boolValueComplete.value,
+);
+
 function parseValue(): AssetCreationRequest["value"] {
   if (strAssetType.value === "boolean") return boolValue.value;
   if (strAssetType.value === "credential")
@@ -369,11 +397,15 @@ function getValue(): AssetCreationRequest["value"] {
 }
 
 async function submitAsset(event: SubmitEventPromise): Promise<void> {
-  if (boolSaving.value || !boolAllowed.value || !boolChanged.value || !(await event).valid)
-    return;
+  if (!boolCanSubmit.value) return;
   boolSaving.value = true;
   saveError.value = null;
+  let boolShowFeedback = false;
   try {
+    if (!(await event).valid) {
+      boolShowFeedback = true;
+      return;
+    }
     let response: AssetDetailsResponse;
     if (props.mode === "create") {
       response = await createAsset({
@@ -404,6 +436,10 @@ async function submitAsset(event: SubmitEventPromise): Promise<void> {
       await sessionStore.refreshSession();
   } finally {
     boolSaving.value = false;
+    if (!boolUnmounted && (boolShowFeedback || saveError.value)) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

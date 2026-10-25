@@ -10,7 +10,7 @@
     <v-card>
       <v-card-title id="account-action-title">{{ strTitle }}</v-card-title>
 
-      <v-card-text>
+      <v-card-text ref="feedbackContainer">
         <v-alert
           v-if="boolEmailQueued"
           type="success"
@@ -47,6 +47,8 @@
 
           <v-alert
             v-if="requestError"
+            ref="errorAlert"
+            tabindex="-1"
             type="error"
             variant="tonal"
             class="mb-4"
@@ -141,7 +143,7 @@
                 : 'mdi-logout'
           "
           :loading="boolSubmitting"
-          :disabled="boolSubmitting || sessionStore.busy || intRetrySeconds > 0">
+          :disabled="!boolCanSubmit">
           {{ action === "email" ? "Send Verification Email" : strTitle }}
         </v-btn>
       </v-card-actions>
@@ -150,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import PasswordField from "@/components/common/PasswordField.vue";
@@ -161,6 +163,11 @@ import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { changePassword, signOutOtherSessions, requestEmailChange } from "@/api/profile";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ action: "password" | "sessions" | "email" }>();
 const emit = defineEmits<{ close: []; completed: [message: string] }>();
@@ -180,6 +187,17 @@ const strNewEmail = ref("");
 const requestError = shallowRef<ApiError | null>(null);
 const boolSubmitting = ref(false);
 const boolEmailQueued = ref(false);
+const boolCanSubmit = computed(
+  () =>
+    !boolSubmitting.value &&
+    !sessionStore.busy &&
+    !intRetrySeconds.value &&
+    !boolEmailQueued.value &&
+    !!strCurrentPassword.value &&
+    (props.action !== "password" ||
+      (!!strNewPassword.value && !!strConfirmPassword.value)) &&
+    (props.action !== "email" || !!strNewEmail.value.trim()),
+);
 let boolUnmounted = false;
 
 function validateRequiredPassword(value: string): true | string {
@@ -201,16 +219,14 @@ function clearPasswords(): void {
 }
 
 async function submitAction(event: SubmitEventPromise): Promise<void> {
-  if (boolSubmitting.value || sessionStore.busy || intRetrySeconds.value) return;
+  if (boolUnmounted || !boolCanSubmit.value) return;
   const validation = await event;
-  if (
-    !validation.valid ||
-    boolUnmounted ||
-    boolSubmitting.value ||
-    sessionStore.busy ||
-    intRetrySeconds.value
-  )
+  if (boolUnmounted || !boolCanSubmit.value) return;
+  if (!validation.valid) {
+    await nextTick();
+    revealFormFeedback(feedbackContainer.value?.$el);
     return;
+  }
   boolSubmitting.value = true;
   sessionStore.busy = true;
   requestError.value = null;
@@ -245,6 +261,10 @@ async function submitAction(event: SubmitEventPromise): Promise<void> {
     clearPasswords();
     boolSubmitting.value = false;
     sessionStore.busy = false;
+    if (!boolUnmounted && requestError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

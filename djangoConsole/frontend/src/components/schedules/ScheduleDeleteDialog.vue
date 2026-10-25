@@ -6,7 +6,7 @@
     max-width="560"
     aria-labelledby="schedule-delete-title"
     @update:model-value="!$event && emit('close')">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title id="schedule-delete-title">Delete Schedule</v-card-title>
 
       <v-card-text>
@@ -17,7 +17,14 @@
           including waiting and retries.
         </p>
 
-        <v-alert v-if="strError" type="error" variant="tonal" class="mt-4" role="alert">
+        <v-alert
+          v-if="strError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mt-4"
+          role="alert">
           {{ strError }}
         </v-alert>
       </v-card-text>
@@ -46,10 +53,15 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from "vue";
+import { nextTick, onBeforeUnmount, ref } from "vue";
 
 import { getApiError } from "@/api/errors";
 import { type ScheduleListEntry, deleteSchedule } from "@/api/schedules";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ schedule: ScheduleListEntry }>();
 const emit = defineEmits<{ close: []; deleted: [] }>();
@@ -70,6 +82,10 @@ async function submit(): Promise<void> {
     if (!boolUnmounted) strError.value = getApiError(e).message;
   } finally {
     boolDeleting.value = false;
+    if (!boolUnmounted && strError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

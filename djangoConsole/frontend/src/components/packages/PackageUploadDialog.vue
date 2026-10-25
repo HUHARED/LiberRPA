@@ -5,11 +5,18 @@
     :persistent="boolBusy"
     max-width="680"
     @update:model-value="!$event && cancel()">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title>Upload Package</v-card-title>
 
       <v-card-text>
-        <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
+        <v-alert
+          v-if="strError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           {{ strError }}
         </v-alert>
 
@@ -60,7 +67,7 @@
           :prepend-icon="upload ? 'mdi-refresh' : 'mdi-upload'"
           color="primary"
           :loading="boolBusy"
-          :disabled="!file || !strDepartmentId"
+          :disabled="boolBusy || !file || !strDepartmentId"
           @click="submit">
           {{ upload ? "Resume / Check" : "Upload" }}
         </v-btn>
@@ -70,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, shallowRef } from "vue";
+import { nextTick, computed, ref, shallowRef } from "vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -89,6 +96,11 @@ import {
 
 import { formatFileSize } from "@/app/formatters";
 import { PACKAGE_UPLOAD_LABELS } from "@/app/runLabels";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const emit = defineEmits<{ close: []; saved: [packageInfo: PackageResponse] }>();
 const sessionStore = useSessionStore();
@@ -112,6 +124,8 @@ let strRequestId = crypto.randomUUID();
 let strSubmittedIdentity = "";
 
 async function cancel(): Promise<void> {
+  if (boolBusy.value) return;
+  strError.value = "";
   boolBusy.value = true;
   try {
     if (upload.value && upload.value.state === PackageUploadState.Receiving)
@@ -121,11 +135,15 @@ async function cancel(): Promise<void> {
     strError.value = getApiError(e).message;
   } finally {
     boolBusy.value = false;
+    if (strError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 
 async function submit(): Promise<void> {
-  if (!file.value || !strDepartmentId.value) return;
+  if (boolBusy.value || !file.value || !strDepartmentId.value) return;
   const strIdentity = JSON.stringify([
     strDepartmentId.value,
     file.value.name,
@@ -165,6 +183,10 @@ async function submit(): Promise<void> {
     strError.value = getApiError(e).message;
   } finally {
     boolBusy.value = false;
+    if (strError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 </script>

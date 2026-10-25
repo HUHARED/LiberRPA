@@ -10,7 +10,7 @@
     <v-card>
       <v-card-title id="queue-delete-title">Delete Queue</v-card-title>
 
-      <v-card-text>
+      <v-card-text ref="feedbackContainer">
         <p class="text-break mb-3">{{ queue.path }}</p>
 
         <p>
@@ -18,7 +18,14 @@
           {{ queue.unclaimed_count + queue.claimed_count }} items?
         </p>
 
-        <v-alert v-if="error" type="error" variant="tonal" class="mt-4" role="alert">
+        <v-alert
+          v-if="error"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mt-4"
+          role="alert">
           The operation was not confirmed. {{ error.message }}
         </v-alert>
       </v-card-text>
@@ -47,13 +54,18 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, shallowRef } from "vue";
+import { nextTick, onBeforeUnmount, ref, shallowRef } from "vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { deleteQueue } from "@/api/dataQueues";
 import type { QueueEntryResponse } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ queue: QueueEntryResponse }>();
 const emit = defineEmits<{ close: []; deleted: [queue: QueueEntryResponse] }>();
@@ -78,6 +90,10 @@ async function submit(): Promise<void> {
     }
   } finally {
     boolDeleting.value = false;
+    if (!boolUnmounted && error.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

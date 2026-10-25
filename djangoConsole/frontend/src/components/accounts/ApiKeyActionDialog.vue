@@ -12,8 +12,15 @@
         {{ action === "edit" ? "Edit API Key Notes" : "Revoke API Key" }}
       </v-card-title>
 
-      <v-card-text>
-        <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
+      <v-card-text ref="feedbackContainer">
+        <v-alert
+          v-if="saveError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           The operation was not confirmed. {{ saveError.message }}
           <p v-for="strMessage in saveError.fields.__all__" :key="strMessage" class="mt-2">
             {{ strMessage }}
@@ -96,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -106,6 +113,11 @@ import { useRetryDelay } from "@/composables/useRetryDelay";
 import { type ApiError, getApiError } from "@/api/errors";
 import { updateApiKeyNotes, revokeApiKey, getApiKeyStatus } from "@/api/apiKeys";
 import type { UserResponse, ApiKeyResponse } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{
   apiKey: ApiKeyResponse;
@@ -145,7 +157,12 @@ function closeDialog(): void {
 async function submitAction(event: SubmitEventPromise): Promise<void> {
   if (boolUnmounted || boolSubmitBlocked.value) return;
   const validation = await event;
-  if (!validation.valid || boolUnmounted || boolSubmitBlocked.value) return;
+  if (boolUnmounted || boolSubmitBlocked.value) return;
+  if (!validation.valid) {
+    await nextTick();
+    revealFormFeedback(feedbackContainer.value?.$el);
+    return;
+  }
   boolSaving.value = true;
   saveError.value = null;
   try {
@@ -168,6 +185,10 @@ async function submitAction(event: SubmitEventPromise): Promise<void> {
     if (saveError.value.statusCode === 403) await sessionStore.refreshSession();
   } finally {
     boolSaving.value = false;
+    if (!boolUnmounted && saveError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

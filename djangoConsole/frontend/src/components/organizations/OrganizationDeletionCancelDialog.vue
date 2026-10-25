@@ -6,11 +6,18 @@
     max-width="560"
     aria-labelledby="organization-deletion-cancel-title"
     @update:model-value="!$event && closeDialog()">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title id="organization-deletion-cancel-title">Cancel Deletion</v-card-title>
 
       <v-card-text>
-        <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+        <v-alert
+          v-if="requestError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           Cancellation was not confirmed. {{ requestError.message }}
           <p v-if="intRetrySeconds" class="mt-2">
             Try again in {{ intRetrySeconds }} seconds.
@@ -50,13 +57,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from "vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 import { useRetryDelay } from "@/composables/useRetryDelay";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { cancelOrganizationDeletion } from "@/api/organization";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const emit = defineEmits<{ close: [] }>();
 const sessionStore = useSessionStore();
@@ -98,6 +110,10 @@ async function submitCancellation(): Promise<void> {
       await sessionStore.refreshChangedSession();
   } finally {
     boolSaving.value = false;
+    if (requestError.value && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

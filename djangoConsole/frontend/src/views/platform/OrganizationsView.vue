@@ -20,7 +20,7 @@
     :aria-busy="boolLoadingSettings || boolSavingSettings">
     <v-card-title>Organization Creation</v-card-title>
 
-    <v-card-text>
+    <v-card-text ref="feedbackContainer">
       <v-progress-linear
         v-if="boolLoadingSettings"
         indeterminate
@@ -49,6 +49,8 @@
 
       <v-alert
         v-if="settingsSaveError"
+        ref="errorAlert"
+        tabindex="-1"
         type="error"
         variant="tonal"
         class="mb-4"
@@ -309,7 +311,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { RouterLink } from "vue-router";
 
 import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
@@ -330,6 +332,11 @@ import {
 } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const ARR_STATUS_OPTION = [
   { title: "Active", value: PlatformOrganizationStatus.Active },
@@ -453,7 +460,13 @@ async function saveSettings(): Promise<void> {
       else await sessionStore.refreshSession();
     }
   } finally {
-    if (!boolUnmounted) boolSavingSettings.value = false;
+    if (!boolUnmounted) {
+      boolSavingSettings.value = false;
+      if (settingsSaveError.value) {
+        await nextTick();
+        revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el, true);
+      }
+    }
   }
 }
 

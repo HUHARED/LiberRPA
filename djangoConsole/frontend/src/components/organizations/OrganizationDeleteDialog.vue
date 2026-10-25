@@ -7,7 +7,7 @@
     max-width="640"
     aria-labelledby="organization-delete-title"
     @update:model-value="!$event && closeDialog()">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title id="organization-delete-title">Delete Organization</v-card-title>
 
       <v-card-text>
@@ -22,7 +22,14 @@
           {{ requestError.message }}
         </v-alert>
 
-        <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
+        <v-alert
+          v-if="saveError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           Deletion was not confirmed. {{ saveError.message }}
           <p v-if="intRetrySeconds" class="mt-2">
             Try again in {{ intRetrySeconds }} seconds.
@@ -88,7 +95,10 @@
           prepend-icon="mdi-delete-clock-outline"
           :loading="boolSaving"
           :disabled="
-            boolActionBlocked || !deletionInfo?.can_schedule_deletion || intRetrySeconds > 0
+            boolActionBlocked ||
+            !deletionInfo?.can_schedule_deletion ||
+            intRetrySeconds > 0 ||
+            !boolRequiredFieldsComplete
           ">
           Schedule Deletion
         </v-btn>
@@ -98,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import PasswordField from "@/components/common/PasswordField.vue";
@@ -109,6 +119,11 @@ import { useRetryDelay } from "@/composables/useRetryDelay";
 import { type ApiError, getApiError } from "@/api/errors";
 import { getOrganizationDeletion, scheduleOrganizationDeletion } from "@/api/organization";
 import type { OrganizationDeletionResponse } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const emit = defineEmits<{ close: [] }>();
 const sessionStore = useSessionStore();
@@ -133,6 +148,8 @@ const boolActionBlocked = computed(
     !sessionStore.access.business_available,
 );
 let boolUnmounted = false;
+
+const boolRequiredFieldsComplete = computed(() => !!strPassword.value);
 
 async function loadPreview(): Promise<void> {
   if (boolUnmounted || boolActionBlocked.value) return;
@@ -165,6 +182,7 @@ function closeDialog(): void {
 
 async function submitDeletion(event: SubmitEventPromise): Promise<void> {
   if (
+    !boolRequiredFieldsComplete.value ||
     boolUnmounted ||
     boolActionBlocked.value ||
     !deletionInfo.value?.can_schedule_deletion ||
@@ -172,8 +190,12 @@ async function submitDeletion(event: SubmitEventPromise): Promise<void> {
   )
     return;
   const validation = await event;
+  if (!validation.valid) {
+    await nextTick();
+    if (!boolUnmounted) revealFormFeedback(feedbackContainer.value?.$el);
+    return;
+  }
   if (
-    !validation.valid ||
     boolUnmounted ||
     boolActionBlocked.value ||
     !deletionInfo.value?.can_schedule_deletion ||
@@ -199,6 +221,10 @@ async function submitDeletion(event: SubmitEventPromise): Promise<void> {
   } finally {
     strPassword.value = "";
     boolSaving.value = false;
+    if (saveError.value && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

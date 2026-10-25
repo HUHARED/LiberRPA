@@ -12,9 +12,16 @@
         {{ queue ? "Edit Queue" : "New Queue" }}
       </v-card-title>
 
-      <v-card-text>
+      <v-card-text ref="feedbackContainer">
         <v-form id="queue-form" validate-on="submit" @submit.prevent="submit">
-          <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
+          <v-alert
+            v-if="error"
+            ref="errorAlert"
+            tabindex="-1"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+            role="alert">
             {{ error.message }}
             <p v-for="strMessage in Object.values(error.fields).flat()" :key="strMessage">
               {{ strMessage }}
@@ -84,7 +91,7 @@
           variant="tonal"
           :prepend-icon="queue ? 'mdi-content-save-outline' : 'mdi-plus'"
           :loading="boolSaving"
-          :disabled="boolSaving || !boolAllowed">
+          :disabled="!boolCanSubmit">
           {{ queue ? "Save" : "Create" }}
         </v-btn>
       </v-card-actions>
@@ -93,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
+import { nextTick, computed, onBeforeUnmount, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -103,6 +110,11 @@ import { validatePathName } from "@/app/validators";
 import { getApiError, type ApiError } from "@/api/errors";
 import { saveQueue } from "@/api/dataQueues";
 import type { QueueEntryResponse, QueueDetailsResponse } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ queue?: QueueEntryResponse; initialDepartmentId?: string }>();
 const emit = defineEmits<{ close: []; saved: [response: QueueDetailsResponse] }>();
@@ -143,11 +155,20 @@ const error = shallowRef<ApiError | null>(null);
 const boolSaving = ref(false);
 let boolUnmounted = false;
 
+const boolCanSubmit = computed(
+  () => !boolSaving.value && boolAllowed.value && !!strName.value.trim(),
+);
+
 async function submit(event: SubmitEventPromise): Promise<void> {
-  if (boolSaving.value || !boolAllowed.value || !(await event).valid) return;
+  if (!boolCanSubmit.value) return;
   boolSaving.value = true;
   error.value = null;
+  let boolShowFeedback = false;
   try {
+    if (!(await event).valid) {
+      boolShowFeedback = true;
+      return;
+    }
     const response = await saveQueue(
       props.queue
         ? { name: strName.value, notes: strNotes.value }
@@ -166,6 +187,10 @@ async function submit(event: SubmitEventPromise): Promise<void> {
     }
   } finally {
     boolSaving.value = false;
+    if (!boolUnmounted && (boolShowFeedback || error.value)) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

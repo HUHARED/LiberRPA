@@ -275,7 +275,7 @@
       max-width="560"
       aria-labelledby="queue-confirm-title"
       @update:model-value="!$event && closeConfirm()">
-      <v-card>
+      <v-card ref="feedbackContainer">
         <v-card-title id="queue-confirm-title">
           {{ strConfirm === "reset" ? "Reset to Unclaimed" : "Delete Items" }}
         </v-card-title>
@@ -293,6 +293,8 @@
 
           <v-alert
             v-if="mutationError"
+            ref="errorAlert"
+            tabindex="-1"
             type="error"
             variant="tonal"
             class="mt-4"
@@ -330,7 +332,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { nextTick, computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
 
 import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
@@ -351,6 +353,8 @@ import {
 } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
+
+import { revealFormFeedback } from "@/app/formFeedback";
 
 const props = defineProps<{ queueId: string }>();
 const route = useRoute();
@@ -386,6 +390,8 @@ const page = shallowRef<QueueItemsResponse | null>(null);
 const strUpdatedAt = ref<string | null>(null);
 const error = shallowRef<ApiError | null>(null);
 const mutationError = shallowRef<ApiError | null>(null);
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 const strMessage = ref("");
 const strActionError = ref("");
 const selectedItemIds = ref<string[]>([]);
@@ -531,6 +537,10 @@ async function submitMutation(): Promise<void> {
     if (mutationError.value.statusCode === 403) await sessionStore.refreshSession();
   } finally {
     boolSaving.value = false;
+    if (intCurrentRevision === intRevision && mutationError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

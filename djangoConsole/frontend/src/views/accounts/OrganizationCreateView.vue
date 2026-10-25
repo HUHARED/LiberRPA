@@ -1,6 +1,6 @@
 <!-- FileName: OrganizationCreateView.vue -->
 <template>
-  <AuthLayout>
+  <AuthLayout ref="feedbackContainer">
     <v-btn
       v-if="!boolCreated && !sessionStore.authenticated"
       :to="{ name: 'sign-in' }"
@@ -17,7 +17,14 @@
       Verify your email, then create your organization and administrator account.
     </p>
 
-    <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+    <v-alert
+      v-if="requestError"
+      ref="errorAlert"
+      tabindex="-1"
+      type="error"
+      variant="tonal"
+      class="mb-4"
+      role="alert">
       {{ requestError.message }}
       <p v-for="strMessage in requestError.fields.__all__" :key="strMessage" class="mt-2">
         {{ strMessage }}
@@ -100,7 +107,7 @@
             prepend-icon="mdi-email-outline"
             block
             :loading="boolSending"
-            :disabled="boolSending || intRetrySeconds > 0">
+            :disabled="!boolCanSend">
             Send Verification Email
           </v-btn>
         </v-form>
@@ -165,7 +172,7 @@
             prepend-icon="mdi-plus"
             block
             :loading="boolSaving"
-            :disabled="boolSaving || boolChecking || intRetrySeconds > 0">
+            :disabled="!boolCanCreate">
             Create Organization
           </v-btn>
         </v-form>
@@ -201,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
@@ -220,6 +227,11 @@ import {
 } from "@/api/registration";
 import type { RegistrationInfoResponse } from "@/api/registration";
 
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
+
 const sessionStore = useSessionStore();
 const route = useRoute();
 const router = useRouter();
@@ -237,6 +249,24 @@ const boolSending = ref(false);
 const boolChecking = ref(false);
 const boolSaving = ref(false);
 const boolCreated = ref(false);
+const boolCanSend = computed(
+  () =>
+    !boolSending.value &&
+    !sessionStore.authenticated &&
+    !intRetrySeconds.value &&
+    !!strEmail.value.trim(),
+);
+const boolCanCreate = computed(
+  () =>
+    !!registrationInfo.value &&
+    !boolChecking.value &&
+    !boolSaving.value &&
+    !boolCreated.value &&
+    !sessionStore.authenticated &&
+    !intRetrySeconds.value &&
+    !!strPassword.value &&
+    !!strOrganizationName.value.trim(),
+);
 let intRequestRevision = 0;
 
 function validateRequiredEmail(value: string): true | string {
@@ -252,15 +282,20 @@ function validateRequiredOrganizationName(value: string): true | string {
 }
 
 async function submitEmailRequest(event: SubmitEventPromise): Promise<void> {
-  if (boolSending.value || sessionStore.authenticated || intRetrySeconds.value) return;
+  if (!boolCanSend.value) return;
 
   const intCurrentRevision = intRequestRevision;
   boolSending.value = true;
   requestError.value = null;
   strEmailMessage.value = "";
+  let boolShowFeedback = false;
   try {
     const validation = await event;
-    if (!validation.valid || intCurrentRevision !== intRequestRevision) return;
+    if (intCurrentRevision !== intRequestRevision) return;
+    if (!validation.valid) {
+      boolShowFeedback = true;
+      return;
+    }
 
     const response = await requestRegistrationEmail(strEmail.value.trim());
     if (intCurrentRevision === intRequestRevision) strEmailMessage.value = response.message;
@@ -268,9 +303,16 @@ async function submitEmailRequest(event: SubmitEventPromise): Promise<void> {
     if (intCurrentRevision !== intRequestRevision) return;
 
     requestError.value = getApiError(e);
+    boolShowFeedback = true;
     setRetryDelay(requestError.value.retryAfterSeconds);
   } finally {
-    if (intCurrentRevision === intRequestRevision) boolSending.value = false;
+    if (intCurrentRevision === intRequestRevision) {
+      boolSending.value = false;
+      if (boolShowFeedback) {
+        await nextTick();
+        revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el, true);
+      }
+    }
   }
 }
 
@@ -301,22 +343,19 @@ async function loadRegistration(): Promise<void> {
 }
 
 async function submitRegistration(event: SubmitEventPromise): Promise<void> {
-  if (
-    !registrationInfo.value ||
-    boolChecking.value ||
-    boolSaving.value ||
-    boolCreated.value ||
-    sessionStore.authenticated ||
-    intRetrySeconds.value
-  )
-    return;
+  if (!boolCanCreate.value) return;
 
   const intCurrentRevision = intRequestRevision;
   boolSaving.value = true;
   requestError.value = null;
+  let boolShowFeedback = false;
   try {
     const validation = await event;
-    if (!validation.valid || intCurrentRevision !== intRequestRevision) return;
+    if (intCurrentRevision !== intRequestRevision) return;
+    if (!validation.valid) {
+      boolShowFeedback = true;
+      return;
+    }
 
     await completeRegistration({
       token: strToken.value,
@@ -336,6 +375,7 @@ async function submitRegistration(event: SubmitEventPromise): Promise<void> {
     if (intCurrentRevision !== intRequestRevision) return;
 
     requestError.value = getApiError(e);
+    boolShowFeedback = true;
     setRetryDelay(requestError.value.retryAfterSeconds);
     if (
       ["invalid_registration_token", "email_already_registered"].includes(
@@ -346,7 +386,13 @@ async function submitRegistration(event: SubmitEventPromise): Promise<void> {
       strPassword.value = "";
     }
   } finally {
-    if (intCurrentRevision === intRequestRevision) boolSaving.value = false;
+    if (intCurrentRevision === intRequestRevision) {
+      boolSaving.value = false;
+      if (boolShowFeedback) {
+        await nextTick();
+        revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el, true);
+      }
+    }
   }
 }
 
@@ -357,6 +403,8 @@ async function signOutCurrentAccount(): Promise<void> {
     await loadRegistration();
   } catch (e) {
     requestError.value = getApiError(e);
+    await nextTick();
+    revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el, true);
   }
 }
 

@@ -10,9 +10,16 @@
     <v-card>
       <v-card-title id="file-upload-title">Upload File</v-card-title>
 
-      <v-card-text>
+      <v-card-text ref="feedbackContainer">
         <v-form id="file-upload-form" validate-on="input" @submit.prevent="submit">
-          <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
+          <v-alert
+            v-if="error"
+            ref="errorAlert"
+            tabindex="-1"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+            role="alert">
             {{ error.message }}
             <p v-if="error.statusCode === 0 || error.code === 'invalid_response'">
               The upload result is not confirmed. Retry to continue the same upload.
@@ -93,7 +100,7 @@
           variant="tonal"
           prepend-icon="mdi-upload"
           :loading="boolBusy"
-          :disabled="boolBusy || boolCanceling || !boolAllowed">
+          :disabled="!boolCanSubmit">
           {{ upload ? "Retry Upload" : "Upload" }}
         </v-btn>
       </v-card-actions>
@@ -102,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
+import { nextTick, computed, onBeforeUnmount, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -120,6 +127,11 @@ import {
   finishSharedUpload,
 } from "@/api/sharedFiles";
 import type { FileInfoResponse, FileUploadResponse } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ departmentPath: string | null; maxFileBytes: number }>();
 const emit = defineEmits<{ close: []; saved: [file: FileInfoResponse] }>();
@@ -158,6 +170,15 @@ const boolAllowed = computed(
   () =>
     sessionStore.access?.business_available &&
     departments.value.some((department) => department.path === strDepartmentPath.value),
+);
+
+const boolCanSubmit = computed(
+  () =>
+    !boolBusy.value &&
+    !boolCanceling.value &&
+    boolAllowed.value &&
+    !!file.value &&
+    !!strName.value.trim(),
 );
 
 let identity: Awaited<ReturnType<typeof getOrCreateFileRequestIdentity>> | null = null;
@@ -213,16 +234,25 @@ async function cancel(): Promise<void> {
     if (boolAlive) error.value = getApiError(e);
   } finally {
     if (boolAlive) boolCanceling.value = false;
+    if (boolAlive && error.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 
 async function submit(event: SubmitEventPromise): Promise<void> {
-  if (boolBusy.value || boolCanceling.value || !boolAllowed.value) return;
+  if (!boolCanSubmit.value) return;
   boolBusy.value = true;
   boolCancelRequested.value = false;
   error.value = null;
+  let boolShowFeedback = false;
   try {
-    if (!(await event).valid || !file.value || !boolAlive) return;
+    if (!(await event).valid) {
+      boolShowFeedback = true;
+      return;
+    }
+    if (!file.value || !boolAlive) return;
     const source = file.value;
     strStage.value = "Checking file…";
     const body = {
@@ -283,6 +313,10 @@ async function submit(event: SubmitEventPromise): Promise<void> {
     if (boolAlive) {
       boolBusy.value = false;
       boolCancelRequested.value = false;
+    }
+    if (boolAlive && (boolShowFeedback || error.value)) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
     }
   }
 }

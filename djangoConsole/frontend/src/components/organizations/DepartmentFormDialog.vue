@@ -7,7 +7,7 @@
     max-width="640"
     aria-labelledby="department-form-title"
     @update:model-value="!$event && closeForm()">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title id="department-form-title">
         {{
           department
@@ -23,7 +23,14 @@
           id="department-form"
           validate-on="submit"
           @submit.prevent="submitDepartment">
-          <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
+          <v-alert
+            v-if="saveError"
+            ref="errorAlert"
+            tabindex="-1"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+            role="alert">
             {{
               department ? "The update was not confirmed." : "Creation was not confirmed."
             }}
@@ -105,7 +112,7 @@
           variant="tonal"
           :prepend-icon="department ? 'mdi-content-save-outline' : 'mdi-plus'"
           :loading="boolSaving"
-          :disabled="boolSaving || !boolCanManage">
+          :disabled="boolSaving || !boolCanManage || !boolRequiredFieldsComplete">
           {{ department ? "Save" : "Create" }}
         </v-btn>
       </v-card-actions>
@@ -114,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -128,6 +135,11 @@ import type {
   DepartmentUpdateRequest,
   DepartmentRecordResponse,
 } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{
   departments: DepartmentListEntryResponse[];
@@ -191,11 +203,17 @@ function closeForm(): void {
   if (!boolSaving.value) emit("close");
 }
 
+const boolRequiredFieldsComplete = computed(() => !!strName.value?.trim());
+
 async function submitDepartment(event: SubmitEventPromise): Promise<void> {
-  if (boolSaving.value) return;
+  if (!boolRequiredFieldsComplete.value || boolSaving.value) return;
   const validationResult = await event;
-  if (!validationResult.valid || boolSaving.value || !boolCanManage.value || boolUnmounted)
+  if (!validationResult.valid) {
+    await nextTick();
+    if (!boolUnmounted) revealFormFeedback(feedbackContainer.value?.$el);
     return;
+  }
+  if (boolSaving.value || !boolCanManage.value || boolUnmounted) return;
   boolSaving.value = true;
   saveError.value = null;
   try {
@@ -214,6 +232,10 @@ async function submitDepartment(event: SubmitEventPromise): Promise<void> {
     if (saveError.value.statusCode === 403) await sessionStore.refreshSession();
   } finally {
     boolSaving.value = false;
+    if (saveError.value && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

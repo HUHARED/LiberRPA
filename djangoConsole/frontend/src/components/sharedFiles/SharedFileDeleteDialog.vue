@@ -12,8 +12,15 @@
         {{ paths.length === 1 ? "Delete File" : "Delete Selected Files" }}
       </v-card-title>
 
-      <v-card-text>
-        <v-alert v-if="error" type="error" variant="tonal" class="mb-4" role="alert">
+      <v-card-text ref="feedbackContainer">
+        <v-alert
+          v-if="error"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           {{ error.message }}
           <p v-if="error.statusCode === 0 || error.code === 'invalid_response'">
             The result is not confirmed. Retry to check the same deletion.
@@ -60,13 +67,18 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, shallowRef } from "vue";
+import { nextTick, onBeforeUnmount, ref, shallowRef } from "vue";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { getApiError, type ApiError } from "@/api/errors";
 import { deleteSharedFiles } from "@/api/sharedFiles";
 import type { FileDeleteResponse } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ paths: string[] }>();
 const emit = defineEmits<{ close: []; deleted: [result: FileDeleteResponse] }>();
@@ -86,6 +98,10 @@ async function submit(): Promise<void> {
     if (boolAlive) error.value = getApiError(e);
   } finally {
     if (boolAlive) boolBusy.value = false;
+    if (boolAlive && error.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

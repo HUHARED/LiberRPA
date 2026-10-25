@@ -13,7 +13,14 @@
     </v-btn>
   </div>
 
-  <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+  <v-alert
+    v-if="requestError"
+    ref="requestErrorAlert"
+    tabindex="-1"
+    type="error"
+    variant="tonal"
+    class="mb-4"
+    role="alert">
     {{ requestError.message }}
     <p v-if="usage" class="mt-2">
       Previously loaded usage is shown and may be out of date.
@@ -37,9 +44,16 @@
     <p class="text-body-2 text-medium-emphasis mb-3">
       Capacity limits may remove eligible logs and history before these periods end.
     </p>
-    <v-card variant="outlined">
+    <v-card ref="feedbackContainer" variant="outlined">
       <v-card-text>
-        <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
+        <v-alert
+          v-if="saveError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           {{ saveError.message }}
         </v-alert>
 
@@ -119,7 +133,7 @@
           variant="tonal"
           prepend-icon="mdi-content-save-outline"
           :loading="boolSaving"
-          :disabled="boolActionBlocked || !boolChanged">
+          :disabled="boolActionBlocked || !boolChanged || !boolRequiredFieldsComplete">
           Save Retention
         </v-btn>
       </v-card-actions>
@@ -128,7 +142,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import OrganizationUsageTable from "@/components/organizations/OrganizationUsageTable.vue";
@@ -140,6 +154,12 @@ import { getOrganizationUsage, updateOrganizationRetention } from "@/api/organiz
 import type { OrganizationLimitsResponse } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const requestErrorAlert = ref<{ $el: HTMLElement } | null>(null);
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const sessionStore = useSessionStore();
 const strTimeZone = computed(() => sessionStore.session?.user.time_zone ?? "UTC");
@@ -173,6 +193,8 @@ const boolActionBlocked = computed(
 
 let intRequestRevision = 0;
 let boolUnmounted = false;
+
+const boolRequiredFieldsComplete = computed(() => !!strRunLogDays.value.trim());
 
 async function loadUsage(): Promise<void> {
   if (boolUnmounted || boolSaving.value) return;
@@ -208,10 +230,20 @@ function validateRunLogDays(value: string | number | null): true | string {
 }
 
 async function saveRetention(event: SubmitEventPromise): Promise<void> {
-  if (boolUnmounted || boolActionBlocked.value || !boolChanged.value) return;
-  const validation = await event;
-  if (!validation.valid || boolUnmounted || boolActionBlocked.value || !boolChanged.value)
+  if (
+    !boolRequiredFieldsComplete.value ||
+    boolUnmounted ||
+    boolActionBlocked.value ||
+    !boolChanged.value
+  )
     return;
+  const validation = await event;
+  if (!validation.valid) {
+    await nextTick();
+    if (!boolUnmounted) revealFormFeedback(feedbackContainer.value?.$el, undefined, true);
+    return;
+  }
+  if (boolUnmounted || boolActionBlocked.value || !boolChanged.value) return;
   const intCurrentRevision = ++intRequestRevision;
   const intDays = Number(strRunLogDays.value);
   boolSaving.value = true;
@@ -237,7 +269,17 @@ async function saveRetention(event: SubmitEventPromise): Promise<void> {
       if (saveError.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
-    if (intCurrentRevision === intRequestRevision) boolSaving.value = false;
+    if (intCurrentRevision === intRequestRevision) {
+      boolSaving.value = false;
+      if (saveError.value) {
+        await nextTick();
+        revealFormFeedback(
+          feedbackContainer.value?.$el ?? requestErrorAlert.value?.$el,
+          errorAlert.value?.$el ?? requestErrorAlert.value?.$el,
+          true,
+        );
+      }
+    }
   }
 }
 

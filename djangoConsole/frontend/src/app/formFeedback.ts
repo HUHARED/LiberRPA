@@ -27,6 +27,7 @@ function revealWithinContainer(target: HTMLElement, container: HTMLElement): voi
 export function revealFormFeedback(
   container: HTMLElement | undefined,
   errorAlert?: HTMLElement,
+  boolScrollPage = false,
 ): void {
   if (!container) return;
 
@@ -39,5 +40,6 @@ export function revealFormFeedback(
       "input:not([type='hidden']):not(:disabled), textarea:not(:disabled), select:not(:disabled)",
     );
   focusTarget?.focus({ preventScroll: true });
-  revealWithinContainer(target, container);
+  if (boolScrollPage) target.scrollIntoView({ block: "nearest" });
+  else revealWithinContainer(target, container);
 }

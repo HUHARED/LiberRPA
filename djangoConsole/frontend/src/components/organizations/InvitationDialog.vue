@@ -7,7 +7,7 @@
     max-width="720"
     aria-labelledby="invitation-title"
     @update:model-value="!$event && closeDialog()">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title id="invitation-title">
         {{
           action === "view"
@@ -30,7 +30,14 @@
           {{ requestError.message }}
         </v-alert>
 
-        <v-alert v-if="actionError" type="error" variant="tonal" class="mb-4" role="alert">
+        <v-alert
+          v-if="actionError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           The operation was not confirmed. {{ actionError.message }}
           <p
             v-for="strMessage in actionError.fields.department_roles"
@@ -183,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { RouterLink } from "vue-router";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -200,6 +207,11 @@ import {
 import type { InvitationResponse } from "@/api/generated/browserApi";
 
 import { formatDateTime } from "@/app/formatters";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ invitationId: string; action: "view" | "resend" | "revoke" }>();
 const emit = defineEmits<{ close: []; updated: [invitation: InvitationResponse] }>();
@@ -293,6 +305,10 @@ async function submitAction(): Promise<void> {
     if (actionError.value.statusCode === 403) await sessionStore.refreshSession();
   } finally {
     boolSaving.value = false;
+    if (actionError.value && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

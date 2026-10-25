@@ -251,13 +251,15 @@
     max-width="640"
     aria-labelledby="executor-create-title"
     @update:model-value="!$event && closeNewExecutor()">
-    <v-card v-if="boolNewExecutorOpen">
+    <v-card v-if="boolNewExecutorOpen" ref="feedbackContainer">
       <v-card-title id="executor-create-title">New Executor</v-card-title>
 
       <v-form validate-on="submit" @submit.prevent="submitNewExecutor">
         <v-card-text>
           <v-alert
             v-if="newExecutorError"
+            ref="errorAlert"
+            tabindex="-1"
             type="error"
             variant="tonal"
             class="mb-4"
@@ -342,7 +344,11 @@
             variant="tonal"
             prepend-icon="mdi-plus"
             :loading="boolSavingNewExecutor"
-            :disabled="boolSavingNewExecutor || !arrCreationDepartment.length">
+            :disabled="
+              boolSavingNewExecutor ||
+              !arrCreationDepartment.length ||
+              !boolRequiredFieldsComplete
+            ">
             Create
           </v-btn>
         </v-card-actions>
@@ -352,7 +358,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  watch,
+} from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
@@ -370,6 +384,11 @@ import {
 
 import { formatDateTime } from "@/app/formatters";
 import { DICT_ASSOCIATION_STATE } from "@/app/runLabels";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const ARR_HEADER = [
   { title: "Name", key: "name", minWidth: 160 },
@@ -434,6 +453,10 @@ let appliedFilters: ExecutorListFilters = {
 };
 
 let intRequestedPage = 1;
+
+const boolRequiredFieldsComplete = computed(
+  () => !!strNewName.value?.trim() && !!strNewDepartmentId.value,
+);
 
 async function loadExecutors(pageNumber: number = intRequestedPage): Promise<void> {
   const intCurrentRevision = ++intListRevision;
@@ -507,11 +530,20 @@ function validateNewDepartment(value: string | null): true | string {
 }
 
 async function submitNewExecutor(event: SubmitEventPromise): Promise<void> {
-  if (!boolNewExecutorOpen.value || boolSavingNewExecutor.value) return;
+  if (
+    !boolRequiredFieldsComplete.value ||
+    !boolNewExecutorOpen.value ||
+    boolSavingNewExecutor.value
+  )
+    return;
 
   const validationResult = await event;
+  if (!validationResult.valid) {
+    await nextTick();
+    if (!boolUnmounted) revealFormFeedback(feedbackContainer.value?.$el);
+    return;
+  }
   if (
-    !validationResult.valid ||
     !boolNewExecutorOpen.value ||
     boolSavingNewExecutor.value ||
     boolUnmounted ||
@@ -540,6 +572,10 @@ async function submitNewExecutor(event: SubmitEventPromise): Promise<void> {
       await sessionStore.refreshSession();
   } finally {
     boolSavingNewExecutor.value = false;
+    if (newExecutorError.value && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

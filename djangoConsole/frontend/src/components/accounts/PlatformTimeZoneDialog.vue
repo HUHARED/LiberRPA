@@ -6,11 +6,18 @@
     max-width="520"
     aria-labelledby="platform-time-zone-title"
     @update:model-value="!$event && closeDialog()">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title id="platform-time-zone-title">Time Zone</v-card-title>
 
       <v-card-text>
-        <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
+        <v-alert
+          v-if="saveError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           {{ saveError.message }}
         </v-alert>
 
@@ -50,7 +57,7 @@
           variant="tonal"
           prepend-icon="mdi-content-save-outline"
           :loading="boolSaving"
-          :disabled="boolSaving || sessionStore.busy || !boolChanged">
+          :disabled="!boolCanSave">
           Save
         </v-btn>
       </v-card-actions>
@@ -59,13 +66,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
 import { updatePlatformTimeZone } from "@/api/profile";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const emit = defineEmits<{ close: [] }>();
 const sessionStore = useSessionStore();
@@ -77,6 +89,9 @@ const arrTimeZone = [
 const boolChanged = computed(() => strTimeZone.value !== strSavedTimeZone);
 const saveError = shallowRef<ApiError | null>(null);
 const boolSaving = ref(false);
+const boolCanSave = computed(
+  () => !boolSaving.value && !sessionStore.busy && boolChanged.value && !!strTimeZone.value,
+);
 let boolUnmounted = false;
 
 function validateTimeZone(value: string | null): true | string {
@@ -88,16 +103,14 @@ function closeDialog(): void {
 }
 
 async function saveTimeZone(event: SubmitEventPromise): Promise<void> {
-  if (boolSaving.value || sessionStore.busy || !boolChanged.value) return;
+  if (boolUnmounted || !boolCanSave.value) return;
   const validation = await event;
-  if (
-    !validation.valid ||
-    !strTimeZone.value ||
-    boolUnmounted ||
-    boolSaving.value ||
-    sessionStore.busy
-  )
+  if (boolUnmounted || !boolCanSave.value || !strTimeZone.value) return;
+  if (!validation.valid) {
+    await nextTick();
+    revealFormFeedback(feedbackContainer.value?.$el);
     return;
+  }
 
   boolSaving.value = true;
   saveError.value = null;
@@ -111,6 +124,10 @@ async function saveTimeZone(event: SubmitEventPromise): Promise<void> {
     if (saveError.value.statusCode === 403) await sessionStore.refreshSession();
   } finally {
     boolSaving.value = false;
+    if (!boolUnmounted && saveError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

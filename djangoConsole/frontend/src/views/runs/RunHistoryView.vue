@@ -237,7 +237,7 @@
   </v-card>
 
   <v-dialog v-model="boolClearDialog" :persistent="boolClearing" max-width="640">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title>Clear Logs</v-card-title>
 
       <v-card-text>
@@ -248,7 +248,14 @@
           Protected runs are skipped.
         </p>
 
-        <v-alert v-if="strClearError" type="error" variant="tonal" class="mt-4">
+        <v-alert
+          v-if="strClearError"
+          ref="errorAlert"
+          role="alert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mt-4">
           {{ strClearError }}
         </v-alert>
       </v-card-text>
@@ -285,7 +292,15 @@
 </template>
 
 <script setup lang="ts">
-import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  nextTick,
+  shallowRef,
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import TimeZoneHint from "@/components/common/TimeZoneHint.vue";
@@ -310,6 +325,8 @@ import { RUN_STATUS_LABELS, RUN_STATUS_COLORS } from "@/app/runLabels";
 import { formatDateTime, formatRunEndTime } from "@/app/formatters";
 
 import { useSessionStore } from "@/stores/sessionStore";
+
+import { revealFormFeedback } from "@/app/formFeedback";
 
 const ARR_HEADER = [
   { title: "Schedule", key: "schedule_name" },
@@ -370,6 +387,8 @@ const arrSelectedId = ref<string[]>([]);
 const arrConfirmedId = ref<string[]>([]);
 const boolSelecting = ref(false);
 const boolClearDialog = ref(false);
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 const boolClearing = ref(false);
 const strClearError = ref("");
 const clearResult = ref<Awaited<ReturnType<typeof clearRunLogs>> | null>(null);
@@ -478,6 +497,10 @@ async function clearLogs(): Promise<void> {
     strClearError.value = getApiError(e).message;
   } finally {
     boolClearing.value = false;
+    if (boolClearDialog.value && strClearError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

@@ -7,14 +7,21 @@
     max-width="1000"
     aria-labelledby="executor-group-form-title"
     @update:model-value="!$event && emit('close')">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title id="executor-group-form-title">
         {{ group ? "Edit Group" : "New Group" }}
       </v-card-title>
 
       <v-card-text>
         <v-form id="executor-group-form" validate-on="submit" @submit.prevent="submitGroup">
-          <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
+          <v-alert
+            v-if="saveError"
+            ref="errorAlert"
+            tabindex="-1"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+            role="alert">
             {{ group ? "Save" : "Creation" }} was not confirmed. {{ saveError.message }}
             <p
               v-for="strMessage in saveError.fields.__all__"
@@ -282,7 +289,12 @@
           variant="tonal"
           :prepend-icon="group ? 'mdi-content-save-outline' : 'mdi-plus'"
           :loading="boolSaving"
-          :disabled="boolSaving || boolLoadingMembers || !boolDepartmentAllowed">
+          :disabled="
+            boolSaving ||
+            boolLoadingMembers ||
+            !boolDepartmentAllowed ||
+            !boolRequiredFieldsComplete
+          ">
           {{ group ? "Save" : "Create" }}
         </v-btn>
       </v-card-actions>
@@ -291,7 +303,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "@/stores/sessionStore";
@@ -308,6 +320,11 @@ import {
 } from "@/api/generated/browserApi";
 
 import { DICT_ASSOCIATION_STATE } from "@/app/runLabels";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{
   departments: DepartmentAccessResponse[];
@@ -355,6 +372,8 @@ let strAppliedMemberName = "";
 let intRequestedPage = 1;
 let intMemberRevision = 0;
 let boolUnmounted = false;
+
+const boolRequiredFieldsComplete = computed(() => !!strName.value?.trim());
 
 async function loadMembers(pageNumber: number = intRequestedPage): Promise<void> {
   const intCurrentRevision = ++intMemberRevision;
@@ -418,10 +437,15 @@ function validateDepartment(value: string | null): true | string {
 }
 
 async function submitGroup(event: SubmitEventPromise): Promise<void> {
-  if (boolSaving.value || boolLoadingMembers.value) return;
+  if (!boolRequiredFieldsComplete.value || boolSaving.value || boolLoadingMembers.value)
+    return;
   const validationResult = await event;
+  if (!validationResult.valid) {
+    await nextTick();
+    if (!boolUnmounted) revealFormFeedback(feedbackContainer.value?.$el);
+    return;
+  }
   if (
-    !validationResult.valid ||
     boolSaving.value ||
     boolLoadingMembers.value ||
     boolUnmounted ||
@@ -454,6 +478,10 @@ async function submitGroup(event: SubmitEventPromise): Promise<void> {
     }
   } finally {
     boolSaving.value = false;
+    if (saveError.value && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

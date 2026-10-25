@@ -1,6 +1,6 @@
 <!-- FileName: AccountCreateView.vue -->
 <template>
-  <AuthLayout>
+  <AuthLayout ref="feedbackContainer">
     <v-btn
       v-if="!boolCreated && !sessionStore.authenticated"
       class="mb-4"
@@ -14,7 +14,14 @@
     <h1 class="text-h5 mb-2">Create Account</h1>
     <p class="text-medium-emphasis mb-6">Join the organization that invited you.</p>
 
-    <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+    <v-alert
+      v-if="requestError"
+      ref="errorAlert"
+      tabindex="-1"
+      type="error"
+      variant="tonal"
+      class="mb-4"
+      role="alert">
       {{ requestError.message }}
       <p v-for="strMessage in requestError.fields.__all__" :key="strMessage" class="mt-2">
         {{ strMessage }}
@@ -126,7 +133,7 @@
           prepend-icon="mdi-account-plus-outline"
           block
           :loading="boolSaving"
-          :disabled="boolSaving || boolLoading || intRetrySeconds > 0">
+          :disabled="!boolCanCreate">
           Create Account
         </v-btn>
       </v-form>
@@ -152,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
@@ -165,6 +172,11 @@ import { useRetryDelay } from "@/composables/useRetryDelay";
 import { ApiError, getApiError } from "@/api/errors";
 import { checkInvitation, completeInvitation } from "@/api/invitations";
 import type { InvitationRegistrationResponse } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const sessionStore = useSessionStore();
 const route = useRoute();
@@ -179,6 +191,16 @@ const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const boolSaving = ref(false);
 const boolCreated = ref(false);
+const boolCanCreate = computed(
+  () =>
+    !boolLoading.value &&
+    !boolSaving.value &&
+    !boolCreated.value &&
+    !!registrationInfo.value &&
+    !sessionStore.authenticated &&
+    !intRetrySeconds.value &&
+    !!strPassword.value,
+);
 let intRequestRevision = 0;
 
 async function loadInvitation(): Promise<void> {
@@ -210,28 +232,15 @@ function validatePassword(value: string): true | string {
 }
 
 async function submitRegistration(event: SubmitEventPromise): Promise<void> {
-  if (
-    boolLoading.value ||
-    boolSaving.value ||
-    boolCreated.value ||
-    !registrationInfo.value ||
-    sessionStore.authenticated ||
-    intRetrySeconds.value
-  )
-    return;
+  if (!boolCanCreate.value) return;
   const intCurrentRevision = intRequestRevision;
   const validation = await event;
-  if (
-    !validation.valid ||
-    intCurrentRevision !== intRequestRevision ||
-    boolLoading.value ||
-    boolSaving.value ||
-    boolCreated.value ||
-    !registrationInfo.value ||
-    sessionStore.authenticated ||
-    intRetrySeconds.value
-  )
+  if (intCurrentRevision !== intRequestRevision || !boolCanCreate.value) return;
+  if (!validation.valid) {
+    await nextTick();
+    revealFormFeedback(feedbackContainer.value?.$el, undefined, true);
     return;
+  }
   boolSaving.value = true;
   requestError.value = null;
   try {
@@ -261,6 +270,10 @@ async function submitRegistration(event: SubmitEventPromise): Promise<void> {
       strPassword.value = "";
       boolPasswordVisible.value = false;
       boolSaving.value = false;
+      if (requestError.value) {
+        await nextTick();
+        revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el, true);
+      }
     }
   }
 }
@@ -270,6 +283,8 @@ async function signOutCurrentAccount(): Promise<void> {
     await sessionStore.signOutAccount();
   } catch (e) {
     requestError.value = getApiError(e);
+    await nextTick();
+    revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el, true);
   }
 }
 

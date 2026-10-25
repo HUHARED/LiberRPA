@@ -22,7 +22,14 @@
     </v-btn>
   </div>
 
-  <v-alert v-if="strError" type="error" variant="tonal" class="mb-4">
+  <v-alert
+    v-if="strError"
+    ref="pageErrorAlert"
+    tabindex="-1"
+    role="alert"
+    type="error"
+    variant="tonal"
+    class="mb-4">
     {{ strError }}
   </v-alert>
 
@@ -98,12 +105,19 @@
     :persistent="boolBusy"
     max-width="640"
     @update:model-value="!$event && closeForm()">
-    <v-card v-if="boolForm">
+    <v-card v-if="boolForm" ref="feedbackContainer">
       <v-card-title>{{ recipientEdit ? "Edit Notes" : "Add Email" }}</v-card-title>
 
       <v-card-text>
         <v-form id="run-email-recipient-form" validate-on="submit" @submit.prevent="save">
-          <v-alert v-if="formError" type="error" variant="tonal" class="mb-4" role="alert">
+          <v-alert
+            v-if="formError"
+            ref="errorAlert"
+            tabindex="-1"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+            role="alert">
             {{ formError.message }}
             <p
               v-for="strMessage in formError.fields.__all__"
@@ -155,7 +169,7 @@
           :prepend-icon="recipientEdit ? 'mdi-content-save-outline' : 'mdi-plus'"
           color="primary"
           :loading="boolBusy"
-          :disabled="boolBusy">
+          :disabled="boolBusy || !strEmail?.trim()">
           {{ recipientEdit ? "Save" : "Add" }}
         </v-btn>
       </v-card-actions>
@@ -167,7 +181,7 @@
     :persistent="boolBusy"
     max-width="680"
     @update:model-value="!$event && closeDelete()">
-    <v-card>
+    <v-card ref="deleteFeedbackContainer">
       <v-card-title>Delete Email</v-card-title>
 
       <v-card-text>
@@ -179,7 +193,14 @@
           stop working.
         </p>
 
-        <v-alert v-if="strDeleteError" type="error" variant="tonal" class="mt-4">
+        <v-alert
+          v-if="strDeleteError"
+          ref="deleteErrorAlert"
+          tabindex="-1"
+          role="alert"
+          type="error"
+          variant="tonal"
+          class="mt-4">
           {{ strDeleteError }}
         </v-alert>
 
@@ -223,7 +244,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { RouteLocationRaw } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
@@ -246,6 +267,14 @@ type RecipientReference =
       department: string;
     }
   | { kind: "job" | "delivery"; name: string };
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
+const deleteFeedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const deleteErrorAlert = ref<{ $el: HTMLElement } | null>(null);
+const pageErrorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const DICT_STATUS_LABEL: Record<RunEmailRecipientStatus, string> = {
   [RunEmailRecipientStatus.Member]: "Member",
@@ -350,16 +379,21 @@ function closeForm(): void {
 }
 
 async function save(event: SubmitEventPromise): Promise<void> {
-  if (boolUnmounted || boolBusy.value || !boolForm.value) return;
+  if (boolUnmounted || boolBusy.value || !boolForm.value || !strEmail.value?.trim()) return;
   const strRecipientId = recipientEdit.value?.id ?? null;
   const strSubmittedEmail = strEmail.value?.trim() ?? "";
   const strSubmittedNotes = strNotes.value ?? "";
+  let boolShowFeedback = false;
   boolBusy.value = true;
   formError.value = null;
   strSuccess.value = "";
   try {
     const validation = await event;
-    if (!validation.valid || boolUnmounted) return;
+    if (!validation.valid) {
+      boolShowFeedback = true;
+      return;
+    }
+    if (boolUnmounted) return;
 
     await saveRunEmailRecipient(strRecipientId, strSubmittedEmail, strSubmittedNotes);
     if (boolUnmounted) return;
@@ -369,9 +403,16 @@ async function save(event: SubmitEventPromise): Promise<void> {
       : "Address added. Ask the recipient to confirm the verification email.";
     await load();
   } catch (e) {
-    if (!boolUnmounted) formError.value = getApiError(e);
+    if (!boolUnmounted) {
+      formError.value = getApiError(e);
+      boolShowFeedback = true;
+    }
   } finally {
     boolBusy.value = false;
+    if (boolShowFeedback && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 
@@ -387,6 +428,10 @@ async function resend(id: string): Promise<void> {
     if (!boolUnmounted) strError.value = getApiError(e).message;
   } finally {
     boolBusy.value = false;
+    if (strError.value && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(pageErrorAlert.value?.$el, pageErrorAlert.value?.$el, true);
+    }
   }
 }
 
@@ -442,6 +487,10 @@ async function remove(): Promise<void> {
       arrReference.value = payload.error.references;
   } finally {
     boolBusy.value = false;
+    if (strDeleteError.value && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(deleteFeedbackContainer.value?.$el, deleteErrorAlert.value?.$el);
+    }
   }
 }
 

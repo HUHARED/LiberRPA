@@ -1,6 +1,6 @@
 <!-- FileName: PasswordResetView.vue -->
 <template>
-  <AuthLayout>
+  <AuthLayout ref="feedbackContainer">
     <v-btn
       v-if="!boolCompleted"
       :to="sessionStore.authenticated ? '/overview' : '/sign-in'"
@@ -50,7 +50,14 @@
         class="mb-4"
         aria-label="Checking password reset link" />
 
-      <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+      <v-alert
+        v-if="requestError"
+        ref="errorAlert"
+        tabindex="-1"
+        type="error"
+        variant="tonal"
+        class="mb-4"
+        role="alert">
         {{ requestError.message }}
         <p v-if="intRetrySeconds" class="mt-2">
           Try again in {{ intRetrySeconds }} seconds.
@@ -101,9 +108,7 @@
           prepend-icon="mdi-lock-reset"
           block
           :loading="boolSaving"
-          :disabled="
-            boolChecking || boolSaving || sessionStore.busy || intRetrySeconds > 0
-          ">
+          :disabled="!boolCanReset">
           Reset Password
         </v-btn>
       </v-form>
@@ -134,7 +139,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
@@ -149,6 +154,11 @@ import { ApiError, getApiError } from "@/api/errors";
 import { checkPasswordReset, completePasswordReset } from "@/api/passwordReset";
 import type { PasswordResetInfoResponse } from "@/api/passwordReset";
 
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
+
 const route = useRoute();
 const router = useRouter();
 const sessionStore = useSessionStore();
@@ -161,6 +171,17 @@ const requestError = shallowRef<ApiError | null>(null);
 const boolChecking = ref(false);
 const boolSaving = ref(false);
 const boolCompleted = ref(false);
+const boolCanReset = computed(
+  () =>
+    !boolChecking.value &&
+    !boolSaving.value &&
+    !boolCompleted.value &&
+    !sessionStore.busy &&
+    !intRetrySeconds.value &&
+    !!linkInfo.value &&
+    !!strNewPassword.value &&
+    !!strConfirmPassword.value,
+);
 let intRequestRevision = 0;
 
 function validateRequiredPassword(value: string): true | string {
@@ -195,21 +216,16 @@ async function loadLink(): Promise<void> {
 }
 
 async function submitPasswordReset(event: SubmitEventPromise): Promise<void> {
-  if (boolChecking.value || boolSaving.value || sessionStore.busy || intRetrySeconds.value)
-    return;
+  if (!boolCanReset.value) return;
   const intCurrentRevision = intRequestRevision;
   const validation = await event;
-  if (
-    !validation.valid ||
-    intCurrentRevision !== intRequestRevision ||
-    !linkInfo.value ||
-    boolChecking.value ||
-    boolSaving.value ||
-    boolCompleted.value ||
-    sessionStore.busy ||
-    intRetrySeconds.value
-  )
+  if (intCurrentRevision !== intRequestRevision || !boolCanReset.value || !linkInfo.value)
     return;
+  if (!validation.valid) {
+    await nextTick();
+    revealFormFeedback(feedbackContainer.value?.$el, undefined, true);
+    return;
+  }
   const strResetEmail = linkInfo.value.email;
   boolSaving.value = true;
   sessionStore.busy = true;
@@ -241,7 +257,13 @@ async function submitPasswordReset(event: SubmitEventPromise): Promise<void> {
     }
   } finally {
     sessionStore.busy = false;
-    if (intCurrentRevision === intRequestRevision) boolSaving.value = false;
+    if (intCurrentRevision === intRequestRevision) {
+      boolSaving.value = false;
+      if (requestError.value) {
+        await nextTick();
+        revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el, true);
+      }
+    }
   }
 }
 

@@ -7,7 +7,7 @@
     max-width="640"
     aria-labelledby="member-delete-title"
     @update:model-value="!$event && closeDialog()">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title id="member-delete-title">Delete Account</v-card-title>
 
       <v-card-text>
@@ -22,7 +22,14 @@
           {{ requestError.message }}
         </v-alert>
 
-        <v-alert v-if="deleteError" type="error" variant="tonal" class="mb-4" role="alert">
+        <v-alert
+          v-if="deleteError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           Deletion was not confirmed. {{ deleteError.message }}
           <p v-if="!deletionInfo" class="mt-2">
             Check the current account before trying again.
@@ -116,7 +123,8 @@
             boolDeleting ||
             !boolCanDelete ||
             !deletionInfo?.can_delete ||
-            intRetrySeconds > 0
+            intRetrySeconds > 0 ||
+            !boolRequiredFieldsComplete
           ">
           Delete Account
         </v-btn>
@@ -126,7 +134,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import PasswordField from "@/components/common/PasswordField.vue";
@@ -141,6 +149,11 @@ import type {
   AccountDeletionPreviewResponse,
   UserResponse,
 } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ user: UserResponse }>();
 const emit = defineEmits<{ close: []; deleted: [user: UserResponse] }>();
@@ -166,6 +179,8 @@ const boolOwnDeletionBlocked = computed(
 );
 
 let boolUnmounted = false;
+
+const boolRequiredFieldsComplete = computed(() => !!strPassword.value);
 
 async function loadPreview(): Promise<void> {
   if (boolUnmounted || boolLoading.value || boolDeleting.value || !boolCanDelete.value)
@@ -200,6 +215,7 @@ function closeDialog(): void {
 
 async function submitDelete(event: SubmitEventPromise): Promise<void> {
   if (
+    !boolRequiredFieldsComplete.value ||
     boolUnmounted ||
     boolLoading.value ||
     boolDeleting.value ||
@@ -210,8 +226,12 @@ async function submitDelete(event: SubmitEventPromise): Promise<void> {
     return;
 
   const validation = await event;
+  if (!validation.valid) {
+    await nextTick();
+    if (!boolUnmounted) revealFormFeedback(feedbackContainer.value?.$el);
+    return;
+  }
   if (
-    !validation.valid ||
     boolUnmounted ||
     boolLoading.value ||
     boolDeleting.value ||
@@ -245,8 +265,12 @@ async function submitDelete(event: SubmitEventPromise): Promise<void> {
     }
     if (deleteError.value.statusCode === 403) await sessionStore.refreshSession();
   } finally {
-    boolDeleting.value = false;
     strPassword.value = "";
+    boolDeleting.value = false;
+    if (deleteError.value && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

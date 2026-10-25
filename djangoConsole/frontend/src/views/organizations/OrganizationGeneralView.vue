@@ -37,9 +37,16 @@
     {{ strSuccess }}
   </v-alert>
 
-  <v-card v-if="organizationInfo" variant="outlined">
+  <v-card v-if="organizationInfo" ref="feedbackContainer" variant="outlined">
     <v-card-text>
-      <v-alert v-if="saveError" type="error" variant="tonal" class="mb-4" role="alert">
+      <v-alert
+        v-if="saveError"
+        ref="errorAlert"
+        tabindex="-1"
+        type="error"
+        variant="tonal"
+        class="mb-4"
+        role="alert">
         Save was not confirmed. {{ saveError.message }}
       </v-alert>
 
@@ -100,7 +107,7 @@
         variant="tonal"
         prepend-icon="mdi-content-save-outline"
         :loading="boolSaving"
-        :disabled="boolActionBlocked || !boolChanged">
+        :disabled="boolActionBlocked || !boolChanged || !boolRequiredFieldsComplete">
         Save
       </v-btn>
     </v-card-actions>
@@ -112,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import OrganizationDeleteDialog from "@/components/organizations/OrganizationDeleteDialog.vue";
@@ -122,6 +129,11 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { type ApiError, getApiError } from "@/api/errors";
 import { getOrganizationSettings, updateOrganizationSettings } from "@/api/organization";
 import type { OrganizationSettingsRecordResponse } from "@/api/generated/browserApi";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const sessionStore = useSessionStore();
 
@@ -177,6 +189,10 @@ function applySettings(organization: OrganizationSettingsRecordResponse): void {
   strNotes.value = organization.notes;
 }
 
+const boolRequiredFieldsComplete = computed(
+  () => !!strName.value.trim() && !!strDefaultTimeZone.value,
+);
+
 async function loadSettings(): Promise<void> {
   if (boolUnmounted || boolActionBlocked.value) return;
   boolLoading.value = true;
@@ -203,10 +219,20 @@ function validateTimeZone(value: string | null): true | string {
 }
 
 async function saveSettings(event: SubmitEventPromise): Promise<void> {
-  if (boolUnmounted || boolActionBlocked.value || !boolChanged.value) return;
-  const validation = await event;
-  if (!validation.valid || boolUnmounted || boolActionBlocked.value || !boolChanged.value)
+  if (
+    !boolRequiredFieldsComplete.value ||
+    boolUnmounted ||
+    boolActionBlocked.value ||
+    !boolChanged.value
+  )
     return;
+  const validation = await event;
+  if (!validation.valid) {
+    await nextTick();
+    if (!boolUnmounted) revealFormFeedback(feedbackContainer.value?.$el, undefined, true);
+    return;
+  }
+  if (boolUnmounted || boolActionBlocked.value || !boolChanged.value) return;
   boolSaving.value = true;
   saveError.value = null;
   strSuccess.value = "";
@@ -229,6 +255,10 @@ async function saveSettings(event: SubmitEventPromise): Promise<void> {
     if (saveError.value.statusCode === 403) await sessionStore.refreshSession();
   } finally {
     boolSaving.value = false;
+    if (saveError.value && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el, true);
+    }
   }
 }
 

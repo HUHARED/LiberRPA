@@ -74,7 +74,14 @@
     {{ strSuccessMessage }}
   </v-alert>
 
-  <v-alert v-if="dispatchError" type="error" variant="tonal" class="mb-4" role="alert">
+  <v-alert
+    v-if="dispatchError"
+    ref="dispatchErrorAlert"
+    tabindex="-1"
+    type="error"
+    variant="tonal"
+    class="mb-4"
+    role="alert">
     The dispatch change was not confirmed. {{ dispatchError.message }}
   </v-alert>
 
@@ -377,12 +384,19 @@
     max-width="640"
     aria-labelledby="executor-edit-title"
     @update:model-value="!$event && closeEdit()">
-    <v-card>
+    <v-card ref="editFeedbackContainer">
       <v-card-title id="executor-edit-title">Edit Executor</v-card-title>
 
       <v-form validate-on="submit" @submit.prevent="submitEdit">
         <v-card-text>
-          <v-alert v-if="editError" type="error" variant="tonal" class="mb-4" role="alert">
+          <v-alert
+            v-if="editError"
+            ref="editErrorAlert"
+            tabindex="-1"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+            role="alert">
             Save was not confirmed. {{ editError.message }}
             <p
               v-for="strMessage in editError.fields.__all__"
@@ -441,7 +455,9 @@
             variant="tonal"
             prepend-icon="mdi-content-save-outline"
             :loading="boolSaving"
-            :disabled="boolLoading || !executorInfo?.can_manage">
+            :disabled="
+              boolBusy || !executorInfo?.can_manage || !boolRequiredFieldsComplete
+            ">
             Save
           </v-btn>
         </v-card-actions>
@@ -455,12 +471,14 @@
     max-width="640"
     aria-labelledby="executor-unassociate-title"
     @update:model-value="!$event && closeUnassociate()">
-    <v-card v-if="unassociateTarget">
+    <v-card v-if="unassociateTarget" ref="unassociateFeedbackContainer">
       <v-card-title id="executor-unassociate-title">Unassociate Executor</v-card-title>
 
       <v-card-text>
         <v-alert
           v-if="unassociateError"
+          ref="unassociateErrorAlert"
+          tabindex="-1"
           type="error"
           variant="tonal"
           class="mb-4"
@@ -545,11 +563,18 @@
     max-width="640"
     aria-labelledby="executor-delete-title"
     @update:model-value="!$event && closeDelete()">
-    <v-card v-if="deleteTarget">
+    <v-card v-if="deleteTarget" ref="deleteFeedbackContainer">
       <v-card-title id="executor-delete-title">Delete Executor</v-card-title>
 
       <v-card-text>
-        <v-alert v-if="deleteError" type="error" variant="tonal" class="mb-4" role="alert">
+        <v-alert
+          v-if="deleteError"
+          ref="deleteErrorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           Deletion was not confirmed. {{ deleteError.message }}
         </v-alert>
 
@@ -630,7 +655,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { RouterLink } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
@@ -654,6 +679,16 @@ import {
   PACKAGE_PREPARATION_LABELS,
   PACKAGE_PREPARATION_COLORS,
 } from "@/app/runLabels";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const editFeedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const editErrorAlert = ref<{ $el: HTMLElement } | null>(null);
+const unassociateFeedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const unassociateErrorAlert = ref<{ $el: HTMLElement } | null>(null);
+const deleteFeedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const deleteErrorAlert = ref<{ $el: HTMLElement } | null>(null);
+const dispatchErrorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ executorId: string }>();
 const sessionStore = useSessionStore();
@@ -713,6 +748,8 @@ function closeDelete(): void {
   deleteError.value = null;
 }
 
+const boolRequiredFieldsComplete = computed(() => !!strName.value?.trim());
+
 async function loadExecutorDetails(
   pageNumber = executorInfo.value?.preparation.page ?? 1,
 ): Promise<void> {
@@ -756,11 +793,16 @@ function validateName(value: string | null): true | string {
 }
 
 async function submitEdit(event: SubmitEventPromise): Promise<void> {
-  if (!boolEditing.value || boolBusy.value) return;
+  if (!boolRequiredFieldsComplete.value || !boolEditing.value || boolBusy.value) return;
   const intCurrentRevision = intViewRevision;
   const validationResult = await event;
+  if (!validationResult.valid) {
+    await nextTick();
+    if (intCurrentRevision === intViewRevision)
+      revealFormFeedback(editFeedbackContainer.value?.$el);
+    return;
+  }
   if (
-    !validationResult.valid ||
     !boolEditing.value ||
     boolBusy.value ||
     !executorInfo.value?.can_manage ||
@@ -784,7 +826,13 @@ async function submitEdit(event: SubmitEventPromise): Promise<void> {
     editError.value = getApiError(e);
     if ([401, 403, 404].includes(editError.value.statusCode)) await loadExecutorDetails();
   } finally {
-    if (intCurrentRevision === intViewRevision) strPendingAction.value = null;
+    if (intCurrentRevision === intViewRevision) {
+      strPendingAction.value = null;
+      if (editError.value) {
+        await nextTick();
+        revealFormFeedback(editFeedbackContainer.value?.$el, editErrorAlert.value?.$el);
+      }
+    }
   }
 }
 
@@ -809,7 +857,17 @@ async function submitDispatch(): Promise<void> {
     if ([401, 403, 404].includes(dispatchError.value.statusCode))
       await loadExecutorDetails();
   } finally {
-    if (intCurrentRevision === intViewRevision) strPendingAction.value = null;
+    if (intCurrentRevision === intViewRevision) {
+      strPendingAction.value = null;
+      if (dispatchError.value) {
+        await nextTick();
+        revealFormFeedback(
+          dispatchErrorAlert.value?.$el,
+          dispatchErrorAlert.value?.$el,
+          true,
+        );
+      }
+    }
   }
 }
 
@@ -860,7 +918,16 @@ async function submitUnassociate(): Promise<void> {
     if ([401, 403, 404].includes(unassociateError.value.statusCode))
       await loadExecutorDetails();
   } finally {
-    if (intCurrentRevision === intViewRevision) strPendingAction.value = null;
+    if (intCurrentRevision === intViewRevision) {
+      strPendingAction.value = null;
+      if (unassociateError.value) {
+        await nextTick();
+        revealFormFeedback(
+          unassociateFeedbackContainer.value?.$el,
+          unassociateErrorAlert.value?.$el,
+        );
+      }
+    }
   }
 }
 
@@ -898,7 +965,13 @@ async function submitDelete(): Promise<void> {
     deleteError.value = getApiError(e);
     if ([401, 403, 404].includes(deleteError.value.statusCode)) await loadExecutorDetails();
   } finally {
-    if (intCurrentRevision === intViewRevision) strPendingAction.value = null;
+    if (intCurrentRevision === intViewRevision) {
+      strPendingAction.value = null;
+      if (deleteError.value) {
+        await nextTick();
+        revealFormFeedback(deleteFeedbackContainer.value?.$el, deleteErrorAlert.value?.$el);
+      }
+    }
   }
 }
 

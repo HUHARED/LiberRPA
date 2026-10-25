@@ -16,7 +16,7 @@
     max-width="1000"
     aria-labelledby="executor-group-details-title"
     @update:model-value="!$event && closeDialog()">
-    <v-card :aria-busy="boolBusy">
+    <v-card ref="feedbackContainer" :aria-busy="boolBusy">
       <v-card-title id="executor-group-details-title">
         {{ boolConfirmDelete ? "Delete Group" : "Group Details" }}
       </v-card-title>
@@ -50,7 +50,14 @@
           </p>
         </v-alert>
 
-        <v-alert v-if="deleteError" type="error" variant="tonal" class="mb-4" role="alert">
+        <v-alert
+          v-if="deleteError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           Deletion was not confirmed. {{ deleteError.message }}
         </v-alert>
 
@@ -251,7 +258,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 
 import ExecutorGroupFormDialog from "./ExecutorGroupFormDialog.vue";
@@ -269,6 +276,11 @@ import {
 
 import { formatDateTime } from "@/app/formatters";
 import { DICT_ASSOCIATION_STATE } from "@/app/runLabels";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ groupId: string }>();
 const route = useRoute();
@@ -396,6 +408,10 @@ async function submitDelete(): Promise<void> {
     }
   } finally {
     boolDeleting.value = false;
+    if (deleteError.value && !boolUnmounted) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 

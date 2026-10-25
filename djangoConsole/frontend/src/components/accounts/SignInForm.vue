@@ -55,14 +55,25 @@
     Your account has been deleted.
   </v-alert>
 
-  <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+  <v-alert
+    v-if="requestError"
+    ref="errorAlert"
+    tabindex="-1"
+    type="error"
+    variant="tonal"
+    class="mb-4"
+    role="alert">
     {{ requestError.message }}
     <span v-if="intRetrySeconds > 0" class="d-block mt-1">
       Try again in {{ intRetrySeconds }} seconds.
     </span>
   </v-alert>
 
-  <v-form :novalidate="false" validate-on="submit" @submit.prevent="submitSignIn">
+  <v-form
+    ref="feedbackContainer"
+    :novalidate="false"
+    validate-on="submit"
+    @submit.prevent="submitSignIn">
     <v-text-field
       v-if="platform"
       id="platform-sign-in-login"
@@ -139,14 +150,14 @@
       block
       class="mt-4"
       :loading="sessionStore.busy"
-      :disabled="intRetrySeconds > 0">
+      :disabled="!boolCanSignIn">
       Sign In
     </v-btn>
   </v-form>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
@@ -157,6 +168,11 @@ import { useRetryDelay } from "@/composables/useRetryDelay";
 import { getSafeReturnPath } from "@/app/navigation";
 
 import { ApiError, getApiError } from "@/api/errors";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const STR_PLATFORM_ADMIN_LOGIN = "admin";
 
@@ -172,6 +188,14 @@ const boolPasswordVisible = ref(false);
 const requestError = shallowRef<ApiError | null>(null);
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
 
+const boolCanSignIn = computed(
+  () =>
+    !sessionStore.busy &&
+    !intRetrySeconds.value &&
+    (props.platform || !!strEmail.value.trim()) &&
+    !!strPassword.value,
+);
+
 function validateRequiredEmail(value: string): true | string {
   return value.trim() ? true : "Enter your email address.";
 }
@@ -181,10 +205,15 @@ function validateRequiredPassword(value: string): true | string {
 }
 
 async function submitSignIn(event: SubmitEventPromise): Promise<void> {
-  if (sessionStore.busy || intRetrySeconds.value > 0) return;
+  if (!boolCanSignIn.value) return;
 
   const validationResult = await event;
-  if (!validationResult.valid || sessionStore.busy || intRetrySeconds.value > 0) return;
+  if (!validationResult.valid) {
+    await nextTick();
+    revealFormFeedback(feedbackContainer.value?.$el, undefined, true);
+    return;
+  }
+  if (!boolCanSignIn.value) return;
   requestError.value = null;
   try {
     await sessionStore.signInAccount(
@@ -216,6 +245,11 @@ async function submitSignIn(event: SubmitEventPromise): Promise<void> {
   } catch (e) {
     requestError.value = getApiError(e);
     setRetryDelay(requestError.value.retryAfterSeconds);
+  } finally {
+    if (requestError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el, true);
+    }
   }
 }
 

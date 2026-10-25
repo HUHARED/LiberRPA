@@ -1,6 +1,6 @@
 <!-- FileName: PasswordResetRequestView.vue -->
 <template>
-  <AuthLayout>
+  <AuthLayout ref="feedbackContainer">
     <v-btn
       :to="{ name: 'sign-in' }"
       variant="tonal"
@@ -25,7 +25,14 @@
       {{ strEmailMessage }}
     </v-alert>
 
-    <v-alert v-if="requestError" type="error" variant="tonal" class="mb-4" role="alert">
+    <v-alert
+      v-if="requestError"
+      ref="errorAlert"
+      tabindex="-1"
+      type="error"
+      variant="tonal"
+      class="mb-4"
+      role="alert">
       {{ requestError.message }}
       <p v-if="intRetrySeconds" class="mt-2">Try again in {{ intRetrySeconds }} seconds.</p>
     </v-alert>
@@ -53,7 +60,7 @@
         prepend-icon="mdi-email-outline"
         block
         :loading="boolSending"
-        :disabled="boolSending || intRetrySeconds > 0">
+        :disabled="!boolCanSend">
         Send Reset Link
       </v-btn>
     </v-form>
@@ -61,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import type { SubmitEventPromise } from "vuetify";
 
 import AuthLayout from "@/layouts/AuthLayout.vue";
@@ -71,11 +78,19 @@ import { useRetryDelay } from "@/composables/useRetryDelay";
 import { type ApiError, getApiError } from "@/api/errors";
 import { requestPasswordResetEmail } from "@/api/passwordReset";
 
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
+
 const strEmail = ref("");
 const strEmailMessage = ref("");
 const boolSending = ref(false);
 const requestError = shallowRef<ApiError | null>(null);
 const { intRetrySeconds, setRetryDelay } = useRetryDelay();
+const boolCanSend = computed(
+  () => !boolSending.value && !intRetrySeconds.value && !!strEmail.value.trim(),
+);
 let boolUnmounted = false;
 
 function validateRequiredEmail(value: string): true | string {
@@ -83,10 +98,14 @@ function validateRequiredEmail(value: string): true | string {
 }
 
 async function submitEmailRequest(event: SubmitEventPromise): Promise<void> {
-  if (boolSending.value || intRetrySeconds.value) return;
+  if (boolUnmounted || !boolCanSend.value) return;
   const validation = await event;
-  if (!validation.valid || boolUnmounted || boolSending.value || intRetrySeconds.value)
+  if (boolUnmounted || !boolCanSend.value) return;
+  if (!validation.valid) {
+    await nextTick();
+    revealFormFeedback(feedbackContainer.value?.$el, undefined, true);
     return;
+  }
   boolSending.value = true;
   requestError.value = null;
   strEmailMessage.value = "";
@@ -99,6 +118,10 @@ async function submitEmailRequest(event: SubmitEventPromise): Promise<void> {
     setRetryDelay(requestError.value.retryAfterSeconds);
   } finally {
     boolSending.value = false;
+    if (!boolUnmounted && requestError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el, true);
+    }
   }
 }
 

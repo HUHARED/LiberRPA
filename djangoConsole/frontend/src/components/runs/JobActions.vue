@@ -51,11 +51,18 @@
   </span>
 
   <v-dialog v-model="boolConfirm" :persistent="boolBusy" max-width="600">
-    <v-card>
+    <v-card ref="feedbackContainer">
       <v-card-title>Close Job</v-card-title>
 
       <v-card-text>
-        <v-alert v-if="strCloseError" type="error" variant="tonal" class="mb-4">
+        <v-alert
+          v-if="strCloseError"
+          ref="errorAlert"
+          tabindex="-1"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          role="alert">
           {{ strCloseError }}
         </v-alert>
 
@@ -88,11 +95,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { nextTick, computed, ref } from "vue";
 
 import { controlJob, type JobControlAction, type JobInfo } from "@/api/runs";
 import { JobState } from "@/api/generated/browserApi";
 import { getApiError } from "@/api/errors";
+
+import { revealFormFeedback } from "@/app/formFeedback";
+
+const feedbackContainer = ref<{ $el: HTMLElement } | null>(null);
+const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 
 const props = defineProps<{ job: JobInfo; iconOnly?: boolean }>();
 const emit = defineEmits<{ updated: []; error: [message: string] }>();
@@ -128,6 +140,10 @@ async function act(action: JobControlAction): Promise<void> {
     }
   } finally {
     boolBusy.value = false;
+    if (boolConfirm.value && strCloseError.value) {
+      await nextTick();
+      revealFormFeedback(feedbackContainer.value?.$el, errorAlert.value?.$el);
+    }
   }
 }
 </script>
