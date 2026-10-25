@@ -71,7 +71,10 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
     ...started,
     endedAt: strEndedAt,
     status,
-    retryEligible: status === RunStatus.Error,
+    retryEligible:
+      (record.stopReason === undefined ||
+        record.stopReason === RunTerminationReason.Timeout) &&
+      (status === RunStatus.Error || status === RunStatus.TimedOut),
     outputs,
     emailOutputContext: state.emailOutputContext ?? null,
     errorSummary: state.errorSummary ?? null,

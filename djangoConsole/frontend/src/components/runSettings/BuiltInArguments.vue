@@ -21,7 +21,7 @@
         :readonly="readonly"
         hide-details="auto">
         <v-tooltip activator="parent" location="top">
-          Maximum extra attempts after an execution error.
+          Maximum extra attempts after an execution error or timeout.
         </v-tooltip>
       </v-number-input>
     </v-col>

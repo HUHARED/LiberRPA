@@ -478,7 +478,10 @@ async function spawnAndTrackRun(
       ...startedFact,
       endedAt: new Date(intRunEndedAtMs).toISOString(),
       status: runStatus,
-      retryEligible: runStatus === RunStatus.Error && !boolUnexpectedProcessFailure,
+      retryEligible:
+        requestedStatus !== RunStatus.Canceled &&
+        (runStatus === RunStatus.TimedOut ||
+          (runStatus === RunStatus.Error && !boolUnexpectedProcessFailure)),
       outputs,
       emailOutputContext,
       errorSummary,

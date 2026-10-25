@@ -140,7 +140,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                 if emailEvent is not None:
                     notify_run_event(run, event=emailEvent)
                 boolRunRetryable = (
-                    run.status == RunStatus.ERROR
+                    run.status in (RunStatus.ERROR, RunStatus.TIMED_OUT)
                     and job.stop_requested_at is None
                     and assignment.attempt_number <= job.max_retry_count
                 )

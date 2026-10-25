@@ -16,7 +16,7 @@
         variant="underlined"
         hide-details>
         <v-tooltip activator="parent" location="top">
-          Extra attempts after an unhandled execution error, 60 seconds apart.
+          Extra attempts after an unhandled execution error or timeout, 60 seconds apart.
         </v-tooltip>
       </v-number-input>
     </v-col>
