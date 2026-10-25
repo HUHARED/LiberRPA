@@ -42,7 +42,7 @@ from executors.client_sessions import (
 from executors.payloads import build_client_session_payload
 from executors.models import Executor
 
-from .contracts import WorkPollRequest
+from .contracts import WorkSyncRequest
 from .control_notifications import listen_for_executor_notifications
 from .executor_state import update_executor_work_state
 
@@ -63,12 +63,12 @@ class ControlMessageType(StrEnum):
     ERROR = "error"
 
 
-class ControlAuthenticationRequest(WorkPollRequest):
+class ControlAuthenticationRequest(WorkSyncRequest):
     type: Literal[ControlMessageType.AUTHENTICATE]
     token: SecretStr = Field(max_length=128)
 
 
-class ControlStateRequest(WorkPollRequest):
+class ControlStateRequest(WorkSyncRequest):
     type: Literal[ControlMessageType.HEARTBEAT, ControlMessageType.STATE]
 
 
@@ -111,7 +111,7 @@ async def _send_error(
     await _close_connection(send, intCloseCode)
 
 
-def _parse_message[Request: WorkPollRequest](
+def _parse_message[Request: WorkSyncRequest](
     event: ASGIReceiveEvent, requestClass: type[Request]
 ) -> Request | JsonResponse | None:
     if event["type"] == "websocket.disconnect":

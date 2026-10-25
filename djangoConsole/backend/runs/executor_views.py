@@ -39,7 +39,7 @@ from .contracts import (
     JobState,
     AssignmentState,
     RunEventKind,
-    WorkPollRequest,
+    WorkSyncRequest,
     WorkPermitRequest,
     WorkEventsRequest,
 )
@@ -70,7 +70,7 @@ class WorkStopCommand(TypedDict):
     run_id: uuid.UUID
 
 
-class WorkPollResponse(TypedDict):
+class WorkSyncResponse(TypedDict):
     assignments: list[WorkAssignmentPayload]
     stop_requests: list[WorkStopCommand]
     file_transfers: list["PendingRunFileTransfer"]
@@ -96,7 +96,7 @@ class WorkEventsResponse(TypedDict):
     rejected_events: list[WorkEventRejection]
 
 
-def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> JsonResponse:
+def _sync(authentication: ExecutorClientResult, payload: WorkSyncRequest) -> JsonResponse:
     from .transfers import get_pending_transfers
     from packages.preparation import claim_package_preparations
 
@@ -158,7 +158,7 @@ def _poll(authentication: ExecutorClientResult, payload: WorkPollRequest) -> Jso
         )
         .values("id", "run_id")
     )
-    dictResponse: WorkPollResponse = {
+    dictResponse: WorkSyncResponse = {
         "assignments": [build_assignment_payload(entry) for entry in listAssignment],
         "stop_requests": [
             {"assignment_id": entry["id"], "run_id": entry["run_id"]}
@@ -182,7 +182,7 @@ def executor_work_endpoint(request: HttpRequest, action: str) -> JsonResponse:
             return build_rate_limited_response(intRetryAfter)
         identity = get_executor_session_identity(request.headers.get("Authorization", ""))
         requestClass = {
-            "poll": WorkPollRequest,
+            "sync": WorkSyncRequest,
             "permit": WorkPermitRequest,
             "events": WorkEventsRequest,
         }[action]
@@ -194,8 +194,8 @@ def executor_work_endpoint(request: HttpRequest, action: str) -> JsonResponse:
                 identity=identity, action=ExecutorClientAction.HEARTBEAT
             ) as result:
                 authentication = cast(ExecutorClientResult, result)
-                if action == "poll":
-                    return _poll(authentication, cast(WorkPollRequest, payload))
+                if action == "sync":
+                    return _sync(authentication, cast(WorkSyncRequest, payload))
                 if action == "permit":
                     session = authentication.session
                     assignment = issue_start_permit(

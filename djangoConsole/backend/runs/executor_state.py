@@ -8,12 +8,12 @@ from django.utils import timezone
 
 from executors.models import ExecutorSession
 
-from .contracts import WorkPollRequest
+from .contracts import WorkSyncRequest
 from .models import ExecutorWorkState
 
 
 def update_executor_work_state(
-    session: ExecutorSession, payload: WorkPollRequest
+    session: ExecutorSession, payload: WorkSyncRequest
 ) -> None:
     """Save a validated report inside the caller's locked association transaction."""
     currentTime = timezone.now()

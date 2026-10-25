@@ -233,7 +233,7 @@ def _discard_ticket(ticket: TransferTicket) -> None:
 
 
 def _expire_tickets() -> None:
-    # Remove expired transfers before accepting new requests as well as during polling; an offline Executor may not poll again.
+    # Remove expired transfers before accepting new requests as well as during work synchronization; an offline Executor may not synchronize again.
     with _LOCK_TICKET:
         floatCurrentTime = time.monotonic()
         listExpired = [

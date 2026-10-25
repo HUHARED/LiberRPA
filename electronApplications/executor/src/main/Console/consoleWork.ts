@@ -524,7 +524,7 @@ async function prepareRequestedPackages(
         await waitForPackageRetry(intDelayMs, () =>
           ensureConsoleWorkMayContinue(credential),
         );
-        // Re-poll after waiting so canceled or changed preparations are not replayed.
+        // Sync again after waiting so canceled or changed preparations are not replayed.
         boolPreparationRefresh = true;
         return;
       }
@@ -559,7 +559,7 @@ async function syncConsoleWork(
 ): Promise<void> {
   const response = await requestConsole(
     credential.consoleUrl,
-    "executor/work/poll/",
+    "executor/work/sync/",
     credential.token,
     {
       ...getConsoleWorkState(),

@@ -39,10 +39,10 @@ urlpatterns = [
     path("runs/<uuid:runId>/logs/", list_logs, name="run-logs"),
     path("runs/<uuid:runId>/files/", create_file_transfer, name="run-file-transfer"),
     path(
-        "clients/executor/work/poll/",
+        "clients/executor/work/sync/",
         executor_work_endpoint,
-        {"action": "poll"},
-        name="executor-work-poll",
+        {"action": "sync"},
+        name="executor-work-sync",
     ),
     path(
         "clients/executor/work/permit/",
