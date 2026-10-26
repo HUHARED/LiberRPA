@@ -104,12 +104,44 @@ function recoverFinishedConsoleRun(record: ConsoleWorkRecord): boolean {
   return true;
 }
 
+function recoverInterruptedConsoleRun(record: ConsoleWorkRecord): void {
+  const started = record.started;
+  if (!started || record.interruptedAt !== undefined) return;
+  const strReason =
+    "The original Python process no longer exists; its final result and end time are unavailable.";
+  const strInterruptedAt = new Date().toISOString();
+  record.interruptedAt = strInterruptedAt;
+  record.state = ConsoleWorkState.Unknown;
+  getDatabase().transaction(() => {
+    saveConsoleWork(record);
+    saveConsoleEvent(record, {
+      kind: ConsoleEventKind.Unknown,
+      occurred_at: strInterruptedAt,
+      interrupted_started_at: started.startedAt,
+      reason: strReason,
+    });
+    dbUpdateRunHistory({
+      id: started.historyId,
+      run_ended_at_ms: null,
+      status: RunStatus.Interrupted,
+      outputs: {
+        status: RunOutputsStatus.Unavailable,
+        values: null,
+        unavailableKeys: [],
+        reason: strReason,
+      },
+      error_summary: null,
+    });
+  })();
+  notifyRunHistoryChanged(started.historyId);
+}
+
 function recoverConsoleRunResult(assignmentId: string): void {
   const record = getConsoleWork(assignmentId);
   if (!record) return;
   // The observer has confirmed process exit, even if its final result is unavailable.
   removeExecutorRunArgumentsFile(record.assignment.run_id);
-  recoverFinishedConsoleRun(record);
+  if (!recoverFinishedConsoleRun(record)) recoverInterruptedConsoleRun(record);
 }
 
 export function recoverConsoleWorkAfterRestart(): void {
@@ -127,11 +159,17 @@ export function recoverConsoleWorkAfterRestart(): void {
     }
     const started = record.started;
     const boolProcessPresent =
-      started?.processId !== undefined && isRecoveredProcessPresent(started.processId);
+      record.interruptedAt === undefined &&
+      started?.processId !== undefined &&
+      isRecoveredProcessPresent(started.processId);
     if (started?.processId !== undefined && !boolProcessPresent) {
       removeExecutorRunArgumentsFile(record.assignment.run_id);
     }
     if (!boolProcessPresent && recoverFinishedConsoleRun(record)) continue;
+    if (started?.processId !== undefined && !boolProcessPresent) {
+      recoverInterruptedConsoleRun(record);
+      continue;
+    }
     if (record.state !== ConsoleWorkState.Unknown) {
       getDatabase().transaction(() => {
         saveConsoleEvent(record, {

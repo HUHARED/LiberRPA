@@ -23,6 +23,7 @@ from .contracts import (
     AssignmentState,
     ACTIVE_ASSIGNMENT_STATES,
     JobControlAction,
+    RunStatus,
 )
 from .models import Job, ExecutorWorkState, Assignment, Run
 from .control_notifications import notify_executor_control
@@ -209,8 +210,8 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
         ):
             notify_executor_control(executorId)
         return True
-    if run is not None and run.ended_at is not None:
-        raise ValidationError("This Run has already ended.", code="run_already_ended")
+    if run is not None and run.status != RunStatus.RUNNING:
+        raise ValidationError("This Run is no longer running.", code="run_already_ended")
     assignmentQuery = Assignment.objects.filter(
         job=job, state__in=ACTIVE_ASSIGNMENT_STATES
     )
@@ -220,6 +221,16 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
     if run is not None and assignment is None:
         raise ValidationError(
             "This Run no longer has an active execution.", code="run_already_ended"
+        )
+    if (
+        assignment is not None
+        and Run.objects.filter(
+            assignment=assignment, status=RunStatus.INTERRUPTED
+        ).exists()
+    ):
+        raise ValidationError(
+            "The Run was interrupted and is no longer running. Review and close the Job.",
+            code="run_already_ended",
         )
     if job.stop_requested_at is not None:
         return False

@@ -311,6 +311,17 @@ class WorkNotStartedEvent(WorkEventBase):
 
 class WorkUnknownEvent(WorkEventBase):
     kind: Literal[RunEventKind.UNKNOWN]
+    # Present only when the original process has exited and its saved start fact is available.
+    interrupted_started_at: Annotated[AwareDatetime, Field(strict=False)] | None = None
+
+    @model_validator(mode="after")
+    def validate_times(self) -> Self:
+        if (
+            self.interrupted_started_at is not None
+            and self.occurred_at < self.interrupted_started_at
+        ):
+            raise ValueError("The interruption report precedes the start time.")
+        return self
 
 
 class WorkRecordingEvent(WorkEventBase):

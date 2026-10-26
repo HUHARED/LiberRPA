@@ -38,6 +38,7 @@ from operations.maintenance import ServiceMaintenanceError
 from .contracts import (
     JobState,
     AssignmentState,
+    RunStatus,
     RunEventKind,
     WorkSyncRequest,
     WorkPermitRequest,
@@ -146,6 +147,7 @@ def _sync(authentication: ExecutorClientResult, payload: WorkSyncRequest) -> Jso
             session_id=session.id,
         )
         .exclude(state=AssignmentState.FINISHED)
+        .exclude(run__status=RunStatus.INTERRUPTED)
         # A non-start receipt ends redelivery without changing withdrawal into preparation failure.
         .exclude(
             state=AssignmentState.WITHDRAWN,

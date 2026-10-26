@@ -41,8 +41,14 @@ export type ConsoleEventData =
       not_started_reason?: ConsoleNotStartedReason;
     }
   | {
-      kind: ConsoleEventKind.PreparationFailed | ConsoleEventKind.Unknown;
+      kind: ConsoleEventKind.PreparationFailed;
       reason: string;
+    }
+  | {
+      kind: ConsoleEventKind.Unknown;
+      reason: string;
+      occurred_at?: string;
+      interrupted_started_at?: string;
     }
   | {
       kind: ConsoleEventKind.Recording;
@@ -81,7 +87,8 @@ export function saveConsoleEvent(record: ConsoleWorkRecord, event: ConsoleEventD
     ...event,
     event_id: strEventId,
     assignment_id: record.assignment.id,
-    occurred_at: "occurred_at" in event ? event.occurred_at : new Date().toISOString(),
+    occurred_at:
+      ("occurred_at" in event ? event.occurred_at : undefined) ?? new Date().toISOString(),
   };
   if ("reason" in eventPayload) eventPayload.reason = eventPayload.reason.slice(0, 2000);
   getDatabase()

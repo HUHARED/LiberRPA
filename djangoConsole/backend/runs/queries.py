@@ -91,10 +91,13 @@ def _get_active_assignments(jobIds: list[uuid.UUID]) -> dict[uuid.UUID, Assignme
     # The database permits only one active Assignment per Job.
     return {
         assignment.job_id: assignment
-        for assignment in Assignment.objects.filter(
+        for assignment in Assignment.objects
+        .filter(
             job_id__in=jobIds,
             state__in=ACTIVE_ASSIGNMENT_STATES,
-        ).only("job_id", "executor_id", "executor_name")
+        )
+        .select_related("run")
+        .only("job_id", "executor_id", "executor_name", "run__status")
     }
 
 
@@ -122,6 +125,7 @@ def build_job_payload(
     if assignmentsByJobId is None:
         assignmentsByJobId = _get_active_assignments([job.id])
     assignment = assignmentsByJobId.get(job.id)
+    activeRun = getattr(assignment, "run", None) if assignment is not None else None
     dictPayload: dict[str, object] = {
         "id": job.id,
         "job_request_id": job.request_id,
@@ -157,7 +161,8 @@ def build_job_payload(
             JobState.WAITING_RETRY,
         ),
         "can_stop": job.stop_requested_at is None
-        and job.state in (JobState.RUNNING, JobState.NEEDS_REVIEW),
+        and job.state in (JobState.RUNNING, JobState.NEEDS_REVIEW)
+        and (activeRun is None or activeRun.status == RunStatus.RUNNING),
         "can_close": job.state == JobState.NEEDS_REVIEW,
     }
     if details:
@@ -188,7 +193,9 @@ def build_job_payload(
 def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
     job = run.job
     assignment = run.assignment
-    boolActiveRun = run.ended_at is None and assignment.state in ACTIVE_ASSIGNMENT_STATES
+    boolActiveRun = (
+        run.status == RunStatus.RUNNING and assignment.state in ACTIVE_ASSIGNMENT_STATES
+    )
     boolStopRequested = boolActiveRun and (
         job.stop_requested_at is not None or assignment.stop_requested_at is not None
     )

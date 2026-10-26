@@ -53,7 +53,7 @@ interface RunHistoryInsertData {
 
 interface RunHistoryUpdateData {
   id: number;
-  run_ended_at_ms: number;
+  run_ended_at_ms: number | null;
   status: RunEndedStatus;
   outputs: RunOutputs;
   error_summary: { type: string; message: string } | null;

@@ -52,6 +52,8 @@ export interface ConsoleWorkRecord {
   state: ConsoleWorkState;
   started?: RunStartedFact;
   ended?: RunEndedFact;
+  // Observation time of confirmed process exit without a final result, not the Run end time.
+  interruptedAt?: string;
   logOffsets: Record<string, number>;
   logsFinished: boolean;
   logsUnavailableReason?: string;
@@ -154,7 +156,6 @@ export function getConsoleWorkForRun(
 }
 
 export function getPendingConsoleLogWork(sessionKey: string): ConsoleWorkRecord[] {
-  // NOTE: Keep these WHERE conditions aligned with idx_console_work_pending_logs.
   const arrRow = getDatabase()
     .prepare(
       `
@@ -171,7 +172,10 @@ export function getPendingConsoleLogWork(sessionKey: string): ConsoleWorkRecord[
                   AND JSON_EXTRACT(content, '$.logsFinished') = 0
               )
               OR (
-                  JSON_TYPE(content, '$.ended') = 'object'
+                  (
+                      JSON_TYPE(content, '$.ended') = 'object'
+                      OR JSON_TYPE(content, '$.interruptedAt') = 'text'
+                  )
                   AND JSON_EXTRACT(
                       content,
                       '$.assignment.snapshot.builtin_record_video'

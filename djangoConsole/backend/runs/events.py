@@ -16,10 +16,12 @@ from .contracts import (
     JobState,
     AssignmentState,
     RunStatus,
+    OutputsStatus,
     RunEventKind,
     RunNotStartedReason,
     WorkStartedEvent,
     WorkEndedEvent,
+    WorkUnknownEvent,
     WorkNotStartedEvent,
     WorkRecordingEvent,
     WorkEvent,
@@ -59,11 +61,26 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             )
         return
     job = assignment.job
+    startedAt = (
+        event.started_at
+        if isinstance(event, (WorkStartedEvent, WorkEndedEvent))
+        else event.interrupted_started_at
+        if isinstance(event, WorkUnknownEvent)
+        else None
+    )
+    boolConfirmedInterruption = (
+        isinstance(event, WorkUnknownEvent) and startedAt is not None
+    )
     boolWasPreparing = assignment.state == AssignmentState.PREPARING
-    if assignment.state == AssignmentState.WITHDRAWN and event.kind in (
-        RunEventKind.PREPARATION_FAILED,
-        RunEventKind.NOT_STARTED,
-        RunEventKind.UNKNOWN,
+    if (
+        assignment.state == AssignmentState.WITHDRAWN
+        and event.kind
+        in (
+            RunEventKind.PREPARATION_FAILED,
+            RunEventKind.NOT_STARTED,
+            RunEventKind.UNKNOWN,
+        )
+        and not boolConfirmedInterruption
     ):
         # A delayed reply to a withdrawn offer cannot affect a later assignment of the same Job.
         RunEvent.objects.create(
@@ -74,7 +91,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             reason=event.reason,
         )
         return
-    if isinstance(event, (WorkStartedEvent, WorkEndedEvent)):
+    if startedAt is not None:
         if (
             assignment.state
             in (
@@ -94,7 +111,6 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                 "No start permission was issued for this assignment.",
                 code="permission_required",
             )
-        startedAt = event.started_at
         if (
             startedAt > assignment.permit_expires_at
             or startedAt < get_start_evidence_not_before(assignment.permit_expires_at)
@@ -110,7 +126,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
         if boolCreated:
             job.attempt_count = max(job.attempt_count, assignment.attempt_number)
             job.save(update_fields=["attempt_count"])
-            if job.closed_at is None:
+            if job.closed_at is None and not boolConfirmedInterruption:
                 notify_run_event(run, event=RunEmailEvent.START)
         if isinstance(event, WorkEndedEvent) and run.ended_at is None:
             run.ended_at = event.occurred_at
@@ -162,7 +178,24 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                             "No retry was scheduled because this Job no longer has run permission."
                         )
                     finish_job(job, strReason)
-        elif event.kind == RunEventKind.STARTED and run.ended_at is None:
+        elif boolConfirmedInterruption and run.ended_at is None:
+            run.status = RunStatus.INTERRUPTED
+            run.reason = event.reason or (
+                "The Python process has exited, but its result and end time are unavailable."
+            )
+            run.outputs_status = OutputsStatus.UNAVAILABLE
+            run.outputs_reason = "Python did not publish a final output snapshot."
+            run.save(
+                update_fields=["status", "reason", "outputs_status", "outputs_reason"]
+            )
+            assignment.state = AssignmentState.NEEDS_REVIEW
+            assignment.reason = run.reason
+            assignment.save(update_fields=["state", "reason"])
+            if job.state != JobState.FINISHED and job.closed_at is None:
+                job.state = JobState.NEEDS_REVIEW
+                job.reason = run.reason
+                job.save(update_fields=["state", "reason"])
+        elif event.kind == RunEventKind.STARTED and run.status == RunStatus.RUNNING:
             assignment.state = AssignmentState.RUNNING
             assignment.save(update_fields=["state"])
             if job.closed_at is None:
