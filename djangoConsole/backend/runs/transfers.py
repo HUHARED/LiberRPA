@@ -62,7 +62,7 @@ from organizations.http import get_request_access
 from organizations.permissions import AccessChannel
 from organizations.rate_limits import RequestBudget, request_budget
 
-from .contracts import RecordingStatus, RunFileKind, RunFileRequest
+from .contracts import RunStatus, RecordingStatus, RunFileKind, RunFileRequest
 from .models import Run, RunFileTransfer
 from .queries import get_visible_runs
 from .control_notifications import notify_executor_control
@@ -125,9 +125,9 @@ class RunFileAvailability(TypedDict):
 def build_run_file_availability(run: Run) -> dict[RunFileKind, RunFileAvailability]:
     """Check whether a download can be requested; the Executor that ran the project checks the actual files."""
     strCommonReason = ""
-    if run.ended_at is None:
+    if run.status == RunStatus.RUNNING:
         strCommonReason = (
-            "Original files are available only after this Run has a confirmed end."
+            "Original files are available after this Run's process has exited."
         )
     else:
         currentTime = timezone.now()
@@ -150,7 +150,8 @@ def build_run_file_availability(run: Run) -> dict[RunFileKind, RunFileAvailabili
         ):
             strCommonReason = "The original Executor client is offline."
 
-    boolRecordingReady = run.recording.get("status") == RecordingStatus.READY
+    strRecordingStatus = run.recording.get("status")
+    boolRecordingReady = strRecordingStatus == RecordingStatus.READY
     boolRecordingEnabled = bool(run.job.run_snapshot.get("builtin_record_video", False))
     dictSize = {
         RunFileKind.LOGS: None,
@@ -161,14 +162,19 @@ def build_run_file_availability(run: Run) -> dict[RunFileKind, RunFileAvailabili
     for kind in RunFileKind:
         strReason = strCommonReason
         intSizeBytes = dictSize[kind]
-        if not strReason and boolRecordingEnabled and not boolRecordingReady:
+        if (
+            not strReason
+            and boolRecordingEnabled
+            and strRecordingStatus
+            not in (RecordingStatus.READY, RecordingStatus.UNAVAILABLE)
+        ):
+            strReason = "Wait until the recording has finished."
+        if not strReason and kind != RunFileKind.LOGS and not boolRecordingReady:
             strReason = (
                 "The recording did not finish successfully. Check the Executor computer for any available files."
-                if run.recording.get("status") == RecordingStatus.UNAVAILABLE
-                else "Wait until the recording is ready."
+                if strRecordingStatus == RecordingStatus.UNAVAILABLE
+                else "This Run has no completed recording available."
             )
-        if not strReason and kind != RunFileKind.LOGS and not boolRecordingReady:
-            strReason = "This Run has no completed recording available."
         if not strReason and kind == RunFileKind.SUBTITLES and intSizeBytes is None:
             strReason = "This Run has no subtitle file available."
         if (
@@ -356,9 +362,9 @@ def _authorize_source(authorizationHeader: str, ticket: TransferTicket) -> None:
         if (
             run.assignment.session_id != ticket.sessionId
             or run.assignment.actor_id != access.actorId
-            or run.ended_at is None
+            or run.status == RunStatus.RUNNING
         ):
-            raise PermissionDenied("The original completed Run is required.")
+            raise PermissionDenied("The original Run's process must have exited.")
 
 
 @csrf_exempt

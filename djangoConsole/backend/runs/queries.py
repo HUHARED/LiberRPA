@@ -217,7 +217,7 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
         "reason": run.reason,
         "outputs_status": run.outputs_status,
         "stop_requested": boolStopRequested,
-        "can_rerun": run.ended_at is not None and run.status != RunStatus.RUNNING,
+        "can_rerun": run.status != RunStatus.RUNNING,
         "can_stop": boolActiveRun
         and job.state != JobState.FINISHED
         and not boolStopRequested,

@@ -156,6 +156,8 @@ def _create_database(
     collation: str = "C.UTF-8",
     ctype: str = "C.UTF-8",
 ) -> None:
+    # NOTE: Initialization and restore create the same application role.
+    # Restore uses its standard privileges instead of copying source role attributes.
     _run_as(
         "postgres",
         [

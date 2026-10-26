@@ -321,6 +321,8 @@ function describeCron(value: string): string {
   }
 }
 
+// NOTE: Schedule filters cover all accessible departments.
+// The run form's target picker loads one department and target type at a time.
 async function loadTargets(): Promise<void> {
   const intRevision = ++intTargetRevision;
   boolTargetsLoading.value = true;

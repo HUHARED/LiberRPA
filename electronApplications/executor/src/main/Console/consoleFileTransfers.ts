@@ -81,17 +81,22 @@ async function prepareTransferFile(
   maxBytes: number;
 }> {
   abortTransfers.signal.throwIfAborted();
-  if (!record.started || !record.ended)
-    throw new Error("This Run has not ended on the Executor that started it.");
+  const strExitConfirmedAt = record.ended?.endedAt ?? record.interruptedAt;
+  if (!record.started || strExitConfirmedAt === undefined)
+    throw new Error("The original Python process has not been confirmed to have exited.");
   const strFolder = ensureExistingRunLogFolderPath(record.started.logPath);
   const boolVideo = record.assignment.snapshot.builtin_record_video === true;
-  if (boolVideo) {
-    if (
-      readRunRecording(strFolder, Date.parse(record.ended.endedAt))?.status !==
-      RunRecordingStatus.Ready
-    )
-      throw new Error("The recording is not ready to download.");
-  }
+  const recordingStatus = boolVideo
+    ? readRunRecording(strFolder, Date.parse(strExitConfirmedAt))?.status
+    : undefined;
+  if (
+    boolVideo &&
+    recordingStatus !== RunRecordingStatus.Ready &&
+    recordingStatus !== RunRecordingStatus.Unavailable
+  )
+    throw new Error("Wait until the recording has finished.");
+  if (kind !== ConsoleRunFileKind.Logs && recordingStatus !== RunRecordingStatus.Ready)
+    throw new Error("This Run has no completed recording available.");
   if (kind === ConsoleRunFileKind.Logs) {
     await fs.promises.mkdir(strLogArchiveFolderPath, { recursive: true });
     const strTemporaryFolder = await fs.promises.mkdtemp(

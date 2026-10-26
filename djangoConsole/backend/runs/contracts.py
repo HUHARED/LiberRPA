@@ -84,6 +84,7 @@ class RunStatus(TextChoices):
     ERROR = "error", "Error"
     CANCELED = "canceled", "Canceled"
     TIMED_OUT = "timed_out", "Timed Out"
+    # NOTE: Interrupted confirms process exit even when its exact end time is unknown.
     INTERRUPTED = "interrupted", "Interrupted"
 
 

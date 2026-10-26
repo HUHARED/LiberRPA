@@ -82,6 +82,8 @@ function createDatabase(): Database.Database {
 }
 
 function backupDatabaseFiles(): string {
+  // NOTE: On a schema mismatch, archive the database and Packages as a pair.
+  // Preserve the old data for future migration; start fresh without adopting old packages.
   const strTimestamp = new Date().toISOString().replace(/[-:.]/g, "");
   const strBackupPath = path.join(
     STR_DATABASE_FOLDER_PATH,

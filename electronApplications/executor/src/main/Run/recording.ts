@@ -33,7 +33,7 @@ function isRunRecordingActive(logFolderPath: string): boolean {
 
 export function readRunRecording(
   logFolderPath: string,
-  endedAtMs: number,
+  processExitConfirmedAtMs: number,
 ): RunRecordingInfo | undefined {
   const boolActive = isRunRecordingActive(logFolderPath);
   let value: unknown;
@@ -43,7 +43,8 @@ export function readRunRecording(
     ) as unknown;
   } catch (e: unknown) {
     if (!(e instanceof Error && "code" in e && e.code === "ENOENT")) throw e;
-    if (boolActive || Date.now() - endedAtMs < INT_RECORDING_START_GRACE_MS)
+    // NOTE: Recovery may supply the exit observation time because the actual Run end time is unknown.
+    if (boolActive || Date.now() - processExitConfirmedAtMs < INT_RECORDING_START_GRACE_MS)
       return undefined;
     return {
       status: RunRecordingStatus.Unavailable,

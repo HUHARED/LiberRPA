@@ -472,6 +472,8 @@ async function spawnAndTrackRun(
       });
     }
 
+    // NOTE: This is the final status decision for unexpected process exits.
+    // Without a requested stop status, any provisional Error becomes Interrupted.
     if (boolUnexpectedProcessFailure && requestedStatus === undefined)
       runStatus = RunStatus.Interrupted;
     const endedFact: RunEndedFact = {

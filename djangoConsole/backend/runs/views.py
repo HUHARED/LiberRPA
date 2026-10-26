@@ -343,7 +343,7 @@ def rerun_options(
 ) -> JsonResponse:
     access = _get_access(request, authentication, write=False)
     run = get_visible_runs(access).get(pk=workId)
-    if run.ended_at is None or run.status == RunStatus.RUNNING:
+    if run.status == RunStatus.RUNNING:
         raise ValidationError(
             "This Run has not been confirmed as ended.", code="run_not_ended"
         )

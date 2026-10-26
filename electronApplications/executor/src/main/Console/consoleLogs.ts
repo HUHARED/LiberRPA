@@ -46,7 +46,7 @@ const mapLogSessionRetryAt = new Map<string, number>();
 async function readLogBatch(
   filePath: string,
   offsets: Record<string, number>,
-  ended: boolean,
+  processExited: boolean,
 ): Promise<LogBatch> {
   const fileObj = await fs.promises.open(filePath, "r");
   try {
@@ -138,7 +138,7 @@ async function readLogBatch(
       intPosition += intRead;
     }
     // A running process may still be writing its final line; wait for the line ending before reading it.
-    if (boolContinue && ended && intPosition >= intSize && intLineBytes)
+    if (boolContinue && processExited && intPosition >= intSize && intLineBytes)
       finishLine(intSize);
     batch.atEnd = batch.nextOffset >= intSize;
     return batch;
@@ -192,20 +192,25 @@ async function uploadRunLogs(
   record: ConsoleWorkRecord,
   credential: ConsoleCredentialSnapshot,
 ): Promise<void> {
-  if (record.ended && record.assignment.snapshot.builtin_record_video === true) {
+  if (!record.started) return;
+  const strExitConfirmedAt = record.ended?.endedAt ?? record.interruptedAt;
+  if (
+    strExitConfirmedAt !== undefined &&
+    record.assignment.snapshot.builtin_record_video === true
+  ) {
     const recording = record.recording;
     if (
       recording?.status !== RunRecordingStatus.Ready &&
       recording?.status !== RunRecordingStatus.Unavailable
     ) {
       const currentRecording = readRunRecording(
-        record.ended.logPath,
-        Date.parse(record.ended.endedAt),
+        record.started.logPath,
+        Date.parse(strExitConfirmedAt),
       );
       if (currentRecording) reportConsoleRecording(record.assignment.id, currentRecording);
     }
   }
-  if (!record.started || record.logsFinished) return;
+  if (record.logsFinished) return;
   if (record.logsUnavailableReason !== undefined) {
     const response = await requestConsole(
       credential.consoleUrl,
@@ -234,7 +239,7 @@ async function uploadRunLogs(
     const batch = await readLogBatch(
       strFilePath,
       record.logOffsets,
-      record.ended !== undefined,
+      strExitConfirmedAt !== undefined,
     );
     const { fileKey: strFileKey, startOffset: intOffset } = batch;
     boolAtEnd &&= batch.atEnd;
@@ -275,7 +280,7 @@ async function uploadRunLogs(
       );
     }
   }
-  if (!record.logsFinished && record.ended && boolAtEnd) {
+  if (!record.logsFinished && strExitConfirmedAt !== undefined && boolAtEnd) {
     // Log cleanup may have removed the source while the upload was waiting for a response.
     if (getConsoleWork(record.assignment.id)?.logsUnavailableReason !== undefined) return;
     const response = await requestConsole(
@@ -323,4 +328,3 @@ export async function uploadConsoleLogs(
     }
   }
 }
-

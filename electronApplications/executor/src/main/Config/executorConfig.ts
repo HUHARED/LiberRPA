@@ -170,6 +170,8 @@ function loadExecutorConfig(): ExecutorConfig {
     });
     const dictSettings = parseExecutorConfig(parseJsonc(strContent, "Executor.jsonc"));
 
+    // NOTE: An exact match with the configured default means "Use Default".
+    // Store an empty value so later changes to the default also apply here.
     if (dictSettings.projectLogFolderPath === strDefaultProjectLogFolderPath) {
       dictSettings.projectLogFolderPath = "";
       writeJsonFileAtomic(STR_EXECUTOR_CONFIG_PATH, dictSettings);
