@@ -325,6 +325,8 @@ import { RUN_STATUS_LABELS, RUN_STATUS_COLORS } from "@/app/runLabels";
 import { formatDateTime, formatRunEndTime } from "@/app/formatters";
 
 import { useSessionStore } from "@/stores/sessionStore";
+import { useRetryDelay } from "@/composables/useRetryDelay";
+import { useExecutionRefresh } from "@/composables/useExecutionRefresh";
 
 import { revealFormFeedback } from "@/app/formFeedback";
 
@@ -383,6 +385,12 @@ const page = shallowRef<RunPage | null>(null);
 const strUpdatedAt = ref<string | null>(null);
 const boolLoading = ref(false);
 const strError = ref("");
+const { intRetrySeconds, setRetryDelay } = useRetryDelay();
+const { beginRefresh, requestRefresh } = useExecutionRefresh(
+  load,
+  boolLoading,
+  intRetrySeconds,
+);
 const arrSelectedId = ref<string[]>([]);
 const arrConfirmedId = ref<string[]>([]);
 const boolSelecting = ref(false);
@@ -408,6 +416,8 @@ function clearSelection(): void {
 }
 
 async function load(): Promise<void> {
+  if (!beginRefresh()) return;
+
   const intRevision = ++intLoadRevision;
   boolLoading.value = true;
   strError.value = "";
@@ -416,11 +426,24 @@ async function load(): Promise<void> {
     if (intRevision === intLoadRevision) {
       page.value = response;
       strUpdatedAt.value = new Date().toISOString();
+      setRetryDelay(0);
     }
   } catch (e) {
-    if (intRevision === intLoadRevision) strError.value = getApiError(e).message;
+    if (intRevision === intLoadRevision) {
+      const error = getApiError(e);
+      strError.value = error.message;
+      if (error.statusCode === 403 || error.statusCode === 404) {
+        page.value = null;
+        strUpdatedAt.value = null;
+        clearSelection();
+      }
+      if (error.statusCode === 429 && (error.retryAfterSeconds ?? 0) > 0) {
+        setRetryDelay(error.retryAfterSeconds);
+        requestRefresh();
+      }
+    }
   } finally {
-    if (intRevision === intLoadRevision) boolLoading.value = false;
+    boolLoading.value = false;
   }
 }
 
@@ -552,6 +575,7 @@ watch(
       };
       clearSelection();
     }
+    intLoadRevision += 1;
     page.value = null;
     strUpdatedAt.value = null;
     void load();

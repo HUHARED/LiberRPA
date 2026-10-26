@@ -30,7 +30,12 @@ from .contracts import JobState, AssignmentState, ACTIVE_ASSIGNMENT_STATES
 from .models import Job, ExecutorWorkState, Assignment, DispatchControl
 from .control_notifications import notify_executor_control
 from .worker_state import require_control_service
-from .services import has_job_source_access, finish_job, revoke_job_source_access
+from .services import (
+    has_job_source_access,
+    finish_job,
+    mark_job_needs_review,
+    revoke_job_source_access,
+)
 
 _INT_WORK_STATE_MAX_AGE_SECONDS = 45
 
@@ -89,10 +94,7 @@ def _update_assignment_state(
         )
         assignment.save(update_fields=["state", "reason"])
         notify_executor_control(assignment.executor_id)
-        if job.closed_at is None:
-            job.state = JobState.NEEDS_REVIEW
-            job.reason = assignment.reason
-            job.save(update_fields=["state", "reason"])
+        mark_job_needs_review(job, assignment, reason=assignment.reason)
         return
     boolSessionValid = session is not None and session.id == assignment.session_id
     boolOnline = (
@@ -131,10 +133,7 @@ def _update_assignment_state(
         )
         assignment.save(update_fields=["state", "reason"])
         notify_executor_control(assignment.executor_id)
-        if job.closed_at is None:
-            job.state = JobState.NEEDS_REVIEW
-            job.reason = assignment.reason
-            job.save(update_fields=["state", "reason"])
+        mark_job_needs_review(job, assignment, reason=assignment.reason)
 
 
 def _get_candidates(job: Job) -> list[Executor]:

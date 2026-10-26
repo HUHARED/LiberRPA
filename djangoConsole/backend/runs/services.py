@@ -82,6 +82,20 @@ def finish_job(job: Job, reason: str, *, notify: bool = False) -> None:
         notify_job_failure(job)
 
 
+def mark_job_needs_review(job: Job, assignment: Assignment, *, reason: str) -> None:
+    """Notify only when this Job enters review, within the caller's state transaction."""
+    if job.state == JobState.FINISHED or job.closed_at is not None:
+        return
+    boolStateChanged = job.state != JobState.NEEDS_REVIEW
+    job.state = JobState.NEEDS_REVIEW
+    job.reason = reason[:2000]
+    job.save(update_fields=["state", "reason"])
+    if boolStateChanged:
+        from notifications.run_events import notify_job_needs_review
+
+        notify_job_needs_review(job, assignment)
+
+
 def revoke_job_source_access(job: Job, currentTime: datetime) -> None:
     """Record lost run permission without claiming the Run stopped or assigning it a result."""
     if job.state == JobState.FINISHED or job.source_access_revoked_at is not None:
@@ -169,10 +183,9 @@ def update_jobs_for_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
             assignment.reason = "The Executor connection used for this Job is no longer valid. Check whether the run is still active on the Executor."
             assignment.save(update_fields=["state", "reason"])
             if job.state != JobState.FINISHED:
-                job.state = JobState.NEEDS_REVIEW
-                job.reason = assignment.reason
                 job.stop_requested_at = job.stop_requested_at or currentTime
-                job.save(update_fields=["state", "reason", "stop_requested_at"])
+                job.save(update_fields=["stop_requested_at"])
+                mark_job_needs_review(job, assignment, reason=assignment.reason)
     for job in Job.objects.filter(
         target_session_id__in=sessionIds,
         state__in=(JobState.WAITING, JobState.WAITING_RETRY),
@@ -247,13 +260,13 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
     else:
         assignment.stop_requested_at = assignment.stop_requested_at or currentTime
         assignment.save(update_fields=["stop_requested_at"])
-        job.state = (
-            JobState.NEEDS_REVIEW
-            if assignment.state == AssignmentState.NEEDS_REVIEW
-            else JobState.STOPPING
-        )
-        job.reason = "Stop requested; waiting for actual execution facts."
-        job.save(update_fields=["state", "reason"])
+        strReason = "Stop requested; waiting for actual execution facts."
+        if assignment.state == AssignmentState.NEEDS_REVIEW:
+            mark_job_needs_review(job, assignment, reason=strReason)
+        else:
+            job.state = JobState.STOPPING
+            job.reason = strReason
+            job.save(update_fields=["state", "reason"])
     if assignment is not None:
         notify_executor_control(assignment.executor_id)
     return True

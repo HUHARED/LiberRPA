@@ -42,6 +42,7 @@ from runs.models import (
     RunFileTransfer,
     DispatchControl,
 )
+from runs.services import mark_job_needs_review
 from notifications.contracts import EmailStatus, EmailReasonCode
 from notifications.models import (
     EmailWorkerState,
@@ -147,9 +148,23 @@ def sanitize_restored_database(manifest: BackupManifest, restoredAt: datetime) -
     unknownWork = (
         Q(unknown_assignment=True) | Q(unknown_run=True) | Q(state=JobState.NEEDS_REVIEW)
     )
-    jobs.filter(unknownWork).update(
-        state=JobState.NEEDS_REVIEW, reason=_STR_RESTORE_REASON
-    )
+    for job in (
+        jobs
+        .filter(unknownWork)
+        .exclude(state=JobState.NEEDS_REVIEW)
+        .select_related("request")
+    ):
+        assignment = (
+            Assignment.objects
+            .filter(job=job)
+            .filter(
+                Q(state=AssignmentState.NEEDS_REVIEW)
+                | Q(run__isnull=False, run__ended_at__isnull=True)
+            )
+            .latest("attempt_number")
+        )
+        mark_job_needs_review(job, assignment, reason=_STR_RESTORE_REASON)
+    jobs.filter(state=JobState.NEEDS_REVIEW).update(reason=_STR_RESTORE_REASON)
     jobs.exclude(unknownWork).update(
         state=JobState.FINISHED, ended_at=restoredAt, reason=_STR_RESTORE_REASON
     )

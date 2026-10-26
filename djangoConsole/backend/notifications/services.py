@@ -46,6 +46,30 @@ def prune_notifications(userId: uuid.UUID) -> None:
         notify_browser_user(userId, BrowserMessageType.NOTIFICATIONS_CHANGED)
 
 
+def _create_notifications(
+    *,
+    userIds: list[uuid.UUID],
+    organizationId: uuid.UUID,
+    title: str,
+    detail: str,
+    eventKey: str,
+) -> None:
+    strDetail = detail.encode("utf-8")[:8192].decode("utf-8", errors="ignore")
+    for userId in userIds:
+        _, boolCreated = Notification.objects.get_or_create(
+            user_id=userId,
+            event_key=eventKey,
+            defaults={
+                "organization_id": organizationId,
+                "title": title[:200],
+                "detail": strDetail,
+            },
+        )
+        prune_notifications(userId)
+        if boolCreated:
+            notify_browser_user(userId, BrowserMessageType.NOTIFICATIONS_CHANGED)
+
+
 @transaction.atomic
 def notify_prestart_failure(
     *,
@@ -98,17 +122,56 @@ def notify_prestart_failure(
                 organization_id=organizationId, is_org_admin=True, user__is_active=True
             ).values_list("user_id", flat=True)
         )
-    strDetail = detail.encode("utf-8")[:8192].decode("utf-8", errors="ignore")
-    for userId in listUserId:
-        _, boolCreated = Notification.objects.get_or_create(
-            user_id=userId,
-            event_key=eventKey,
-            defaults={
-                "organization_id": organizationId,
-                "title": title[:200],
-                "detail": strDetail,
-            },
+    _create_notifications(
+        userIds=listUserId,
+        organizationId=organizationId,
+        title=title,
+        detail=detail,
+        eventKey=eventKey,
+    )
+
+
+@transaction.atomic
+def notify_needs_review(
+    *,
+    organizationId: uuid.UUID,
+    departmentId: uuid.UUID,
+    creatorId: uuid.UUID | None,
+    title: str,
+    detail: str,
+    eventKey: str,
+) -> None:
+    """Notify an account that can review the Job, regardless of how it was started."""
+    listUserId: list[uuid.UUID] = []
+    if creatorId is not None:
+        try:
+            access = resolve_organization_access(
+                actorId=creatorId,
+                organizationId=organizationId,
+                channel=AccessChannel.SESSION,
+            )
+        except PermissionDenied:
+            pass
+        else:
+            if (
+                get_authorized_departments(access, requiredRole=DepartmentRole.OPERATOR)
+                .filter(pk=departmentId)
+                .exists()
+            ):
+                listUserId = [creatorId]
+    if not listUserId:
+        listUserId = list(
+            Membership.objects.filter(
+                organization_id=organizationId,
+                is_org_admin=True,
+                user__is_active=True,
+                user__is_platform_admin=False,
+            ).values_list("user_id", flat=True)
         )
-        prune_notifications(userId)
-        if boolCreated:
-            notify_browser_user(userId, BrowserMessageType.NOTIFICATIONS_CHANGED)
+    _create_notifications(
+        userIds=listUserId,
+        organizationId=organizationId,
+        title=title,
+        detail=detail,
+        eventKey=eventKey,
+    )

@@ -16,10 +16,10 @@ from .models import (
 )
 from .recipients import get_eligible_recipients
 from .run_email import DICT_RUN_EMAIL_EVENT_KEY
-from .services import notify_prestart_failure
+from .services import notify_prestart_failure, notify_needs_review
 
 if TYPE_CHECKING:
-    from runs.models import Job, Run
+    from runs.models import Job, Assignment, Run
 
 
 def notify_run_event(run: "Run", event: RunEmailEvent) -> None:
@@ -64,4 +64,21 @@ def notify_job_failure(job: "Job") -> None:
         title="Job could not start",
         detail=f"Project: {job.project_name}\nVersion: {job.project_version}\nTarget: {job.target_name}\nReason: {job.reason}",
         eventKey=f"job:{job.pk}:prestart_failure",
+    )
+
+
+def notify_job_needs_review(job: "Job", assignment: "Assignment") -> None:
+    notify_needs_review(
+        organizationId=job.request.organization_id,
+        departmentId=job.department_id,
+        creatorId=job.request.actor_id,
+        title="Job needs review",
+        detail=(
+            f"Project: {job.project_name}\nVersion: {job.project_version}\n"
+            f"Executor: {assignment.executor_name}\nJob ID: {job.pk}\n"
+            f"Reason: {job.reason}\n\n"
+            "Review the Job and check the Executor. If no further Console management "
+            "is needed, use Close Job."
+        ),
+        eventKey=f"assignment:{assignment.pk}:needs_review",
     )

@@ -33,6 +33,7 @@ from .services import (
     STR_SOURCE_ACCESS_REVOKED_REASON,
     has_job_source_access,
     finish_job,
+    mark_job_needs_review,
 )
 
 _INT_RETRY_SECONDS = 60
@@ -191,10 +192,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             assignment.state = AssignmentState.NEEDS_REVIEW
             assignment.reason = run.reason
             assignment.save(update_fields=["state", "reason"])
-            if job.state != JobState.FINISHED and job.closed_at is None:
-                job.state = JobState.NEEDS_REVIEW
-                job.reason = run.reason
-                job.save(update_fields=["state", "reason"])
+            mark_job_needs_review(job, assignment, reason=run.reason)
         elif event.kind == RunEventKind.STARTED and run.status == RunStatus.RUNNING:
             assignment.state = AssignmentState.RUNNING
             assignment.save(update_fields=["state"])
@@ -296,10 +294,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
                 or "Unable to confirm whether the run started or finished. Check the Executor."
             )
             assignment.save(update_fields=["state", "reason"])
-            if job.state != JobState.FINISHED:
-                job.state = JobState.NEEDS_REVIEW
-                job.reason = assignment.reason
-                job.save(update_fields=["state", "reason"])
+            mark_job_needs_review(job, assignment, reason=assignment.reason)
     RunEvent.objects.create(
         id=event.event_id,
         assignment=assignment,
