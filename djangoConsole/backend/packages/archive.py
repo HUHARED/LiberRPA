@@ -17,6 +17,7 @@ from pydantic import ValidationError as ContractValidationError
 from packaging.specifiers import Specifier, SpecifierSet
 from packaging.version import Version
 
+from console_project.constants import INT_WINDOWS_NAME_MAX_LENGTH
 from console_project.validators import validate_json_string, validate_windows_name
 
 from .contracts import (
@@ -31,6 +32,8 @@ _INT_MAX_EXPANDED_BYTES = 2 * 1024**3
 # NOTE: Keep the project.flow limit aligned with Project Manager and Executor.
 _INT_MAX_PROJECT_FLOW_BYTES = 8 * 1024**2
 _INT_MAX_METADATA_BYTES = 2 * 1024**2
+# NOTE: Keep the Console Package folder suffix budget aligned with Project Manager and Executor: "_" plus a 36-character UUID.
+_INT_MAX_CONSOLE_PACKAGE_BASE_NAME_LENGTH = INT_WINDOWS_NAME_MAX_LENGTH - 37
 _ROOT_JSON_NAMES = ("flow.json", ".liberrpa-package.json", "project.flow")
 
 
@@ -179,7 +182,16 @@ def _read_metadata(archive: zipfile.ZipFile) -> PackageArchiveMetadata:
         raise ValidationError("The Package contains an invalid project.flow.")
     strName = _require_text(flow["name"], "project name")
     strVersion = str(Version(_require_text(flow["version"], "version")))
-    validate_windows_name(f"{strName}_{strVersion}.rpa.zip")
+    strBaseName = f"{strName}_{strVersion}"
+    validate_windows_name(f"{strBaseName}.rpa.zip")
+    if (
+        len(strBaseName.encode("utf-16-le")) // 2
+        > _INT_MAX_CONSOLE_PACKAGE_BASE_NAME_LENGTH
+    ):
+        raise ValidationError(
+            "For Console publishing, the project name and version, including the separating underscore, "
+            f"cannot exceed {_INT_MAX_CONSOLE_PACKAGE_BASE_NAME_LENGTH} UTF-16 code units."
+        )
     runSettings = RunSettings.model_validate({
         "builtin_log_level": project["logLevel"],
         "builtin_record_video": project["recordVideo"],

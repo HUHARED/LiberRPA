@@ -15,8 +15,14 @@ export const strPackageFolderPath = path.join(
 export const strLocalPackageFolderPath = path.join(strPackageFolderPath, "Local");
 export const strConsolePackageFolderPath = path.join(strPackageFolderPath, "Console");
 
-export function getPackageFolderName(projectName: string, projectVersion: string): string {
-  const strFolderName = `${projectName}_${projectVersion}`;
+export function getPackageFolderName(
+  projectName: string,
+  projectVersion: string,
+  consolePackageId?: string,
+): string {
+  const strFolderName =
+    `${projectName}_${projectVersion}` +
+    (consolePackageId === undefined ? "" : `_${consolePackageId}`);
   const strError = getWindowsFolderNameError(strFolderName);
   if (strError !== undefined) {
     throw new Error(`Cannot create the Flow Package folder name: ${strError}`);

@@ -33,10 +33,7 @@ export interface ConsolePackageInfo {
 const INT_MAX_PACKAGE_BYTES = 512 * 1024 ** 2; // 512 MiB.
 const INT_PACKAGE_DOWNLOAD_IDLE_MS = 60_000;
 const abortPreparation = new AbortController();
-const mapPackageFilePreparation = new Map<
-  string,
-  { packageId: string; promise: Promise<void> }
->();
+const mapPackageFilePreparation = new Map<string, Promise<void>>();
 
 export async function cleanConsolePackageStaging(): Promise<void> {
   async function readEntries(folderPath: string): Promise<fs.Dirent[]> {
@@ -203,25 +200,26 @@ export async function prepareConsolePackage(
     throw new Error("Console Package ID is invalid.");
   const strPackagePath = path.join(
     strConsolePackageFolderPath,
-    getPackageFolderName(packageInfo.projectName, packageInfo.projectVersion),
+    getPackageFolderName(
+      packageInfo.projectName,
+      packageInfo.projectVersion,
+      packageInfo.packageId,
+    ),
   );
   const strPreparationKey = strPackagePath.toLowerCase();
-  let preparation = mapPackageFilePreparation.get(strPreparationKey);
-  if (preparation && preparation.packageId !== packageInfo.packageId)
-    throw new Error(
-      `Another Console Package is being prepared in this folder: ${strPackagePath}`,
-    );
-  if (preparation === undefined) {
+  let promisePreparation = mapPackageFilePreparation.get(strPreparationKey);
+  if (promisePreparation === undefined) {
     // Share file work for the same Package, independently of its requested Python environment.
-    preparation = {
-      packageId: packageInfo.packageId,
-      promise: preparePackageFiles(packageInfo, credential, strPackagePath).finally(() => {
-        mapPackageFilePreparation.delete(strPreparationKey);
-      }),
-    };
-    mapPackageFilePreparation.set(strPreparationKey, preparation);
+    promisePreparation = preparePackageFiles(
+      packageInfo,
+      credential,
+      strPackagePath,
+    ).finally(() => {
+      mapPackageFilePreparation.delete(strPreparationKey);
+    });
+    mapPackageFilePreparation.set(strPreparationKey, promisePreparation);
   }
-  await preparation.promise;
+  await promisePreparation;
   abortPreparation.signal.throwIfAborted();
   await validatePackageLiberrpaRequirement(
     strPackagePath,

@@ -5,6 +5,9 @@ import type { DictProjectManifest_Flow, DictPackageProjectInput } from "./projec
 import { STR_PROJECT_PACKAGE_MANIFEST_FILE_NAME } from "./projectPackageManifest";
 import { getWindowsFileOrFolderNameError } from "./projectValidation";
 
+// NOTE: Keep the Console Package name budget aligned with Console and Executor; reserve 37 units for "_" and the full UUID.
+const INT_CONSOLE_PACKAGE_BASE_NAME_MAX_LENGTH = 255 - 37;
+
 const SET_ALWAYS_EXCLUDED_FOLDER_NAME = new Set([
   ".liberrpa-project-manager",
   ".mypy_cache",
@@ -19,8 +22,9 @@ export function getProjectPackageFileName(manifest: DictProjectManifest_Flow): s
   return `${manifest.name}_${manifest.version}.rpa.zip`;
 }
 
-export function getProjectPackageFileNameError(
+export function getProjectPackageNameError(
   manifest: DictProjectManifest_Flow,
+  publishToConsole: boolean,
 ): string | undefined {
   if (manifest.name.length === 0) {
     return "flow.json name cannot be empty.";
@@ -35,10 +39,20 @@ export function getProjectPackageFileNameError(
     return "flow.json version cannot start or end with whitespace.";
   }
 
-  return getWindowsFileOrFolderNameError(
+  const strFileNameError = getWindowsFileOrFolderNameError(
     getProjectPackageFileName(manifest),
     "Package filename",
   );
+  if (strFileNameError !== undefined) {
+    return strFileNameError;
+  }
+  if (
+    publishToConsole &&
+    `${manifest.name}_${manifest.version}`.length > INT_CONSOLE_PACKAGE_BASE_NAME_MAX_LENGTH
+  ) {
+    return `For Console publishing, the project name and version, including the separating underscore, cannot exceed ${String(INT_CONSOLE_PACKAGE_BASE_NAME_MAX_LENGTH)} UTF-16 code units.`;
+  }
+  return undefined;
 }
 
 export function getProjectPackageDependencyBlockingReasons(

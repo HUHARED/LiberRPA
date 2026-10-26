@@ -495,13 +495,9 @@ export class ProjectManagerSession {
   private async refreshConsolePublishing(input: DictPackageProjectInput): Promise<void> {
     await this.runBusyOperation(async () => {
       this.packageProjectInput = input;
-      if (input.publishToConsole) {
-        await this.loadConsolePublishingDepartments();
-      }
       await this.host.postMessage({
-        command: "consolePublishingDepartmentsLoaded",
-        departments: this.consoleDepartments,
-        message: this.consolePublishingMessage,
+        command: "loadPackageProject",
+        initialData: await this.getPackageProjectInitialData(),
       });
     });
   }

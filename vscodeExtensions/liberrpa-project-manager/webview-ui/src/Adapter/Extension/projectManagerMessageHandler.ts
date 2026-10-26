@@ -42,11 +42,6 @@ function applyMessage(message: DictMessage_ExtensionToWebview): void {
       }
       return;
 
-    case "consolePublishingDepartmentsLoaded":
-      packageProjectStore.consoleDepartments = message.departments;
-      packageProjectStore.consolePublishingMessage = message.message;
-      return;
-
     case "consolePublishChanged":
       packageProjectStore.consolePublishResult = message.result;
       return;

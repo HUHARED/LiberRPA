@@ -19,7 +19,7 @@ import type {
 } from "../../Domain/ComponentManagement/componentManagementTypes";
 import {
   getProjectPackageFileName,
-  getProjectPackageFileNameError,
+  getProjectPackageNameError,
   getProjectPackageDependencyBlockingReasons,
   shouldExcludeProjectFolder,
   shouldExcludeProjectFile,
@@ -238,9 +238,9 @@ export async function loadPackageProjectData(
     throw new Error("Component Management returned an invalid Flow Project manifest.");
   }
   const manifest = projectDependencyState.manifest;
-  const strFileNameError = getProjectPackageFileNameError(manifest);
+  const strNameError = getProjectPackageNameError(manifest, input.publishToConsole);
   const packageFileName =
-    strFileNameError === undefined ? getProjectPackageFileName(manifest) : null;
+    strNameError === undefined ? getProjectPackageFileName(manifest) : null;
   const packageFilePath =
     packageFileName === null ? null : path.join(input.outputFolderPath, packageFileName);
 
@@ -249,8 +249,8 @@ export async function loadPackageProjectData(
     projectDependencyState,
     input,
   );
-  if (strFileNameError !== undefined) {
-    arrBlockingReason.unshift(strFileNameError);
+  if (strNameError !== undefined) {
+    arrBlockingReason.unshift(strNameError);
   }
 
   let projectFlowContent: Buffer | null = null;

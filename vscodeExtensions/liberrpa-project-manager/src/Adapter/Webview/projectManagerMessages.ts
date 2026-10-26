@@ -160,11 +160,6 @@ export type DictMessage_ExtensionToWebview =
       command: "loadPackageProject";
       initialData: DictPackageProjectInitialData;
     }
-  | {
-      command: "consolePublishingDepartmentsLoaded";
-      departments: ConsolePublishDepartment[];
-      message: string;
-    }
   | { command: "consolePublishChanged"; result: ConsolePublishResult }
   // Publish Component.
   | {
@@ -712,14 +707,6 @@ export function isMessage_ExtensionToWebview(
       return (
         hasExactKeys(value, new Set(["command", "initialData"])) &&
         isPackageProjectInitialData(value["initialData"])
-      );
-
-    case "consolePublishingDepartmentsLoaded":
-      return (
-        hasExactKeys(value, new Set(["command", "departments", "message"])) &&
-        Array.isArray(value["departments"]) &&
-        value["departments"].every(isConsolePublishDepartment) &&
-        typeof value["message"] === "string"
       );
 
     case "consolePublishChanged":
