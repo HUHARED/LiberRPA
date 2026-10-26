@@ -38,7 +38,7 @@ from operations.audit_contracts import AuditAction
 from operations.audit import record_audit
 from organizations.models import Organization, Membership
 from organizations.access_info import get_account_access_info
-from organizations.http import get_request_access, build_account_access_payload
+from organizations.http import get_request_access
 
 from organizations.rate_limits import RequestBudget, request_budget
 
@@ -235,8 +235,8 @@ def get_current_access(request: HttpRequest) -> JsonResponse:
             return build_authentication_required_response()
         # The caller cannot select another account, organization, or credential channel.
         user = cast(User, request.user)
-        accountAccessInfo = get_account_access_info(actorId=user.id)
-        return JsonResponse(build_account_access_payload(accountAccessInfo))
+        accountAccessResponse = get_account_access_info(actorId=user.id)
+        return JsonResponse(accountAccessResponse.model_dump(mode="python"))
     except PermissionDenied:
         return build_error_response(
             "organization_access_required",

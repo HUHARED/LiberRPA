@@ -46,37 +46,6 @@ def _prepare_department_memberships(
     ]
 
 
-def _save_department_memberships(
-    membership: Membership, departmentMemberships: list[DepartmentMembership]
-) -> None:
-    """Save validated assignments while preserving the IDs of retained relationships."""
-    dictExistingMembershipByDepartmentId = {
-        departmentMembership.department_id: departmentMembership
-        for departmentMembership in DepartmentMembership.objects.filter(
-            membership=membership
-        )
-    }
-    listNewDepartmentMembership: list[DepartmentMembership] = []
-    listChangedDepartmentMembership: list[DepartmentMembership] = []
-    for departmentMembership in departmentMemberships:
-        existingDepartmentMembership = dictExistingMembershipByDepartmentId.pop(
-            departmentMembership.department_id, None
-        )
-        if existingDepartmentMembership is None:
-            listNewDepartmentMembership.append(departmentMembership)
-        elif existingDepartmentMembership.role != departmentMembership.role:
-            existingDepartmentMembership.role = departmentMembership.role
-            listChangedDepartmentMembership.append(existingDepartmentMembership)
-
-    # Relationships left in the mapping were explicitly removed from the submitted form.
-    if dictExistingMembershipByDepartmentId:
-        DepartmentMembership.objects.filter(
-            membership=membership, department_id__in=dictExistingMembershipByDepartmentId
-        ).delete()
-    DepartmentMembership.objects.bulk_update(listChangedDepartmentMembership, ["role"])
-    DepartmentMembership.objects.bulk_create(listNewDepartmentMembership)
-
-
 def update_membership(
     *,
     access: OrganizationAccessContext,
@@ -126,7 +95,9 @@ def update_membership(
         membership, departmentRoles
     )
     membership.save(update_fields=["is_org_admin", "notes"])
-    _save_department_memberships(membership, listDepartmentMembership)
+    # Requests contain all explicit roles, and no object references these relationship IDs.
+    DepartmentMembership.objects.filter(membership=membership).delete()
+    DepartmentMembership.objects.bulk_create(listDepartmentMembership)
     recheck_job_source_access(membership.user_id, organization.id)
     revoke_unqualified_executor_sessions(membership.user_id, organization.id)
     record_audit(

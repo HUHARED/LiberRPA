@@ -10,7 +10,6 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Concatenate, cast
 
-from django.contrib.auth import HASH_SESSION_KEY
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
 from django.db import DatabaseError
@@ -28,7 +27,7 @@ from accounts.resource_authentication import (
     authenticate_resource_request,
 )
 from accounts.models import User
-from accounts.session_revocation import SessionInvalidatedError, lock_session_write_access
+from accounts.session_revocation import SessionInvalidatedError
 from console_project.contracts import JsonRequest, JsonResponsePayload
 from console_project.http import (
     build_error_response,
@@ -38,11 +37,7 @@ from console_project.http import (
 )
 from organizations.models import Membership, Department
 from organizations.validators import parse_resource_path
-from organizations.permissions import (
-    AccessChannel,
-    OrganizationAccessContext,
-    get_current_membership,
-)
+from organizations.permissions import get_current_membership
 from organizations.rate_limits import check_request_budget
 
 from .contracts import MAX_QUEUE_RESPONSE_BYTES, QueueMutationRequest
@@ -182,19 +177,6 @@ def api_queue_view[**P](
             return _build_queue_error_response(e)
 
     return wrapped
-
-
-def lock_queue_session_access(
-    request: HttpRequest, membership: Membership
-) -> OrganizationAccessContext:
-    return lock_session_write_access(
-        membership.user_id,
-        membership.organization_id,
-        AccessChannel.SESSION,
-        request.session.get(HASH_SESSION_KEY, ""),
-        request.session.get_expiry_date(),
-        request.session.session_key,
-    )
 
 
 def parse_queue_request[Payload: JsonRequest](

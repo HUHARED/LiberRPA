@@ -24,7 +24,7 @@ from operations.audit_contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from operations.models import AuditScope
 from organizations.access_info import get_account_access_info
-from organizations.http import build_account_access_payload, get_request_access
+from organizations.http import get_request_access
 from organizations.rate_limits import RequestBudget, request_budget
 
 from .contracts import (
@@ -74,10 +74,10 @@ def get_or_update_profile(request: HttpRequest) -> JsonResponse:
             # Return the saved fields without making unrelated reads after the commit.
             return JsonResponse(_build_profile_response(user).model_dump(mode="python"))
 
-        accountAccessInfo = get_account_access_info(actorId=user.id)
+        accountAccessResponse = get_account_access_info(actorId=user.id)
         return JsonResponse({
             **_build_profile_response(user).model_dump(mode="python"),
-            **build_account_access_payload(accountAccessInfo),
+            **accountAccessResponse.model_dump(mode="python"),
         })
     except SessionInvalidatedError:
         return build_authentication_required_response(

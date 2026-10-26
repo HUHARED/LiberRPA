@@ -11,7 +11,6 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Concatenate, cast
 
-from django.contrib.auth import HASH_SESSION_KEY
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.core.paginator import InvalidPage
 from django.db import DatabaseError, transaction
@@ -23,7 +22,7 @@ from pydantic import ValidationError as ContractValidationError
 from pydantic_core import PydanticSerializationError
 
 from accounts.models import User
-from accounts.session_revocation import SessionInvalidatedError, lock_session_write_access
+from accounts.session_revocation import SessionInvalidatedError
 from console_project.contracts import JsonResponsePayload, MessageResponse
 from console_project.http import (
     build_error_response,
@@ -31,11 +30,13 @@ from console_project.http import (
     build_service_unavailable_response,
     parse_json_request,
 )
-from organizations.http import parse_department_resource_filters
+from organizations.http import (
+    lock_request_write_access,
+    parse_department_resource_filters,
+)
 from organizations.models import Membership, Department
 from organizations.permissions import (
     AccessChannel,
-    OrganizationAccessContext,
     get_current_membership,
     build_organization_access,
 )
@@ -58,19 +59,6 @@ from .services import (
 
 _LOGGER = logging.getLogger("console.assets")
 _INT_MAX_BODY_BYTES = 2 * 1024 * 1024
-
-
-def _lock_asset_write_access(
-    request: HttpRequest, membership: Membership
-) -> OrganizationAccessContext:
-    return lock_session_write_access(
-        membership.user_id,
-        membership.organization_id,
-        AccessChannel.SESSION,
-        request.session.get(HASH_SESSION_KEY, ""),
-        request.session.get_expiry_date(),
-        request.session.session_key,
-    )
 
 
 def _build_asset_response(
@@ -204,7 +192,7 @@ def list_or_create_assets(request: HttpRequest, membership: Membership) -> HttpR
     if isinstance(payload, JsonResponse):
         return payload
     with transaction.atomic():
-        access = _lock_asset_write_access(request, membership)
+        access = lock_request_write_access(request, membership)
         asset = create_asset(
             access,
             departmentId=payload.department_id,
@@ -232,7 +220,7 @@ def get_or_update_asset(
     if isinstance(payload, JsonResponse):
         return payload
     with transaction.atomic():
-        access = _lock_asset_write_access(request, membership)
+        access = lock_request_write_access(request, membership)
         asset = update_asset(access, assetId, payload)
         return _build_asset_response(build_asset_details(asset, access))
 
@@ -246,6 +234,6 @@ def delete_asset_view(
     if isinstance(payload, JsonResponse):
         return payload
     with transaction.atomic():
-        access = _lock_asset_write_access(request, membership)
+        access = lock_request_write_access(request, membership)
         delete_asset(access, assetId)
         return _build_asset_response(MessageResponse(message="Asset deleted."))

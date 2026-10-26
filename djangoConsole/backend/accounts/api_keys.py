@@ -254,10 +254,8 @@ def revoke_api_key(
     return apiKey
 
 
-@transaction.atomic
 def revoke_active_api_keys(*, userId: uuid.UUID) -> int:
-    """Join the password-change/reset transaction and revoke only currently active keys."""
-    User.objects.select_for_update().get(pk=userId)
+    """Revoke active keys in the caller's transaction while its User lock is held."""
     currentTime = timezone.now()
     intRevokedCount = ApiKey.objects.filter(
         user_id=userId, revoked_at__isnull=True, expires_at__gt=currentTime

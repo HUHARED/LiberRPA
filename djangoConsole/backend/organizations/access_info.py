@@ -6,13 +6,17 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
 from typing import cast
 
 from accounts.models import User
 
 from .department_queries import get_department_path
-from .contracts import DepartmentRole
+from .contracts import (
+    DepartmentRole,
+    OrganizationAccessResponse,
+    DepartmentAccessResponse,
+    AccountAccessResponse,
+)
 from .models import Department, Organization
 from .permissions import (
     AccessChannel,
@@ -24,32 +28,12 @@ from .permissions import (
 
 
 @dataclass(frozen=True)
-class OrganizationInfo:
-    id: uuid.UUID
-    name: str
-    suspendedAt: datetime | None
-    deletionRequestedAt: datetime | None
-    deletionDueAt: datetime | None
-    deletionStartedAt: datetime | None
-
-
-@dataclass(frozen=True)
 class DepartmentAccessInfo:
     id: uuid.UUID
     name: str
     path: str
     # A web OrgAdmin has no department role; an API key always has the Operator role.
     role: DepartmentRole | None
-
-
-@dataclass(frozen=True)
-class AccountAccessInfo:
-    """Display data for this request; subsequent operations resolve their current permissions."""
-
-    organization: OrganizationInfo
-    isOrgAdmin: bool
-    businessAvailable: bool
-    departments: tuple[DepartmentAccessInfo, ...]
 
 
 def get_department_access_info(
@@ -107,7 +91,7 @@ def get_department_access_info(
     )
 
 
-def get_account_access_info(*, actorId: uuid.UUID) -> AccountAccessInfo:
+def get_account_access_info(*, actorId: uuid.UUID) -> AccountAccessResponse:
     """Describe the authenticated account's organization and currently available departments.
 
     Frozen organizations expose identity and service state for their restricted status page.
@@ -126,16 +110,24 @@ def get_account_access_info(*, actorId: uuid.UUID) -> AccountAccessInfo:
         )
         departmentAccessEntries = get_department_access_info(access)
 
-    return AccountAccessInfo(
-        organization=OrganizationInfo(
+    return AccountAccessResponse(
+        organization=OrganizationAccessResponse(
             id=organization.pk,
             name=organization.name,
-            suspendedAt=organization.suspended_at,
-            deletionRequestedAt=organization.deletion_requested_at,
-            deletionDueAt=organization.deletion_due_at,
-            deletionStartedAt=organization.deletion_started_at,
+            suspended_at=organization.suspended_at,
+            deletion_requested_at=organization.deletion_requested_at,
+            deletion_due_at=organization.deletion_due_at,
+            deletion_started_at=organization.deletion_started_at,
         ),
-        isOrgAdmin=membership.is_org_admin,
-        businessAvailable=boolBusinessAvailable,
-        departments=departmentAccessEntries,
+        is_org_admin=membership.is_org_admin,
+        business_available=boolBusinessAvailable,
+        departments=[
+            DepartmentAccessResponse(
+                id=departmentAccessInfo.id,
+                name=departmentAccessInfo.name,
+                path=departmentAccessInfo.path,
+                role=departmentAccessInfo.role,
+            )
+            for departmentAccessInfo in departmentAccessEntries
+        ],
     )

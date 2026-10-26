@@ -89,15 +89,12 @@ def _resolve_email_change_access(
 
 
 @sensitive_variables()
-def _get_email_change_credential_hash(
-    user: User, newEmail: str, *, secret: str | None = None
-) -> str:
+def _get_email_change_credential_hash(user: User, newEmail: str) -> str:
     # Bind the exact destination and current credentials without tying the proof to a session.
     strAuthValue = json.dumps([str(user.id), user.email, user.password, newEmail])
     return salted_hmac(
         "accounts.email_change.credentials",
         strAuthValue,
-        secret=secret,
         algorithm="sha256",
     ).hexdigest()
 
@@ -110,14 +107,9 @@ def _has_current_email_change_credentials(
         user.is_active
         and user.has_usable_password()
         and changeRequest.user_id == user.id
-        and any(
-            constant_time_compare(
-                changeRequest.credential_hash,
-                _get_email_change_credential_hash(
-                    user, changeRequest.new_email, secret=strSecret
-                ),
-            )
-            for strSecret in [settings.SECRET_KEY, *settings.SECRET_KEY_FALLBACKS]
+        and constant_time_compare(
+            changeRequest.credential_hash,
+            _get_email_change_credential_hash(user, changeRequest.new_email),
         )
     )
 

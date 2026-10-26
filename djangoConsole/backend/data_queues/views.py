@@ -12,7 +12,10 @@ from django.views.decorators.http import require_http_methods, require_GET, requ
 
 from console_project.contracts import MessageResponse
 from console_project.http import parse_page_number
-from organizations.http import parse_department_resource_filters
+from organizations.http import (
+    lock_request_write_access,
+    parse_department_resource_filters,
+)
 from organizations.models import Membership
 from organizations.permissions import AccessChannel, build_organization_access
 from organizations.rate_limits import RequestBudget, check_request_budget, request_budget
@@ -47,7 +50,6 @@ from .services import (
 from .http import (
     QueueRequestError,
     session_queue_view,
-    lock_queue_session_access,
     parse_queue_request,
     parse_item_request,
     build_queue_response,
@@ -70,7 +72,7 @@ def list_or_create_queues(request: HttpRequest, membership: Membership) -> HttpR
     if isinstance(payload, JsonResponse):
         return payload
     with transaction.atomic():
-        access = lock_queue_session_access(request, membership)
+        access = lock_request_write_access(request, membership)
         queue = create_queue(
             access,
             departmentId=payload.department_id,
@@ -102,7 +104,7 @@ def get_or_update_queue(
     if isinstance(payload, JsonResponse):
         return payload
     with transaction.atomic():
-        access = lock_queue_session_access(request, membership)
+        access = lock_request_write_access(request, membership)
         queue = update_queue(access, queueId, name=payload.name, notes=payload.notes)
         return build_queue_response(
             QueueDetailsResponse(queue=build_queue_payloads([queue], access)[0]),
@@ -120,7 +122,7 @@ def delete_queue_view(
     if isinstance(payload, JsonResponse):
         return payload
     with transaction.atomic():
-        access = lock_queue_session_access(request, membership)
+        access = lock_request_write_access(request, membership)
         delete_queue(access, queueId)
         return build_queue_response(MessageResponse(message="Queue deleted."))
 
@@ -197,7 +199,7 @@ def upload_queue_items(
         cost=len(payload.items),
     )
     with transaction.atomic():
-        access = lock_queue_session_access(request, membership)
+        access = lock_request_write_access(request, membership)
         return build_queue_response(upload_items(access, queueReference, payload))
 
 
@@ -220,7 +222,7 @@ def reset_queue_items(
         cost=len(set(payload.item_ids)),
     )
     with transaction.atomic():
-        access = lock_queue_session_access(request, membership)
+        access = lock_request_write_access(request, membership)
         return build_queue_response(reset_items(access, queueReference, payload))
 
 
@@ -245,5 +247,5 @@ def delete_queue_items(
         cost=len(set(payload.item_ids)),
     )
     with transaction.atomic():
-        access = lock_queue_session_access(request, membership)
+        access = lock_request_write_access(request, membership)
         return build_queue_response(delete_items(access, queueReference, payload))

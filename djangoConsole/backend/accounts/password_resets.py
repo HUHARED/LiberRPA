@@ -57,12 +57,11 @@ def _build_invalid_password_reset_error() -> ValidationError:
 
 
 @sensitive_variables()
-def _get_password_reset_credential_hash(user: User, *, secret: str | None = None) -> str:
+def _get_password_reset_credential_hash(user: User) -> str:
     # NOTE: Session revocation and profile edits do not invalidate this proof.
     return salted_hmac(
         "accounts.password_reset.credentials",
         f"{user.id}:{user.email}:{user.password}",
-        secret=secret,
         algorithm="sha256",
     ).hexdigest()
 
@@ -76,12 +75,9 @@ def _has_current_reset_credentials(
         and not user.is_platform_admin
         and user.has_usable_password()
         and resetRequest.user_id == user.id
-        and any(
-            constant_time_compare(
-                resetRequest.credential_hash,
-                _get_password_reset_credential_hash(user, secret=strSecret),
-            )
-            for strSecret in [settings.SECRET_KEY, *settings.SECRET_KEY_FALLBACKS]
+        and constant_time_compare(
+            resetRequest.credential_hash,
+            _get_password_reset_credential_hash(user),
         )
     )
 
