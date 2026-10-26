@@ -167,7 +167,7 @@ def _sync(authentication: ExecutorClientResult, payload: WorkSyncRequest) -> Jso
             for entry in listStop
         ],
         "file_transfers": get_pending_transfers(session.pk),
-        "preparations": claim_package_preparations(authentication.access, session),
+        "preparations": claim_package_preparations(session),
     }
     return JsonResponse(dictResponse)
 

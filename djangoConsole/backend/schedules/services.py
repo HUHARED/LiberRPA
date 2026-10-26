@@ -27,7 +27,7 @@ from runs.models import Job
 from runs.browser_events import notify_jobs_changed
 from packages.models import Package
 from packages.run_settings import (
-    parse_run_settings,
+    get_run_settings_payload,
     apply_run_settings,
     validate_run_settings,
 )
@@ -115,9 +115,9 @@ def save_schedule(
     boolDepartmentChanged = (
         schedule is not None and schedule.department_id != departmentId
     )
-    boolSettingsChanged = (
-        schedule is not None and parse_run_settings(schedule) != runSettings
-    )
+    boolSettingsChanged = schedule is not None and get_run_settings_payload(
+        schedule
+    ) != runSettings.model_dump(mode="json")
     dictBefore = {} if schedule is None else get_audit_snapshot(schedule)
     if schedule is None:
         limits = get_organization_limits(access.organization)

@@ -20,11 +20,10 @@ from .models import Package, RunSettingsModel
 
 
 # NOTE: Keep these mappings aligned with RunSettings and RunSettingsModel.
-def parse_run_settings(
-    source: RunSettingsModel, *, overrides: dict[str, JsonValue] | None = None
-) -> RunSettings:
-    """Parse saved settings and request overrides once when they enter this workflow."""
-    dictSettings: dict[str, object] = {
+def get_run_settings_payload(source: RunSettingsModel) -> dict[str, JsonValue]:
+    """Return saved settings for display and comparison without parsing them again."""
+    # Stored settings were validated before writing; new runs still validate their merged inputs.
+    return {
         "max_retry_count": source.max_retry_count,
         "timeout_min": source.timeout_min,
         "builtin_log_level": source.builtin_log_level,
@@ -37,6 +36,13 @@ def parse_run_settings(
         "priority": source.priority,
         "run_email": source.run_email,
     }
+
+
+def parse_run_settings(
+    source: RunSettingsModel, *, overrides: dict[str, JsonValue] | None = None
+) -> RunSettings:
+    """Validate saved settings and request overrides together before accepting a run."""
+    dictSettings = get_run_settings_payload(source)
     if overrides:
         dictSettings.update(overrides)
     try:

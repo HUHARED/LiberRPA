@@ -38,8 +38,7 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 from organizations.rate_limits import RequestBudget, request_budget
-from packages.contracts import RunSettings
-from packages.run_settings import parse_run_settings
+from packages.run_settings import get_run_settings_payload
 
 from .contracts import (
     ScheduleTimeRequest,
@@ -101,7 +100,6 @@ def _build_payloads(
     access: OrganizationAccessContext,
     *,
     details: bool = False,
-    runSettingsById: dict[uuid.UUID, RunSettings] | None = None,
 ) -> list[dict[str, object]]:
     if not schedules:
         return []
@@ -167,12 +165,7 @@ def _build_payloads(
             "can_manage": schedule.department_id in setManageableDepartmentId,
         }
         if details:
-            runSettings = (
-                runSettingsById.get(schedule.pk) if runSettingsById is not None else None
-            )
-            if runSettings is None:
-                runSettings = parse_run_settings(schedule)
-            dictPayload["settings"] = runSettings.model_dump(mode="json")
+            dictPayload["settings"] = get_run_settings_payload(schedule)
             dictPayload["python_environment_name"] = (
                 schedule.package.python_environment_name
             )
@@ -205,14 +198,7 @@ def list_or_create_schedules(request: HttpRequest) -> JsonResponse:
             access = lock_request_write_access(request, membership)
             schedule = save_schedule(access, form)
             return JsonResponse(
-                {
-                    "schedule": _build_payloads(
-                        [schedule],
-                        access,
-                        details=True,
-                        runSettingsById={schedule.pk: form.settings},
-                    )[0]
-                },
+                {"schedule": _build_payloads([schedule], access, details=True)[0]},
                 status=201,
             )
     access = build_organization_access(membership, channel=AccessChannel.SESSION)
@@ -270,12 +256,7 @@ def get_or_update_schedule(request: HttpRequest, scheduleId: uuid.UUID) -> JsonR
             schedule = get_schedule_for_access(access, scheduleId, forUpdate=True)
             schedule = save_schedule(access, form, schedule=schedule)
             return JsonResponse({
-                "schedule": _build_payloads(
-                    [schedule],
-                    access,
-                    details=True,
-                    runSettingsById={schedule.pk: form.settings},
-                )[0]
+                "schedule": _build_payloads([schedule], access, details=True)[0]
             })
     access = build_organization_access(membership, channel=AccessChannel.SESSION)
     return JsonResponse({

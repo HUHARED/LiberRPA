@@ -34,7 +34,6 @@ from .contracts import (
     PackageUploadRequest,
     PackageSettingsRequest,
     PackageUploadState,
-    RunSettings,
 )
 from .models import Package
 from .queries import (
@@ -140,15 +139,12 @@ def package_options(
 
 
 def _build_package_details_response(
-    package: Package,
-    access: OrganizationAccessContext,
-    *,
-    runSettings: RunSettings | None = None,
+    package: Package, access: OrganizationAccessContext
 ) -> JsonResponse:
     from .preparation import get_package_preparation
 
     return JsonResponse({
-        "package": build_package_payload(package, access, runSettings=runSettings),
+        "package": build_package_payload(package, access),
         "preparation": get_package_preparation(package),
         "references": get_package_references(package),
     })
@@ -175,9 +171,7 @@ def update_settings(
         access = lock_file_access(request, authentication)
         package = get_package_query(access, manage=True).get(pk=packageId)
         save_package_settings(access, package, payload)
-        return _build_package_details_response(
-            package, access, runSettings=payload.settings
-        )
+        return _build_package_details_response(package, access)
 
 
 @require_POST

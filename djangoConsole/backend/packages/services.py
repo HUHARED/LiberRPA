@@ -308,9 +308,7 @@ def complete_upload(
         state=StoredBlobState.AVAILABLE, written_bytes=upload.size_bytes
     )
     upload.state = PackageUploadState.COMPLETED
-    upload.result = build_package_payload(
-        package, access, runSettings=metadata.runSettings
-    )
+    upload.result = build_package_payload(package, access)
     upload.save(update_fields=["state", "result"])
     record_audit(
         AuditAction.PACKAGES_UPLOAD,

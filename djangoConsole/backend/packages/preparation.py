@@ -5,7 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
-from typing import TypedDict
+from typing import TypedDict, cast
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q, F
@@ -77,12 +77,10 @@ def request_referenced_preparation(package: Package) -> None:
 
 
 def claim_package_preparations(
-    access: OrganizationAccessContext, session: ExecutorSession
+    session: ExecutorSession,
 ) -> list[PackagePreparationCommand]:
-    if session.executor_id is None:
-        return []
-    executor = Executor.objects.get(pk=session.executor_id, deleted_at__isnull=True)
-    require_package_department(access, executor.department_id)
+    # Work sync has loaded and authorized this Executor in the same transaction.
+    executor = cast(Executor, session.executor)
     listCommand: list[PackagePreparationCommand] = []
     preparations = (
         PackagePreparation.objects
