@@ -1,7 +1,7 @@
 // FileName: invitations.ts
 
 import { requestApi } from "./client";
-import { isRecord, rejectInvalidResponse, parseMessageResponse } from "./responses";
+import { isRecord, rejectInvalidResponse } from "./responses";
 
 import type {
   InvitationCompletionRequest,
@@ -69,9 +69,7 @@ export async function checkInvitation(
 export async function completeInvitation(
   request: InvitationCompletionRequest,
 ): Promise<void> {
-  parseMessageResponse(
-    await requestApi("/auth/invitation/complete/", { method: "POST", body: request }),
-  );
+  await requestApi("/auth/invitation/complete/", { method: "POST", body: request });
 }
 
 export function getInvitationStatus(

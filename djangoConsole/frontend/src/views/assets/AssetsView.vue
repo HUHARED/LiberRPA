@@ -290,7 +290,6 @@ import {
   INT_LIST_PAGE_SIZE,
   type AssetType,
   type AssetListResponse,
-  type AssetDetailsResponse,
   type AssetDetailsEntryResponse,
 } from "@/api/generated/browserApi";
 
@@ -404,9 +403,9 @@ function clearFilters(): void {
   applyFilters();
 }
 
-function handleCreated(response: AssetDetailsResponse): void {
+function handleCreated(message: string): void {
   boolNewAssetOpen.value = false;
-  strSuccessMessage.value = `Asset "${response.asset.name}" created.`;
+  strSuccessMessage.value = message;
   void loadAssets();
 }
 
@@ -425,9 +424,9 @@ async function openEdit(assetId: string): Promise<void> {
   }
 }
 
-function handleSaved(): void {
+function handleSaved(message: string): void {
   assetEdit.value = null;
-  strSuccessMessage.value = "Asset updated.";
+  strSuccessMessage.value = message;
   void loadAssets();
 }
 

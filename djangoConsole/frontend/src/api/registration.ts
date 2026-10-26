@@ -38,10 +38,8 @@ export async function checkRegistration(token: string): Promise<RegistrationInfo
 export async function completeRegistration(
   request: RegistrationCompletionRequest,
 ): Promise<void> {
-  parseMessageResponse(
-    await requestApi("/auth/registration/complete/", {
-      method: "POST",
-      body: request,
-    }),
-  );
+  await requestApi("/auth/registration/complete/", {
+    method: "POST",
+    body: request,
+  });
 }

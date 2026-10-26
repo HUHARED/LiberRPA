@@ -2,7 +2,7 @@
 
 import { requestApi } from "./client";
 import { ApiError } from "./errors";
-import { isRecord, rejectInvalidResponse, parseMessageResponse } from "./responses";
+import { isRecord, rejectInvalidResponse } from "./responses";
 
 import type {
   QueueItemFilterStatus,
@@ -59,11 +59,10 @@ export async function getQueueItem(
   );
 }
 export async function deleteQueue(queueId: string): Promise<void> {
-  const result = await requestApi(`${API_ROOT}${encodeURIComponent(queueId)}/deletion/`, {
+  await requestApi(`${API_ROOT}${encodeURIComponent(queueId)}/deletion/`, {
     method: "POST",
     body: {},
   });
-  parseMessageResponse(result);
 }
 export async function changeQueueItems(
   userId: string,
@@ -99,7 +98,7 @@ export async function changeQueueItems(
   });
   if (
     !isRecord(result) ||
-    typeof result.request_id !== "string" ||
+    result.request_id !== strRequestId ||
     typeof result.accepted_at !== "string" ||
     typeof result.deduplicated !== "boolean" ||
     ![result.item_ids, result.missing_ids, result.skipped_ids].every(
@@ -108,6 +107,6 @@ export async function changeQueueItems(
     !Array.isArray(result.items)
   )
     return rejectInvalidResponse();
-  sessionStorage.removeItem(strKey);
+  if (sessionStorage.getItem(strKey) === strRequestId) sessionStorage.removeItem(strKey);
   return result as unknown as QueueMutationResponse;
 }

@@ -237,7 +237,6 @@ import {
 import type {
   AssetType,
   AssetDetailsEntryResponse,
-  AssetDetailsResponse,
   AssetCreationRequest,
   AssetUpdateRequest,
 } from "@/api/generated/browserApi";
@@ -252,7 +251,7 @@ const props = defineProps<{
   asset?: AssetDetailsEntryResponse;
 }>();
 
-const emit = defineEmits<{ close: []; saved: [response: AssetDetailsResponse] }>();
+const emit = defineEmits<{ close: []; saved: [message: string] }>();
 const sessionStore = useSessionStore();
 
 const arrManagedDepartment = computed(() =>
@@ -406,26 +405,28 @@ async function submitAsset(event: SubmitEventPromise): Promise<void> {
       boolShowFeedback = true;
       return;
     }
-    let response: AssetDetailsResponse;
+    let strSuccessMessage: string;
     if (props.mode === "create") {
-      response = await createAsset({
+      const response = await createAsset({
         department_id: strDepartmentId.value!,
         name: strName.value,
         notes: strNotes.value,
         asset_type: strAssetType.value,
         value: getValue(),
       });
+      strSuccessMessage = response.message;
     } else {
       const payload: AssetUpdateRequest = {};
       if (boolDetailsChanged.value)
         payload.details = { name: strName.value, notes: strNotes.value };
       if (boolValueChanged.value) payload.value = getValue();
-      response = await updateAsset(props.asset!.id, payload);
+      await updateAsset(props.asset!.id, payload);
+      strSuccessMessage = "Asset updated.";
     }
     strValue.value = "";
     strUsername.value = "";
     strPassword.value = "";
-    if (!boolUnmounted) emit("saved", response);
+    if (!boolUnmounted) emit("saved", strSuccessMessage);
   } catch (e) {
     if (boolUnmounted) return;
     saveError.value =

@@ -201,7 +201,9 @@ def list_or_create_assets(request: HttpRequest, membership: Membership) -> HttpR
             assetType=payload.asset_type,
             value=payload.value,
         )
-        return _build_asset_response(build_asset_details(asset, access), statusCode=201)
+        return _build_asset_response(
+            MessageResponse(message=f'Asset "{asset.name}" created.'), statusCode=201
+        )
 
 
 @require_http_methods(["GET", "POST"])
@@ -221,8 +223,8 @@ def get_or_update_asset(
         return payload
     with transaction.atomic():
         access = lock_request_write_access(request, membership)
-        asset = update_asset(access, assetId, payload)
-        return _build_asset_response(build_asset_details(asset, access))
+        update_asset(access, assetId, payload)
+        return JsonResponse({})
 
 
 @require_POST

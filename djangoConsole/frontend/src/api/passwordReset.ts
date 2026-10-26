@@ -50,10 +50,8 @@ export async function checkPasswordReset(
 export async function completePasswordReset(
   request: PasswordResetCompletionRequest,
 ): Promise<void> {
-  parseMessageResponse(
-    await requestApi("/auth/password/reset/complete/", {
-      method: "POST",
-      body: request,
-    }),
-  );
+  await requestApi("/auth/password/reset/complete/", {
+    method: "POST",
+    body: request,
+  });
 }

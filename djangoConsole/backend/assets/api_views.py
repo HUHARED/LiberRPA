@@ -136,6 +136,7 @@ def _parse_asset_request[Payload: JsonRequest](
 @sensitive_variables()
 def _build_asset_response(payload: JsonResponsePayload) -> HttpResponse:
     responseBytes = payload.model_dump_json().encode("utf-8")
+    # NOTE: LimitsConfig currently accepts values above its declared caps; retain this response limit.
     if len(responseBytes) > MAX_ASSET_RUNTIME_BYTES:
         raise AssetRuntimeError(
             "asset_response_too_large", "The response exceeds the byte limit."

@@ -1,17 +1,11 @@
 // FileName: platformOrganizations.ts
 
 import { requestApi } from "./client";
-import {
-  isRecord,
-  isNullableDateString,
-  rejectInvalidResponse,
-  parseMessageResponse,
-} from "./responses";
+import { isRecord, isNullableDateString, rejectInvalidResponse } from "./responses";
 import { parseOrganizationLimitsResponse } from "./organization";
 
 import type {
   PlatformOrganizationStatus,
-  MessageResponse,
   OrganizationLimitsRequest,
   OrganizationLimitsResponse,
   OrganizationServiceRequest,
@@ -106,14 +100,12 @@ export async function getPlatformOrganizationLimits(
 export async function updateOrganizationLimits(
   organizationId: string,
   request: OrganizationLimitsRequest,
-): Promise<MessageResponse> {
-  return parseMessageResponse(
-    await requestApi(
-      `/platform/organizations/${encodeURIComponent(organizationId)}/limits/`,
-      {
-        method: "POST",
-        body: request,
-      },
-    ),
+): Promise<void> {
+  await requestApi(
+    `/platform/organizations/${encodeURIComponent(organizationId)}/limits/`,
+    {
+      method: "POST",
+      body: request,
+    },
   );
 }

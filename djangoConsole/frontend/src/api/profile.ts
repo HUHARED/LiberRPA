@@ -1,7 +1,7 @@
 // FileName: profile.ts
 
 import { requestApi } from "./client";
-import { isRecord, rejectInvalidResponse, parseMessageResponse } from "./responses";
+import { isRecord, rejectInvalidResponse } from "./responses";
 import { parseSessionUserResponse } from "./account";
 
 import type {
@@ -35,23 +35,17 @@ export async function updatePlatformTimeZone(
 }
 
 export async function changePassword(request: PasswordChangeRequest): Promise<void> {
-  parseMessageResponse(
-    await requestApi("/auth/password/change/", { method: "POST", body: request }),
-  );
+  await requestApi("/auth/password/change/", { method: "POST", body: request });
 }
 
 export async function signOutOtherSessions(
   request: SessionRevocationRequest,
 ): Promise<void> {
-  parseMessageResponse(
-    await requestApi("/auth/sessions/logout-others/", { method: "POST", body: request }),
-  );
+  await requestApi("/auth/sessions/logout-others/", { method: "POST", body: request });
 }
 
 export async function requestEmailChange(request: EmailChangeEmailRequest): Promise<void> {
-  parseMessageResponse(
-    await requestApi("/auth/email/change/email/", { method: "POST", body: request }),
-  );
+  await requestApi("/auth/email/change/email/", { method: "POST", body: request });
 }
 
 export async function checkEmailChange(token: string): Promise<EmailChangeInfoResponse> {
@@ -72,7 +66,5 @@ export async function checkEmailChange(token: string): Promise<EmailChangeInfoRe
 
 export async function confirmEmailChange(token: string): Promise<void> {
   const request: EmailChangeTokenRequest = { token };
-  parseMessageResponse(
-    await requestApi("/auth/email/change/confirm/", { method: "POST", body: request }),
-  );
+  await requestApi("/auth/email/change/confirm/", { method: "POST", body: request });
 }

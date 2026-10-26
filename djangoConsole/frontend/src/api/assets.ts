@@ -10,6 +10,7 @@ import type {
   AssetListResponse,
   AssetDetailsResponse,
   AssetUpdateRequest,
+  MessageResponse,
 } from "./generated/browserApi";
 import { ARR_ASSET_TYPE_VALUE, ARR_ORDINARY_ASSET_TYPE } from "./generated/browserApi";
 
@@ -68,30 +69,25 @@ export async function getAssetDetails(assetId: string): Promise<AssetDetailsResp
   );
 }
 
-export async function createAsset(
-  payload: AssetCreationRequest,
-): Promise<AssetDetailsResponse> {
-  return parseAssetDetails(
-    await requestApi<AssetDetailsResponse>("/assets/", { method: "POST", body: payload }),
+export async function createAsset(payload: AssetCreationRequest): Promise<MessageResponse> {
+  return parseMessageResponse(
+    await requestApi("/assets/", { method: "POST", body: payload }),
   );
 }
 
 export async function updateAsset(
   assetId: string,
   payload: AssetUpdateRequest,
-): Promise<AssetDetailsResponse> {
-  return parseAssetDetails(
-    await requestApi<AssetDetailsResponse>(`/assets/${encodeURIComponent(assetId)}/`, {
-      method: "POST",
-      body: payload,
-    }),
-  );
+): Promise<void> {
+  await requestApi(`/assets/${encodeURIComponent(assetId)}/`, {
+    method: "POST",
+    body: payload,
+  });
 }
 
 export async function deleteAsset(assetId: string): Promise<void> {
-  const payload = await requestApi(`/assets/${encodeURIComponent(assetId)}/deletion/`, {
+  await requestApi(`/assets/${encodeURIComponent(assetId)}/deletion/`, {
     method: "POST",
     body: {},
   });
-  parseMessageResponse(payload);
 }

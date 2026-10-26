@@ -1,7 +1,7 @@
 // FileName: accountDeletion.ts
 
 import { requestApi } from "./client";
-import { isRecord, rejectInvalidResponse, parseMessageResponse } from "./responses";
+import { isRecord, rejectInvalidResponse } from "./responses";
 
 import type {
   AccountDeletionPreviewResponse,
@@ -53,7 +53,5 @@ export async function getAccountDeletionPreview(
 
 export async function deleteAccount(password: string, userId?: string): Promise<void> {
   const deletionRequest: AccountDeletionRequest = { current_password: password };
-  parseMessageResponse(
-    await requestApi(getDeletionPath(userId), { method: "POST", body: deletionRequest }),
-  );
+  await requestApi(getDeletionPath(userId), { method: "POST", body: deletionRequest });
 }

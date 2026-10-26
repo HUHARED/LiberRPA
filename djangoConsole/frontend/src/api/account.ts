@@ -1,12 +1,7 @@
 // FileName: account.ts
 
 import { requestApi } from "./client";
-import {
-  isRecord,
-  isNullableDateString,
-  rejectInvalidResponse,
-  parseMessageResponse,
-} from "./responses";
+import { isRecord, isNullableDateString, rejectInvalidResponse } from "./responses";
 
 import {
   type AccountAccessResponse,
@@ -157,5 +152,5 @@ export async function signInPlatform(
 }
 
 export async function signOut(): Promise<void> {
-  parseMessageResponse(await requestApi("/auth/logout/", { method: "POST", body: {} }));
+  await requestApi("/auth/logout/", { method: "POST", body: {} });
 }

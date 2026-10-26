@@ -159,7 +159,7 @@ def create_asset(
 @sensitive_variables()
 def update_asset(
     access: OrganizationAccessContext, assetId: uuid.UUID, form: AssetUpdateRequest
-) -> Asset:
+) -> None:
     """The caller owns the organization/account locks and the enclosing transaction."""
     asset = get_asset_query(access).get(pk=assetId)
     boolSetValue = "value" in form.model_fields_set
@@ -181,7 +181,7 @@ def update_asset(
         _set_asset_value(asset, form.value)
         listField.extend(["value_json", "encrypted_value"])
     if not listField:
-        return asset
+        return
 
     asset.updated_at = timezone.now()
     asset.save(update_fields=[*listField, "updated_at"])
@@ -203,7 +203,6 @@ def update_asset(
             target=asset,
             channel=access.channel,
         )
-    return asset
 
 
 @sensitive_variables()

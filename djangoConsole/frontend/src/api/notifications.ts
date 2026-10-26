@@ -6,7 +6,6 @@ import {
   isDateString,
   isNullableDateString,
   rejectInvalidResponse,
-  parseMessageResponse,
 } from "./responses";
 
 import type {
@@ -51,22 +50,16 @@ export async function markNotificationRead(id: string): Promise<NotificationRead
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  parseMessageResponse(
-    await requestApi("/notifications/read-all/", { method: "POST", body: {} }),
-  );
+  await requestApi("/notifications/read-all/", { method: "POST", body: {} });
 }
 
 export async function deleteNotification(id: string): Promise<void> {
-  parseMessageResponse(
-    await requestApi(`/notifications/${encodeURIComponent(id)}/delete/`, {
-      method: "POST",
-      body: {},
-    }),
-  );
+  await requestApi(`/notifications/${encodeURIComponent(id)}/delete/`, {
+    method: "POST",
+    body: {},
+  });
 }
 
 export async function clearNotifications(): Promise<void> {
-  parseMessageResponse(
-    await requestApi("/notifications/clear/", { method: "POST", body: {} }),
-  );
+  await requestApi("/notifications/clear/", { method: "POST", body: {} });
 }
