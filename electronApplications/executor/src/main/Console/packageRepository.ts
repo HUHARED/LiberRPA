@@ -33,9 +33,9 @@ export function dbSaveConsolePackage(folderName: string, packageId: string): voi
           )
       VALUES
           (?, ?)
-      ON CONFLICT (folder_name) DO UPDATE
+      ON CONFLICT (package_id) DO UPDATE
       SET
-          package_id = excluded.package_id
+          folder_name = excluded.folder_name
       `,
     )
     .run(folderName, packageId);
