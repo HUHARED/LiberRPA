@@ -9,7 +9,6 @@ import { isRecord, isNonnegativeInteger } from "./responses";
 import {
   ARR_FILE_UPLOAD_STATE,
   type FileDeleteResponse,
-  type FileDownloadResponse,
   type FileInfoResponse,
   type FileListRequest,
   type FileListResponse,
@@ -157,13 +156,12 @@ export async function downloadSharedFile(path: string): Promise<void> {
     !isRecord(result) ||
     typeof result.transfer_id !== "string" ||
     !UUID_V4_PATTERN.test(result.transfer_id) ||
-    typeof result.expires_at !== "string" ||
-    !isFileInfoResponse(result.file)
+    !isRecord(result.file) ||
+    typeof result.file.name !== "string"
   )
     return rejectInvalidFileResponse();
-  const transfer = result as unknown as FileDownloadResponse;
   downloadFile(
-    `/api${API_ROOT}downloads/${encodeURIComponent(transfer.transfer_id)}/`,
-    transfer.file.name,
+    `/api${API_ROOT}downloads/${encodeURIComponent(result.transfer_id)}/`,
+    result.file.name,
   );
 }

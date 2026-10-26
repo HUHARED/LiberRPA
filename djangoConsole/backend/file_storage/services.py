@@ -89,16 +89,18 @@ def write_blob_chunk(blobId: uuid.UUID, offset: int, chunkData: bytes) -> int:
     sync_directory(path.parent.parent)
     # The reservation commits before disk creation, so failed writes remain owned and charged.
     with path.open("r+b" if path.exists() else "w+b") as handle:
-        if os.fstat(handle.fileno()).st_size < offset:
+        intFileSize = os.fstat(handle.fileno()).st_size
+        if intFileSize < offset:
             raise FileOperationError(
                 "upload_data_missing",
                 "Previously confirmed upload data is unavailable.",
                 503,
             )
-        handle.truncate(offset)
-        handle.flush()
-        os.fsync(handle.fileno())
-        # A failed database commit may leave an unconfirmed tail; discard it before checking disk space.
+        if intFileSize > offset:
+            # A failed database commit may leave an unconfirmed tail; discard it before checking disk space.
+            handle.truncate(offset)
+            handle.flush()
+            os.fsync(handle.fileno())
         check_disk_capacity()
         handle.seek(offset)
         handle.write(chunkData)

@@ -408,27 +408,10 @@ def _download_shared_file(
     pathFolder = Path(folderPath).absolute()
     pathFolder.mkdir(parents=True, exist_ok=True)
 
-    retryBudget = RetryBudget()
-    if strFilename is None:
-        fileInfo = _parse_shared_file_info(
-            request_json("shared-files/query/", {"path": path}, retryBudget=retryBudget)
-        )
-        strFilename = sanitize_filename(fileInfo.name)
-    pathDestination = pathFolder / strFilename
-
-    if not overwrite and pathDestination.exists():
-        raise FileExistsError(f"The destination already exists: {pathDestination}")
-
-    intTemporaryFileDescriptor, strTemporaryPath = tempfile.mkstemp(
-        prefix=f".{pathDestination.name}.",
-        suffix=".download",
-        dir=pathDestination.parent,
-    )
-    os.close(intTemporaryFileDescriptor)
-    pathTemporary = Path(strTemporaryPath)
+    # Retries keep the first response's filename and content identity.
     expectedFileInfo: SharedFileInfo | None = None
 
-    def _download_file_to_temporary_path() -> None:
+    def _download_file() -> str:
         nonlocal expectedFileInfo
 
         dictTransfer = request_json("shared-files/downloads/", {"path": path})
@@ -446,36 +429,63 @@ def _download_shared_file(
                     "The Shared File changed while retrying; the destination was preserved.",
                 )
 
-            with open_response(
-                "GET",
-                f"shared-files/downloads/{strTransferId}/",
-                headers={"Accept": "application/octet-stream"},
-            ) as response:
-                if not 200 <= response.status_code < 300:
-                    read_json_response(response)
+            pathDestination = pathFolder / (
+                strFilename
+                if strFilename is not None
+                else sanitize_filename(expectedFileInfo.name)
+            )
+            if not overwrite and pathDestination.exists():
+                raise FileExistsError(
+                    f"The destination already exists: {pathDestination}"
+                )
 
-                checksumHasher = hashlib.sha256()
-                intDownloadedBytes = 0
+            intTemporaryFileDescriptor, strTemporaryPath = tempfile.mkstemp(
+                prefix=f".{pathDestination.name}.",
+                suffix=".download",
+                dir=pathDestination.parent,
+            )
+            os.close(intTemporaryFileDescriptor)
+            pathTemporary = Path(strTemporaryPath)
+            try:
+                with open_response(
+                    "GET",
+                    f"shared-files/downloads/{strTransferId}/",
+                    headers={"Accept": "application/octet-stream"},
+                ) as response:
+                    if not 200 <= response.status_code < 300:
+                        read_json_response(response)
 
-                with pathTemporary.open("wb") as temporaryFile:
-                    for fileChunkBytes in response.iter_content(chunk_size=65536):
-                        intDownloadedBytes += len(fileChunkBytes)
-                        if intDownloadedBytes > expectedFileInfo.sizeBytes:
-                            raise ConsoleError(
-                                "file_integrity_error",
-                                "Downloaded content exceeds the expected size.",
-                            )
-                        checksumHasher.update(fileChunkBytes)
-                        temporaryFile.write(fileChunkBytes)
+                    checksumHasher = hashlib.sha256()
+                    intDownloadedBytes = 0
 
-                if (
-                    intDownloadedBytes != expectedFileInfo.sizeBytes
-                    or checksumHasher.hexdigest() != expectedFileInfo.sha256
-                ):
-                    raise ConsoleError(
-                        "file_integrity_error",
-                        "Downloaded content failed its size or SHA-256 check.",
-                    )
+                    with pathTemporary.open("wb") as temporaryFile:
+                        for fileChunkBytes in response.iter_content(chunk_size=65536):
+                            intDownloadedBytes += len(fileChunkBytes)
+                            if intDownloadedBytes > expectedFileInfo.sizeBytes:
+                                raise ConsoleError(
+                                    "file_integrity_error",
+                                    "Downloaded content exceeds the expected size.",
+                                )
+                            checksumHasher.update(fileChunkBytes)
+                            temporaryFile.write(fileChunkBytes)
+
+                    if (
+                        intDownloadedBytes != expectedFileInfo.sizeBytes
+                        or checksumHasher.hexdigest() != expectedFileInfo.sha256
+                    ):
+                        raise ConsoleError(
+                            "file_integrity_error",
+                            "Downloaded content failed its size or SHA-256 check.",
+                        )
+
+                if overwrite:
+                    os.replace(pathTemporary, pathDestination)
+                else:
+                    # Windows rename refuses an existing target, including one created during transfer.
+                    os.rename(pathTemporary, pathDestination)
+                return str(pathDestination)
+            finally:
+                pathTemporary.unlink(missing_ok=True)
         except BaseException:
             try:
                 request_json(f"shared-files/downloads/{strTransferId}/cancel/", {})
@@ -484,13 +494,4 @@ def _download_shared_file(
                 pass
             raise
 
-    try:
-        retryBudget.run(_download_file_to_temporary_path)
-        if overwrite:
-            os.replace(pathTemporary, pathDestination)
-        else:
-            # Windows rename refuses an existing target, including one created during transfer.
-            os.rename(pathTemporary, pathDestination)
-        return str(pathDestination)
-    finally:
-        pathTemporary.unlink(missing_ok=True)
+    return RetryBudget().run(_download_file)

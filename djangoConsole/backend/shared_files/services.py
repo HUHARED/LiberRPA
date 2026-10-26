@@ -8,7 +8,6 @@ import hashlib
 import json
 import os
 import uuid
-from dataclasses import dataclass
 from datetime import timedelta
 from typing import BinaryIO
 
@@ -75,16 +74,6 @@ from .queries import (
 )
 
 _UPLOAD_LIFETIME_HOURS = 24
-
-
-@dataclass(frozen=True)
-class FileUploadValidationResult:
-    """Identify the verified content; current access and upload state are checked at commit."""
-
-    uploadId: uuid.UUID
-    blobId: uuid.UUID
-    sizeBytes: int
-    sha256: str
 
 
 def _get_request_digest(payload: object) -> str:
@@ -257,9 +246,7 @@ def prepare_upload_validation(upload: UploadSession) -> None:
                 pass
 
 
-def validate_upload_content(
-    upload: UploadSession,
-) -> FileUploadValidationResult | FileOperationError:
+def validate_upload_content(upload: UploadSession) -> FileOperationError | None:
     """Verify complete content outside the organization transaction without creating or truncating files."""
     blobId = _require_uploaded_blob(upload)
     path = get_blob_path(blobId)
@@ -290,49 +277,34 @@ def validate_upload_content(
         return FileOperationError(
             "upload_data_missing", "The upload storage is unavailable.", 503
         )
-    return FileUploadValidationResult(
-        uploadId=upload.pk,
-        blobId=blobId,
-        sizeBytes=upload.size_bytes,
-        sha256=upload.sha256,
-    )
+    return None
 
 
 def complete_upload(
     access: OrganizationAccessContext,
     upload: UploadSession,
-    validationResult: FileUploadValidationResult | FileOperationError,
+    validationError: FileOperationError | None,
     *,
     apiKeyId: uuid.UUID | None = None,
 ) -> FileUploadResponse | FileOperationError:
     """Publish verified content after the caller locks and rechecks current access."""
+    # Validation and commit use the same upload ID; its Blob, size and SHA-256 are fixed at creation.
     if get_upload_state(upload) == UploadState.COMPLETED:
         return build_upload_payload(upload)
     blobId = _require_uploaded_blob(upload)
-    if isinstance(validationResult, FileUploadValidationResult) and (
-        validationResult.uploadId != upload.pk
-        or validationResult.blobId != blobId
-        or validationResult.sizeBytes != upload.size_bytes
-        or validationResult.sha256 != upload.sha256
-    ):
-        raise FileOperationError(
-            "upload_changed", "The upload changed. Check its status and try again."
-        )
     if not StoredBlob.objects.filter(
         pk=blobId,
         organization=access.organization,
         purpose=StoredBlobPurpose.SHARED_FILE,
         state=StoredBlobState.RECEIVING,
-        size_bytes=upload.size_bytes,
         written_bytes=upload.size_bytes,
-        sha256=upload.sha256,
     ).exists():
         raise FileOperationError(
             "upload_data_missing", "The upload storage is unavailable.", 503
         )
     try:
-        if isinstance(validationResult, FileOperationError):
-            raise validationResult
+        if validationError is not None:
+            raise validationError
         # Fully received uploads cannot grow; duplicate chunks never rewrite confirmed content.
         get_blob_path(blobId).stat()
         existingFile = SharedFile.objects.filter(

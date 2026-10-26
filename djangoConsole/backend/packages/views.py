@@ -258,10 +258,10 @@ def finish_upload(
         if upload.state == PackageUploadState.COMPLETED:
             return JsonResponse(build_upload_payload(upload))
     # The file scan must not hold the organization lock or a database transaction.
-    validationResult = validate_upload_content(upload)
+    metadata = validate_upload_content(upload)
     with transaction.atomic():
         access = lock_file_access(request, authentication)
-        result = complete_upload(access, get_upload(access, uploadId), validationResult)
+        result = complete_upload(access, get_upload(access, uploadId), metadata)
     return (
         build_package_error(result)
         if isinstance(result, FileOperationError)

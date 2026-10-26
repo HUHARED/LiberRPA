@@ -141,13 +141,13 @@ def complete_file_upload(
         if upload.state == UploadState.COMPLETED:
             return build_file_response(build_upload_payload(upload))
         prepare_upload_validation(upload)
-    validationResult = validate_upload_content(upload)
+    validationError = validate_upload_content(upload)
     with transaction.atomic():
         access = lock_file_access(request, authentication)
         result = complete_upload(
             access,
             get_upload(access, uploadId),
-            validationResult,
+            validationError,
             apiKeyId=get_file_api_key_id(authentication),
         )
         if isinstance(result, FileOperationError):

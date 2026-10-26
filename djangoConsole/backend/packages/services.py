@@ -7,7 +7,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import hashlib
 import os
 import uuid
-from dataclasses import dataclass
 from datetime import timedelta
 from typing import BinaryIO
 
@@ -64,17 +63,6 @@ from .queries import (
     build_upload_payload,
 )
 from .run_settings import apply_run_settings, validate_run_settings
-
-
-@dataclass(frozen=True)
-class PackageUploadValidationResult:
-    """Record which uploaded file passed validation; write permission must still be checked at commit."""
-
-    uploadId: uuid.UUID
-    blobId: uuid.UUID
-    sizeBytes: int
-    sha256: str
-    metadata: PackageArchiveMetadata
 
 
 def create_upload(
@@ -179,7 +167,7 @@ def _require_uploaded_blob(upload: PackageUpload) -> uuid.UUID:
 
 def validate_upload_content(
     upload: PackageUpload,
-) -> PackageUploadValidationResult | FileOperationError:
+) -> PackageArchiveMetadata | FileOperationError:
     """Read complete content outside the organization transaction; persist nothing here."""
     blobId = _require_uploaded_blob(upload)
     try:
@@ -194,14 +182,7 @@ def validate_upload_content(
                     "The Package checksum does not match its declared content.",
                 )
             handle.seek(0)
-            metadata = read_package_archive(handle)
-        return PackageUploadValidationResult(
-            uploadId=upload.pk,
-            blobId=blobId,
-            sizeBytes=upload.size_bytes,
-            sha256=upload.sha256,
-            metadata=metadata,
-        )
+            return read_package_archive(handle)
     except ValidationError as e:
         return FileOperationError("invalid_package", " ".join(e.messages), 400)
     except FileOperationError as e:
@@ -211,9 +192,10 @@ def validate_upload_content(
 def complete_upload(
     access: OrganizationAccessContext,
     upload: PackageUpload,
-    validationResult: PackageUploadValidationResult | FileOperationError,
+    metadata: PackageArchiveMetadata | FileOperationError,
 ) -> dict | FileOperationError:
     """Save the package after rechecking upload access while the organization is locked."""
+    # NOTE: Validation and commit use the same upload ID; its Blob, size and SHA-256 are fixed at creation.
 
     def validate_package_capacity(projectNameKey: str) -> None:
         limits = get_organization_limits(access.organization)
@@ -241,33 +223,21 @@ def complete_upload(
     if get_upload_state(upload) == PackageUploadState.COMPLETED:
         return build_upload_payload(upload)
     blobId = _require_uploaded_blob(upload)
-    if isinstance(validationResult, PackageUploadValidationResult) and (
-        validationResult.uploadId != upload.pk
-        or validationResult.blobId != blobId
-        or validationResult.sizeBytes != upload.size_bytes
-        or validationResult.sha256 != upload.sha256
-    ):
-        raise FileOperationError(
-            "upload_changed", "The upload changed. Check its status and try again."
-        )
     if not StoredBlob.objects.filter(
         pk=blobId,
         organization=access.organization,
         purpose=StoredBlobPurpose.PACKAGE,
         state=StoredBlobState.RECEIVING,
-        size_bytes=upload.size_bytes,
         written_bytes=upload.size_bytes,
-        sha256=upload.sha256,
     ).exists():
         raise FileOperationError(
             "upload_data_missing", "The upload storage is unavailable.", 503
         )
     try:
-        if isinstance(validationResult, FileOperationError):
-            raise validationResult
+        if isinstance(metadata, FileOperationError):
+            raise metadata
         # Confirm the validated file still exists before committing the Package.
         get_blob_path(blobId).stat()
-        metadata = validationResult.metadata
         strNameKey = get_path_name_key(metadata.projectName)
         strVersionKey = get_path_name_key(metadata.projectVersion)
         if Package.objects.filter(

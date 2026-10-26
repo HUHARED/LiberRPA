@@ -769,20 +769,10 @@ class Logger:
         def decorator(func: F) -> F:
             @wraps(func)
             def wrapper(*args: Any, **kwargs: Any) -> Any:
-                boolError = False
-                try:
-                    self._trace_call(level=level, prefix="CALL", funcName=func.__name__)
-                    return func(*args, **kwargs)
-                except Exception:
-                    # self.exception_info(e)
-                    boolError = True
-                    raise
-                finally:
-                    # Log RETURN only if the function completed without raising an exception.
-                    if not boolError:
-                        self._trace_call(
-                            level=level, prefix="RETURN", funcName=func.__name__
-                        )
+                self._trace_call(level=level, prefix="CALL", funcName=func.__name__)
+                returnValue = func(*args, **kwargs)
+                self._trace_call(level=level, prefix="RETURN", funcName=func.__name__)
+                return returnValue
 
             return cast(F, wrapper)
 
