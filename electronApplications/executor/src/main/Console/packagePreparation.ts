@@ -8,7 +8,7 @@ import { getErrorMessage } from "../../shared/error";
 import { ensureNonEmptyString, ensureRecord } from "../Common/validation";
 import { getPythonEnvironmentPath } from "../Config/environment";
 import {
-  strConsolePackageFolderPath,
+  strConsolePackageRootPath,
   getPackageFolderName,
 } from "../FileSystem/executorFiles";
 import { runFileWorker } from "../FileSystem/fileWorker";
@@ -52,13 +52,13 @@ export async function cleanConsolePackageStaging(): Promise<void> {
 
   // Called before any new preparation; ready Package directories are never traversed.
   let intRemoved = 0;
-  for (const stagingEntry of await readEntries(strConsolePackageFolderPath)) {
+  for (const stagingEntry of await readEntries(strConsolePackageRootPath)) {
     if (
       (!stagingEntry.isDirectory() && !stagingEntry.isFile()) ||
       !/^\.staging-[a-f0-9-]{36}(?:\.zip)?$/.test(stagingEntry.name)
     )
       continue;
-    const strStagingPath = path.join(strConsolePackageFolderPath, stagingEntry.name);
+    const strStagingPath = path.join(strConsolePackageRootPath, stagingEntry.name);
     try {
       await fs.promises.rm(strStagingPath, { recursive: true, force: true });
       intRemoved += 1;
@@ -89,8 +89,8 @@ async function preparePackageFiles(
   }
   if (!/^[a-f0-9]{64}$/.test(packageInfo.sha256))
     throw new Error("Console Package SHA256 is invalid.");
-  fs.mkdirSync(strConsolePackageFolderPath, { recursive: true });
-  const strStaging = path.join(strConsolePackageFolderPath, `.staging-${randomUUID()}`);
+  fs.mkdirSync(strConsolePackageRootPath, { recursive: true });
+  const strStaging = path.join(strConsolePackageRootPath, `.staging-${randomUUID()}`);
   const strArchive = `${strStaging}.zip`;
   try {
     const response = await requestConsole(
@@ -199,7 +199,7 @@ export async function prepareConsolePackage(
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(packageInfo.packageId))
     throw new Error("Console Package ID is invalid.");
   const strPackagePath = path.join(
-    strConsolePackageFolderPath,
+    strConsolePackageRootPath,
     getPackageFolderName(
       packageInfo.projectName,
       packageInfo.projectVersion,

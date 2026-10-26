@@ -9,17 +9,16 @@ import { readJsonFile, writeJsonFileAtomic } from "../Common/jsonFile";
 import { ensureExactRecord, ensureNonEmptyString } from "../Common/validation";
 import { dbSelectPackageDetails } from "../Database/packageRepository";
 import {
-  strLocalPackageFolderPath,
-  getPackageFolderName,
+  strLocalPackageRootPath,
+  getLocalPackageFolderPath,
 } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 
+// NOTE: Recovery uses the filesystem and database state; this journal only identifies the installation.
 interface PackageInstallationTransaction {
   schemaVersion: 1;
-  state: "prepared";
   projectName: string;
   projectVersion: string;
-  targetFolderName: string;
 }
 
 interface PackageInstallationStagingPaths {
@@ -36,10 +35,10 @@ function readPackageInstallationTransaction(
 ): PackageInstallationTransaction {
   const dictTransaction = ensureExactRecord(
     readJsonFile(transactionPath, "Package installation transaction"),
-    ["schemaVersion", "state", "projectName", "projectVersion", "targetFolderName"],
+    ["schemaVersion", "projectName", "projectVersion"],
     "Package installation transaction",
   );
-  if (dictTransaction.schemaVersion !== 1 || dictTransaction.state !== "prepared") {
+  if (dictTransaction.schemaVersion !== 1) {
     throw new Error(`Invalid Package installation transaction: ${transactionPath}`);
   }
 
@@ -51,22 +50,11 @@ function readPackageInstallationTransaction(
     dictTransaction.projectVersion,
     "Package installation transaction.projectVersion",
   );
-  const strTargetFolderName = ensureNonEmptyString(
-    dictTransaction.targetFolderName,
-    "Package installation transaction.targetFolderName",
-  );
-  if (getPackageFolderName(strProjectName, strProjectVersion) !== strTargetFolderName) {
-    throw new Error(
-      `Package installation transaction target is inconsistent: ${transactionPath}`,
-    );
-  }
 
   return {
     schemaVersion: 1,
-    state: "prepared",
     projectName: strProjectName,
     projectVersion: strProjectVersion,
-    targetFolderName: strTargetFolderName,
   };
 }
 
@@ -84,10 +72,10 @@ export async function removePackageInstallationFolderBestEffort(
 }
 
 export function createPackageInstallationStaging(): PackageInstallationStagingPaths {
-  fs.mkdirSync(strLocalPackageFolderPath, { recursive: true });
+  fs.mkdirSync(strLocalPackageRootPath, { recursive: true });
 
   const strTransactionFolderPath = path.join(
-    strLocalPackageFolderPath,
+    strLocalPackageRootPath,
     STR_STAGING_FOLDER_NAME,
     randomUUID(),
   );
@@ -114,10 +102,8 @@ export function writePackageInstallationTransaction({
 }): void {
   const dictTransaction: PackageInstallationTransaction = {
     schemaVersion: 1,
-    state: "prepared",
     projectName,
     projectVersion,
-    targetFolderName: getPackageFolderName(projectName, projectVersion),
   };
   writeJsonFileAtomic(
     path.join(transactionFolderPath, STR_TRANSACTION_FILE_NAME),
@@ -126,7 +112,7 @@ export function writePackageInstallationTransaction({
 }
 
 export async function recoverPackageInstallations(): Promise<void> {
-  const strStagingRootPath = path.join(strLocalPackageFolderPath, STR_STAGING_FOLDER_NAME);
+  const strStagingRootPath = path.join(strLocalPackageRootPath, STR_STAGING_FOLDER_NAME);
   if (!fs.existsSync(strStagingRootPath)) {
     return;
   }
@@ -156,9 +142,9 @@ export async function recoverPackageInstallations(): Promise<void> {
     let boolRecovered = false;
     try {
       const dictTransaction = readPackageInstallationTransaction(strTransactionPath);
-      const strTargetPath = path.join(
-        strLocalPackageFolderPath,
-        dictTransaction.targetFolderName,
+      const strTargetPath = getLocalPackageFolderPath(
+        dictTransaction.projectName,
+        dictTransaction.projectVersion,
       );
       const boolTargetExists = fs.existsSync(strTargetPath);
       const packageRecord = dbSelectPackageDetails(

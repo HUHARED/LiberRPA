@@ -7,13 +7,9 @@ import path from "path";
 import { getWindowsFolderNameError } from "../Common/validation";
 import { strDocumentsFolderPath } from "../Config/environment";
 
-export const strPackageFolderPath = path.join(
-  strDocumentsFolderPath,
-  "LiberRPA",
-  "Packages",
-);
-export const strLocalPackageFolderPath = path.join(strPackageFolderPath, "Local");
-export const strConsolePackageFolderPath = path.join(strPackageFolderPath, "Console");
+export const strPackageRootPath = path.join(strDocumentsFolderPath, "LiberRPA", "Packages");
+export const strLocalPackageRootPath = path.join(strPackageRootPath, "Local");
+export const strConsolePackageRootPath = path.join(strPackageRootPath, "Console");
 
 export function getPackageFolderName(
   projectName: string,
@@ -35,7 +31,7 @@ export function getLocalPackageFolderPath(
   projectVersion: string,
 ): string {
   return path.join(
-    strLocalPackageFolderPath,
+    strLocalPackageRootPath,
     getPackageFolderName(projectName, projectVersion),
   );
 }

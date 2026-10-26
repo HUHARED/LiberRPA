@@ -5,7 +5,7 @@ import fs from "fs";
 import path from "path";
 
 import { strDocumentsFolderPath } from "../Config/environment";
-import { strPackageFolderPath } from "../FileSystem/executorFiles";
+import { strPackageRootPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 
 const INT_DATABASE_SCHEMA_VERSION = 2;
@@ -81,26 +81,29 @@ function createDatabase(): Database.Database {
   }
 }
 
-function backupDatabaseFiles(): string {
-  // NOTE: On a schema mismatch, archive the database and Packages as a pair.
-  // Preserve the old data for future migration; start fresh without adopting old packages.
+// NOTE: Preserve the old database and Packages for future migration; start fresh without reusing old packages.
+function backupDatabaseAndPackages(): string {
   const strTimestamp = new Date().toISOString().replace(/[-:.]/g, "");
-  const strBackupPath = path.join(
+  const strDatabaseBackupPath = path.join(
     STR_DATABASE_FOLDER_PATH,
     `ExecutorData.backup.${strTimestamp}.db`,
   );
 
+  // NOTE: Move Packages first so a failed package archive leaves the old database for the next startup's version check.
+  if (fs.existsSync(strPackageRootPath)) {
+    const strPackageBackupPath = `${strPackageRootPath}.backup.${strTimestamp}`;
+    fs.renameSync(strPackageRootPath, strPackageBackupPath);
+    loggerMain.warn(`Backed up Executor Packages to ${strPackageBackupPath}.`);
+  }
+
   for (const strSuffix of ["", "-wal", "-shm", "-journal"]) {
     const strSourcePath = STR_DATABASE_FILE_PATH + strSuffix;
     if (fs.existsSync(strSourcePath)) {
-      fs.renameSync(strSourcePath, strBackupPath + strSuffix);
+      fs.renameSync(strSourcePath, strDatabaseBackupPath + strSuffix);
     }
   }
 
-  if (fs.existsSync(strPackageFolderPath)) {
-    fs.renameSync(strPackageFolderPath, `${strPackageFolderPath}.backup.${strTimestamp}`);
-  }
-  return strBackupPath;
+  return strDatabaseBackupPath;
 }
 
 export function initializeDatabase(): void {
@@ -122,9 +125,9 @@ export function initializeDatabase(): void {
   }
 
   existingDatabaseObj.close();
-  const strBackupPath = backupDatabaseFiles();
+  const strDatabaseBackupPath = backupDatabaseAndPackages();
   loggerMain.warn(
-    `Backed up Executor database schema ${intSchemaVersion} to ${strBackupPath}.`,
+    `Backed up Executor database schema ${intSchemaVersion} to ${strDatabaseBackupPath}.`,
   );
   databaseObj = createDatabase();
 }

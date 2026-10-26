@@ -74,7 +74,7 @@ const MAP_RUN_HISTORY_SORT_COLUMN: Record<
 export function dbInsertRunHistory(detailDict: RunHistoryInsertData): Database.RunResult {
   loggerMain.debug("--dbInsertRunHistory--");
   const intNowMs = Date.now();
-  const result = getDatabase()
+  return getDatabase()
     .prepare(
       `
       INSERT INTO
@@ -123,8 +123,6 @@ export function dbInsertRunHistory(detailDict: RunHistoryInsertData): Database.R
       intNowMs,
       intNowMs,
     );
-  ensureSingleRowAffected(result, "Insert Run History");
-  return result;
 }
 
 export function dbUpdateRunHistory(detailDict: RunHistoryUpdateData): void {

@@ -147,7 +147,7 @@ export function dbSelectPackageDetailsById(id: number): PackageDetails | undefin
 export function dbInsertPackageDetails(dictDetail: PackageCreateData): void {
   loggerMain.debug("--dbInsertPackageDetails--");
   const intNowMs = Date.now();
-  const result = getDatabase()
+  getDatabase()
     .prepare(
       `
       INSERT INTO
@@ -187,10 +187,6 @@ export function dbInsertPackageDetails(dictDetail: PackageCreateData): void {
       intNowMs,
       intNowMs,
     );
-  ensureSingleRowAffected(
-    result,
-    `Insert Package ${dictDetail.project_name}-${dictDetail.project_version}`,
-  );
 }
 
 export function dbUpdatePackageSettings(dictDetail: PackageSettings): void {

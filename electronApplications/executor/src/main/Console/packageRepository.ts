@@ -1,12 +1,10 @@
 // FileName: packageRepository.ts
 
-import { ensureExactRecord, ensureNonEmptyString } from "../Common/validation";
 import { getDatabase } from "../Database/connection";
-import { ensureSingleRowAffected } from "../Database/rowConversion";
 
 export function dbSelectConsolePackageId(folderName: string): string | undefined {
-  const value = getDatabase()
-    .prepare(
+  const row = getDatabase()
+    .prepare<[string], { package_id: string }>(
       `
       SELECT
           package_id
@@ -17,13 +15,11 @@ export function dbSelectConsolePackageId(folderName: string): string | undefined
       `,
     )
     .get(folderName);
-  if (value === undefined) return undefined;
-  const row = ensureExactRecord(value, ["package_id"], "Console Package registration");
-  return ensureNonEmptyString(row.package_id, "Console Package registration.package_id");
+  return row?.package_id;
 }
 
 export function dbSaveConsolePackage(folderName: string, packageId: string): void {
-  const result = getDatabase()
+  getDatabase()
     .prepare(
       `
       INSERT INTO
@@ -39,5 +35,4 @@ export function dbSaveConsolePackage(folderName: string, packageId: string): voi
       `,
     )
     .run(folderName, packageId);
-  ensureSingleRowAffected(result, `Register Console Package ${packageId}`);
 }

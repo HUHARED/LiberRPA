@@ -18,8 +18,7 @@ import {
 } from "../Database/packageRepository";
 import { dbHasRunningRunForPackage } from "../Database/runHistoryRepository";
 import {
-  strLocalPackageFolderPath,
-  getPackageFolderName,
+  strLocalPackageRootPath,
   getLocalPackageFolderPath,
 } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
@@ -31,7 +30,6 @@ interface PackageDeletionTransaction {
   packageId: number;
   projectName: string;
   projectVersion: string;
-  targetFolderName: string;
 }
 
 const STR_DELETE_STAGING_FOLDER_NAME = ".delete-staging";
@@ -39,7 +37,7 @@ const STR_TRANSACTION_FILE_NAME = "transaction.json";
 const STR_STAGED_PACKAGE_FOLDER_NAME = "package";
 
 function getDeleteStagingRootPath(): string {
-  return path.join(strLocalPackageFolderPath, STR_DELETE_STAGING_FOLDER_NAME);
+  return path.join(strLocalPackageRootPath, STR_DELETE_STAGING_FOLDER_NAME);
 }
 
 function readPackageDeletionTransaction(
@@ -47,7 +45,7 @@ function readPackageDeletionTransaction(
 ): PackageDeletionTransaction {
   const dictTransaction = ensureExactRecord(
     readJsonFile(transactionPath, "Package deletion transaction"),
-    ["schemaVersion", "packageId", "projectName", "projectVersion", "targetFolderName"],
+    ["schemaVersion", "packageId", "projectName", "projectVersion"],
     "Package deletion transaction",
   );
   if (dictTransaction.schemaVersion !== 1) {
@@ -66,23 +64,12 @@ function readPackageDeletionTransaction(
     dictTransaction.projectVersion,
     "Package deletion transaction.projectVersion",
   );
-  const strTargetFolderName = ensureNonEmptyString(
-    dictTransaction.targetFolderName,
-    "Package deletion transaction.targetFolderName",
-  );
-
-  if (getPackageFolderName(strProjectName, strProjectVersion) !== strTargetFolderName) {
-    throw new Error(
-      `Package deletion transaction target is inconsistent: ${transactionPath}`,
-    );
-  }
 
   return {
     schemaVersion: 1,
     packageId: intPackageId,
     projectName: strProjectName,
     projectVersion: strProjectVersion,
-    targetFolderName: strTargetFolderName,
   };
 }
 
@@ -146,10 +133,6 @@ export async function deleteInstalledPackage(packageId: number): Promise<void> {
     packageId,
     projectName: dictPackage.project_name,
     projectVersion: dictPackage.project_version,
-    targetFolderName: getPackageFolderName(
-      dictPackage.project_name,
-      dictPackage.project_version,
-    ),
   };
   writeJsonFileAtomic(
     path.join(strTransactionFolderPath, STR_TRANSACTION_FILE_NAME),

@@ -119,7 +119,7 @@ export function dbSelectScheduleRunDetail(scheduleId: number): RunConfig | undef
 export function dbInsertSchedule(detailDict: ScheduleCreateData): void {
   loggerMain.debug("--dbInsertSchedule--");
   const intNowMs = Date.now();
-  const result = getDatabase()
+  getDatabase()
     .prepare(
       `
       INSERT INTO
@@ -163,7 +163,6 @@ export function dbInsertSchedule(detailDict: ScheduleCreateData): void {
       intNowMs,
       intNowMs,
     );
-  ensureSingleRowAffected(result, `Insert Schedule '${detailDict.name}'`);
 }
 
 export function dbUpdateSchedule(detailDict: ScheduleUpdateData): void {
