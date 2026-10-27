@@ -312,7 +312,10 @@ WHERE
             AND JSON_EXTRACT(content, '$.logsFinished') = 0
         )
         OR (
-            JSON_TYPE(content, '$.ended') = 'object'
+            (
+                JSON_TYPE(content, '$.ended') = 'object'
+                OR JSON_TYPE(content, '$.interruptedAt') = 'text'
+            )
             AND JSON_EXTRACT(
                 content,
                 '$.assignment.snapshot.builtin_record_video'
