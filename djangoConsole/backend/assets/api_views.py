@@ -39,7 +39,6 @@ from organizations.rate_limits import RequestBudget, request_budget
 from organizations.validators import parse_resource_path
 
 from .contracts import (
-    MAX_ASSET_RUNTIME_BYTES,
     AssetType,
     AssetPathRequest,
     AssetRuntimeValueRequest,
@@ -54,6 +53,7 @@ from .runtime import (
 from .services import SecretStorageUnavailableError
 
 _LOGGER = logging.getLogger("console.assets")
+_INT_MAX_BODY_BYTES = 2 * 1024 * 1024
 
 
 def _api_asset_view[**P](
@@ -128,20 +128,13 @@ def _parse_asset_request[Payload: JsonRequest](
             "Use the request body; query parameters are not accepted.",
             statusCode=400,
         )
-    return parse_json_request(
-        request, requestSchema, maxBodyBytes=MAX_ASSET_RUNTIME_BYTES
-    )
+    return parse_json_request(request, requestSchema, maxBodyBytes=_INT_MAX_BODY_BYTES)
 
 
 @sensitive_variables()
 def _build_asset_response(payload: JsonResponsePayload) -> HttpResponse:
-    responseBytes = payload.model_dump_json().encode("utf-8")
-    # NOTE: LimitsConfig currently accepts values above its declared caps; retain this response limit.
-    if len(responseBytes) > MAX_ASSET_RUNTIME_BYTES:
-        raise AssetRuntimeError(
-            "asset_response_too_large", "The response exceeds the byte limit."
-        )
-    return HttpResponse(responseBytes, content_type="application/json")
+    # The 256 KiB value caps at write time keep responses below 2 MiB, including JSON escaping.
+    return HttpResponse(payload.model_dump_json(), content_type="application/json")
 
 
 @require_POST

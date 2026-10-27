@@ -20,9 +20,6 @@ from console_project.contracts import (
 )
 
 
-MAX_ASSET_RUNTIME_BYTES = 2 * 1024 * 1024
-
-
 class AssetType(TextChoices):
     TEXT = "text", "Text"
     INTEGER = "integer", "Integer"

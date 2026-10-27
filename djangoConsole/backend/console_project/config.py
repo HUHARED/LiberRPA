@@ -66,7 +66,8 @@ class FileTransferProxyConfig(_BaseConfig):
 
 
 # Limits must round-trip exactly through browser JSON numbers.
-LimitInteger = Annotated[int, Field(le=INT_MAX_JSON_INTEGER)]
+# NOTE: A named type alias prevents the shared bound from overriding smaller field limits.
+type LimitInteger = Annotated[int, Field(le=INT_MAX_JSON_INTEGER)]
 
 
 class LimitsConfig(_BaseConfig):
