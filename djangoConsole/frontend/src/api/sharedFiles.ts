@@ -9,7 +9,6 @@ import { isRecord, isNonnegativeInteger } from "./responses";
 import {
   ARR_FILE_UPLOAD_STATE,
   type FileDeleteResponse,
-  type FileInfoResponse,
   type FileListRequest,
   type FileListResponse,
   type FileUploadRequest,
@@ -25,19 +24,6 @@ function rejectInvalidFileResponse(): never {
     { code: "invalid_response" },
   );
 }
-function isFileInfoResponse(value: unknown): value is FileInfoResponse {
-  return (
-    isRecord(value) &&
-    typeof value.path === "string" &&
-    typeof value.name === "string" &&
-    typeof value.department_path === "string" &&
-    isNonnegativeInteger(value.size_bytes) &&
-    typeof value.sha256 === "string" &&
-    /^[0-9a-f]{64}$/.test(value.sha256) &&
-    typeof value.uploaded_by_name === "string" &&
-    typeof value.uploaded_at === "string"
-  );
-}
 function parseFileUploadResponse(value: unknown): FileUploadResponse {
   if (!isRecord(value)) return rejectInvalidFileResponse();
   const strState = ARR_FILE_UPLOAD_STATE.find((state) => state === value.state);
@@ -51,20 +37,14 @@ function parseFileUploadResponse(value: unknown): FileUploadResponse {
     !isNonnegativeInteger(value.chunk_bytes) ||
     value.chunk_bytes < 1 ||
     value.chunk_bytes > 4 * 1024 * 1024 ||
-    typeof value.expires_at !== "string" ||
-    !(value.file === null || isFileInfoResponse(value.file)) ||
+    !(
+      value.file === null ||
+      (isRecord(value.file) && typeof value.file.path === "string")
+    ) ||
     (strState === "completed" && value.file === null)
   )
     return rejectInvalidFileResponse();
-  return {
-    upload_id: value.upload_id,
-    state: strState,
-    offset: value.offset,
-    size_bytes: value.size_bytes,
-    chunk_bytes: value.chunk_bytes,
-    expires_at: value.expires_at,
-    file: value.file,
-  };
+  return value as unknown as FileUploadResponse;
 }
 export async function getOrCreateFileRequestIdentity(
   userId: string,

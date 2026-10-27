@@ -147,15 +147,6 @@ async function loadTargets(): Promise<void> {
   }
 }
 
-// A Schedule may supply its saved target after this component has mounted.
-watch(groupId, (value) => {
-  if (value !== null) strTargetType.value = JobTargetType.Group;
-});
-
-watch(executorIds, (value) => {
-  if (value.length) strTargetType.value = JobTargetType.Executor;
-});
-
 watch(
   () => props.departmentId,
   () => void loadTargets(),
