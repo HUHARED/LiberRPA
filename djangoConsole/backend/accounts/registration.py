@@ -115,24 +115,19 @@ def issue_registration_token(email: str) -> RegistrationTokenDeliveryInfo | None
     The public response must not distinguish these cases or include the returned secret.
     The caller handles request limits and mail delivery after the transaction commits.
     """
+    strEmail = UserManager.normalize_email(email)
     strToken = secrets.token_urlsafe(32)
+    strTokenHash = hashlib.sha256(strToken.encode("ascii")).hexdigest()
     issuedAt = timezone.now()
-    candidateToken = RegistrationToken(
-        email=UserManager.normalize_email(email),
-        token_hash=hashlib.sha256(strToken.encode("ascii")).hexdigest(),
-        issued_at=issuedAt,
-        expires_at=issuedAt + _REGISTRATION_TOKEN_LIFETIME,
-    )
-    candidateToken.full_clean(validate_unique=False, validate_constraints=False)
 
     # Issuance and completion both lock the email token before the instance policy.
     registrationToken, boolTokenCreated = (
         RegistrationToken.objects.select_for_update().get_or_create(
-            email=candidateToken.email,
+            email=strEmail,
             defaults={
-                "token_hash": candidateToken.token_hash,
-                "issued_at": candidateToken.issued_at,
-                "expires_at": candidateToken.expires_at,
+                "token_hash": strTokenHash,
+                "issued_at": issuedAt,
+                "expires_at": issuedAt + _REGISTRATION_TOKEN_LIFETIME,
             },
         )
     )
@@ -149,7 +144,7 @@ def issue_registration_token(email: str) -> RegistrationTokenDeliveryInfo | None
         return None
 
     # Start the lifetime after lock waits; replacing the digest invalidates the old link.
-    registrationToken.token_hash = candidateToken.token_hash
+    registrationToken.token_hash = strTokenHash
     registrationToken.issued_at = issuedAt
     registrationToken.expires_at = issuedAt + _REGISTRATION_TOKEN_LIFETIME
     registrationToken.save(update_fields=["token_hash", "issued_at", "expires_at"])

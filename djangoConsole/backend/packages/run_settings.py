@@ -83,8 +83,6 @@ def validate_run_settings(
                 "Custom argument names and positions must match the Package."
             )
         })
-    if len(settings.model_dump_json().encode("utf-8")) > 2 * 1024 * 1024:
-        raise ValidationError({"settings": "Run settings exceed the 2 MiB limit."})
     for intIndex, binding in enumerate(settings.custom_arg_assets):
         if binding is not None:
             try:

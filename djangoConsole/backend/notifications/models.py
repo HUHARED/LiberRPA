@@ -191,27 +191,12 @@ class EmailDelivery(models.Model):
                             | ~models.Q(status=EmailStatus.PENDING)
                         )
                     )
-                    | models.Q(
-                        email_type__in=[
-                            EmailType.RUN,
-                            EmailType.RUN_RECIPIENT_VERIFICATION,
-                            EmailType.ORGANIZATION_REGISTRATION,
-                            EmailType.PASSWORD_RESET,
-                            EmailType.EMAIL_CHANGE_VERIFICATION,
-                            EmailType.EMAIL_CHANGE_NOTICE,
-                            EmailType.ACCOUNT_DELETION_NOTICE,
-                            EmailType.ORGANIZATION_DELETION_SCHEDULED_NOTICE,
-                            EmailType.ORGANIZATION_DELETION_CANCELED_NOTICE,
-                            EmailType.ORGANIZATION_DELETION_NOTICE,
-                            EmailType.ORGANIZATION_LIMITS_NOTICE,
-                            EmailType.ORGANIZATION_SUSPENDED_NOTICE,
-                            EmailType.ORGANIZATION_RESUMED_NOTICE,
-                            EmailType.CAPACITY_NOTICE,
-                            EmailType.BACKUP_FAILURE_NOTICE,
-                            EmailType.BACKUP_RECOVERY_NOTICE,
-                        ],
-                        invitation__isnull=True,
-                        invitation_request_id__isnull=True,
+                    | (
+                        ~models.Q(email_type=EmailType.MEMBER_INVITATION)
+                        & models.Q(
+                            invitation__isnull=True,
+                            invitation_request_id__isnull=True,
+                        )
                     )
                 ),
                 name="email_delivery_reference_valid",

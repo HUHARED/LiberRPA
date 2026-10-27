@@ -112,8 +112,6 @@ def _prepare_email(deliveryId: uuid.UUID) -> EmailPreparationResult:
     This function does not contact SMTP or recover an earlier Sending request.
     """
     delivery = EmailDelivery.objects.select_for_update().get(pk=deliveryId)
-    if delivery.email_type not in EmailType.values:
-        raise ValueError("Unsupported email type.")
     if delivery.status != EmailStatus.PENDING:
         return EmailPreparationResult(
             deliveryId=delivery.id, status=EmailStatus(delivery.status)
