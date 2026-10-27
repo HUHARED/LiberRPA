@@ -15,12 +15,7 @@ function validateJsonString(value: string, sourceName: string): void {
   }
 }
 
-function ensureJsonValue(
-  value: unknown,
-  sourceName: string,
-  depth = 0,
-  ancestorSet = new Set<object>(),
-): void {
+function ensureJsonValue(value: unknown, sourceName: string, depth = 0): void {
   if (depth > INT_MAX_JSON_DEPTH) {
     throw new Error(`${sourceName} cannot exceed ${INT_MAX_JSON_DEPTH} levels of nesting.`);
   }
@@ -43,33 +38,19 @@ function ensureJsonValue(
   if (typeof value !== "object") {
     throw new Error(`${sourceName} must be JSON-compatible.`);
   }
-  if (ancestorSet.has(value)) {
-    throw new Error(`${sourceName} cannot contain circular references.`);
+  if (Array.isArray(value)) {
+    for (let intIndex = 0; intIndex < value.length; intIndex++) {
+      ensureJsonValue(value[intIndex], `${sourceName}[${intIndex}]`, depth + 1);
+    }
+    return;
   }
 
-  ancestorSet.add(value);
-  try {
-    if (Array.isArray(value)) {
-      for (let intIndex = 0; intIndex < value.length; intIndex++) {
-        ensureJsonValue(
-          value[intIndex],
-          `${sourceName}[${intIndex}]`,
-          depth + 1,
-          ancestorSet,
-        );
-      }
-      return;
-    }
-
-    if (!isRecord(value)) {
-      throw new Error(`${sourceName} must be JSON-compatible.`);
-    }
-    for (const [strKey, item] of Object.entries(value)) {
-      validateJsonString(strKey, `${sourceName} object key`);
-      ensureJsonValue(item, `${sourceName}.${strKey}`, depth + 1, ancestorSet);
-    }
-  } finally {
-    ancestorSet.delete(value);
+  if (!isRecord(value)) {
+    throw new Error(`${sourceName} must be JSON-compatible.`);
+  }
+  for (const [strKey, item] of Object.entries(value)) {
+    validateJsonString(strKey, `${sourceName} object key`);
+    ensureJsonValue(item, `${sourceName}.${strKey}`, depth + 1);
   }
 }
 
