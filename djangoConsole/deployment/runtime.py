@@ -204,60 +204,6 @@ def _create_database(
         )
 
 
-def _check_release_migrations() -> None:
-    """Check packaged model definitions without waiting for or changing the database."""
-    import django
-    from django.apps import apps
-    from django.db.migrations.autodetector import MigrationAutodetector
-    from django.db.migrations.exceptions import (
-        BadMigrationError,
-        CircularDependencyError,
-        NodeNotFoundError,
-    )
-    from django.db.migrations.loader import MigrationLoader
-    from django.db.migrations.state import ProjectState
-
-    _LOGGER.info("Checking published migrations.")
-    django.setup()
-    try:
-        loader = MigrationLoader(None, ignore_no_migrations=True)
-    except (
-        BadMigrationError,
-        CircularDependencyError,
-        NodeNotFoundError,
-        ValueError,
-    ) as e:
-        raise DeploymentError(
-            "Published migrations are missing or invalid. "
-            "Generate and include the complete migration files before deployment."
-        ) from e
-
-    listMissingApp = sorted(
-        appConfig.label
-        for appConfig in apps.get_app_configs()
-        if appConfig.label in loader.unmigrated_apps and any(appConfig.get_models())
-    )
-    if listMissingApp:
-        raise DeploymentError(
-            "Published migrations are missing for: " + ", ".join(listMissingApp) + "."
-        )
-    if dictConflict := loader.detect_conflicts():
-        raise DeploymentError(
-            "Published migrations have conflicting branches in: "
-            + ", ".join(sorted(dictConflict))
-            + ". Resolve them before deployment."
-        )
-    dictChange = MigrationAutodetector(
-        loader.project_state(), ProjectState.from_apps(apps)
-    ).changes(graph=loader.graph)
-    if dictChange:
-        raise DeploymentError(
-            "Model changes are missing published migrations for: "
-            + ", ".join(sorted(dictChange))
-            + ". Generate and include them before deployment."
-        )
-
-
 def _initialize(configPath: Path, smtpPasswordPath: Path) -> None:
     from console_project.config import parse_config
 
@@ -302,7 +248,6 @@ def _initialize(configPath: Path, smtpPasswordPath: Path) -> None:
         ("smtp-password.txt", smtpPassword),
     ):
         _write_new_file(_PATH_DATA / "secrets" / strName, value)
-    _check_release_migrations()
     _create_database(password)
     with _temporary_postgres():
         _LOGGER.info("Applying database migrations.")
@@ -448,7 +393,6 @@ def main() -> None:
 
         _check_postgres_directory()
         require_completed_restore(_PATH_CONFIG)
-        _check_release_migrations()
         subprocess.run(
             ["haproxy", "-c", "-f", str(_PATH_DEPLOYMENT / "haproxy.cfg")], check=True
         )

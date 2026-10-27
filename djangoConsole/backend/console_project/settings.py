@@ -13,6 +13,7 @@ from django.core.exceptions import ImproperlyConfigured
 from .config import read_config_snapshot
 from .recovery import require_completed_restore
 from .logging import build_logging_config
+from .model_settings import INSTALLED_APPS, AUTH_USER_MODEL  # ruff: ignore[unused-import]
 
 _PATH_CONSOLE = Path(__file__).resolve().parents[2]
 _PATH_CONFIG = Path(
@@ -66,25 +67,6 @@ MAILERS = {
         },
     }
 }
-INSTALLED_APPS = [
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "accounts.apps.AccountsConfig",
-    "organizations.apps.OrganizationsConfig",
-    "executors.apps.ExecutorsConfig",
-    "assets.apps.AssetsConfig",
-    "data_queues.apps.DataQueuesConfig",
-    "file_storage.apps.FileStorageConfig",
-    "shared_files.apps.SharedFilesConfig",
-    "packages.apps.PackagesConfig",
-    "schedules.apps.SchedulesConfig",
-    "runs.apps.RunsConfig",
-    "operations.apps.OperationsConfig",
-    "notifications.apps.NotificationsConfig",
-]
-# Configure the custom user model before generating or applying initial migrations.
-AUTH_USER_MODEL = "accounts.User"
 # Authenticate identity with Django; Console business permissions remain in organizations.permissions.
 AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
 
