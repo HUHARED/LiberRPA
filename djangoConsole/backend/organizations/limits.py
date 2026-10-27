@@ -60,14 +60,7 @@ class LimitUnit(models.TextChoices):
     PER_MINUTE = "per_minute", "Per Minute"
 
 
-# LimitInteger is a named type alias, so each field refers to its range in $defs.
-_DICT_CONFIG_SCHEMA = LimitsConfig.model_json_schema()
-_DICT_LIMIT_SCHEMA = {
-    strConfigName: _DICT_CONFIG_SCHEMA["$defs"][
-        dictFieldSchema["$ref"].removeprefix("#/$defs/")
-    ]
-    for strConfigName, dictFieldSchema in _DICT_CONFIG_SCHEMA["properties"].items()
-}
+_DICT_LIMIT_SCHEMA = LimitsConfig.model_json_schema()["properties"]
 
 
 @dataclass(frozen=True)

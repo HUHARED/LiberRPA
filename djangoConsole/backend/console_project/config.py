@@ -66,18 +66,14 @@ class FileTransferProxyConfig(_BaseConfig):
 
 
 # Limits must round-trip exactly through browser JSON numbers.
-# NOTE: A named type alias prevents the shared bound from overriding smaller field limits.
-type LimitInteger = Annotated[int, Field(le=INT_MAX_JSON_INTEGER)]
+# NOTE: Fields with their own upper bound use int to avoid merging two le constraints.
+LimitInteger = Annotated[int, Field(le=INT_MAX_JSON_INTEGER)]
 
 
 class LimitsConfig(_BaseConfig):
     # Shared across accounts and credential channels, independently for each organization.
-    organizationReadRequestsPerMinute: LimitInteger = Field(
-        default=1200, ge=0, le=2147483647
-    )
-    organizationWriteObjectsPerMinute: LimitInteger = Field(
-        default=600, ge=0, le=2147483647
-    )
+    organizationReadRequestsPerMinute: int = Field(default=1200, ge=0, le=2147483647)
+    organizationWriteObjectsPerMinute: int = Field(default=600, ge=0, le=2147483647)
 
     # Organization capacity.
     maxMembersPerOrganization: LimitInteger = Field(default=50, ge=0)
@@ -87,14 +83,14 @@ class LimitsConfig(_BaseConfig):
     maxExecutorGroupsPerOrganization: LimitInteger = Field(default=50, ge=0)
     maxProjectsPerOrganization: LimitInteger = Field(default=100, ge=0)
     maxPackagesPerProject: LimitInteger = Field(default=20, ge=0)
-    maxPackageBytes: LimitInteger = Field(default=536870912, ge=1, le=536870912)
+    maxPackageBytes: int = Field(default=536870912, ge=1, le=536870912)
     maxSchedulesPerOrganization: LimitInteger = Field(default=200, ge=0)
     maxActiveJobsPerOrganization: LimitInteger = Field(default=500, ge=0)
     newJobsPerMinute: LimitInteger = Field(default=60, ge=0)
     newJobsBurst: LimitInteger = Field(default=120, ge=1)
-    runHistoryRetentionDays: LimitInteger = Field(default=720, ge=1, le=720)
+    runHistoryRetentionDays: int = Field(default=720, ge=1, le=720)
     maxRunHistoryPerOrganization: LimitInteger = Field(default=20000, ge=1)
-    runLogRetentionDays: LimitInteger = Field(
+    runLogRetentionDays: int = Field(
         default=INT_MAX_RUN_LOG_RETENTION_DAYS, ge=1, le=INT_MAX_RUN_LOG_RETENTION_DAYS
     )
     maxRunLogBytesPerOrganization: LimitInteger = Field(default=5368709120, ge=0)
@@ -107,38 +103,38 @@ class LimitsConfig(_BaseConfig):
     maxNotificationsPerAccount: LimitInteger = Field(default=200, ge=0)
     notificationRetentionDays: LimitInteger = Field(default=30, ge=1)
     maxAssetsPerOrganization: LimitInteger = Field(default=1000, ge=0)
-    maxAssetValueBytes: LimitInteger = Field(default=65536, ge=1, le=262144)
-    maxSecretAssetValueBytes: LimitInteger = Field(default=16384, ge=1, le=262144)
+    maxAssetValueBytes: int = Field(default=65536, ge=1, le=262144)
+    maxSecretAssetValueBytes: int = Field(default=16384, ge=1, le=262144)
 
     maxDataQueuesPerOrganization: LimitInteger = Field(default=50, ge=0)
     maxQueueItemsPerOrganization: LimitInteger = Field(default=20000, ge=0)
     maxQueueDataBytesPerOrganization: LimitInteger = Field(default=104857600, ge=0)
-    maxQueueItemBytes: LimitInteger = Field(default=1048576, ge=1, le=1048576)
-    queueReceiptRetentionDays: LimitInteger = Field(default=30, ge=30, le=3650)
+    maxQueueItemBytes: int = Field(default=1048576, ge=1, le=1048576)
+    queueReceiptRetentionDays: int = Field(default=30, ge=30, le=3650)
     maxQueueReceiptsPerOrganization: LimitInteger = Field(default=100000, ge=1)
 
     # Packages and shared files share storage; upload and download slots are independent.
     maxStoredBytesPerOrganization: LimitInteger = Field(default=5368709120, ge=0)
     maxSharedFilesPerOrganization: LimitInteger = Field(default=5000, ge=0)
-    maxSharedFileBytes: LimitInteger = Field(default=20971520, ge=0, le=20971520)
+    maxSharedFileBytes: int = Field(default=20971520, ge=0, le=20971520)
     minStorageFreeBytes: LimitInteger = Field(default=5368709120, ge=0)
     maxActiveUploadsPerOrganization: LimitInteger = Field(default=20, ge=0)
     maxActiveDownloadsPerOrganization: LimitInteger = Field(default=20, ge=0)
-    fileReceiptRetentionDays: LimitInteger = Field(default=30, ge=30, le=3650)
+    fileReceiptRetentionDays: int = Field(default=30, ge=30, le=3650)
     maxFileReceiptsPerOrganization: LimitInteger = Field(default=100000, ge=1)
 
     # Audit cleanup is independent of business object and API key retention.
-    auditRetentionDays: LimitInteger = Field(default=180, ge=1, le=180)
+    auditRetentionDays: int = Field(default=180, ge=1, le=180)
     maxAuditRecordsPerOrganization: LimitInteger = Field(default=100000, ge=1)
     maxPlatformAuditRecords: LimitInteger = Field(default=100000, ge=1)
 
     # API key capacity and inactive metadata retention per account.
     maxActiveApiKeysPerAccount: LimitInteger = Field(default=10, ge=0)
-    inactiveApiKeyRetentionDays: LimitInteger = Field(default=30, ge=0, le=3650)
+    inactiveApiKeyRetentionDays: int = Field(default=30, ge=0, le=3650)
     maxInactiveApiKeysPerAccount: LimitInteger = Field(default=100, ge=0)
 
     # Completed email history; active accounting and unprocessed deliveries remain protected.
-    emailDeliveryRetentionDays: LimitInteger = Field(default=30, ge=1, le=30)
+    emailDeliveryRetentionDays: int = Field(default=30, ge=1, le=30)
     maxEmailDeliveriesPerOrganization: LimitInteger = Field(default=10000, ge=0)
     maxEmailDeliveriesWithoutOrganization: LimitInteger = Field(default=10000, ge=0)
 
@@ -148,39 +144,35 @@ class LimitsConfig(_BaseConfig):
     emailRefillSeconds: LimitInteger = Field(default=30, ge=1)
 
     # Resend cooldown shared by account email flows.
-    emailResendSeconds: LimitInteger = Field(default=300, ge=300, le=86400)
+    emailResendSeconds: int = Field(default=300, ge=300, le=86400)
 
     # Login attempts.
-    loginRequestsPerSource: LimitInteger = Field(default=30, ge=0, le=2147483647)
-    loginRequestsPerAccount: LimitInteger = Field(default=10, ge=0, le=2147483647)
-    loginRequestWindowSeconds: LimitInteger = Field(default=600, ge=1, le=86400)
+    loginRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
+    loginRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
+    loginRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
     # Bearer resource and execution-control authentication use separate counters with these limits.
-    apiKeyRequestsPerSource: LimitInteger = Field(default=2400, ge=0, le=2147483647)
-    apiKeyRequestWindowSeconds: LimitInteger = Field(default=60, ge=1, le=86400)
+    apiKeyRequestsPerSource: int = Field(default=2400, ge=0, le=2147483647)
+    apiKeyRequestWindowSeconds: int = Field(default=60, ge=1, le=86400)
 
     # Editor and Executor contact use independent counters with these shared native-client limits.
-    nativeClientRequestsPerSource: LimitInteger = Field(default=2400, ge=0, le=2147483647)
-    nativeClientRequestWindowSeconds: LimitInteger = Field(default=60, ge=1, le=86400)
-    executorOfflineSeconds: LimitInteger = Field(default=60, ge=30, le=3600)
+    nativeClientRequestsPerSource: int = Field(default=2400, ge=0, le=2147483647)
+    nativeClientRequestWindowSeconds: int = Field(default=60, ge=1, le=86400)
+    executorOfflineSeconds: int = Field(default=60, ge=30, le=3600)
 
     # Public registration and recovery email requests count separately.
-    publicEmailRequestsPerSource: LimitInteger = Field(default=10, ge=0, le=2147483647)
-    publicEmailRequestWindowSeconds: LimitInteger = Field(default=600, ge=1, le=86400)
+    publicEmailRequestsPerSource: int = Field(default=10, ge=0, le=2147483647)
+    publicEmailRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
     # Invitations, account security actions, API key creation, and organization deletion count per flow.
-    sensitiveActionRequestsPerSource: LimitInteger = Field(
-        default=30, ge=0, le=2147483647
-    )
-    sensitiveActionRequestsPerAccount: LimitInteger = Field(
-        default=10, ge=0, le=2147483647
-    )
-    sensitiveActionRequestWindowSeconds: LimitInteger = Field(default=600, ge=1, le=86400)
+    sensitiveActionRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
+    sensitiveActionRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
+    sensitiveActionRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
     # Email-link checks and submissions share these settings and count per flow.
-    emailTokenRequestsPerSource: LimitInteger = Field(default=30, ge=0, le=2147483647)
-    emailTokenRequestsPerToken: LimitInteger = Field(default=10, ge=0, le=2147483647)
-    emailTokenRequestWindowSeconds: LimitInteger = Field(default=600, ge=1, le=86400)
+    emailTokenRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
+    emailTokenRequestsPerToken: int = Field(default=10, ge=0, le=2147483647)
+    emailTokenRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
 
 class SmtpConfig(_BaseConfig):

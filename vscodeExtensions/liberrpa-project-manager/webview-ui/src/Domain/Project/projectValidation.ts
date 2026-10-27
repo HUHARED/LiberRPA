@@ -73,7 +73,7 @@ export function getWindowsFileOrFolderNameError(
   }
 
   if (name.length > 255) {
-    return `${description} cannot be longer than 255 characters.`;
+    return `${description} cannot be longer than 255 UTF-16 code units.`;
   }
 
   return undefined;
