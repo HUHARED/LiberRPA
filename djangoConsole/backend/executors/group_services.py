@@ -20,6 +20,7 @@ from organizations.permissions import (
 )
 from runs.contracts import JobState
 from runs.models import Job
+from runs.browser_events import notify_jobs_changed
 from schedules.models import Schedule
 
 from .access import require_executor_management
@@ -172,3 +173,6 @@ def delete_executor_group(
         channel=access.channel,
     )
     group.delete()
+    notify_jobs_changed(
+        Job.objects.filter(target_group_id=groupId).values_list("id", flat=True)
+    )

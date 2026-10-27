@@ -7,6 +7,7 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 import uuid
 
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
@@ -20,11 +21,13 @@ from organizations.permissions import (
 )
 
 from runs.contracts import JobState, ACTIVE_ASSIGNMENT_STATES
-from .access import require_executor_management
-from .models import Executor, ExecutorGroupMember, ExecutorSession
+from runs.models import Job, Assignment
 from runs.control_notifications import notify_executor_control
-from runs.models import Assignment, Job
+from runs.browser_events import notify_jobs_changed
 from schedules.models import Schedule
+
+from .access import require_executor_management
+from .models import Executor, ExecutorSession, ExecutorGroupMember
 
 # NOTE: Call these writes with freshly locked Session access inside the caller's transaction.
 
@@ -177,6 +180,11 @@ def delete_executor(
         organization=access.organization,
         target=executor,
         channel=access.channel,
+    )
+    notify_jobs_changed(
+        Job.objects.filter(
+            Q(target_executor_id=executor.pk) | Q(assignments__executor_id=executor.pk)
+        ).values_list("id", flat=True)
     )
     return executor
 

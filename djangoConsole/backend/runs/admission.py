@@ -45,6 +45,7 @@ from .models import JobRequest, Job, JobAdmissionBudget
 from operations.maintenance import require_service_normal
 
 from .worker_state import require_control_service
+from .browser_events import notify_job_changed
 
 if TYPE_CHECKING:
     from schedules.models import Schedule
@@ -216,8 +217,9 @@ def _create_request(
         accepted_at=currentTime,
     )
     listTarget: list[Executor | ExecutorGroup] = [group] if group else [*listExecutor]
+    listJob: list[Job] = []
     for target in listTarget:
-        Job.objects.create(
+        job = Job.objects.create(
             request=jobRequest,
             department=department,
             package_id=package.pk,
@@ -233,6 +235,7 @@ def _create_request(
             queued_at=currentTime,
             attempt_queued_at=currentTime,
         )
+        listJob.append(job)
     record_audit(
         AuditAction.JOB_ACCEPT,
         actor=actor,
@@ -245,6 +248,8 @@ def _create_request(
             "source": str(source),
         },
     )
+    for job in listJob:
+        notify_job_changed(job)
     return jobRequest
 
 

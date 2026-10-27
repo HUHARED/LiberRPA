@@ -123,6 +123,7 @@ def sanitize_restored_database(manifest: BackupManifest, restoredAt: datetime) -
         reason_code=EmailReasonCode.INSTANCE_RESTORED,
     )
 
+    # Restore runs with web services stopped; browsers reload current state after signing in again.
     Assignment.objects.filter(state=AssignmentState.PREPARING).update(
         state=AssignmentState.WITHDRAWN, reason=_STR_RESTORE_REASON
     )

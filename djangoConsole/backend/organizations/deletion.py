@@ -18,6 +18,7 @@ from operations.audit import get_audit_snapshot, record_audit
 from runs.contracts import JobState
 from runs.models import Job
 from runs.services import revoke_job_source_access
+from runs.browser_events import notify_job_changed
 from schedules.services import skip_expired_schedule_triggers
 
 from .emails import queue_organization_deletion_notices
@@ -84,7 +85,8 @@ def schedule_organization_deletion(
         .exclude(state=JobState.FINISHED)
         .select_related("request")
     ):
-        revoke_job_source_access(job, requestedAt)
+        if revoke_job_source_access(job, requestedAt):
+            notify_job_changed(job)
     record_audit(
         AuditAction.ORGANIZATION_SCHEDULE_DELETION,
         actor=actor,

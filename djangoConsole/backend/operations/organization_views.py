@@ -37,6 +37,7 @@ from organizations.usage import get_limits_version, get_organization_usage
 from runs.contracts import JobState
 from runs.models import Job
 from runs.services import revoke_job_source_access
+from runs.browser_events import notify_job_changed
 from schedules.services import skip_expired_schedule_triggers
 
 from .access import get_platform_actor
@@ -300,7 +301,8 @@ def update_organization_service(
                     .exclude(state=JobState.FINISHED)
                     .select_related("request")
                 ):
-                    revoke_job_source_access(job, currentTime)
+                    if revoke_job_source_access(job, currentTime):
+                        notify_job_changed(job)
             else:
                 skip_expired_schedule_triggers(organization, currentTime)
             record_audit(

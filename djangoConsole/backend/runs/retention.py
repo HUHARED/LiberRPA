@@ -19,6 +19,7 @@ from schedules.models import ScheduleTrigger
 
 from .contracts import JobState, AssignmentState, RunEventKind
 from .models import JobRequest, Job, Assignment, Run, RunFileTransfer, RunEvent
+from .browser_events import notify_jobs_changed
 
 from .log_storage import (
     get_or_create_run_log_usage,
@@ -105,7 +106,7 @@ def cleanup_run_data(limit: int = 200) -> tuple[int, int]:
                 listExpiredRun.append(run)
                 intBytes -= run.log_bytes
                 intGroups -= int(run.log_bytes > 0)
-            clear_run_logs(usage, listExpiredRun, currentTime)
+            setChangedJobId = clear_run_logs(usage, listExpiredRun, currentTime)
             intLogsCleared += len(listExpiredRun)
             # The transfer layer decides when a download reservation can be released.
             # Keep history while any reservation remains, including expired transfers still active in the proxy.
@@ -155,7 +156,11 @@ def cleanup_run_data(limit: int = 200) -> tuple[int, int]:
                         "id", "job_id", "log_bytes"
                     )
                 )
-                clear_run_logs(usage, listRemovedRun, currentTime)
+                setChangedJobId.update(clear_run_logs(usage, listRemovedRun, currentTime))
+            setChangedJobId.update(listRemovedJobId)
+            # Resolve current readers before deletion removes each Job and its request scope.
+            notify_jobs_changed(setChangedJobId)
+            if listRemovedJobId:
                 Job.objects.filter(pk__in=listRemovedJobId).delete()
                 intJobsRemoved += len(listRemovedJobId)
             # Keep every no-Run target until the whole remaining request is resolved and old enough.
@@ -191,6 +196,11 @@ def cleanup_run_data(limit: int = 200) -> tuple[int, int]:
                 )
                 .order_by("accepted_at", "id")
                 .values_list("id", flat=True)[:limit]
+            )
+            notify_jobs_changed(
+                Job.objects.filter(request_id__in=listExpiredRequestId).values_list(
+                    "id", flat=True
+                )
             )
             # Cascading removes the request, all remaining Jobs, assignments and server receipts together.
             _, dictRemoved = JobRequest.objects.filter(

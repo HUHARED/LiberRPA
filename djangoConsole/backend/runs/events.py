@@ -27,6 +27,7 @@ from .contracts import (
     WorkEvent,
 )
 from .control_notifications import notify_executor_control
+from .browser_events import notify_job_changed
 from .dispatch import get_start_evidence_not_before
 from .models import Assignment, Run, RunEvent
 from .services import (
@@ -91,6 +92,7 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             occurred_at=event.occurred_at,
             reason=event.reason,
         )
+        notify_job_changed(job)
         return
     if startedAt is not None:
         if (
@@ -307,3 +309,4 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
         and event.not_started_reason == RunNotStartedReason.LOCAL_CONFLICT
     ):
         notify_executor_control(assignment.executor_id)
+    notify_job_changed(job)

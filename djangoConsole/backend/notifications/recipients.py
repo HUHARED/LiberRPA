@@ -25,6 +25,8 @@ from organizations.permissions import (
     require_organization_admin,
     require_organization_business_available,
 )
+from runs.models import Job
+from runs.browser_events import notify_jobs_changed
 
 from .contracts import EmailStatus, RunEmailRecipientStatus
 from .models import (
@@ -152,7 +154,6 @@ def get_recipient_references(recipient: RunEmailRecipient) -> list[dict]:
     from packages.models import Package
     from schedules.models import Schedule
     from runs.contracts import JobState
-    from runs.models import Job
 
     strId = str(recipient.pk)
     listReference = []
@@ -205,7 +206,12 @@ def delete_recipient(recipient: RunEmailRecipient) -> None:
         raise ValidationError(
             "Current member email addresses are available automatically."
         )
+    jobQuery = Job.objects.filter(
+        request__organization_id=recipient.organization_id,
+        run_snapshot__run_email__recipient_ids__contains=[str(recipient.pk)],
+    )
     recipient.delete()
+    notify_jobs_changed(jobQuery.values_list("id", flat=True))
 
 
 def load_verification_recipient(

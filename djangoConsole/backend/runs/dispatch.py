@@ -29,6 +29,7 @@ from operations.maintenance import ServiceMaintenanceError, require_service_norm
 from .contracts import JobState, AssignmentState, ACTIVE_ASSIGNMENT_STATES
 from .models import Job, ExecutorWorkState, Assignment, DispatchControl
 from .control_notifications import notify_executor_control
+from .browser_events import notify_job_changed, notify_jobs_changed
 from .worker_state import require_control_service
 from .services import (
     has_job_source_access,
@@ -75,14 +76,15 @@ def _update_assignment_state(
     *,
     sourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]],
     session: ExecutorSession | None,
-) -> None:
+) -> bool:
     job = assignment.job
+    boolJobChanged = False
     if not has_job_source_access(
         job, sourceDepartmentIdsByActor=sourceDepartmentIdsByActor
     ):
-        revoke_job_source_access(job, currentTime)
+        boolJobChanged = revoke_job_source_access(job, currentTime)
         if assignment.state == AssignmentState.PREPARING:
-            return
+            return boolJobChanged
     if (
         assignment.state == AssignmentState.PERMITTED
         and assignment.permit_expires_at
@@ -95,7 +97,7 @@ def _update_assignment_state(
         assignment.save(update_fields=["state", "reason"])
         notify_executor_control(assignment.executor_id)
         mark_job_needs_review(job, assignment, reason=assignment.reason)
-        return
+        return True
     boolSessionValid = session is not None and session.id == assignment.session_id
     boolOnline = (
         boolSessionValid
@@ -124,6 +126,7 @@ def _update_assignment_state(
         notify_executor_control(assignment.executor_id)
         job.state = JobState.WAITING
         job.save(update_fields=["state"])
+        return True
     elif assignment.state in (AssignmentState.RUNNING, AssignmentState.PERMITTED) and (
         not boolSessionValid or (not boolOnline and not boolRecovering)
     ):
@@ -134,6 +137,8 @@ def _update_assignment_state(
         assignment.save(update_fields=["state", "reason"])
         notify_executor_control(assignment.executor_id)
         mark_job_needs_review(job, assignment, reason=assignment.reason)
+        return True
+    return boolJobChanged
 
 
 def _get_candidates(job: Job) -> list[Executor]:
@@ -220,16 +225,15 @@ def _advance_job(
     sessionsByExecutor: dict[uuid.UUID, ExecutorSession | None],
     workByExecutor: dict[uuid.UUID, ExecutorWorkState | None],
     busyExecutorSessions: set[tuple[uuid.UUID, uuid.UUID]],
-) -> None:
+) -> bool:
     if job.state not in (JobState.WAITING, JobState.WAITING_RETRY):
-        return
+        return False
     if not has_job_source_access(
         job, sourceDepartmentIdsByActor=sourceDepartmentIdsByActor
     ):
-        revoke_job_source_access(job, currentTime)
-        return
+        return revoke_job_source_access(job, currentTime)
     if job.retry_at and job.retry_at > currentTime:
-        return
+        return False
     listCandidate, dictSession = _get_live_candidates(
         job,
         currentTime,
@@ -242,7 +246,7 @@ def _advance_job(
             "The original target association or group eligibility is no longer available.",
             notify=True,
         )
-        return
+        return True
     listEnabled = [
         entry
         for entry in listCandidate
@@ -253,7 +257,8 @@ def _advance_job(
         if job.reason != strReason:
             job.reason = strReason
             job.save(update_fields=["reason"])
-        return
+            return True
+        return False
     listOnline = [
         entry
         for entry in listEnabled
@@ -289,15 +294,17 @@ def _advance_job(
     ]
     if not listReady:
         if control.recovery_until and currentTime < control.recovery_until:
-            return
+            return False
         if not listOnline:
             finish_job(job, "All eligible targets are confirmed offline.", notify=True)
+            return True
         else:
             strReason = "Waiting for the Executor to report its current work state."
             if job.reason != strReason:
                 job.reason = strReason
                 job.save(update_fields=["reason"])
-        return
+                return True
+        return False
     setFailedExecutorId = set(
         Assignment.objects.filter(
             job=job, attempt_number=job.attempt_count + 1, state=AssignmentState.FINISHED
@@ -308,7 +315,7 @@ def _advance_job(
         finish_job(
             job, "Package preparation failed on all eligible online targets.", notify=True
         )
-        return
+        return True
     listIdle = [
         entry
         for entry in listReady
@@ -319,7 +326,7 @@ def _advance_job(
     strPolicy = job.run_snapshot["run_conflict_policy"]
     if not listIdle and strPolicy == RunConflictPolicy.SKIP:
         finish_job(job, "Skipped because all eligible targets are busy.")
-        return
+        return True
     if not listIdle and strPolicy == RunConflictPolicy.WAIT:
         strReason = (
             "Waiting for an eligible Executor to finish running or locally waiting work."
@@ -333,7 +340,8 @@ def _advance_job(
             job.reason = strReason
             job.retry_at = None
             job.save(update_fields=["state", "reason", "retry_at"])
-        return
+            return True
+        return False
     listReady = listIdle or listReady
     dictCandidatePosition = {
         entry.id: intIndex for intIndex, entry in enumerate(listCandidate)
@@ -368,6 +376,7 @@ def _advance_job(
     job.retry_at = None
     job.save(update_fields=["state", "reason", "retry_at"])
     notify_executor_control(executor.id)
+    return True
 
 
 @transaction.atomic
@@ -382,6 +391,8 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
     # Account, target and association writes take this organization lock; these lookups end at commit.
     dictSourceDepartmentIdsByActor: dict[uuid.UUID, set[uuid.UUID]] = {}
     dictSessionByExecutor: dict[uuid.UUID, ExecutorSession | None] = {}
+    # Notify each changed Job once after both phases of this dispatch batch.
+    setChangedJobId: set[uuid.UUID] = set()
     listAssignment = list(
         Assignment.objects.filter(
             job__request__organization=organization, state__in=ACTIVE_ASSIGNMENT_STATES
@@ -394,17 +405,19 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
         sessionsByExecutor=dictSessionByExecutor,
     )
     for assignment in listAssignment:
-        _update_assignment_state(
+        if _update_assignment_state(
             assignment,
             currentTime,
             control,
             sourceDepartmentIdsByActor=dictSourceDepartmentIdsByActor,
             session=dictAssignmentSession.get(assignment.executor_id),
-        )
+        ):
+            setChangedJobId.add(assignment.job_id)
     # Keep existing permissions and actual execution under review while new work is paused.
     try:
         require_service_normal()
     except ServiceMaintenanceError:
+        notify_jobs_changed(setChangedJobId)
         return
     # Updating assignments can return Jobs to Waiting; read the queue after those updates.
     listJob = list(
@@ -417,6 +430,7 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
         .order_by("priority_rank", "attempt_queued_at", "id")
     )
     if not listJob:
+        notify_jobs_changed(setChangedJobId)
         return
 
     dictCandidateByTarget: dict[
@@ -432,7 +446,7 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
         ).values_list("executor_id", "session_id")
     )
     for job in listJob:
-        _advance_job(
+        if _advance_job(
             job,
             currentTime,
             control,
@@ -441,7 +455,9 @@ def dispatch_organization(organizationId: uuid.UUID) -> None:
             sessionsByExecutor=dictSessionByExecutor,
             workByExecutor=dictWorkByExecutor,
             busyExecutorSessions=setBusyExecutorSession,
-        )
+        ):
+            setChangedJobId.add(job.pk)
+    notify_jobs_changed(setChangedJobId)
 
 
 def run_control_tick() -> None:
@@ -538,6 +554,7 @@ def issue_start_permit(session: ExecutorSession, assignmentId: uuid.UUID) -> Ass
             assignment.save(update_fields=["state", "reason"])
             finish_job(job, assignment.reason)
             notify_executor_control(assignment.executor_id)
+            notify_job_changed(job)
             return assignment
         if not boolStartPermitIssued and job.target_group_id:
             assignment.state = AssignmentState.WITHDRAWN
@@ -547,6 +564,7 @@ def issue_start_permit(session: ExecutorSession, assignmentId: uuid.UUID) -> Ass
             job.reason = assignment.reason
             job.save(update_fields=["state", "reason"])
             notify_executor_control(assignment.executor_id)
+            notify_job_changed(job)
             return assignment
         raise ValidationError(
             "Local work has priority; start permission is not available yet.",
@@ -569,4 +587,5 @@ def issue_start_permit(session: ExecutorSession, assignmentId: uuid.UUID) -> Ass
     job.state = JobState.STARTING
     job.save(update_fields=["state"])
     notify_executor_control(assignment.executor_id)
+    notify_job_changed(job)
     return assignment

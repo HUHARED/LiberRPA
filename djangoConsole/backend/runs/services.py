@@ -27,6 +27,7 @@ from .contracts import (
 )
 from .models import Job, ExecutorWorkState, Assignment, Run
 from .control_notifications import notify_executor_control
+from .browser_events import notify_job_changed, notify_jobs_changed
 
 STR_SOURCE_ACCESS_REVOKED_REASON = (
     "Permission to run this Job was revoked; no further attempts will be scheduled."
@@ -83,7 +84,7 @@ def finish_job(job: Job, reason: str, *, notify: bool = False) -> None:
 
 
 def mark_job_needs_review(job: Job, assignment: Assignment, *, reason: str) -> None:
-    """Notify only when this Job enters review, within the caller's state transaction."""
+    """Create a personal notification only when this Job enters review, within the caller's transaction."""
     if job.state == JobState.FINISHED or job.closed_at is not None:
         return
     boolStateChanged = job.state != JobState.NEEDS_REVIEW
@@ -96,10 +97,10 @@ def mark_job_needs_review(job: Job, assignment: Assignment, *, reason: str) -> N
         notify_job_needs_review(job, assignment)
 
 
-def revoke_job_source_access(job: Job, currentTime: datetime) -> None:
-    """Record lost run permission without claiming the Run stopped or assigning it a result."""
+def revoke_job_source_access(job: Job, currentTime: datetime) -> bool:
+    """Record lost run permission and return whether the Job changed, without inventing execution facts."""
     if job.state == JobState.FINISHED or job.source_access_revoked_at is not None:
-        return
+        return False
     job.source_access_revoked_at = currentTime
     job.retry_at = None
     job.reason = (
@@ -113,7 +114,7 @@ def revoke_job_source_access(job: Job, currentTime: datetime) -> None:
     ).first()
     if assignment is not None and assignment.state != AssignmentState.PREPARING:
         # An issued permit may already have produced a process; retain its evidence and active state.
-        return
+        return True
     if assignment is not None:
         assignment.state = AssignmentState.WITHDRAWN
         assignment.reason = STR_SOURCE_ACCESS_REVOKED_REASON
@@ -121,6 +122,7 @@ def revoke_job_source_access(job: Job, currentTime: datetime) -> None:
         assignment.save(update_fields=["state", "reason", "stop_requested_at"])
         notify_executor_control(assignment.executor_id)
     finish_job(job, STR_SOURCE_ACCESS_REVOKED_REASON, notify=True)
+    return True
 
 
 def recheck_job_source_access(userId: uuid.UUID, organizationId: uuid.UUID) -> None:
@@ -148,7 +150,8 @@ def recheck_job_source_access(userId: uuid.UUID, organizationId: uuid.UUID) -> N
         )
     currentTime = timezone.now()
     for job in jobQuery.select_related("request"):
-        revoke_job_source_access(job, currentTime)
+        if revoke_job_source_access(job, currentTime):
+            notify_job_changed(job)
 
 
 def update_jobs_for_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
@@ -161,11 +164,13 @@ def update_jobs_for_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
         )
     )
     currentTime = timezone.now()
+    setChangedJobId: set[uuid.UUID] = set()
     for assignment in Assignment.objects.filter(
         session_id__in=sessionIds, state__in=ACTIVE_ASSIGNMENT_STATES
     ).select_related("job__request"):
         setExecutorId.add(assignment.executor_id)
         job = assignment.job
+        setChangedJobId.add(job.pk)
         if assignment.state == AssignmentState.PREPARING:
             assignment.state = AssignmentState.WITHDRAWN
             assignment.reason = "The Executor connection used for this Job is no longer valid. The run did not start."
@@ -194,8 +199,10 @@ def update_jobs_for_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
             job,
             "The original Executor association was revoked; remaining work is canceled.",
         )
+        setChangedJobId.add(job.pk)
     for executorId in setExecutorId:
         notify_executor_control(executorId)
+    notify_jobs_changed(setChangedJobId)
 
 
 def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -> bool:
@@ -222,6 +229,7 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
             .distinct()
         ):
             notify_executor_control(executorId)
+        notify_job_changed(job)
         return True
     if run is not None and run.status != RunStatus.RUNNING:
         raise ValidationError("This Run is no longer running.", code="run_already_ended")
@@ -269,4 +277,5 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
             job.save(update_fields=["state", "reason"])
     if assignment is not None:
         notify_executor_control(assignment.executor_id)
+    notify_job_changed(job)
     return True

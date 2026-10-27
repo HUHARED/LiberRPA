@@ -38,6 +38,7 @@ from organizations.rate_limits import RequestBudget, check_request_budget, reque
 from .contracts import JobState, ClearLogsRequest
 from .models import Run, RunLog
 from .queries import get_visible_runs
+from .browser_events import notify_jobs_changed
 from .log_storage import (
     get_or_create_run_log_usage,
     clear_run_logs,
@@ -465,13 +466,14 @@ def clear_logs(request: HttpRequest) -> HttpResponse:
                     listClearableRun.append(run)
             if listClearableRun:
                 usage = get_or_create_run_log_usage(access.organization.id)
-                clear_run_logs(usage, listClearableRun, timezone.now())
+                setChangedJobId = clear_run_logs(usage, listClearableRun, timezone.now())
                 record_audit_batch(
                     AuditAction.RUN_CLEAR_LOGS,
                     actor=access.actor,
                     organization=access.organization,
                     targets=listClearableRun,
                 )
+                notify_jobs_changed(setChangedJobId)
             return JsonResponse({
                 "cleared": len(listClearableRun),
                 "skipped": listSkipped,

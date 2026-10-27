@@ -263,4 +263,6 @@ def delete_schedule(access: OrganizationAccessContext, schedule: Schedule) -> No
         organization=access.organization,
         target=schedule,
     )
+    jobQuery = Job.objects.filter(request__schedule_id=schedule.pk)
     schedule.delete()
+    notify_jobs_changed(jobQuery.values_list("id", flat=True))

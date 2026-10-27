@@ -10,7 +10,3 @@ from django.apps import AppConfig
 class RunsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "runs"
-
-    def ready(self) -> None:
-        # Register execution invalidations after every application's models are loaded.
-        from . import browser_events  # noqa: F401

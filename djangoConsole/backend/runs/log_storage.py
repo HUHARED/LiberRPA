@@ -25,10 +25,12 @@ def get_or_create_run_log_usage(organizationId: uuid.UUID) -> RunLogUsage:
     return usage
 
 
-def clear_run_logs(usage: RunLogUsage, runs: Sequence[Run], clearedAt: datetime) -> None:
-    """Clear trusted Run groups and their counters in the same organization transaction."""
+def clear_run_logs(
+    usage: RunLogUsage, runs: Sequence[Run], clearedAt: datetime
+) -> set[uuid.UUID]:
+    """Clear trusted Run groups and return affected Job IDs within the caller's transaction."""
     if not runs:
-        return
+        return set()
     listRunId = [run.pk for run in runs]
     intBytes = sum(run.log_bytes for run in runs)
     intGroups = sum(run.log_bytes > 0 for run in runs)
@@ -41,7 +43,7 @@ def clear_run_logs(usage: RunLogUsage, runs: Sequence[Run], clearedAt: datetime)
     for run in runs:
         run.log_bytes = 0
         run.logs_cleared_at = clearedAt
-    notify_jobs_changed(run.job_id for run in runs)
+    return {run.job_id for run in runs}
 
 
 def get_clearable_log_runs(organizationId: uuid.UUID) -> QuerySet[Run]:
@@ -92,7 +94,7 @@ def make_run_log_space(
             intRequiredBytes <= limits.maxRunLogBytesPerOrganization
             and intRequiredGroups <= limits.maxRunLogGroupsPerOrganization
         ):
-            clear_run_logs(usage, listRunToClear, timezone.now())
+            notify_jobs_changed(clear_run_logs(usage, listRunToClear, timezone.now()))
             return True
     return False
 
