@@ -24,10 +24,12 @@
           {{ requestError.message }}
         </v-alert>
 
-        <template v-if="asset">
+        <template v-if="deletionPreview">
           <p class="text-anywhere mb-4">
             Delete
-            <span class="text-highlight font-weight-bold">"{{ asset.path }}"?</span>
+            <span class="text-highlight font-weight-bold">
+              "{{ deletionPreview.path }}"?
+            </span>
             This permanently removes the asset and its value.
           </p>
 
@@ -36,7 +38,7 @@
             created remain unchanged. Check any references in your flow code as well.
           </v-alert>
 
-          <v-table v-if="asset.references?.length" class="mb-4">
+          <v-table v-if="deletionPreview.references.length" class="mb-4">
             <thead>
               <tr>
                 <th>Referenced By</th>
@@ -47,7 +49,7 @@
 
             <tbody>
               <tr
-                v-for="reference in asset.references"
+                v-for="reference in deletionPreview.references"
                 :key="`${reference.kind}:${reference.id}`">
                 <td>
                   <RouterLink
@@ -86,7 +88,7 @@
           variant="tonal"
           prepend-icon="mdi-refresh"
           :disabled="boolBusy"
-          @click="loadDetails">
+          @click="loadPreview">
           Retry
         </v-btn>
         <v-spacer />
@@ -95,7 +97,7 @@
           variant="tonal"
           prepend-icon="mdi-delete-outline"
           :loading="boolDeleting"
-          :disabled="boolBusy || !!requestError || !asset?.can_manage"
+          :disabled="boolBusy || !!requestError || !deletionPreview"
           @click="submitDelete">
           Delete
         </v-btn>
@@ -111,8 +113,8 @@ import { RouterLink } from "vue-router";
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { type ApiError, getApiError } from "@/api/errors";
-import { getAssetDetails, deleteAsset } from "@/api/assets";
-import type { AssetDetailsEntryResponse } from "@/api/generated/browserApi";
+import { getAssetDeletionPreview, deleteAsset } from "@/api/assets";
+import type { AssetDeletionPreviewResponse } from "@/api/generated/browserApi";
 
 import { revealFormFeedback } from "@/app/formFeedback";
 
@@ -122,21 +124,21 @@ const errorAlert = ref<{ $el: HTMLElement } | null>(null);
 const props = defineProps<{ assetId: string }>();
 const emit = defineEmits<{ close: []; deleted: [] }>();
 const sessionStore = useSessionStore();
-const asset = shallowRef<AssetDetailsEntryResponse | null>(null);
+const deletionPreview = shallowRef<AssetDeletionPreviewResponse | null>(null);
 const requestError = shallowRef<ApiError | null>(null);
 const boolLoading = ref(false);
 const boolDeleting = ref(false);
 const boolBusy = computed(() => boolLoading.value || boolDeleting.value);
 let boolAlive = true;
 
-async function loadDetails(): Promise<void> {
+async function loadPreview(): Promise<void> {
   if (boolBusy.value) return;
   boolLoading.value = true;
   requestError.value = null;
-  asset.value = null;
+  deletionPreview.value = null;
   try {
-    const response = await getAssetDetails(props.assetId);
-    if (boolAlive) asset.value = response.asset;
+    const response = await getAssetDeletionPreview(props.assetId);
+    if (boolAlive) deletionPreview.value = response;
   } catch (e) {
     if (!boolAlive) return;
     requestError.value = getApiError(e);
@@ -151,7 +153,7 @@ function closeDialog(): void {
 }
 
 async function submitDelete(): Promise<void> {
-  if (boolBusy.value || requestError.value || !asset.value?.can_manage) return;
+  if (boolBusy.value || requestError.value || !deletionPreview.value) return;
   boolDeleting.value = true;
   try {
     await deleteAsset(props.assetId);
@@ -160,7 +162,7 @@ async function submitDelete(): Promise<void> {
     if (!boolAlive) return;
     requestError.value = getApiError(e);
     if ([401, 403, 404].includes(requestError.value.statusCode)) {
-      asset.value = null;
+      deletionPreview.value = null;
       if (requestError.value.statusCode === 403) await sessionStore.refreshSession();
     }
   } finally {
@@ -172,7 +174,7 @@ async function submitDelete(): Promise<void> {
   }
 }
 
-onMounted(() => void loadDetails());
+onMounted(() => void loadPreview());
 
 onBeforeUnmount(() => {
   boolAlive = false;

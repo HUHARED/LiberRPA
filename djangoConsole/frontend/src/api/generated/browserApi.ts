@@ -247,6 +247,7 @@ export interface BrowserApiContracts {
   ApiKeyNotesRequest: ApiKeyNotesRequest;
   ApiKeyWriteResponse: ApiKeyWriteResponse;
   AssetCreationRequest: AssetCreationRequest;
+  AssetDeletionPreviewResponse: AssetDeletionPreviewResponse;
   AssetDeletionRequest: AssetDeletionRequest;
   AssetDetailsRequest: AssetDetailsRequest;
   AssetDetailsResponse: AssetDetailsResponse;
@@ -459,6 +460,16 @@ export interface AssetCreationRequest {
   notes?: string;
   value: JsonValue;
 }
+export interface AssetDeletionPreviewResponse {
+  path: string;
+  references: AssetReferenceResponse[];
+}
+export interface AssetReferenceResponse {
+  id: string;
+  kind: AssetReferenceKind;
+  name: string;
+  project_version?: string | null;
+}
 export interface AssetDeletionRequest {}
 export interface AssetDetailsRequest {
   name: string;
@@ -477,7 +488,6 @@ export interface AssetDetailsEntryResponse {
   name: string;
   notes: string;
   path: string;
-  references?: AssetReferenceResponse[];
   updated_at: string;
   value?:
     | {
@@ -493,12 +503,6 @@ export interface AssetDetailsEntryResponse {
 export interface AssetDepartmentResponse {
   id: string;
   path: string;
-}
-export interface AssetReferenceResponse {
-  id: string;
-  kind: AssetReferenceKind;
-  name: string;
-  project_version?: string | null;
 }
 export interface AssetListResponse {
   assets: AssetEntryResponse[];

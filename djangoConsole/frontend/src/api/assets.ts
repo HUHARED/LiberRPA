@@ -9,6 +9,7 @@ import type {
   AssetCreationRequest,
   AssetListResponse,
   AssetDetailsResponse,
+  AssetDeletionPreviewResponse,
   AssetUpdateRequest,
   MessageResponse,
 } from "./generated/browserApi";
@@ -83,6 +84,14 @@ export async function updateAsset(
     method: "POST",
     body: payload,
   });
+}
+
+export async function getAssetDeletionPreview(
+  assetId: string,
+): Promise<AssetDeletionPreviewResponse> {
+  return requestApi<AssetDeletionPreviewResponse>(
+    `/assets/${encodeURIComponent(assetId)}/deletion/`,
+  );
 }
 
 export async function deleteAsset(assetId: string): Promise<void> {

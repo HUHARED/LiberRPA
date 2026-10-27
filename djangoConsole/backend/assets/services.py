@@ -231,7 +231,7 @@ def save_asset_value(
 
 def delete_asset(access: OrganizationAccessContext, assetId: uuid.UUID) -> None:
     asset = get_asset_query(access, requiredRole=DepartmentRole.DEVELOPER).get(pk=assetId)
-    # The details response reports known bindings; confirmed deletion leaves their configuration unchanged.
+    # The deletion preview reports bindings as warnings; confirmed deletion leaves Package and Schedule configuration unchanged.
     record_audit(
         AuditAction.ASSET_DELETE,
         actor=access.actor,

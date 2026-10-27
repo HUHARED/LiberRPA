@@ -100,6 +100,15 @@ class AssetListResponse(PaginationResponse):
     assets: list[AssetEntryResponse]
 
 
+class AssetDetailsEntryResponse(AssetEntryResponse):
+    # Secret values are omitted from the payload, including both Credential fields.
+    value: JsonValue = None
+
+
+class AssetDetailsResponse(JsonResponsePayload):
+    asset: AssetDetailsEntryResponse
+
+
 class AssetReferenceKind(StrEnum):
     PACKAGE = "package"
     SCHEDULE = "schedule"
@@ -112,14 +121,9 @@ class AssetReferenceResponse(JsonResponsePayload):
     project_version: str | None = None
 
 
-class AssetDetailsEntryResponse(AssetEntryResponse):
-    # Secret values are omitted from the payload, including both Credential fields.
-    value: JsonValue = None
-    references: list[AssetReferenceResponse] = Field(default_factory=list)
-
-
-class AssetDetailsResponse(JsonResponsePayload):
-    asset: AssetDetailsEntryResponse
+class AssetDeletionPreviewResponse(JsonResponsePayload):
+    path: str
+    references: list[AssetReferenceResponse]
 
 
 class AssetRuntimeValueResponse(JsonResponsePayload):

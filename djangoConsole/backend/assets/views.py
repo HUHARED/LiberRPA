@@ -17,7 +17,7 @@ from django.db import DatabaseError, transaction
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_variables
-from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.http import require_http_methods
 from pydantic import ValidationError as ContractValidationError
 from pydantic_core import PydanticSerializationError
 
@@ -49,7 +49,12 @@ from .contracts import (
     AssetDeletionRequest,
 )
 from .models import Asset
-from .queries import get_asset_query, get_asset_list, build_asset_details
+from .queries import (
+    get_asset_query,
+    get_asset_list,
+    build_asset_details,
+    get_asset_deletion_preview,
+)
 from .services import (
     SecretStorageUnavailableError,
     create_asset,
@@ -227,11 +232,15 @@ def get_or_update_asset(
         return JsonResponse({})
 
 
-@require_POST
+@require_http_methods(["GET", "POST"])
 @_session_asset_view
-def delete_asset_view(
+def get_or_delete_asset(
     request: HttpRequest, membership: Membership, assetId: uuid.UUID
 ) -> HttpResponse:
+    if request.method == "GET":
+        access = build_organization_access(membership, channel=AccessChannel.SESSION)
+        return _build_asset_response(get_asset_deletion_preview(access, assetId))
+
     payload = parse_json_request(request, AssetDeletionRequest)
     if isinstance(payload, JsonResponse):
         return payload

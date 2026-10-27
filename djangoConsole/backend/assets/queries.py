@@ -26,10 +26,11 @@ from .contracts import (
     SECRET_ASSET_TYPES,
     AssetEntryResponse,
     AssetListResponse,
-    AssetReferenceKind,
-    AssetReferenceResponse,
     AssetDetailsEntryResponse,
     AssetDetailsResponse,
+    AssetReferenceKind,
+    AssetReferenceResponse,
+    AssetDeletionPreviewResponse,
 )
 from .models import Asset
 
@@ -106,54 +107,6 @@ def get_asset_list(
     )
 
 
-def get_asset_references(
-    asset: Asset, access: OrganizationAccessContext
-) -> list[AssetReferenceResponse]:
-    """Report visible saved bindings only; arbitrary Flow code is not inspected."""
-    from packages.models import Package
-    from schedules.models import Schedule
-
-    if asset.asset_type in SECRET_ASSET_TYPES:
-        return []
-    departments = get_authorized_departments(
-        access, requiredRole=DepartmentRole.OPERATOR
-    ).filter(pk=asset.department_id)
-    listReference = []
-    listSource = [
-        (
-            AssetReferenceKind.PACKAGE,
-            Package.objects.filter(department__in=departments).values(
-                "id", "project_name", "project_version", "custom_arg_assets"
-            ),
-        ),
-        (
-            AssetReferenceKind.SCHEDULE,
-            Schedule.objects.filter(department__in=departments).values(
-                "id", "name", "custom_arg_assets"
-            ),
-        ),
-    ]
-    for kind, rows in listSource:
-        for row in rows:
-            if any(
-                binding is not None
-                and binding["asset_type"] == asset.asset_type
-                and get_path_name_key(binding["name"]) == asset.name_key
-                for binding in (row["custom_arg_assets"] or [])
-            ):
-                listReference.append(
-                    AssetReferenceResponse(
-                        kind=kind,
-                        id=row["id"],
-                        name=row["project_name"]
-                        if kind == AssetReferenceKind.PACKAGE
-                        else row["name"],
-                        project_version=row.get("project_version"),
-                    )
-                )
-    return listReference
-
-
 def build_asset_details(
     asset: Asset, access: OrganizationAccessContext
 ) -> AssetDetailsResponse:
@@ -180,10 +133,66 @@ def build_asset_details(
         "can_edit_value": boolCanManage if boolSecret else True,
         "created_at": asset.created_at,
         "updated_at": asset.updated_at,
-        "references": get_asset_references(asset, access),
     }
     if not boolSecret:
         dictPayload["value"] = json.loads(asset.value_json)
     return AssetDetailsResponse(
         asset=AssetDetailsEntryResponse.model_validate(dictPayload)
     )
+
+
+def get_asset_deletion_preview(
+    access: OrganizationAccessContext, assetId: uuid.UUID
+) -> AssetDeletionPreviewResponse:
+    """Read the path and visible saved bindings; arbitrary Flow code is not inspected."""
+    from packages.models import Package
+    from schedules.models import Schedule
+
+    asset = (
+        get_asset_query(access, requiredRole=DepartmentRole.DEVELOPER)
+        .only("department_id", "name", "name_key", "asset_type")
+        .get(pk=assetId)
+    )
+    departmentsById = get_department_tree(access.organization.pk)
+    strDepartmentPath = get_department_path(
+        departmentsById[asset.department_id], departmentsById
+    )
+    deletionPreview = AssetDeletionPreviewResponse(
+        path=f"/{strDepartmentPath}/{asset.name}", references=[]
+    )
+    if asset.asset_type in SECRET_ASSET_TYPES:
+        return deletionPreview
+
+    listSource = [
+        (
+            AssetReferenceKind.PACKAGE,
+            Package.objects.filter(department_id=asset.department_id).values(
+                "id", "project_name", "project_version", "custom_arg_assets"
+            ),
+        ),
+        (
+            AssetReferenceKind.SCHEDULE,
+            Schedule.objects.filter(department_id=asset.department_id).values(
+                "id", "name", "custom_arg_assets"
+            ),
+        ),
+    ]
+    for kind, rows in listSource:
+        for row in rows:
+            if any(
+                binding is not None
+                and binding["asset_type"] == asset.asset_type
+                and get_path_name_key(binding["name"]) == asset.name_key
+                for binding in (row["custom_arg_assets"] or [])
+            ):
+                deletionPreview.references.append(
+                    AssetReferenceResponse(
+                        kind=kind,
+                        id=row["id"],
+                        name=row["project_name"]
+                        if kind == AssetReferenceKind.PACKAGE
+                        else row["name"],
+                        project_version=row.get("project_version"),
+                    )
+                )
+    return deletionPreview

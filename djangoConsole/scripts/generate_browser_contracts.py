@@ -89,6 +89,7 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (assetContracts.AssetDeletionRequest, "validation"),
     (assetContracts.AssetListResponse, "serialization"),
     (assetContracts.AssetDetailsResponse, "serialization"),
+    (assetContracts.AssetDeletionPreviewResponse, "serialization"),
     # Data queues.
     (queueContracts.QueueDetailsRequest, "validation"),
     (queueContracts.QueueCreationRequest, "validation"),
