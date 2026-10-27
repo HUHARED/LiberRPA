@@ -184,7 +184,6 @@ class AuditRecordResponse(JsonResponsePayload):
     actor_id: UUID | None
     actor_name: str
     channel: AuditChannel = Field(strict=False)
-    module: str
     action: AuditAction = Field(strict=False)
     object_type: str
     object_id: str

@@ -226,7 +226,6 @@ class AuditRecord(models.Model):
         editable=False,
     )
     request_id = models.UUIDField(null=True, editable=False)
-    module = models.CharField(max_length=32, editable=False)
     action = models.CharField(max_length=64, choices=AuditAction, editable=False)
     object_type = models.CharField(max_length=64, editable=False)
     object_id = models.CharField(max_length=64, blank=True, editable=False)

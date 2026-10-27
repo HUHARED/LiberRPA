@@ -139,7 +139,6 @@ def record_failed_request(request: HttpRequest, response: HttpResponseBase) -> N
                 actor_name=str(membership.user),
                 channel=AuditChannel.SESSION,
                 request_id=get_request_id(),
-                module=strModule,
                 action=auditAction,
                 object_type=strObjectType,
                 object_id=strObjectId,

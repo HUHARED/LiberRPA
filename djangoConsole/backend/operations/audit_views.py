@@ -144,7 +144,6 @@ def _build_record_payload(record: AuditRecord) -> dict[str, object]:
         "actor_id": record.actor_id,
         "actor_name": record.actor_name if record.actor_id is not None else "System",
         "channel": record.channel,
-        "module": record.module,
         "action": record.action,
         "object_type": record.object_type,
         "object_id": record.object_id,

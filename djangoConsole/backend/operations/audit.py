@@ -206,7 +206,6 @@ def _build_audit_record(
         actor_name=str(actor) if actor is not None else "System",
         channel=AuditChannel.SYSTEM if actor is None else channel,
         request_id=get_request_id(),
-        module=action.split(".")[0],
         action=action,
         object_type=target._meta.model_name,
         object_id=str(target.pk),

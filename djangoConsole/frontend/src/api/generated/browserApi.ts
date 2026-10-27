@@ -546,7 +546,6 @@ export interface AuditDetailsRecordResponse {
   details_omitted: boolean;
   http_status: number | null;
   id: string;
-  module: string;
   object_id: string;
   object_name: string;
   object_type: string;
@@ -589,7 +588,6 @@ export interface AuditRecordResponse {
   channel: AuditChannel;
   created_at: string;
   id: string;
-  module: string;
   object_id: string;
   object_name: string;
   object_type: string;
@@ -1569,7 +1567,6 @@ export interface PlatformAuditRecordResponse {
   channel: AuditChannel;
   created_at: string;
   id: string;
-  module: string;
   object_id: string;
   object_name: string;
   object_type: string;

@@ -53,7 +53,13 @@ def get_audit_list(
             organizationCondition |= Q(organization_id__isnull=True)
         auditQuery = auditQuery.filter(organizationCondition)
     if filters.modules:
-        auditQuery = auditQuery.filter(module__in=filters.modules)
+        auditQuery = auditQuery.filter(
+            action__in=[
+                action
+                for action in AuditAction
+                if action.split(".", 1)[0] in filters.modules
+            ]
+        )
     if filters.actions:
         auditQuery = auditQuery.filter(action__in=filters.actions)
     if filters.results:
@@ -83,14 +89,15 @@ def get_audit_filter_options(
         .order_by("actor_name", "actor_id")
         .values_list("actor_id", "actor_name")
     )
+    listAction = list(
+        auditQuery.order_by("action").values_list("action", flat=True).distinct()
+    )
     dictOptions: dict[str, object] = {
         "actors": [
             {"id": actorId, "name": strActorName if actorId is not None else "System"}
             for actorId, strActorName in actorQuery
         ],
-        "actions": list(
-            auditQuery.order_by("action").values_list("action", flat=True).distinct()
-        ),
+        "actions": listAction,
     }
 
     if platform:
@@ -112,7 +119,7 @@ def get_audit_filter_options(
             for organizationId, strOrganizationName in organizationQuery
         ]
     else:
-        dictOptions["modules"] = list(
-            auditQuery.order_by("module").values_list("module", flat=True).distinct()
-        )
+        dictOptions["modules"] = sorted({
+            action.split(".", 1)[0] for action in listAction
+        })
     return dictOptions

@@ -48,7 +48,9 @@
 
             <div>
               <dt class="text-caption text-medium-emphasis">Module</dt>
-              <dd>{{ formatAuditLabel(record.module) }}</dd>
+              <dd>
+                {{ formatAuditLabel(record.action.slice(0, record.action.indexOf("."))) }}
+              </dd>
             </div>
 
             <div>
