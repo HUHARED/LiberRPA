@@ -136,6 +136,12 @@ class RunEmailOutputValue(JsonRequest):
         return self
 
 
+class RunEmailRecipientAction(StrEnum):
+    NOTES = "notes"
+    DELETE = "delete"
+    RESEND = "resend"
+
+
 class RecipientCreationRequest(JsonRequest):
     email: str = Field(min_length=1, max_length=254)
     notes: str = Field(default="", max_length=2000)

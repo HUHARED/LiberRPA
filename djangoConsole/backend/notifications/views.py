@@ -43,9 +43,9 @@ def list_notifications(request: HttpRequest) -> JsonResponse:
     membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
-    with transaction.atomic():
-        access = lock_request_write_access(request, membership)
-        prune_notifications(access.actor.pk)
+    access = build_organization_access(membership, channel=AccessChannel.SESSION)
+    # Account-scoped retention cleanup does not need the organization write lock.
+    prune_notifications(access.actor.pk)
     query = Notification.objects.filter(
         user=access.actor, organization=access.organization
     ).order_by("-created_at", "-id")

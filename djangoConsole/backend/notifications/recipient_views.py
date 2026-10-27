@@ -30,6 +30,7 @@ from organizations.permissions import (
 from organizations.rate_limits import RequestBudget, request_budget
 
 from .contracts import (
+    RunEmailRecipientAction,
     RecipientCreationRequest,
     RecipientNotesRequest,
     EmptyRequest,
@@ -115,12 +116,12 @@ def list_or_create_recipients(request: HttpRequest) -> JsonResponse:
 @require_POST
 @handle_notification_errors
 def change_recipient(
-    request: HttpRequest, recipientId: uuid.UUID, action: str
+    request: HttpRequest, recipientId: uuid.UUID, action: RunEmailRecipientAction
 ) -> JsonResponse:
     membership = get_request_membership(request)
     if isinstance(membership, JsonResponse):
         return membership
-    if action == "notes":
+    if action == RunEmailRecipientAction.NOTES:
         form = parse_json_request(
             request, RecipientNotesRequest, maxBodyBytes=_INT_MAX_RECIPIENT_BODY_BYTES
         )
@@ -128,7 +129,7 @@ def change_recipient(
         form = parse_json_request(request, EmptyRequest)
     if isinstance(form, JsonResponse):
         return form
-    if action == "resend":
+    if action == RunEmailRecipientAction.RESEND:
         intRetry = apply_sensitive_action_rate_limit(
             request.META.get("REMOTE_ADDR", ""),
             actorId=str(membership.user_id),
@@ -149,11 +150,13 @@ def change_recipient(
                 raise ValidationError({"notes": "Notes cannot contain null characters."})
             recipient.notes = form.notes
             recipient.save(update_fields=["notes"])
-        elif action == "resend":
+            auditAction = AuditAction.RUN_EMAIL_RECIPIENT_NOTES
+        elif action == RunEmailRecipientAction.RESEND:
             resend_recipient_verification(
                 recipient, organizationName=access.organization.name
             )
-        else:
+            auditAction = AuditAction.RUN_EMAIL_RECIPIENT_RESEND
+        elif action == RunEmailRecipientAction.DELETE:
             listReference = get_recipient_references(recipient)
             if listReference:
                 return JsonResponse(
@@ -174,10 +177,10 @@ def change_recipient(
             )
             delete_recipient(recipient)
             return JsonResponse({"message": "Email address deleted."})
+        else:
+            raise ValidationError("Unsupported email recipient action.")
         record_audit(
-            AuditAction.RUN_EMAIL_RECIPIENT_NOTES
-            if isinstance(form, RecipientNotesRequest)
-            else AuditAction.RUN_EMAIL_RECIPIENT_RESEND,
+            auditAction,
             actor=access.actor,
             organization=access.organization,
             target=recipient,
