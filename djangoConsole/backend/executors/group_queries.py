@@ -6,8 +6,6 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
 from collections import Counter
-from collections.abc import Sequence
-from dataclasses import dataclass
 
 from django.core.paginator import Paginator
 from django.db.models import QuerySet
@@ -21,35 +19,24 @@ from organizations.permissions import (
     OrganizationAccessContext,
     get_authorized_departments,
 )
+from schedules.models import Schedule
 
-from .contracts import ExecutorAssociationStatus
+from .contracts import (
+    ExecutorAssociationStatus,
+    ExecutorDepartmentResponse,
+    ExecutorScheduleReferenceResponse,
+    ExecutorGroupListEntryResponse,
+    ExecutorGroupListResponse,
+    ExecutorGroupDetailsEntryResponse,
+    ExecutorGroupDetailsResponse,
+)
 from .models import Executor, ExecutorGroup, ExecutorGroupMember
-from .queries import ExecutorInfo, get_executor_read_context, build_executor_info_list
+from .queries import (
+    build_executor_list_entry,
+    get_executor_read_context,
+    build_executor_info_list,
+)
 from .session_state import get_executor_association_status
-
-
-@dataclass(frozen=True)
-class ExecutorGroupInfo:
-    group: ExecutorGroup
-    departmentPath: str
-    canManage: bool
-    memberCount: int
-    onlineCount: int
-
-
-@dataclass(frozen=True)
-class ExecutorGroupPageInfo:
-    groups: tuple[ExecutorGroupInfo, ...]
-    page: int
-    pageSize: int
-    totalCount: int
-    totalPages: int
-
-
-@dataclass(frozen=True)
-class ExecutorGroupDetails:
-    info: ExecutorGroupInfo
-    members: tuple[ExecutorInfo, ...]
 
 
 def _get_group_query(access: OrganizationAccessContext) -> QuerySet[ExecutorGroup]:
@@ -60,69 +47,76 @@ def _get_group_query(access: OrganizationAccessContext) -> QuerySet[ExecutorGrou
     ).select_related("department")
 
 
-def _get_group_info_list(
-    groups: Sequence[ExecutorGroup], access: OrganizationAccessContext
-) -> tuple[ExecutorGroupInfo, ...]:
-    if not groups:
-        return ()
-    currentTime = timezone.now()
-    memberships = list(
-        ExecutorGroupMember.objects.filter(
-            group_id__in=[group.id for group in groups], executor__deleted_at__isnull=True
-        ).values_list("group_id", "executor_id")
-    )
-    context = get_executor_read_context(
-        access,
-        executorIds={executorId for _, executorId in memberships},
-        currentTime=currentTime,
-    )
-    onlineExecutorIds = {
-        executorId
-        for executorId, session in context.sessionsByExecutorId.items()
-        if get_executor_association_status(session, currentTime=currentTime)
-        == ExecutorAssociationStatus.ONLINE
-    }
-    memberCounts: Counter[uuid.UUID] = Counter()
-    onlineCounts: Counter[uuid.UUID] = Counter()
-    for groupId, executorId in memberships:
-        memberCounts[groupId] += 1
-        if executorId in onlineExecutorIds:
-            onlineCounts[groupId] += 1
-    return tuple(
-        ExecutorGroupInfo(
-            group=group,
-            departmentPath=get_department_path(
-                context.departmentsById[group.department_id], context.departmentsById
-            ),
-            canManage=group.department_id in context.managedDepartmentIds,
-            memberCount=memberCounts[group.id],
-            onlineCount=onlineCounts[group.id],
-        )
-        for group in groups
-        if group.department_id in context.departmentsById
-    )
-
-
 def get_executor_group_list(
     *,
     access: OrganizationAccessContext,
     pageNumber: int = 1,
     departmentIds: tuple[uuid.UUID, ...] = (),
     name: str = "",
-) -> ExecutorGroupPageInfo:
-    groups = _get_group_query(access)
+) -> ExecutorGroupListResponse:
+    groupQuery = _get_group_query(access)
     if departmentIds:
-        groups = groups.filter(department_id__in=departmentIds)
+        groupQuery = groupQuery.filter(department_id__in=departmentIds)
     if name:
-        groups = groups.filter(name__icontains=name)
-    paginator = Paginator(groups.order_by(Lower("name"), "id"), INT_LIST_PAGE_SIZE)
+        groupQuery = groupQuery.filter(name__icontains=name)
+    paginator = Paginator(groupQuery.order_by(Lower("name"), "id"), INT_LIST_PAGE_SIZE)
     groupPage = paginator.page(pageNumber)
-    return ExecutorGroupPageInfo(
-        groups=_get_group_info_list(list(groupPage.object_list), access),
+    groups = list(groupPage.object_list)
+    groupEntries: list[ExecutorGroupListEntryResponse] = []
+    if groups:
+        currentTime = timezone.now()
+        memberships = list(
+            ExecutorGroupMember.objects.filter(
+                group_id__in=[group.id for group in groups],
+                executor__deleted_at__isnull=True,
+            ).values_list("group_id", "executor_id")
+        )
+        context = get_executor_read_context(
+            access,
+            executorIds={executorId for _, executorId in memberships},
+            currentTime=currentTime,
+        )
+        onlineExecutorIds = {
+            executorId
+            for executorId, session in context.sessionsByExecutorId.items()
+            if get_executor_association_status(session, currentTime=currentTime)
+            == ExecutorAssociationStatus.ONLINE
+        }
+        memberCounts: Counter[uuid.UUID] = Counter()
+        onlineCounts: Counter[uuid.UUID] = Counter()
+        for groupId, executorId in memberships:
+            memberCounts[groupId] += 1
+            if executorId in onlineExecutorIds:
+                onlineCounts[groupId] += 1
+        groupEntries = [
+            ExecutorGroupListEntryResponse(
+                id=group.id,
+                name=group.name,
+                department_id=group.department_id,
+                notes=group.notes,
+                created_at=group.created_at,
+                department=ExecutorDepartmentResponse(
+                    id=group.department_id,
+                    name=group.department.name,
+                    path=get_department_path(
+                        context.departmentsById[group.department_id],
+                        context.departmentsById,
+                    ),
+                ),
+                can_manage=group.department_id in context.managedDepartmentIds,
+                member_count=memberCounts[group.id],
+                online_count=onlineCounts[group.id],
+                is_empty=memberCounts[group.id] == 0,
+            )
+            for group in groups
+            if group.department_id in context.departmentsById
+        ]
+    return ExecutorGroupListResponse(
+        executor_groups=groupEntries,
         page=groupPage.number,
-        pageSize=INT_LIST_PAGE_SIZE,
-        totalCount=paginator.count,
-        totalPages=paginator.num_pages,
+        page_size=INT_LIST_PAGE_SIZE,
+        total_count=paginator.count,
+        total_pages=paginator.num_pages,
     )
 
 
@@ -130,7 +124,7 @@ def get_executor_group_details(
     *,
     access: OrganizationAccessContext,
     groupId: uuid.UUID,
-) -> ExecutorGroupDetails:
+) -> ExecutorGroupDetailsResponse:
     currentTime = timezone.now()
     group = _get_group_query(access).get(pk=groupId)
     members = list(
@@ -152,19 +146,41 @@ def get_executor_group_details(
         raise ExecutorGroup.DoesNotExist
     memberInfoEntries = build_executor_info_list(members, context)
     # NOTE: Count the same statuses returned for members; serialization must not observe a later time.
-    info = ExecutorGroupInfo(
-        group=group,
-        departmentPath=get_department_path(
-            context.departmentsById[group.department_id], context.departmentsById
-        ),
-        canManage=group.department_id in context.managedDepartmentIds,
-        memberCount=len(memberInfoEntries),
-        onlineCount=sum(
-            member.associationStatus == ExecutorAssociationStatus.ONLINE
-            for member in memberInfoEntries
-        ),
+    return ExecutorGroupDetailsResponse(
+        executor_group=ExecutorGroupDetailsEntryResponse(
+            id=group.id,
+            name=group.name,
+            department_id=group.department_id,
+            notes=group.notes,
+            created_at=group.created_at,
+            department=ExecutorDepartmentResponse(
+                id=group.department_id,
+                name=group.department.name,
+                path=get_department_path(
+                    context.departmentsById[group.department_id], context.departmentsById
+                ),
+            ),
+            can_manage=group.department_id in context.managedDepartmentIds,
+            member_count=len(memberInfoEntries),
+            online_count=sum(
+                member.associationStatus == ExecutorAssociationStatus.ONLINE
+                for member in memberInfoEntries
+            ),
+            is_empty=not memberInfoEntries,
+            members=[build_executor_list_entry(member) for member in memberInfoEntries],
+            referencing_schedules=[
+                ExecutorScheduleReferenceResponse(
+                    id=schedule.id, name=schedule.name, enabled=schedule.enabled
+                )
+                for schedule in (
+                    Schedule.objects
+                    .filter(group_id=groupId)
+                    .only("id", "name", "enabled")
+                    .order_by("name", "id")
+                )
+            ],
+        )
     )
-    return ExecutorGroupDetails(info, memberInfoEntries)
 
 
 def get_executor_group_references(executor: Executor) -> tuple[ExecutorGroup, ...]:

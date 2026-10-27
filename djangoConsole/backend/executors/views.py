@@ -42,17 +42,15 @@ from .contracts import (
     ExecutorDispatchRequest,
     ExecutorUnassociateRequest,
     ExecutorUpdateResponse,
-    ExecutorListResponse,
+    ExecutorDetailsEntryResponse,
     ExecutorDetailsResponse,
 )
 from .group_queries import get_executor_group_references
-from .payloads import (
-    build_executor_payload,
-    build_executor_info_payload,
-    build_executor_work_payload,
-)
+from .payloads import build_executor_work_payload
 from .models import Executor
 from .queries import (
+    build_executor_payload,
+    build_executor_info_payload,
     get_executor_list,
     get_run_target_options,
     get_executor_details,
@@ -226,22 +224,11 @@ def list_or_create_executors(request: HttpRequest) -> JsonResponse:
         if isinstance(listParametersResult, JsonResponse):
             return listParametersResult
         access = build_organization_access(membership, channel=AccessChannel.SESSION)
-        executorPage = get_executor_list(
+        response = get_executor_list(
             access,
             **listParametersResult,
         )
-        dictListPayload = {
-            "executors": [
-                build_executor_info_payload(entry) for entry in executorPage.executors
-            ],
-            "page": executorPage.page,
-            "page_size": executorPage.pageSize,
-            "total_count": executorPage.totalCount,
-            "total_pages": executorPage.totalPages,
-        }
-        return JsonResponse(
-            ExecutorListResponse.model_validate(dictListPayload).model_dump(mode="python")
-        )
+        return JsonResponse(response.model_dump(mode="python"))
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)
 
@@ -283,8 +270,8 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
             return build_error_response(
                 "invalid_page", "Send one positive integer page number.", statusCode=400
             )
-        dictDetailsPayload = {
-            "executor": {
+        response = ExecutorDetailsResponse(
+            executor=ExecutorDetailsEntryResponse.model_validate({
                 **build_executor_info_payload(details),
                 **build_executor_work_payload(details),
                 "preparation": get_executor_preparation_page(
@@ -303,13 +290,9 @@ def get_or_update_executor(request: HttpRequest, executorId: uuid.UUID) -> JsonR
                     .order_by("name", "id")
                     .values("id", "name", "enabled")
                 ),
-            }
-        }
-        return JsonResponse(
-            ExecutorDetailsResponse.model_validate(dictDetailsPayload).model_dump(
-                mode="python"
-            )
+            })
         )
+        return JsonResponse(response.model_dump(mode="python"))
     except _HANDLED_ERRORS as e:
         return _build_executor_error_response(e)
 

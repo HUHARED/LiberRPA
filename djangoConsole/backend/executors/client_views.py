@@ -226,21 +226,21 @@ def process_executor_client_request(
                 dictSessionPayload.update({
                     "executors": [
                         {
-                            "id": entry.executor.id,
-                            "name": entry.executor.name,
+                            "id": entry.id,
+                            "name": entry.name,
                             "department": {
-                                "id": entry.executor.department_id,
-                                "name": entry.executor.department.name,
-                                "path": entry.departmentPath,
+                                "id": entry.department.id,
+                                "name": entry.department.name,
+                                "path": entry.department.path,
                             },
-                            "dispatch_enabled": entry.executor.dispatch_enabled,
+                            "dispatch_enabled": entry.dispatch_enabled,
                         }
                         for entry in page.executors
                     ],
                     "page": page.page,
-                    "page_size": page.pageSize,
-                    "total_count": page.totalCount,
-                    "total_pages": page.totalPages,
+                    "page_size": page.page_size,
+                    "total_count": page.total_count,
+                    "total_pages": page.total_pages,
                 })
             return JsonResponse(dictSessionPayload)
     except _HANDLED_CLIENT_ERRORS as e:

@@ -35,8 +35,9 @@ from organizations.permissions import (
     get_authorized_departments,
 )
 
+from .contracts import ExecutorListResponse
 from .models import Executor, ExecutorSession
-from .queries import ExecutorPageInfo, get_executor_list
+from .queries import get_executor_list
 from .session_state import (
     get_executor_sessions,
     is_executor_session_current,
@@ -71,7 +72,7 @@ class ExecutorLoginResult:
 class ExecutorClientResult:
     session: ExecutorSession
     access: OrganizationAccessContext
-    choices: ExecutorPageInfo | None = None
+    choices: ExecutorListResponse | None = None
 
 
 @dataclass(frozen=True)

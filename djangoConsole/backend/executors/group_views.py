@@ -33,18 +33,16 @@ from organizations.http import (
 )
 from organizations.models import Department
 from organizations.permissions import AccessChannel, build_organization_access
-from schedules.models import Schedule
 
 from .contracts import (
     ExecutorGroupUpdateRequest,
     ExecutorGroupCreationRequest,
     ExecutorGroupDeletionRequest,
-    ExecutorGroupListResponse,
-    ExecutorGroupDetailsResponse,
+    ExecutorGroupWriteEntryResponse,
+    ExecutorGroupWarningResponse,
     ExecutorGroupWriteResponse,
 )
 from .group_queries import (
-    ExecutorGroupInfo,
     get_executor_group_list,
     get_executor_group_details,
 )
@@ -53,9 +51,6 @@ from .group_services import (
     create_executor_group,
     update_executor_group,
     delete_executor_group,
-)
-from .payloads import (
-    build_executor_info_payload,
 )
 from .models import ExecutorGroup
 
@@ -75,48 +70,30 @@ _HANDLED_GROUP_ERRORS = (
 )
 
 
-def _build_group_payload(group: ExecutorGroup) -> dict[str, object]:
-    return {
-        "id": group.id,
-        "name": group.name,
-        "department_id": group.department_id,
-        "notes": group.notes,
-        "created_at": group.created_at,
-    }
-
-
-def _build_group_info_payload(info: ExecutorGroupInfo) -> dict[str, object]:
-    return {
-        **_build_group_payload(info.group),
-        "department": {
-            "id": info.group.department_id,
-            "name": info.group.department.name,
-            "path": info.departmentPath,
-        },
-        "can_manage": info.canManage,
-        "member_count": info.memberCount,
-        "online_count": info.onlineCount,
-        "is_empty": info.memberCount == 0,
-    }
-
-
-def _build_group_write_payload(result: ExecutorGroupWriteResult) -> dict[str, object]:
-    return {
-        "executor_group": {
-            **_build_group_payload(result.group),
-            "executor_ids": list(result.executorIds),
-            "member_count": len(result.executorIds),
-            "is_empty": not result.executorIds,
-        },
-        "warnings": []
+def _build_group_write_response(
+    result: ExecutorGroupWriteResult,
+) -> ExecutorGroupWriteResponse:
+    group = result.group
+    return ExecutorGroupWriteResponse(
+        executor_group=ExecutorGroupWriteEntryResponse(
+            id=group.id,
+            name=group.name,
+            department_id=group.department_id,
+            notes=group.notes,
+            created_at=group.created_at,
+            executor_ids=list(result.executorIds),
+            member_count=len(result.executorIds),
+            is_empty=not result.executorIds,
+        ),
+        warnings=[]
         if result.executorIds
         else [
-            {
-                "code": "empty_executor_group",
-                "message": "This group has no members. Add Executors before using it for execution.",
-            }
+            ExecutorGroupWarningResponse(
+                code="empty_executor_group",
+                message="This group has no members. Add Executors before using it for execution.",
+            )
         ],
-    }
+    )
 
 
 def _build_group_error_response(e: Exception) -> JsonResponse:
@@ -212,30 +189,17 @@ def list_or_create_executor_groups(request: HttpRequest) -> JsonResponse:
                     executorIds=tuple(groupRequest.executor_ids),
                 )
                 return JsonResponse(
-                    ExecutorGroupWriteResponse.model_validate(
-                        _build_group_write_payload(result)
-                    ).model_dump(mode="python"),
+                    _build_group_write_response(result).model_dump(mode="python"),
                     status=201,
                 )
         listParametersResult = _get_list_parameters(request)
         if isinstance(listParametersResult, JsonResponse):
             return listParametersResult
-        page = get_executor_group_list(
+        response = get_executor_group_list(
             access=build_organization_access(membership, channel=AccessChannel.SESSION),
             **listParametersResult,
         )
-        dictListPayload = {
-            "executor_groups": [_build_group_info_payload(info) for info in page.groups],
-            "page": page.page,
-            "page_size": page.pageSize,
-            "total_count": page.totalCount,
-            "total_pages": page.totalPages,
-        }
-        return JsonResponse(
-            ExecutorGroupListResponse.model_validate(dictListPayload).model_dump(
-                mode="python"
-            )
-        )
+        return JsonResponse(response.model_dump(mode="python"))
     except _HANDLED_GROUP_ERRORS as e:
         return _build_group_error_response(e)
 
@@ -268,33 +232,13 @@ def get_or_update_executor_group(
                     executorIds=tuple(groupRequest.executor_ids),
                 )
                 return JsonResponse(
-                    ExecutorGroupWriteResponse.model_validate(
-                        _build_group_write_payload(result)
-                    ).model_dump(mode="python")
+                    _build_group_write_response(result).model_dump(mode="python")
                 )
-        details = get_executor_group_details(
+        response = get_executor_group_details(
             access=build_organization_access(membership, channel=AccessChannel.SESSION),
             groupId=groupId,
         )
-        dictDetailsPayload = {
-            "executor_group": {
-                **_build_group_info_payload(details.info),
-                "members": [
-                    build_executor_info_payload(member) for member in details.members
-                ],
-                "referencing_schedules": list(
-                    Schedule.objects
-                    .filter(group_id=groupId)
-                    .order_by("name", "id")
-                    .values("id", "name", "enabled")
-                ),
-            }
-        }
-        return JsonResponse(
-            ExecutorGroupDetailsResponse.model_validate(dictDetailsPayload).model_dump(
-                mode="python"
-            )
-        )
+        return JsonResponse(response.model_dump(mode="python"))
     except _HANDLED_GROUP_ERRORS as e:
         return _build_group_error_response(e)
 
