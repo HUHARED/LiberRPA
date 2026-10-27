@@ -269,6 +269,7 @@ import { type ApiError, getApiError } from "@/api/errors";
 import { getExecutorGroupDetails, deleteExecutorGroup } from "@/api/executorGroups";
 import {
   INT_LIST_PAGE_SIZE,
+  DepartmentRole,
   type ExecutorGroupDetailsEntryResponse,
   type ExecutorGroupWriteResponse,
   type ExecutorGroupWarningResponse,
@@ -310,7 +311,8 @@ const boolBusy = computed(() => boolLoading.value || boolDeleting.value);
 
 const arrManagedDepartment = computed(() =>
   (sessionStore.access?.departments ?? []).filter(
-    (department) => sessionStore.access?.is_org_admin || department.role === "developer",
+    (department) =>
+      sessionStore.access?.is_org_admin || department.role === DepartmentRole.Developer,
   ),
 );
 

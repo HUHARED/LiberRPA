@@ -348,7 +348,10 @@ import RunEmailEditor from "@/components/runSettings/RunEmailEditor.vue";
 import TargetSelector from "@/components/runSettings/TargetSelector.vue";
 
 import { getPackageOptions, getPackageDetails } from "@/api/packages";
-import type { PackageOptionEntryResponse } from "@/api/generated/browserApi";
+import {
+  DepartmentRole,
+  type PackageOptionEntryResponse,
+} from "@/api/generated/browserApi";
 import {
   type ScheduleInfo,
   getSchedule,
@@ -380,7 +383,7 @@ const arrDepartment = computed(
       (department) =>
         !boolCanManage.value ||
         sessionStore.access?.is_org_admin ||
-        department.role === "developer",
+        department.role === DepartmentRole.Developer,
     ) ?? [],
 );
 

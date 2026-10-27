@@ -36,14 +36,15 @@
             size="small"
             variant="tonal"
             :color="
-              sessionStore.access.is_org_admin || departmentInfo.role === 'developer'
+              sessionStore.access.is_org_admin ||
+              departmentInfo.role === DepartmentRole.Developer
                 ? 'primary'
                 : undefined
             ">
             {{
               sessionStore.access.is_org_admin
                 ? "OrgAdmin"
-                : departmentInfo.role === "developer"
+                : departmentInfo.role === DepartmentRole.Developer
                   ? "Developer"
                   : "Operator"
             }}
@@ -60,6 +61,8 @@
 
 <script setup lang="ts">
 import { useSessionStore } from "@/stores/sessionStore";
+
+import { DepartmentRole } from "@/api/generated/browserApi";
 
 const sessionStore = useSessionStore();
 </script>

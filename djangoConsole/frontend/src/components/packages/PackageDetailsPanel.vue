@@ -441,6 +441,7 @@ import {
   type PackageReferenceResponse,
   PackageReferenceKind,
   PackagePreparationState,
+  DepartmentRole,
 } from "@/api/generated/browserApi";
 
 import { PACKAGE_PREPARATION_LABELS, PACKAGE_PREPARATION_COLORS } from "@/app/runLabels";
@@ -486,7 +487,8 @@ const boolCanRun = computed(
     sessionStore.access?.departments.some(
       (department) =>
         department.id === props.details.package.department_id &&
-        ["operator", "developer"].includes(department.role ?? ""),
+        (department.role === DepartmentRole.Operator ||
+          department.role === DepartmentRole.Developer),
     ),
 );
 

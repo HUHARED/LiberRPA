@@ -288,6 +288,7 @@ import {
 } from "@/api/assets";
 import {
   INT_LIST_PAGE_SIZE,
+  DepartmentRole,
   type AssetType,
   type AssetListResponse,
   type AssetDetailsEntryResponse,
@@ -330,7 +331,8 @@ const arrRouteDepartmentId = computed(() => {
 
 const boolCanCreate = computed(() =>
   (sessionStore.access?.departments ?? []).some(
-    (department) => sessionStore.access?.is_org_admin || department.role === "developer",
+    (department) =>
+      sessionStore.access?.is_org_admin || department.role === DepartmentRole.Developer,
   ),
 );
 

@@ -193,11 +193,12 @@ import {
   getProjectPackages,
   getPackageDetails,
 } from "@/api/packages";
-import type {
-  PackageDetailsResponse,
-  PackageResponse,
-  PackageProjectGroupListResponse,
-  ProjectPackageListResponse,
+import {
+  DepartmentRole,
+  type PackageDetailsResponse,
+  type PackageResponse,
+  type PackageProjectGroupListResponse,
+  type ProjectPackageListResponse,
 } from "@/api/generated/browserApi";
 import { getApiError } from "@/api/errors";
 
@@ -214,7 +215,9 @@ const route = useRoute();
 const boolCanCreate = computed(
   () =>
     sessionStore.access?.is_org_admin ||
-    sessionStore.access?.departments.some((department) => department.role === "developer"),
+    sessionStore.access?.departments.some(
+      (department) => department.role === DepartmentRole.Developer,
+    ),
 );
 
 const arrDepartmentId = computed(() => {

@@ -92,6 +92,7 @@ import {
   type PackageResponse,
   type PackageUploadResponse,
   PackageUploadState,
+  DepartmentRole,
 } from "@/api/generated/browserApi";
 
 import { formatFileSize } from "@/app/formatters";
@@ -108,7 +109,8 @@ const sessionStore = useSessionStore();
 const arrDepartment = computed(
   () =>
     sessionStore.access?.departments.filter(
-      (department) => sessionStore.access?.is_org_admin || department.role === "developer",
+      (department) =>
+        sessionStore.access?.is_org_admin || department.role === DepartmentRole.Developer,
     ) ?? [],
 );
 

@@ -6,7 +6,6 @@ import type {
   RunLogLevel,
   RunEmailSettingsResponse,
   RunSettingsResponse,
-  RunSnapshotResponse,
 } from "./generated/browserApi";
 import {
   ARR_CONFLICT_POLICY,
@@ -22,7 +21,6 @@ export type Priority = RunPriority;
 export type LogLevel = RunLogLevel;
 export type RunEmailConfig = RunEmailSettingsResponse;
 export type RunSettings = RunSettingsResponse;
-export type RunSnapshot = RunSnapshotResponse;
 export {
   ARR_CONFLICT_POLICY,
   ARR_PRIORITY,

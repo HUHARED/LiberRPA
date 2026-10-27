@@ -234,11 +234,12 @@ import {
   createAsset,
   updateAsset,
 } from "@/api/assets";
-import type {
-  AssetType,
-  AssetDetailsEntryResponse,
-  AssetCreationRequest,
-  AssetUpdateRequest,
+import {
+  DepartmentRole,
+  type AssetType,
+  type AssetDetailsEntryResponse,
+  type AssetCreationRequest,
+  type AssetUpdateRequest,
 } from "@/api/generated/browserApi";
 
 import { revealFormFeedback } from "@/app/formFeedback";
@@ -256,7 +257,8 @@ const sessionStore = useSessionStore();
 
 const arrManagedDepartment = computed(() =>
   (sessionStore.access?.departments ?? []).filter(
-    (department) => sessionStore.access?.is_org_admin || department.role === "developer",
+    (department) =>
+      sessionStore.access?.is_org_admin || department.role === DepartmentRole.Developer,
   ),
 );
 

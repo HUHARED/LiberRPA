@@ -378,6 +378,7 @@ import { type ApiError, getApiError } from "@/api/errors";
 import { type ExecutorListFilters, getExecutorList, createExecutor } from "@/api/executors";
 import {
   INT_LIST_PAGE_SIZE,
+  DepartmentRole,
   type ExecutorListResponse,
   type ExecutorRecordResponse,
 } from "@/api/generated/browserApi";
@@ -428,7 +429,8 @@ const strUpdatedAt = ref<string | null>(null);
 
 const arrCreationDepartment = computed(() =>
   (sessionStore.access?.departments ?? []).filter(
-    (department) => sessionStore.access?.is_org_admin || department.role === "developer",
+    (department) =>
+      sessionStore.access?.is_org_admin || department.role === DepartmentRole.Developer,
   ),
 );
 

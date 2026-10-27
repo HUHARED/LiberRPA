@@ -245,7 +245,7 @@ import {
   setScheduleEnabled,
 } from "@/api/schedules";
 import { type ApiError, getApiError } from "@/api/errors";
-import { INT_LIST_PAGE_SIZE } from "@/api/generated/browserApi";
+import { INT_LIST_PAGE_SIZE, DepartmentRole } from "@/api/generated/browserApi";
 
 import { CONFLICT_POLICY_LABELS } from "@/app/runLabels";
 
@@ -286,7 +286,9 @@ const arrRouteDepartmentId = computed(() => {
 const boolCanCreate = computed(
   () =>
     sessionStore.access?.is_org_admin ||
-    sessionStore.access?.departments.some((department) => department.role === "developer"),
+    sessionStore.access?.departments.some(
+      (department) => department.role === DepartmentRole.Developer,
+    ),
 );
 
 function emptyFilters(): ScheduleFilters {
@@ -321,8 +323,6 @@ function describeCron(value: string): string {
   }
 }
 
-// NOTE: Schedule filters cover all accessible departments.
-// The run form's target picker loads one department and target type at a time.
 async function loadTargets(): Promise<void> {
   const intRevision = ++intTargetRevision;
   boolTargetsLoading.value = true;

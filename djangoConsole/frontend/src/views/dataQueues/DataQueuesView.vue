@@ -219,6 +219,7 @@ import { type ApiError, getApiError } from "@/api/errors";
 import { getQueues } from "@/api/dataQueues";
 import {
   INT_LIST_PAGE_SIZE,
+  DepartmentRole,
   type QueueListResponse,
   type QueueEntryResponse,
   type QueueDetailsResponse,
@@ -241,7 +242,8 @@ const boolCanCreate = computed(
   () =>
     sessionStore.access?.business_available &&
     sessionStore.access.departments.some(
-      (department) => sessionStore.access?.is_org_admin || department.role === "developer",
+      (department) =>
+        sessionStore.access?.is_org_admin || department.role === DepartmentRole.Developer,
     ),
 );
 

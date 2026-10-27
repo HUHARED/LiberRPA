@@ -131,6 +131,8 @@ function changeType(): void {
   groupId.value = null;
 }
 
+// NOTE: Target options also display status and group counts from list responses.
+// Fetch every page because organization limits can exceed one page.
 async function loadTargets(): Promise<void> {
   const intCurrentRevision = ++intRevision;
   const strDepartmentId = props.departmentId;

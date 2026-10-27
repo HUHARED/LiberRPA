@@ -109,7 +109,11 @@ import { validatePathName } from "@/app/validators";
 
 import { getApiError, type ApiError } from "@/api/errors";
 import { saveQueue } from "@/api/dataQueues";
-import type { QueueEntryResponse, QueueDetailsResponse } from "@/api/generated/browserApi";
+import {
+  DepartmentRole,
+  type QueueEntryResponse,
+  type QueueDetailsResponse,
+} from "@/api/generated/browserApi";
 
 import { revealFormFeedback } from "@/app/formFeedback";
 
@@ -122,7 +126,8 @@ const sessionStore = useSessionStore();
 
 const departments = computed(() =>
   (sessionStore.access?.departments ?? []).filter(
-    (department) => sessionStore.access?.is_org_admin || department.role === "developer",
+    (department) =>
+      sessionStore.access?.is_org_admin || department.role === DepartmentRole.Developer,
   ),
 );
 

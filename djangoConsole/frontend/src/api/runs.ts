@@ -7,7 +7,6 @@ import { isRecord, isNonnegativeInteger, rejectInvalidResponse } from "./respons
 import {
   JobState,
   RunStatus,
-  OutputsStatus,
   type RunEventKind,
   type RunFileKind,
   type JobSource,
@@ -36,7 +35,6 @@ export type {
   RunStatus,
   JobSource,
   JobControlAction,
-  OutputsStatus,
   RecordingStatus,
   RunEventKind,
   RunFileKind,
@@ -54,7 +52,6 @@ export const ARR_ACTIVE_JOB_STATE = Object.values(JobState).filter(
   (state) => state !== JobState.Finished,
 );
 export const ARR_RUN_STATUS = Object.values(RunStatus);
-export const ARR_OUTPUTS_STATUS = Object.values(OutputsStatus);
 
 interface WorkFilters {
   departmentIds: string[];

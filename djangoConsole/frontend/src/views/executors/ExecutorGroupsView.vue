@@ -243,6 +243,7 @@ import { type ApiError, getApiError } from "@/api/errors";
 import { type ExecutorGroupListFilters, getExecutorGroupList } from "@/api/executorGroups";
 import {
   INT_LIST_PAGE_SIZE,
+  DepartmentRole,
   type ExecutorGroupListResponse,
   type ExecutorGroupWriteResponse,
 } from "@/api/generated/browserApi";
@@ -275,7 +276,8 @@ const strUpdatedAt = ref<string | null>(null);
 
 const arrCreationDepartment = computed(() =>
   (sessionStore.access?.departments ?? []).filter(
-    (department) => sessionStore.access?.is_org_admin || department.role === "developer",
+    (department) =>
+      sessionStore.access?.is_org_admin || department.role === DepartmentRole.Developer,
   ),
 );
 
