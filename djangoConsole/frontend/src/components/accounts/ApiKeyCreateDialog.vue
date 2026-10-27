@@ -111,10 +111,9 @@
             :disabled="boolSaving || boolUncertain" />
 
           <p>
-            API keys perform Operator actions within your current department access. Your
-            account can have up to
+            You can have up to
             <span class="font-weight-bold">{{ activeKeyLimit }}</span>
-            active keys.
+            active API keys.
           </p>
         </v-form>
       </v-card-text>

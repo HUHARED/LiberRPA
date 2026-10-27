@@ -448,8 +448,7 @@ async function spawnAndTrackRun(
             loggerMain.error(
               `Python process ${runId} exited unexpectedly with code ` +
                 String(intExitCode) +
-                `${strSignal === null ? "" : ` and signal ${strSignal}`}; ` +
-                `record Run History status 'interrupted' because the process lifecycle was not completed.`,
+                `${strSignal === null ? "" : ` and signal ${strSignal}`}.`,
             );
           }
           runStatus = RunStatus.Error;

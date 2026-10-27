@@ -290,10 +290,9 @@ async function submit(event: SubmitEventPromise): Promise<void> {
         result.offset <= intOffset ||
         result.offset > source.size
       )
-        throw new ApiError(
-          "The service returned an unexpected upload offset. Retry to check this upload.",
-          { code: "invalid_response" },
-        );
+        throw new ApiError("The service returned an invalid upload response.", {
+          code: "invalid_response",
+        });
       upload.value = result;
       floatProgress.value = (result.offset / source.size) * 100;
       if (boolCancelRequested.value) return;
