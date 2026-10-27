@@ -54,6 +54,7 @@ from .payloads import (
 from .models import Executor
 from .queries import (
     get_executor_list,
+    get_run_target_options,
     get_executor_details,
     get_executor_preparation_page,
 )
@@ -163,6 +164,31 @@ def _get_list_parameters(request: HttpRequest) -> ExecutorListParameters | JsonR
             "Use one positive page, one name, department UUIDs, and true/false dispatch values.",
             statusCode=400,
         )
+
+
+@never_cache
+@require_http_methods(["GET"])
+def list_run_target_options(request: HttpRequest) -> JsonResponse:
+    try:
+        membership = get_request_membership(request)
+        if isinstance(membership, JsonResponse):
+            return membership
+        try:
+            listDepartmentId = request.GET.getlist("department_id")
+            if set(request.GET) - {"department_id"} or len(listDepartmentId) > 1:
+                raise ValueError
+            departmentId = uuid.UUID(listDepartmentId[0]) if listDepartmentId else None
+        except ValueError:
+            return build_error_response(
+                "invalid_filter",
+                "Use at most one department UUID.",
+                statusCode=400,
+            )
+        access = build_organization_access(membership, channel=AccessChannel.SESSION)
+        response = get_run_target_options(access, departmentId=departmentId)
+        return JsonResponse(response.model_dump(mode="python"))
+    except _HANDLED_ERRORS as e:
+        return _build_executor_error_response(e)
 
 
 @never_cache

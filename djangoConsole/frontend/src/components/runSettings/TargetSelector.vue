@@ -93,13 +93,12 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, useId, watch } from "vue";
 
-import { getExecutorList } from "@/api/executors";
-import { getExecutorGroupList } from "@/api/executorGroups";
+import { getRunTargetOptions } from "@/api/executors";
 import { getApiError, getFieldErrors } from "@/api/errors";
 import {
   JobTargetType,
-  type ExecutorListEntryResponse,
-  type ExecutorGroupListEntryResponse,
+  type ExecutorTargetOptionResponse,
+  type ExecutorGroupTargetOptionResponse,
 } from "@/api/generated/browserApi";
 
 const props = defineProps<{
@@ -117,71 +116,30 @@ const strLabelId = useId();
 const strTargetType = ref<JobTargetType>(
   groupId.value ? JobTargetType.Group : JobTargetType.Executor,
 );
-const arrExecutor = ref<ExecutorListEntryResponse[]>([]);
-const arrGroup = ref<ExecutorGroupListEntryResponse[]>([]);
+const arrExecutor = ref<ExecutorTargetOptionResponse[]>([]);
+const arrGroup = ref<ExecutorGroupTargetOptionResponse[]>([]);
 const boolLoading = ref(false);
 const strError = ref("");
 let intRevision = 0;
-let strLoadedDepartmentId = "";
-let boolExecutorsLoaded = false;
-let boolGroupsLoaded = false;
 
 function changeType(): void {
   executorIds.value = [];
   groupId.value = null;
 }
 
-// NOTE: Target options also display status and group counts from list responses.
-// Fetch every page because organization limits can exceed one page.
 async function loadTargets(): Promise<void> {
   const intCurrentRevision = ++intRevision;
   const strDepartmentId = props.departmentId;
-  const strRequestedType = strTargetType.value;
-  if (strLoadedDepartmentId !== strDepartmentId) {
-    strLoadedDepartmentId = strDepartmentId;
-    arrExecutor.value = [];
-    arrGroup.value = [];
-    boolExecutorsLoaded = false;
-    boolGroupsLoaded = false;
-  }
+  arrExecutor.value = [];
+  arrGroup.value = [];
   strError.value = "";
-  boolLoading.value = false;
-  if (
-    !strDepartmentId ||
-    (strRequestedType === JobTargetType.Executor ? boolExecutorsLoaded : boolGroupsLoaded)
-  )
-    return;
-  boolLoading.value = true;
+  boolLoading.value = !!strDepartmentId;
+  if (!strDepartmentId) return;
   try {
-    let intPage = 1;
-    let intTotalPages = 1;
-    if (strRequestedType === JobTargetType.Executor) {
-      const arrResult: ExecutorListEntryResponse[] = [];
-      do {
-        const result = await getExecutorList(
-          { name: "", departmentIds: [strDepartmentId], dispatchStates: [] },
-          intPage++,
-        );
-        if (intCurrentRevision !== intRevision) return;
-        arrResult.push(...result.executors);
-        intTotalPages = result.total_pages;
-      } while (intPage <= intTotalPages);
-      arrExecutor.value = arrResult;
-      boolExecutorsLoaded = true;
-    } else {
-      const arrResult: ExecutorGroupListEntryResponse[] = [];
-      do {
-        const result = await getExecutorGroupList(
-          { name: "", departmentIds: [strDepartmentId] },
-          intPage++,
-        );
-        if (intCurrentRevision !== intRevision) return;
-        arrResult.push(...result.executor_groups);
-        intTotalPages = result.total_pages;
-      } while (intPage <= intTotalPages);
-      arrGroup.value = arrResult;
-      boolGroupsLoaded = true;
-    }
+    const response = await getRunTargetOptions(strDepartmentId);
+    if (intCurrentRevision !== intRevision) return;
+    arrExecutor.value = response.executors;
+    arrGroup.value = response.executor_groups;
   } catch (e) {
     if (intRevision === intCurrentRevision) strError.value = getApiError(e).message;
   } finally {
@@ -198,9 +156,11 @@ watch(executorIds, (value) => {
   if (value.length) strTargetType.value = JobTargetType.Executor;
 });
 
-watch([() => props.departmentId, strTargetType], () => void loadTargets(), {
-  immediate: true,
-});
+watch(
+  () => props.departmentId,
+  () => void loadTargets(),
+  { immediate: true },
+);
 
 onBeforeUnmount(() => {
   intRevision++;

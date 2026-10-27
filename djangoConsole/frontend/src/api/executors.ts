@@ -12,6 +12,7 @@ import type {
   ExecutorUnassociateRequest,
   ExecutorUpdateRequest,
   ExecutorUpdateResponse,
+  RunTargetOptionsResponse,
 } from "./generated/browserApi";
 
 export interface ExecutorListFilters {
@@ -31,6 +32,15 @@ export async function getExecutorList(
   for (const boolDispatchEnabled of filters.dispatchStates)
     queryParameters.append("dispatch_enabled", String(boolDispatchEnabled));
   return requestApi<ExecutorListResponse>(`/executors/?${queryParameters}`);
+}
+
+export async function getRunTargetOptions(
+  departmentId?: string,
+): Promise<RunTargetOptionsResponse> {
+  const strQuery = departmentId
+    ? `?${new URLSearchParams({ department_id: departmentId })}`
+    : "";
+  return requestApi<RunTargetOptionsResponse>(`/run-target-options/${strQuery}`);
 }
 
 export async function getExecutorDetails(

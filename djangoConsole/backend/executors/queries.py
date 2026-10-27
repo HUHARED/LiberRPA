@@ -5,6 +5,7 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import uuid
+from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -30,8 +31,11 @@ from .contracts import (
     ExecutorAssociationStatus,
     ExecutorPreparationEntryResponse,
     ExecutorPreparationPageResponse,
+    ExecutorTargetOptionResponse,
+    ExecutorGroupTargetOptionResponse,
+    RunTargetOptionsResponse,
 )
-from .models import Executor, ExecutorSession
+from .models import Executor, ExecutorSession, ExecutorGroup, ExecutorGroupMember
 from .session_state import (
     get_executor_association_status,
     get_current_executor_sessions,
@@ -170,6 +174,83 @@ def get_executor_list(
         pageSize=INT_LIST_PAGE_SIZE,
         totalCount=paginator.count,
         totalPages=paginator.num_pages,
+    )
+
+
+def get_run_target_options(
+    access: OrganizationAccessContext, *, departmentId: uuid.UUID | None = None
+) -> RunTargetOptionsResponse:
+    """Return current visible targets with one shared observation of association status."""
+    departmentQuery = get_authorized_departments(
+        access, requiredRole=DepartmentRole.OPERATOR
+    )
+    if departmentId is not None:
+        departmentQuery = departmentQuery.filter(pk=departmentId)
+    # Capacity limits restrict creation; lowering them must not hide existing targets.
+    listExecutor = list(
+        Executor.objects
+        .filter(department__in=departmentQuery, deleted_at__isnull=True)
+        .only("id", "name", "department_id", "dispatch_enabled")
+        .order_by(Lower("name"), "id")
+    )
+    listGroup = list(
+        ExecutorGroup.objects
+        .filter(department__in=departmentQuery)
+        .only("id", "name", "department_id")
+        .order_by(Lower("name"), "id")
+    )
+    dictDepartmentById = get_department_tree(access.organization.id)
+    dictDepartmentPath = {
+        department.id: get_department_path(department, dictDepartmentById)
+        for department in dictDepartmentById.values()
+    }
+
+    currentTime = timezone.now()
+    dictSessionByExecutorId = get_current_executor_sessions(
+        access.organization.id,
+        executorIds=[executor.id for executor in listExecutor],
+        currentTime=currentTime,
+    )
+    dictAssociationStatus = {
+        executor.id: get_executor_association_status(
+            dictSessionByExecutorId.get(executor.id), currentTime=currentTime
+        )
+        for executor in listExecutor
+    }
+    dictMemberCount: Counter[uuid.UUID] = Counter()
+    dictOnlineCount: Counter[uuid.UUID] = Counter()
+    memberships = ExecutorGroupMember.objects.filter(
+        group_id__in=[group.id for group in listGroup],
+        executor_id__in=dictAssociationStatus,
+    ).values_list("group_id", "executor_id")
+    for groupId, executorId in memberships:
+        dictMemberCount[groupId] += 1
+        if dictAssociationStatus[executorId] == ExecutorAssociationStatus.ONLINE:
+            dictOnlineCount[groupId] += 1
+
+    return RunTargetOptionsResponse(
+        executors=[
+            ExecutorTargetOptionResponse(
+                id=executor.id,
+                name=executor.name,
+                department_path=dictDepartmentPath[executor.department_id],
+                association_status=dictAssociationStatus[executor.id],
+                dispatch_enabled=executor.dispatch_enabled,
+            )
+            for executor in listExecutor
+            if executor.department_id in dictDepartmentPath
+        ],
+        executor_groups=[
+            ExecutorGroupTargetOptionResponse(
+                id=group.id,
+                name=group.name,
+                department_path=dictDepartmentPath[group.department_id],
+                member_count=dictMemberCount[group.id],
+                online_count=dictOnlineCount[group.id],
+            )
+            for group in listGroup
+            if group.department_id in dictDepartmentPath
+        ],
     )
 
 

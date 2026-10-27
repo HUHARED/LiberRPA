@@ -179,3 +179,24 @@ class ExecutorGroupWarningResponse(JsonResponsePayload):
 class ExecutorGroupWriteResponse(JsonResponsePayload):
     executor_group: ExecutorGroupWriteEntryResponse
     warnings: list[ExecutorGroupWarningResponse]
+
+
+class ExecutorTargetOptionResponse(JsonResponsePayload):
+    id: UUID
+    name: str
+    department_path: str
+    association_status: ExecutorAssociationStatus
+    dispatch_enabled: bool
+
+
+class ExecutorGroupTargetOptionResponse(JsonResponsePayload):
+    id: UUID
+    name: str
+    department_path: str
+    member_count: int
+    online_count: int
+
+
+class RunTargetOptionsResponse(JsonResponsePayload):
+    executors: list[ExecutorTargetOptionResponse]
+    executor_groups: list[ExecutorGroupTargetOptionResponse]

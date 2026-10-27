@@ -231,8 +231,7 @@ import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from "vu
 import { useRoute, useRouter } from "vue-router";
 import cronstrue from "cronstrue";
 
-import { getExecutorList } from "@/api/executors";
-import { getExecutorGroupList } from "@/api/executorGroups";
+import { getRunTargetOptions } from "@/api/executors";
 
 import ScheduleFormDialog from "@/components/schedules/ScheduleFormDialog.vue";
 import ScheduleDeleteDialog from "@/components/schedules/ScheduleDeleteDialog.vue";
@@ -328,50 +327,18 @@ async function loadTargets(): Promise<void> {
   boolTargetsLoading.value = true;
   strTargetError.value = "";
   try {
-    const arrResult: { id: string; title: string }[] = [];
-    const arrPages = await Promise.all([
-      getExecutorList({ name: "", departmentIds: [], dispatchStates: [] }, 1),
-      getExecutorGroupList({ name: "", departmentIds: [] }, 1),
-    ]);
+    const response = await getRunTargetOptions();
     if (intRevision !== intTargetRevision) return;
-    const executorPage = arrPages[0];
-    const groupPage = arrPages[1];
-    arrResult.push(
-      ...executorPage.executors.map((entry) => ({
+    arrTarget.value = [
+      ...response.executors.map((entry) => ({
         id: entry.id,
-        title: `Executor: ${entry.name} (${entry.department.path})`,
+        title: `Executor: ${entry.name} (${entry.department_path})`,
       })),
-    );
-    arrResult.push(
-      ...groupPage.executor_groups.map((entry) => ({
+      ...response.executor_groups.map((entry) => ({
         id: entry.id,
-        title: `Group: ${entry.name} (${entry.department.path})`,
+        title: `Group: ${entry.name} (${entry.department_path})`,
       })),
-    );
-    for (let intPage = 2; intPage <= executorPage.total_pages; intPage++) {
-      const result = await getExecutorList(
-        { name: "", departmentIds: [], dispatchStates: [] },
-        intPage,
-      );
-      if (intRevision !== intTargetRevision) return;
-      arrResult.push(
-        ...result.executors.map((entry) => ({
-          id: entry.id,
-          title: `Executor: ${entry.name} (${entry.department.path})`,
-        })),
-      );
-    }
-    for (let intPage = 2; intPage <= groupPage.total_pages; intPage++) {
-      const result = await getExecutorGroupList({ name: "", departmentIds: [] }, intPage);
-      if (intRevision !== intTargetRevision) return;
-      arrResult.push(
-        ...result.executor_groups.map((entry) => ({
-          id: entry.id,
-          title: `Group: ${entry.name} (${entry.department.path})`,
-        })),
-      );
-    }
-    arrTarget.value = arrResult;
+    ];
   } catch (e) {
     if (intRevision === intTargetRevision) strTargetError.value = getApiError(e).message;
   } finally {

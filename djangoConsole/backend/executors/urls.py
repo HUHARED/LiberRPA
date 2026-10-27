@@ -17,6 +17,7 @@ from .group_views import (
     list_or_create_executor_groups,
 )
 from .views import (
+    list_run_target_options,
     list_or_create_executors,
     get_or_update_executor,
     change_executor_dispatch,
@@ -25,6 +26,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path("run-target-options/", list_run_target_options, name="run-target-options"),
     path("executors/", list_or_create_executors, name="executors"),
     path("executors/<uuid:executorId>/", get_or_update_executor, name="executor"),
     path(

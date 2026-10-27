@@ -127,6 +127,7 @@ _BROWSER_CONTRACTS: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
     (executorContracts.ExecutorGroupListResponse, "serialization"),
     (executorContracts.ExecutorGroupDetailsResponse, "serialization"),
     (executorContracts.ExecutorGroupWriteResponse, "serialization"),
+    (executorContracts.RunTargetOptionsResponse, "serialization"),
     # Package settings, imports and preparation.
     (packageContracts.PackageUploadRequest, "validation"),
     (packageContracts.PackageSettingsRequest, "validation"),

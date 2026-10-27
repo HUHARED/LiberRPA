@@ -370,6 +370,7 @@ export interface BrowserApiContracts {
   RunRerunResponse: RunRerunResponse;
   RunSelectionResponse: RunSelectionResponse;
   RunStatisticsResponse: RunStatisticsResponse;
+  RunTargetOptionsResponse: RunTargetOptionsResponse;
   ScheduleDetailsResponse: ScheduleDetailsResponse;
   ScheduleEnabledRequest: ScheduleEnabledRequest;
   ScheduleListResponse: ScheduleListResponse;
@@ -1616,7 +1617,7 @@ export interface PlatformOrganizationFilters {
         PlatformOrganizationStatus,
         PlatformOrganizationStatus,
         PlatformOrganizationStatus,
-        PlatformOrganizationStatus
+        PlatformOrganizationStatus,
       ];
 }
 export interface PlatformOrganizationListResponse {
@@ -1952,6 +1953,24 @@ export interface ExecutorRunStatisticsResponse {
   name: string;
   results: RunResultCountResponse[];
   total_count: number;
+}
+export interface RunTargetOptionsResponse {
+  executor_groups: ExecutorGroupTargetOptionResponse[];
+  executors: ExecutorTargetOptionResponse[];
+}
+export interface ExecutorGroupTargetOptionResponse {
+  department_path: string;
+  id: string;
+  member_count: number;
+  name: string;
+  online_count: number;
+}
+export interface ExecutorTargetOptionResponse {
+  association_status: ExecutorAssociationStatus;
+  department_path: string;
+  dispatch_enabled: boolean;
+  id: string;
+  name: string;
 }
 export interface ScheduleDetailsResponse {
   schedule: ScheduleResponse;
