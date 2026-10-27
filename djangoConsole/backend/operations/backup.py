@@ -48,7 +48,7 @@ _LOGGER = logging.getLogger("console.backup")
 
 
 class BackupError(Exception):
-    """A controlled backup failure suitable for the platform status page."""
+    """A controlled backup or restore failure."""
 
 
 class BackupFile(BaseModel):
@@ -75,18 +75,6 @@ class BackupFile(BaseModel):
         return value
 
 
-class BackupRole(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
-
-    login: bool
-    superuser: bool
-    create_db: bool
-    create_role: bool
-    inherit: bool
-    replication: bool
-    bypass_rls: bool
-
-
 class BackupManifest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
@@ -102,7 +90,6 @@ class BackupManifest(BaseModel):
     database_encoding: str
     database_collation: str
     database_ctype: str
-    role: BackupRole
     migrations: list[tuple[str, str]]
     blob_ids: list[uuid.UUID]
     files: list[BackupFile]
@@ -298,11 +285,7 @@ def create_backup(
                 databaseRow = database.execute(
                     "SELECT pg_encoding_to_char(encoding), datcollate, datctype FROM pg_database WHERE datname = current_database()"
                 ).fetchone()
-                roleRow = database.execute(
-                    "SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole, rolinherit, rolreplication, rolbypassrls "
-                    "FROM pg_roles WHERE rolname = current_user"
-                ).fetchone()
-                if databaseRow is None or roleRow is None:
+                if databaseRow is None:
                     raise BackupError("Database recovery metadata could not be read.")
                 listMigration = database.execute(
                     "SELECT app, name FROM django_migrations ORDER BY app, name"
@@ -322,9 +305,6 @@ def create_backup(
                     "database_encoding": databaseRow[0],
                     "database_collation": databaseRow[1],
                     "database_ctype": databaseRow[2],
-                    "role": BackupRole(
-                        **dict(zip(BackupRole.model_fields, roleRow, strict=True))
-                    ),
                     "migrations": listMigration,
                     "blob_ids": [blobId for blobId, _, _ in listBlob],
                 }
