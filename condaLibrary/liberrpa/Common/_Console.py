@@ -440,7 +440,7 @@ def _download_shared_file(
                 )
 
             intTemporaryFileDescriptor, strTemporaryPath = tempfile.mkstemp(
-                prefix=f".{pathDestination.name}.",
+                prefix=".liberrpa-download-",
                 suffix=".download",
                 dir=pathDestination.parent,
             )

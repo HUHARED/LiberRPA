@@ -3,6 +3,7 @@
 import { getSha256, downloadFile } from "@/app/files";
 
 import { requestApi } from "./client";
+import { ApiError } from "./errors";
 import { isRecord, rejectInvalidResponse } from "./responses";
 import { cloneRunSettings, type RunSettings } from "./runSettings";
 import {
@@ -14,6 +15,7 @@ import {
   type ProjectPackageListResponse,
   type PackageReferenceKind,
   type PackagePreparationState,
+  INT_MAX_PACKAGE_BYTES,
   PackageUploadState,
 } from "./generated/browserApi";
 
@@ -118,6 +120,12 @@ export async function createPackageUpload(
   departmentId: string,
   requestId: string,
 ): Promise<PackageUploadResponse> {
+  if (file.size === 0 || file.size > INT_MAX_PACKAGE_BYTES) {
+    throw new ApiError(
+      `Select a non-empty package ZIP no larger than ${INT_MAX_PACKAGE_BYTES / 1024 ** 2} MiB.`,
+      { code: "invalid_file_size" },
+    );
+  }
   return parseUpload(
     await requestApi("/packages/uploads/", {
       method: "POST",

@@ -2090,6 +2090,7 @@ export interface SessionRevocationRequest {
 export const INT_LIST_PAGE_SIZE = 50;
 export const INT_MAX_RUN_STATISTICS_DAYS = 366;
 export const INT_ORGANIZATION_SERVICE_REASON_MAX_LENGTH = 500;
+export const INT_MAX_PACKAGE_BYTES = 536870912;
 export const INT_MAX_RETRY_COUNT = 3;
 export const INT_MAX_TIMEOUT_MIN = 35791;
 export const ARR_CONFLICT_POLICY = [
