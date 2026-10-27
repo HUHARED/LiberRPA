@@ -18,16 +18,13 @@ import type {
   DictProtocolResult_ProjectDependencyState,
 } from "../../Domain/ComponentManagement/componentManagementTypes";
 import {
+  STR_PROJECT_PACKAGE_MANIFEST_FILE_NAME,
   getProjectPackageFileName,
   getProjectPackageNameError,
   getProjectPackageDependencyBlockingReasons,
   shouldExcludeProjectFolder,
   shouldExcludeProjectFile,
 } from "../../Domain/Project/projectPackage";
-import {
-  buildProjectPackageManifest,
-  STR_PROJECT_PACKAGE_MANIFEST_FILE_NAME,
-} from "../../Domain/Project/projectPackageManifest";
 import { getVersionSummaryError } from "../../Domain/Project/projectValidation";
 import { validateProjectFlowCustomArguments } from "../../Domain/Project/projectFlow";
 import type {
@@ -516,7 +513,10 @@ export async function packageFlowProject(
   }
 
   const packageManifestContent = stringifyJson(
-    buildProjectPackageManifest(input.versionSummary),
+    {
+      schemaVersion: 1,
+      versionSummary: input.versionSummary,
+    },
     2,
   );
   const arrEntry = await collectProjectPackageEntries(

@@ -122,6 +122,8 @@ export function ensurePackageSettings(value: unknown, sourceName: string): Packa
   };
 }
 
+function ensureScheduleData(value: unknown, boolIncludeId: false): ScheduleCreateData;
+function ensureScheduleData(value: unknown, boolIncludeId: true): ScheduleUpdateData;
 function ensureScheduleData(
   value: unknown,
   boolIncludeId: boolean,
@@ -220,11 +222,7 @@ export function ensureScheduleCreate(value: unknown): ScheduleCreateData {
 }
 
 export function ensureScheduleUpdate(value: unknown): ScheduleUpdateData {
-  const dictValue = ensureScheduleData(value, true);
-  if (!("id" in dictValue)) {
-    throw new Error("Schedule update request is missing id.");
-  }
-  return dictValue;
+  return ensureScheduleData(value, true);
 }
 
 export function ensureScheduleEnabled(value: unknown): { id: number; enabled: boolean } {

@@ -2,8 +2,9 @@
 
 import type { DictProtocolResult_ProjectDependencyState } from "../ComponentManagement/componentManagementTypes";
 import type { DictProjectManifest_Flow, DictPackageProjectInput } from "./projectTypes";
-import { STR_PROJECT_PACKAGE_MANIFEST_FILE_NAME } from "./projectPackageManifest";
 import { getWindowsFileOrFolderNameError } from "./projectValidation";
+
+export const STR_PROJECT_PACKAGE_MANIFEST_FILE_NAME = ".liberrpa-package.json";
 
 // NOTE: Keep the Console Package name budget aligned with Console and Executor; reserve 37 units for "_" and the full UUID.
 const INT_CONSOLE_PACKAGE_BASE_NAME_MAX_LENGTH = 255 - 37;
