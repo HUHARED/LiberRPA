@@ -72,7 +72,12 @@ const intCurrentYear = new Date().getFullYear();
 const boolRetrying = ref(false);
 const authenticatedRedirect = computed(() =>
   sessionStore.authenticated && sessionStore.session
-    ? getAuthenticatedRedirect(route, sessionStore.session.user, sessionStore.access)
+    ? getAuthenticatedRedirect(
+        router,
+        route,
+        sessionStore.session.user,
+        sessionStore.access,
+      )
     : undefined,
 );
 useSessionLifecycle();
@@ -85,14 +90,14 @@ watch(
     () => sessionStore.access,
     () => sessionStore.session?.user.is_platform_admin,
     () => sessionStore.unavailable,
-    () => route.fullPath,
   ],
   () => {
-    if (sessionStore.unavailable) return;
+    // The router guard handles navigation; this watcher handles session and access changes on an open page.
+    if (sessionStore.unavailable || !route.matched.length) return;
 
-    if (sessionStore.status === "anonymous" && route.matched.length && !route.meta.public) {
+    if (sessionStore.status === "anonymous" && !route.meta.public) {
       void router.replace(
-        getSignInLocation(route.fullPath, sessionStore.boolPlatformSignIn),
+        getSignInLocation(router, route, sessionStore.boolPlatformSignIn),
       );
     } else if (authenticatedRedirect.value) {
       void router.replace(authenticatedRedirect.value);

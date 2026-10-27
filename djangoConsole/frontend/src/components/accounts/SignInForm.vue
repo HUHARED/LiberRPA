@@ -158,14 +158,11 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from "vue";
-import { useRoute, useRouter } from "vue-router";
 import type { SubmitEventPromise } from "vuetify";
 
 import { useSessionStore } from "@/stores/sessionStore";
 
 import { useRetryDelay } from "@/composables/useRetryDelay";
-
-import { getSafeReturnPath } from "@/app/navigation";
 
 import { ApiError, getApiError } from "@/api/errors";
 
@@ -179,8 +176,6 @@ const STR_PLATFORM_ADMIN_LOGIN = "admin";
 const props = withDefaults(defineProps<{ platform?: boolean }>(), { platform: false });
 
 const sessionStore = useSessionStore();
-const route = useRoute();
-const router = useRouter();
 const strEmail = ref("");
 const strPassword = ref("");
 const boolRememberMe = ref(false);
@@ -230,13 +225,8 @@ async function submitSignIn(event: SubmitEventPromise): Promise<void> {
           },
     );
     if (sessionStore.authenticated) {
+      // App.vue handles the redirect after the session becomes authenticated.
       strPassword.value = "";
-      await router.replace(
-        getSafeReturnPath(
-          route.query.returnTo,
-          sessionStore.session?.user.is_platform_admin,
-        ),
-      );
     } else if (!sessionStore.unavailable && sessionStore.status === "anonymous") {
       requestError.value = new ApiError(
         "The session could not be kept. Allow cookies for this site and try again.",

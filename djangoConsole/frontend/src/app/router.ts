@@ -360,11 +360,16 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
     if (sessionStore.unavailable) return from.matched.length === 0;
 
     if (sessionStore.status === "anonymous" && !to.meta.public) {
-      return getSignInLocation(to.fullPath, sessionStore.boolPlatformSignIn);
+      return getSignInLocation(router, to, sessionStore.boolPlatformSignIn);
     }
 
     if (sessionStore.authenticated && sessionStore.session)
-      return getAuthenticatedRedirect(to, sessionStore.session.user, sessionStore.access);
+      return getAuthenticatedRedirect(
+        router,
+        to,
+        sessionStore.session.user,
+        sessionStore.access,
+      );
     return true;
   });
 
