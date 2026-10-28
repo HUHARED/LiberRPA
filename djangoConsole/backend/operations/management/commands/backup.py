@@ -13,6 +13,7 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import DatabaseError
 
 from console_project.logging import get_exception_summary
+from console_project.formatters import format_file_size
 from operations.backup_contracts import BackupStatus, BackupRecordInfo
 from operations.backup_jobs import request_backup, load_backup_status
 
@@ -49,7 +50,7 @@ class Command(BaseCommand):
             self.stdout.write(f"  Data as of: {_format_time(record.dataAsOf)}")
             self.stdout.write(f"  Ended at: {_format_time(record.endedAt)}")
             self.stdout.write(
-                f"  Size (bytes): {record.sizeBytes if record.sizeBytes is not None else '-'}"
+                f"  Size: {format_file_size(record.sizeBytes) if record.sizeBytes is not None else '-'}"
             )
             if record.details:
                 self.stdout.write(f"  Details: {record.details}")
@@ -78,7 +79,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"Daily time: {status.dailyTime + ' ' + status.timeZone if status.dailyTime else '-'}"
             )
-            self.stdout.write(f"Successful backups retained: {status.retentionCount}")
+            self.stdout.write(f"Backup retention limit: {status.retentionCount}")
             self.stdout.write(f"Worker health: {status.healthStatus.label}")
             self.stdout.write(f"Worker checked at: {_format_time(status.checkedAt)}")
             self.stdout.write(f"Health message: {status.healthMessage}")

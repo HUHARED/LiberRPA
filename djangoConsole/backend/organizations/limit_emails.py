@@ -12,6 +12,7 @@ from django.db import connection
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
+from console_project.formatters import format_file_size
 from notifications.models import EmailType, EmailDelivery, OrganizationLimitsNotice
 
 from .limits import LimitUnit, LIMIT_DEFINITIONS
@@ -56,14 +57,7 @@ def build_organization_limits_notice(delivery: EmailDelivery) -> EmailMessage:
 
     def _format_value(value: int, unit: LimitUnit) -> str:
         if unit == LimitUnit.BYTES:
-            for strUnit, intUnitBytes in (
-                ("GiB", 1024**3),
-                ("MiB", 1024**2),
-                ("KiB", 1024),
-            ):
-                if value > 0 and value % intUnitBytes == 0:
-                    return f"{value // intUnitBytes:,} {strUnit}"
-            return f"{value:,} bytes"
+            return format_file_size(value, includeBytes=True)
         if unit == LimitUnit.PER_MINUTE:
             return f"{value:,} per minute"
         return f"{value:,}"

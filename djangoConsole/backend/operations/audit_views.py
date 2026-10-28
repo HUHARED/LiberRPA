@@ -29,6 +29,7 @@ from console_project.http import (
     parse_page_number,
 )
 from console_project.validators import validate_time_zone, parse_date_range
+from console_project.formatters import format_file_size
 from organizations.limits import LIMIT_DEFINITIONS, LimitUnit
 from organizations.permissions import (
     AccessChannel,
@@ -192,21 +193,20 @@ def _build_details_payload(record: AuditRecord) -> dict[str, object]:
             dictValues = dict(
                 zip(metadata["columns"], dictLimit[definition.configName], strict=True)
             )
-            strUnit = (
-                " bytes"
-                if definition.unit == LimitUnit.BYTES
-                else "/min"
-                if definition.unit == LimitUnit.PER_MINUTE
-                else ""
-            )
             dictChange = {"field": definition.label}
             for strSide in ("before", "after"):
                 strSource = (
                     "Default" if dictValues[f"{strSide}_override"] is None else "Override"
                 )
-                dictChange[strSide] = (
-                    f"{dictValues[f'{strSide}_limit']:,}{strUnit} ({strSource})"
+                intLimit = dictValues[f"{strSide}_limit"]
+                strLimit = (
+                    format_file_size(intLimit, includeBytes=True)
+                    if definition.unit == LimitUnit.BYTES
+                    else f"{intLimit:,}/min"
+                    if definition.unit == LimitUnit.PER_MINUTE
+                    else f"{intLimit:,}"
                 )
+                dictChange[strSide] = f"{strLimit} ({strSource})"
             listChange.append(dictChange)
     return {
         **_build_record_payload(record),

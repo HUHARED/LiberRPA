@@ -17,6 +17,7 @@ from django.views.decorators.debug import sensitive_variables
 from console_project.config import LimitsConfig
 from console_project.contracts import JsonValue
 from console_project.validators import validate_json_value
+from console_project.formatters import format_file_size
 from operations.audit_contracts import AuditAction
 from operations.audit import get_audit_snapshot, record_audit
 from organizations.contracts import DepartmentRole
@@ -79,7 +80,9 @@ def _set_asset_value(asset: Asset, value: JsonValue) -> None:
             (value if isinstance(value, str) else strJson).encode("utf-8")
         )
         if intValueBytes > intLimit:
-            raise ValueError(f"The value exceeds the {intLimit}-byte UTF-8 limit.")
+            raise ValueError(
+                f"The value exceeds the {format_file_size(intLimit)} UTF-8 limit."
+            )
     except (ValueError, RecursionError) as e:
         raise ValidationError({
             "value": str(e)

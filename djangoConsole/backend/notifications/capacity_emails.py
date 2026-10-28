@@ -11,6 +11,7 @@ from django.conf import settings
 from django.core.mail import EmailMessage
 from django.db import connection
 
+from console_project.formatters import format_file_size
 from operations.capacity_contracts import (
     INT_CAPACITY_WARNING_PERCENT,
     INT_STORAGE_WARNING_BYTES,
@@ -129,7 +130,7 @@ def build_capacity_notice(delivery: EmailDelivery) -> EmailMessage:
 
         def _format_value(value: int) -> str:
             if definition.unit == LimitUnit.BYTES:
-                return f"{value:,} bytes ({value / 1024**3:,.3f} GiB)"
+                return format_file_size(value)
             return f"{value:,}"
 
         strReservation = (

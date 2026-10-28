@@ -6,12 +6,14 @@ __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import logging
 from datetime import datetime, UTC
+from typing import cast
 
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError
 
 from console_project.logging import get_exception_summary
+from console_project.formatters import format_file_size
 from operations.instance_status import load_instance_summary
 
 _LOGGER = logging.getLogger("console.operations")
@@ -65,7 +67,9 @@ class Command(BaseCommand):
                 self.stdout.write(f"  ID: {backup.id}")
                 self.stdout.write(f"  Data as of: {_format_time(backup.dataAsOf)}")
                 self.stdout.write(f"  Ended at: {_format_time(backup.endedAt)}")
-                self.stdout.write(f"  Size (bytes): {backup.sizeBytes}")
+                self.stdout.write(
+                    f"  Size: {format_file_size(cast(int, backup.sizeBytes))}"
+                )
         except (ImproperlyConfigured, DatabaseError, OSError) as e:
             _LOGGER.exception("Instance status command failed.")
             raise CommandError(
