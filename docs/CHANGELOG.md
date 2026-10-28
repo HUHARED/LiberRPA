@@ -15,6 +15,17 @@ This project adheres to [Semantic Versioning](https://semver.org/) (SemVer) and 
   - Add nested CustomArgs key completion. ([7262271](https://github.com/HUHARED/LiberRPA/commit/72622711dc84650d5750c16a57a5b79e2fd2ae63))
   - Add managed import updates for Python paste. ([68d6f2d](https://github.com/HUHARED/LiberRPA/commit/68d6f2d8fa4b47efe5ebfd560d021981b6c6b33a))
 
+### Fixed
+
+* **Python Library**
+  * Handle PyScreeze no-match errors. ([f85e912](https://github.com/HUHARED/LiberRPA/commit/f85e91254fd5165c8d2fccfd773881058d8467f7))
+  * Suppress expected Qt thread warning. ([faf1d57](https://github.com/HUHARED/LiberRPA/commit/faf1d57bd9ac9377bba933796eb21f3144d1dab9))
+* **LiberRPA Local Server**
+  * Ensure tray exit terminates process. ([b97fd5e](https://github.com/HUHARED/LiberRPA/commit/b97fd5ed84ac5da717fe52adb72fd0240193128d))
+* **UI Analyzer**
+  * Limit alert height and summarize element tree errors. ([17ecc1d](https://github.com/HUHARED/LiberRPA/commit/17ecc1dfdff67fed5ee6e16309853f3a7a24d747))
+  * Virtualize Element Tree rendering. ([dd8766b](https://github.com/HUHARED/LiberRPA/commit/dd8766b52df942704ad73f846b84a47f3f5ada5e))
+
 ### Upgrade Notes
 
 - **LiberRPA Snippets Tree `0.3.1` pre-release**
