@@ -4328,23 +4328,23 @@ Credential: The decrypted username and password.
 
 Query Data Queue items without claiming them.
 
-Results may contain fewer than count items because each response is limited to 2 MiB. Continue with nextSequence as afterSequence, keeping the same filters and order. Results may change between pages.
+Results may contain fewer than count items because each response is limited to 2 MiB. Continue with nextAfterSequence as afterSequence, keeping the same filters and order. Results may change between pages.
 
 Parameters:
 
 ```text
 queuePath: The full Data Queue path, including its department path and name.
 status: The status filter: 'all', 'unclaimed', or 'claimed'.
-order: The queue order: 'oldest_first' or 'newest_first'.
+order: The item selection order: 'oldest_first' or 'newest_first'.
 itemId: An optional item UUID used to narrow the query.
 count: The maximum number of items to return, from 1 to 100.
-afterSequence: The previous result's nextSequence, or None for the first page.
+afterSequence: The previous result's nextAfterSequence, or None for the first page.
 ```
 
 Returns:
 
 ```text
-DataQueuePage: The matching items and nextSequence. A nextSequence of None means there is no further page.
+DataQueuePage: The matching items and nextAfterSequence. A nextAfterSequence of None means there is no further page.
 ```
 
 ### data_queue_upload_items
@@ -4382,7 +4382,7 @@ Parameters:
 queuePath: The full Data Queue path, including its department path and name.
 count: The maximum number of items to claim, from 1 to 100.
 status: The status filter: 'unclaimed', 'claimed', or 'all'.
-order: The queue order: 'oldest_first' or 'newest_first'.
+order: The item selection order: 'oldest_first' or 'newest_first'.
 itemId: An optional item UUID used to narrow the selection.
 ```
 
@@ -4396,7 +4396,7 @@ list[DataQueueItem]: The claimed item IDs and data. Returns an empty list when n
 
 Reset selected Data Queue items to Unclaimed.
 
-Item IDs, data, and original queue order are preserved.
+Item IDs, data, original queue order, and the last claimant's identity and time are preserved.
 
 Parameters:
 
@@ -4415,7 +4415,7 @@ DataQueueMutationResult: The reset, missing, and skipped item IDs.
 
 Delete Data Queue items by ID or by status, order, and count.
 
-Supply itemIds or selection parameters, but not both. Prefer IDs from the items actually processed. Without IDs, the defaults select one Claimed item in oldest-first order.
+Supply itemIds or selection parameters, but not both. Prefer IDs from the items actually processed. Without IDs, status and count are required; order defaults to oldest-first.
 
 If a network error leaves the result uncertain, check Console before deleting by conditions again; another call may delete a different batch.
 
@@ -4424,9 +4424,9 @@ Parameters:
 ```text
 queuePath: The full Data Queue path, including its department path and name.
 itemIds: One item UUID or a list containing 1 to 100 item UUIDs. Leave as None to use selection parameters.
-status: The selection status: 'all', 'unclaimed', or 'claimed'. None uses 'claimed'.
+status: The selection status: 'all', 'unclaimed', or 'claimed'. Required when itemIds is None.
 order: The selection order: 'oldest_first' or 'newest_first'. None uses 'oldest_first'.
-count: The maximum number to delete, from 1 to 100. None uses 1.
+count: The maximum number to delete, from 1 to 100. Required when itemIds is None.
 ```
 
 Returns:
@@ -4437,14 +4437,14 @@ DataQueueMutationResult: The deleted, missing, and skipped item IDs.
 
 ### shared_file_list
 
-List one page of Shared Files in a Console department.
+List one page of Shared Files from authorized Console departments.
 
 Each call returns one page. Console determines the page size, available as pageSize.
 
 Parameters:
 
 ```text
-departmentPath: The full department path containing the Shared Files.
+departmentPath: An optional full department path. None includes all authorized departments.
 name: An optional filename search filter. An empty string includes all names.
 sortBy: The sort field: 'name', 'size', or 'uploaded_at'.
 order: The sort direction: 'asc' or 'desc'.
@@ -4454,7 +4454,7 @@ page: The page number, starting from 1.
 Returns:
 
 ```text
-SharedFilePage: The file metadata, department storage usage, and pagination details.
+SharedFilePage: The file metadata, selected department (None when unfiltered), organization storage usage, and pagination details.
 ```
 
 ### shared_file_get_info
