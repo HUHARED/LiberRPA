@@ -31,10 +31,8 @@
     "passwordFile": "secrets/database-password.txt"
   },
 
-  // HAProxy Runtime API for download-slot cleanup; never expose this port publicly.
-  // For proxy testing or deployment, use { "host": "127.0.0.1", "port": 9999 }.
-  // null permits direct local development only, with a loopback consoleUrl.
-  // Set CONSOLE_UPLOAD_BANDWIDTH and CONSOLE_DOWNLOAD_BANDWIDTH in the HAProxy process environment.
+  // Direct local development uses no file proxy and requires a loopback consoleUrl.
+  // Test proxy behavior and shared bandwidth with the Docker deployment.
   "fileTransferProxy": null,
 
   // Optional online backups. Install matching PostgreSQL client tools when enabled.

@@ -7,7 +7,7 @@
 !frontend/**
 !deployment
 !deployment/**
-!*.py
+!restore_console.py
 
 **/.local
 **/.local/**
