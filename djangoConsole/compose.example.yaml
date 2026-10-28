@@ -1,8 +1,7 @@
 # FileName: compose.example.yaml
 services:
   console:
-    build: .
-    image: liberrpa-console:local
+    image: ${CONSOLE_IMAGE:?Set CONSOLE_IMAGE in .env to a versioned image or digest.}
     init: true
     restart: unless-stopped
     stop_grace_period: 3m

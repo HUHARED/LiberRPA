@@ -1,9 +1,10 @@
+# FileName: Dockerfile
 FROM node:22-bookworm-slim AS frontend
 WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-RUN npm run build
+RUN test -s public/LiberRPA_icon_v3_color_Console.svg && npm run build
 
 FROM haproxy:3.2.26-trixie AS proxy
 

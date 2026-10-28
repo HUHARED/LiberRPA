@@ -1,0 +1,80 @@
+# FileName: publish-console.yml
+name: Publish Console image
+
+on:
+  push:
+    tags:
+      - "console-v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check release version
+        id: release
+        run: |
+          python3 - <<'PY'
+          import os
+          import runpy
+
+          version = runpy.run_path(
+              "djangoConsole/backend/console_project/version.py"
+          )["STR_CONSOLE_VERSION"]
+          if os.environ["GITHUB_REF_NAME"] != f"console-v{version}":
+              raise SystemExit(f"The release tag must be console-v{version}.")
+
+          image = f"ghcr.io/{os.environ['GITHUB_REPOSITORY_OWNER'].lower()}/liberrpa-console:{version}"
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as outputFile:
+              print(f"version={version}", file=outputFile)
+              print(f"image={image}", file=outputFile)
+          PY
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build release image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./djangoConsole
+          platforms: linux/amd64
+          load: true
+          tags: ${{ steps.release.outputs.image }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.release.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+
+      - name: Check container entry point and PostgreSQL initialization
+        env:
+          RELEASE_IMAGE: ${{ steps.release.outputs.image }}
+        run: |
+          docker run --rm --pull never --network none "$RELEASE_IMAGE" --help
+
+          passwordFile="$RUNNER_TEMP/console-release-password.txt"
+          printf '%s\n' 'console-release-check' > "$passwordFile"
+          docker run --rm --pull never --network none \
+            --tmpfs /run --tmpfs /data \
+            --env TZ=UTC \
+            --mount "type=bind,source=$passwordFile,target=/database-password.txt,readonly" \
+            "$RELEASE_IMAGE" prepare-restore \
+            --password-file /database-password.txt
+
+      - name: Sign in to GitHub Container Registry
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish checked image
+        env:
+          RELEASE_IMAGE: ${{ steps.release.outputs.image }}
+        run: docker push "$RELEASE_IMAGE"
