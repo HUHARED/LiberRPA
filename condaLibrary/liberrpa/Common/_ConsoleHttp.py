@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 import json
 import math
+import os
 import time
 from typing import Any
 
@@ -185,13 +186,18 @@ def open_response(
     }
     try:
         with requests.Session() as httpSession:
-            # Console uses the original native credential; .netrc must not replace it.
+            # Keep .netrc from replacing the Console credential; load CA settings explicitly.
             httpSession.trust_env = False
             with httpSession.request(
                 method,
                 f"{consoleContext.consoleUrl}/api/v1/{path}",
                 data=body,
                 headers=dictHeaders,
+                verify=(
+                    os.environ.get("REQUESTS_CA_BUNDLE")
+                    or os.environ.get("CURL_CA_BUNDLE")
+                    or True
+                ),
                 timeout=(10, 60),
                 allow_redirects=False,
                 stream=True,
