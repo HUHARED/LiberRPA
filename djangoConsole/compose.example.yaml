@@ -1,3 +1,4 @@
+# FileName: compose.example.yaml
 services:
   console:
     build: .
@@ -7,6 +8,9 @@ services:
     stop_grace_period: 3m
     environment:
       TZ: ${TZ:?Set TZ in .env from the host time zone.}
+      # Shared file budgets in bytes per second; k and m mean KiB and MiB.
+      CONSOLE_UPLOAD_BANDWIDTH: ${CONSOLE_UPLOAD_BANDWIDTH-10m}
+      CONSOLE_DOWNLOAD_BANDWIDTH: ${CONSOLE_DOWNLOAD_BANDWIDTH-10m}
     ports:
       # A trusted HTTPS reverse proxy on this host is the only public entry point.
       - "127.0.0.1:52100:52100"

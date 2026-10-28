@@ -34,7 +34,7 @@
   // HAProxy Runtime API for download-slot cleanup; never expose this port publicly.
   // For proxy testing or deployment, use { "host": "127.0.0.1", "port": 9999 }.
   // null permits direct local development only, with a loopback consoleUrl.
-  // Global upload/download bandwidth is configured in haproxy.cfg.
+  // Set CONSOLE_UPLOAD_BANDWIDTH and CONSOLE_DOWNLOAD_BANDWIDTH in the HAProxy process environment.
   "fileTransferProxy": null,
 
   // Optional online backups. Install matching PostgreSQL client tools when enabled.
