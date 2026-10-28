@@ -71,31 +71,45 @@ LimitInteger = Annotated[int, Field(le=INT_MAX_JSON_INTEGER)]
 
 
 class LimitsConfig(_BaseConfig):
+    # Size limits are in bytes; size comments use binary units (KiB, MiB, GiB).
     # Shared across accounts and credential channels, independently for each organization.
+    # Separate fixed 60-second windows; batch writes charge the requested object count.
+    # Zero blocks the corresponding ordinary operations.
     organizationReadRequestsPerMinute: int = Field(default=1200, ge=0, le=2147483647)
     organizationWriteObjectsPerMinute: int = Field(default=600, ge=0, le=2147483647)
 
     # Organization capacity.
+    # Members include administrators, inactive members, and unexpired pending invitations.
     maxMembersPerOrganization: LimitInteger = Field(default=50, ge=0)
     maxDepartmentsPerOrganization: LimitInteger = Field(default=20, ge=0)
+    # Top-level departments have depth 1.
     maxDepartmentDepth: LimitInteger = Field(default=5, ge=1)
+    # Paused and unassociated Executor records still count.
     maxExecutorsPerOrganization: LimitInteger = Field(default=20, ge=0)
+    # Empty groups still count.
     maxExecutorGroupsPerOrganization: LimitInteger = Field(default=50, ge=0)
+    # A project is a department/name pair represented by uploaded packages.
     maxProjectsPerOrganization: LimitInteger = Field(default=100, ge=0)
+    # Package versions count separately within that project.
     maxPackagesPerProject: LimitInteger = Field(default=20, ge=0)
-    maxPackageBytes: int = Field(default=536870912, ge=1, le=536870912)
+    maxPackageBytes: int = Field(default=536870912, ge=1, le=536870912)  # 512 MiB
     maxSchedulesPerOrganization: LimitInteger = Field(default=200, ge=0)
     maxActiveJobsPerOrganization: LimitInteger = Field(default=500, ge=0)
+    # Refill rate and maximum accumulated allowance; each new Job costs one unit.
+    # A zero refill rate preserves the remaining allowance but never replenishes it.
     newJobsPerMinute: LimitInteger = Field(default=60, ge=0)
     newJobsBurst: LimitInteger = Field(default=120, ge=1)
+    # Age and count limits apply to finished or administratively closed Job groups.
     runHistoryRetentionDays: int = Field(default=720, ge=1, le=720)
     maxRunHistoryPerOrganization: LimitInteger = Field(default=20000, ge=1)
     runLogRetentionDays: int = Field(
         default=INT_MAX_RUN_LOG_RETENTION_DAYS, ge=1, le=INT_MAX_RUN_LOG_RETENTION_DAYS
     )
-    maxRunLogBytesPerOrganization: LimitInteger = Field(default=5368709120, ge=0)
+    maxRunLogBytesPerOrganization: LimitInteger = Field(default=5368709120, ge=0)  # 5 GiB
     maxRunLogGroupsPerOrganization: LimitInteger = Field(default=10000, ge=0)
+    # Counts non-member addresses; current member email addresses are available automatically.
     maxRunEmailAddressesPerOrganization: LimitInteger = Field(default=100, ge=0)
+    # Hour and 24-hour limits use rolling windows; the organization day limit uses UTC calendar days.
     maxRunEmailRecipientsPerOrganizationHour: LimitInteger = Field(default=100, ge=0)
     maxRunEmailRecipientsPerOrganizationDay: LimitInteger = Field(default=500, ge=0)
     maxRunEmailRecipientsPerAddressHour: LimitInteger = Field(default=30, ge=0)
@@ -103,33 +117,46 @@ class LimitsConfig(_BaseConfig):
     maxNotificationsPerAccount: LimitInteger = Field(default=200, ge=0)
     notificationRetentionDays: LimitInteger = Field(default=30, ge=1)
     maxAssetsPerOrganization: LimitInteger = Field(default=1000, ge=0)
-    maxAssetValueBytes: int = Field(default=65536, ge=1, le=262144)
-    maxSecretAssetValueBytes: int = Field(default=16384, ge=1, le=262144)
+    # UTF-8 size of text or compact JSON; Credential fields count together.
+    maxAssetValueBytes: int = Field(default=65536, ge=1, le=262144)  # 64 KiB
+    maxSecretAssetValueBytes: int = Field(default=16384, ge=1, le=262144)  # 16 KiB
 
+    # Queue capacity counts queued and claimed items; reducing it never deletes business data.
     maxDataQueuesPerOrganization: LimitInteger = Field(default=50, ge=0)
     maxQueueItemsPerOrganization: LimitInteger = Field(default=20000, ge=0)
-    maxQueueDataBytesPerOrganization: LimitInteger = Field(default=104857600, ge=0)
-    maxQueueItemBytes: int = Field(default=1048576, ge=1, le=1048576)
+    maxQueueDataBytesPerOrganization: LimitInteger = Field(
+        default=104857600, ge=0
+    )  # 100 MiB
+    maxQueueItemBytes: int = Field(default=1048576, ge=1, le=1048576)  # 1 MiB
+    # Unexpired receipts are retained; a full receipt budget blocks new mutations.
     queueReceiptRetentionDays: int = Field(default=30, ge=30, le=3650)
     maxQueueReceiptsPerOrganization: LimitInteger = Field(default=100000, ge=1)
 
-    # Packages and shared files share storage; upload and download slots are independent.
-    maxStoredBytesPerOrganization: LimitInteger = Field(default=5368709120, ge=0)
+    # Packages and shared files share storage; garbage remains charged until cleanup succeeds.
+    # Replacing a file reserves the full new size before releasing the old file.
+    maxStoredBytesPerOrganization: LimitInteger = Field(default=5368709120, ge=0)  # 5 GiB
+    # Zero blocks new filenames but still permits replacing existing files.
     maxSharedFilesPerOrganization: LimitInteger = Field(default=5000, ge=0)
-    maxSharedFileBytes: int = Field(default=20971520, ge=0, le=20971520)
-    minStorageFreeBytes: LimitInteger = Field(default=5368709120, ge=0)
+    maxSharedFileBytes: int = Field(default=20971520, ge=0, le=20971520)  # 20 MiB
+    # Free-space reserve after pending writes; zero removes the extra reserve.
+    minStorageFreeBytes: LimitInteger = Field(default=5368709120, ge=0)  # 5 GiB
+    # Separate transfer limits; zero blocks new transfers in that direction.
+    # Downloads include Run files; relaying a Run file does not also consume an upload slot.
     maxActiveUploadsPerOrganization: LimitInteger = Field(default=20, ge=0)
     maxActiveDownloadsPerOrganization: LimitInteger = Field(default=20, ge=0)
+    # Unexpired receipts are retained; a full receipt budget blocks new mutations.
     fileReceiptRetentionDays: int = Field(default=30, ge=30, le=3650)
     maxFileReceiptsPerOrganization: LimitInteger = Field(default=100000, ge=1)
 
-    # Audit cleanup is independent of business object and API key retention.
+    # Both age and count limits apply; cleanup is independent of business object and API key retention.
     auditRetentionDays: int = Field(default=180, ge=1, le=180)
     maxAuditRecordsPerOrganization: LimitInteger = Field(default=100000, ge=1)
     maxPlatformAuditRecords: LimitInteger = Field(default=100000, ge=1)
 
     # API key capacity and inactive metadata retention per account.
+    # Expired and revoked keys do not consume active capacity; zero blocks new keys.
     maxActiveApiKeysPerAccount: LimitInteger = Field(default=10, ge=0)
+    # Either retention limit set to zero disables inactive metadata retention; Notes edits do not extend it.
     inactiveApiKeyRetentionDays: int = Field(default=30, ge=0, le=3650)
     maxInactiveApiKeysPerAccount: LimitInteger = Field(default=100, ge=0)
 
@@ -138,38 +165,46 @@ class LimitsConfig(_BaseConfig):
     maxEmailDeliveriesPerOrganization: LimitInteger = Field(default=10000, ge=0)
     maxEmailDeliveriesWithoutOrganization: LimitInteger = Field(default=10000, ge=0)
 
-    # SMTP delivery budget and rate.
+    # Rolling 24-hour recipient budget; failed or uncertain SMTP attempts still count.
+    # Zero prevents new SMTP attempts.
     maxEmailRecipientsPer24Hours: LimitInteger = Field(default=2500, ge=0)
+    # Maximum accumulated recipient allowance.
     emailBurstRecipients: LimitInteger = Field(default=100, ge=1)
+    # Seconds needed to replenish one recipient unit.
     emailRefillSeconds: LimitInteger = Field(default=30, ge=1)
 
-    # Resend cooldown shared by account email flows.
+    # Resend cooldown: per address for registration/recovery, organization/address for invitations, and account for email changes.
     emailResendSeconds: int = Field(default=300, ge=300, le=86400)
 
-    # Login attempts.
+    # Successful attempts and unknown accounts also count; both source and account allowances must remain.
+    # Zero blocks login; failures do not disable the account.
     loginRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
     loginRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
     loginRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
-    # Bearer resource and execution-control authentication use separate counters with these limits.
+    # Bearer resource and execution-control authentication use separate source-IP counters with these limits.
+    # Successful, malformed, and unknown credentials count; zero blocks requests.
     apiKeyRequestsPerSource: int = Field(default=2400, ge=0, le=2147483647)
     apiKeyRequestWindowSeconds: int = Field(default=60, ge=1, le=86400)
 
-    # Editor and Executor contact use independent counters with these shared native-client limits.
+    # Editor contact, Executor contact, and Python resource traffic use independent source-IP counters.
     nativeClientRequestsPerSource: int = Field(default=2400, ge=0, le=2147483647)
     nativeClientRequestWindowSeconds: int = Field(default=60, ge=1, le=86400)
+    # Offline does not release a valid Executor association.
     executorOfflineSeconds: int = Field(default=60, ge=30, le=3600)
 
-    # Public registration and recovery email requests count separately.
+    # Registration and recovery email requests count separately, including suppressed requests.
     publicEmailRequestsPerSource: int = Field(default=10, ge=0, le=2147483647)
     publicEmailRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
     # Invitations, account security actions, API key creation, and organization deletion count per flow.
+    # Both source and acting-account allowances must remain; failed password checks also count.
     sensitiveActionRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
     sensitiveActionRequestsPerAccount: int = Field(default=10, ge=0, le=2147483647)
     sensitiveActionRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
 
     # Email-link checks and submissions share these settings and count per flow.
+    # Both source and token allowances must remain; zero blocks requests.
     emailTokenRequestsPerSource: int = Field(default=30, ge=0, le=2147483647)
     emailTokenRequestsPerToken: int = Field(default=10, ge=0, le=2147483647)
     emailTokenRequestWindowSeconds: int = Field(default=600, ge=1, le=86400)
