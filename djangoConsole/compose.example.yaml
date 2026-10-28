@@ -5,6 +5,8 @@ services:
     init: true
     restart: unless-stopped
     stop_grace_period: 3m
+    environment:
+      TZ: ${TZ:?Set TZ in .env from the host time zone.}
     ports:
       # A trusted HTTPS reverse proxy on this host is the only public entry point.
       - "127.0.0.1:52100:52100"

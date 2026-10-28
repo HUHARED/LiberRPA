@@ -4,7 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from datetime import UTC
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.core.mail import EmailMessage
@@ -24,7 +24,9 @@ def build_backup_notice(delivery: EmailDelivery) -> EmailMessage:
         )
     else:
         raise ValueError("A backup notice is required.")
-    strRecordedAt = delivery.created_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+    strRecordedAt = delivery.created_at.astimezone(
+        ZoneInfo(delivery.time_zone)
+    ).isoformat(sep=" ", timespec="seconds")
     return EmailMessage(
         subject=strSubject,
         body=(

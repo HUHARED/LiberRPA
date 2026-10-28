@@ -46,12 +46,14 @@ def _record_problem(state: BackupState, message: str, currentTime: datetime) -> 
             EmailDelivery.objects.create(
                 email_type=EmailType.BACKUP_FAILURE_NOTICE,
                 recipient=settings.CONSOLE_BACKUP.notificationEmail.lower(),
+                time_zone=settings.TIME_ZONE,
             )
             state.failure_notice_at = currentTime
     elif state.failure_started_at is not None:
         EmailDelivery.objects.create(
             email_type=EmailType.BACKUP_RECOVERY_NOTICE,
             recipient=settings.CONSOLE_BACKUP.notificationEmail.lower(),
+            time_zone=settings.TIME_ZONE,
         )
         state.failure_started_at = None
         state.failure_notice_at = None

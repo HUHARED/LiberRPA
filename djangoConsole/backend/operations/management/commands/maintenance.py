@@ -5,7 +5,6 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import logging
-from datetime import UTC
 from typing import cast
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
@@ -13,6 +12,7 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import DatabaseError
 
 from console_project.logging import get_exception_summary
+from console_project.formatters import format_instance_time
 from operations.contracts import MaintenanceAction
 from operations.maintenance import load_maintenance_status, update_maintenance
 
@@ -37,22 +37,15 @@ class Command(BaseCommand):
         try:
             if strAction == "status":
                 status = load_maintenance_status()
-                strEnteredAt = (
-                    status.enteredAt.astimezone(UTC).isoformat(timespec="seconds")
-                    if status.enteredAt is not None
-                    else "-"
-                )
                 self.stdout.write(f"Service state: {status.state.label}")
-                self.stdout.write(f"Entered at: {strEnteredAt}")
+                self.stdout.write(f"Entered at: {format_instance_time(status.enteredAt)}")
                 self.stdout.write(f"Active jobs: {status.activeJobs}")
                 self.stdout.write(f"Running runs: {status.runningRuns}")
                 self.stdout.write(f"Jobs needing review: {status.jobsNeedingReview}")
                 self.stdout.write(f"Can resume: {'yes' if status.canResume else 'no'}")
                 if status.resumeBlockReason:
                     self.stdout.write(f"Resume blocked: {status.resumeBlockReason}")
-                self.stdout.write(
-                    f"Checked at: {status.updatedAt.astimezone(UTC).isoformat(timespec='seconds')}"
-                )
+                self.stdout.write(f"Checked at: {format_instance_time(status.updatedAt)}")
                 return
             action = MaintenanceAction(strAction)
             boolChanged = update_maintenance(action)

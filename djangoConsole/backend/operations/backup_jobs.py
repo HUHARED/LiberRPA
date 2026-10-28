@@ -4,7 +4,7 @@ __email__ = "mailwork.hu@gmail.com"
 __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
 from django.conf import settings
@@ -44,10 +44,13 @@ def get_backup_due_time(currentTime: datetime) -> datetime:
     """Return the latest daily backup time at or before the supplied time."""
     localTime = timezone.localtime(currentTime, timezone.get_default_timezone())
     intHour, intMinute = map(int, settings.CONSOLE_BACKUP.dailyTime.split(":"))
-    dueAt = localTime.replace(hour=intHour, minute=intMinute, second=0, microsecond=0)
-    if dueAt > localTime:
+    # Use the first occurrence of a repeated time; a missing time shifts forward by the clock change.
+    dueAt = localTime.replace(
+        hour=intHour, minute=intMinute, second=0, microsecond=0, fold=0
+    )
+    if dueAt.astimezone(UTC) > currentTime:
         dueAt -= timedelta(days=1)
-    return dueAt
+    return dueAt.astimezone(UTC)
 
 
 def lock_backup_state() -> BackupState:

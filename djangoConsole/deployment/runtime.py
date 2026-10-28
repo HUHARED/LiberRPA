@@ -174,7 +174,7 @@ def _create_database(
     )
     with (_PATH_POSTGRES / "postgresql.conf").open("a", encoding="utf-8") as file:
         file.write(
-            "\nlisten_addresses = '127.0.0.1'\nport = 5432\nunix_socket_directories = '/run/postgresql'\npassword_encryption = 'scram-sha-256'\ntimezone = 'UTC'\n"
+            "\nlisten_addresses = '127.0.0.1'\nport = 5432\nunix_socket_directories = '/run/postgresql'\npassword_encryption = 'scram-sha-256'\ntimezone = 'UTC'\nlog_timezone = 'UTC'\n"
         )
     (_PATH_POSTGRES / "pg_hba.conf").write_text(
         "local all postgres peer\n"

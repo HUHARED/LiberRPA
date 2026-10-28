@@ -43,7 +43,7 @@ def queue_capacity_notices(
         # The platform account has no mailbox; use the existing operator contact.
         listRecipient = [cast(str, settings.CONSOLE_SUPPORT_EMAIL).lower()]
         strOrganizationName = ""
-        strTimeZone = "UTC"
+        strTimeZone = settings.TIME_ZONE
     else:
         listRecipient = list(
             Membership.objects

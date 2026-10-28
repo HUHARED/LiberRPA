@@ -5,7 +5,6 @@ __license__ = "GNU Affero General Public License v3.0 or later"
 __copyright__ = f"Copyright (C) 2025 {__author__}"
 
 import logging
-from datetime import datetime, UTC
 from typing import cast
 
 from django.core.exceptions import ImproperlyConfigured
@@ -13,7 +12,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError
 
 from console_project.logging import get_exception_summary
-from console_project.formatters import format_file_size
+from console_project.formatters import format_instance_time, format_file_size
 from operations.instance_status import load_instance_summary
 
 _LOGGER = logging.getLogger("console.operations")
@@ -25,9 +24,6 @@ class Command(BaseCommand):
     requires_migrations_checks = False
 
     def handle(self, *_args: object, **_options: object) -> None:
-        def _format_time(value: datetime | None) -> str:
-            return value.astimezone(UTC).isoformat(timespec="seconds") if value else "-"
-
         try:
             summary = load_instance_summary()
             self.stdout.write(f"Console version: {summary.version}")
@@ -35,21 +31,23 @@ class Command(BaseCommand):
                 f"Service state: {summary.serviceState.label if summary.serviceState else 'Unknown'}"
             )
             self.stdout.write(
-                f"Maintenance entered at: {_format_time(summary.maintenanceEnteredAt)}"
+                f"Maintenance entered at: {format_instance_time(summary.maintenanceEnteredAt)}"
             )
             self.stdout.write(f"Instance time zone: {summary.timeZone}")
-            self.stdout.write(f"Checked at: {_format_time(summary.updatedAt)}")
+            self.stdout.write(f"Checked at: {format_instance_time(summary.updatedAt)}")
 
             for component in summary.components:
                 self.stdout.write(
                     f"\n{component.component.label}: {component.status.label}"
                 )
-                self.stdout.write(f"  Checked at: {_format_time(component.checkedAt)}")
+                self.stdout.write(
+                    f"  Checked at: {format_instance_time(component.checkedAt)}"
+                )
                 self.stdout.write(f"  Message: {component.message}")
 
             storage = summary.storage
             self.stdout.write(f"\nFile storage volume: {storage.status.label}")
-            self.stdout.write(f"  Checked at: {_format_time(storage.checkedAt)}")
+            self.stdout.write(f"  Checked at: {format_instance_time(storage.checkedAt)}")
             self.stdout.write(f"  Message: {storage.message}")
             for strLabel, intBytes in (
                 ("Total", storage.totalBytes),
@@ -65,8 +63,10 @@ class Command(BaseCommand):
                 self.stdout.write("  No successful backup information is available.")
             else:
                 self.stdout.write(f"  ID: {backup.id}")
-                self.stdout.write(f"  Data as of: {_format_time(backup.dataAsOf)}")
-                self.stdout.write(f"  Ended at: {_format_time(backup.endedAt)}")
+                self.stdout.write(
+                    f"  Data as of: {format_instance_time(backup.dataAsOf)}"
+                )
+                self.stdout.write(f"  Ended at: {format_instance_time(backup.endedAt)}")
                 self.stdout.write(
                     f"  Size: {format_file_size(cast(int, backup.sizeBytes))}"
                 )
