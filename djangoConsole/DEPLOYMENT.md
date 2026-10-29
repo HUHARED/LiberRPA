@@ -6,6 +6,7 @@ This guide deploys Console on one Linux server with Docker Compose and a host HT
 - [Install Console](#install-console)
 - [Configure HTTPS](#configure-https)
 - [Verify the deployment](#verify-the-deployment)
+- [Host monitoring](#host-monitoring)
 - [Operate the instance](#operate-the-instance)
 - [Back up](#back-up)
 - [Upgrade](#upgrade)
@@ -20,15 +21,15 @@ This guide deploys Console on one Linux server with Docker Compose and a host HT
 - A dedicated hostname or fixed LAN IP, without a URL path prefix. Every browser, Executor, Project Manager, and Python client must trust its HTTPS certificate.
 - Storage for live data, backups, and upgrade/restore work; see [Disk space](#disk-space).
 
-Expose only the HTTPS proxy to clients. The supplied Compose file binds Console to `127.0.0.1:52100`; PostgreSQL and other internal services are not published. Keep the Docker network gateway aligned with the trusted upstream address in [deployment/haproxy.cfg](deployment/haproxy.cfg).
+Expose only the HTTPS proxy to clients. The supplied Compose file binds Console to `127.0.0.1:52100`; PostgreSQL and other internal services are not published.
 
 The default Compose paths are:
 
-| Host path                         | Container path         | Contents                                                    |
-| --------------------------------- | ---------------------- | ----------------------------------------------------------- |
-| `~/liberrpa-console`            | Not mounted as a whole | `compose.yaml`, `.env`, and initial configuration files |
-| `/srv/liberrpa-console`         | `/data`              | Configuration, secrets, database, and stored files          |
-| `/srv/liberrpa-console-backups` | `/backup`            | Completed backups and backup work files                     |
+| Host path | Container path | Contents |
+| --- | --- | --- |
+| `~/liberrpa-console` | — | `compose.yaml`, `.env`, and initial configuration files |
+| `/srv/liberrpa-console` | `/data` | Configuration, secrets, database, and stored files |
+| `/srv/liberrpa-console-backups` | `/backup` | Completed backups and backup work files |
 
 To use another disk or location, change the bind-mount `source` paths in `compose.yaml` and the corresponding host paths in this guide. Keep `/data` and `/backup` as the container targets. Mount any separate disk before creating its data directories.
 
@@ -36,18 +37,19 @@ To use another disk or location, change the bind-mount `source` paths in `compos
 
 Plan for the following separately:
 
-| Area              | Space to allow                                                                                                                                                                                |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Docker storage    | The current and next image during upgrades, container files, and diagnostic logs.                                                                                                             |
-| Live Console data | Database and uploaded-file growth. Uploads require 5 GiB of free space by default; this is a capacity check, not preallocated storage.                                                        |
-| Backups           | Seven retained backups by default, plus one new backup. Each includes a database export, configuration, secrets, and independent stored-file copies. Pruning follows a successful new backup. |
-| Restore work      | A restored copy alongside the existing instance until verification is complete.                                                                                                               |
+| Area | Space to allow |
+| --- | --- |
+| Docker storage | The current and next image during upgrades, container files, and diagnostic logs. |
+| Live Console data | Database and uploaded-file growth. Uploads require 5 GiB of free space by default; this is a capacity check, not preallocated storage. |
+| Backups | Seven retained backups by default, plus one new backup. Each includes a database export, configuration, secrets, and independent stored-file copies. Pruning follows a successful new backup. |
+| Restore work | A restored copy alongside the existing instance until verification is complete. |
+| Host monitoring | If enabled, Prometheus data and its write-ahead log under `/var/lib/liberrpa-prometheus`, on the host system disk by default. This is separate from Console data and backups. |
 
 If live data and backups share a disk, plan for their combined usage. Keep protected off-server copies of completed backups.
 
 Console bind mounts do not relocate Docker's image or log storage. Account for that storage separately; see [Docker storage](https://docs.docker.com/engine/storage/containerd/).
 
-Diagnostic log rotation allows `50m` per file and ten files per container, separate from database-backed Run logs and audit records.
+Include diagnostic log storage in the Docker storage budget; see [Logs](#logs) for rotation settings.
 
 ## Install Console
 
@@ -95,14 +97,16 @@ sudo install -d -m 755 /srv/liberrpa-console /srv/liberrpa-console-backups
 
 The data directory must be empty; the backup directory need not be. Initialization sets ownership and permissions. With `create_host_path: false`, missing bind-mount sources are errors.
 
+If you customize the Docker network, keep its gateway aligned with the trusted upstream address in [deployment/haproxy.cfg](deployment/haproxy.cfg).
+
 ### 4. Configure the instance and SMTP password
 
 Edit `bootstrap/Console.jsonc`:
 
-| Setting          | Public-domain example           | LAN example              |
-| ---------------- | ------------------------------- | ------------------------ |
-| `consoleUrl`   | `https://console.example.com` | `https://192.168.1.50` |
-| `allowedHosts` | `["console.example.com"]`     | `["192.168.1.50"]`     |
+| Setting | Public-domain example | LAN example |
+| --- | --- | --- |
+| `consoleUrl` | `https://console.example.com` | `https://192.168.1.50` |
+| `allowedHosts` | `["console.example.com"]` | `["192.168.1.50"]` |
 
 Set `supportEmail` and the SMTP host, port, security, username, and sender using the provider's settings. Keep `debug` false.
 
@@ -163,11 +167,11 @@ rmdir bootstrap
 
 ## Configure HTTPS
 
-Choose a publicly trusted certificate or the LAN internal CA branch. Windows internal CA setup applies only to the latter. Cloudflare is an optional extension to the public-certificate setup. Add the selected site to `/etc/caddy/Caddyfile` while retaining other sites.
+Add the configuration for your hostname or LAN IP to `/etc/caddy/Caddyfile`, retaining any existing sites.
 
 ### Publicly trusted certificate
 
-Use the hostname from `consoleUrl`, with DNS and network access configured for [Caddy&#39;s automatic HTTPS](https://caddyserver.com/docs/automatic-https):
+Use the hostname from `consoleUrl`, with DNS and network access configured for [Caddy's automatic HTTPS](https://caddyserver.com/docs/automatic-https):
 
 ```caddyfile
 console.example.com {
@@ -239,7 +243,7 @@ Import the CA into browsers with separate trust stores. Repeat for other client 
 
 ### Cloudflare proxy (optional)
 
-Use a valid origin certificate and [Full (strict)](https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/full-strict/) encryption. Configure Caddy to accept client addresses only from Cloudflare and forward one address to Console. Replace the example hostname and merge global options with any existing global block:
+For a public hostname, point its A/AAAA record at the origin server and set the record to **Proxied**. Use a valid origin certificate and [Full (strict)](https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/full-strict/) encryption. Trust visitor-IP headers only from Cloudflare, and forward one verified address to Console. Replace the example hostname and merge global options with any existing global block:
 
 ```caddyfile
 {
@@ -256,9 +260,50 @@ console.example.com {
 }
 ```
 
-Keep trusted ranges aligned with Cloudflare's [IPv4](https://www.cloudflare.com/ips-v4) and [IPv6](https://www.cloudflare.com/ips-v6) lists. Keep visitor-IP headers enabled and do not enable Pseudo IPv4's `Overwrite Headers` mode. See [Caddy&#39;s trusted proxy options](https://caddyserver.com/docs/caddyfile/options#trusted-proxies).
+Keep trusted ranges aligned with Cloudflare's [IPv4](https://www.cloudflare.com/ips-v4) and [IPv6](https://www.cloudflare.com/ips-v6) lists. Keep visitor-IP headers enabled and do not enable Pseudo IPv4's `Overwrite Headers` mode. See [Caddy's trusted proxy options](https://caddyserver.com/docs/caddyfile/options#trusted-proxies).
 
-Keep `/api/` uncached and free of browser-only challenges. Verify Executor and Project Manager connections and representative uploads and downloads through the proxy; Cloudflare's request-size and timeout limits still apply. Restrict origin web access separately if clients must not bypass Cloudflare.
+Apply the Caddy configuration using [Apply the configuration](#apply-the-configuration), then complete the checks below before restricting origin access. Keep `/api/` uncached and free of browser-only challenges; Cloudflare's request-size and timeout limits still apply.
+
+#### Verify the proxy path
+
+After DNS updates, verify that the hostname resolves to Cloudflare addresses; see [Cloudflare proxy status](https://developers.cloudflare.com/dns/proxy-status/).
+
+From a client computer, using the actual hostname:
+
+```bash
+curl -4 -I --noproxy '*' --connect-timeout 5 --max-time 15 https://console.example.com/platform/sign-in
+curl -4 --noproxy '*' --connect-timeout 5 --max-time 15 https://console.example.com/cdn-cgi/trace
+```
+
+The sign-in page should return `200` through Cloudflare. Use the `ip=` value in the second response as the client's public IPv4 address for the check below. Keep the same client connection and IP family when comparing addresses.
+
+| Check | Expected result |
+| --- | --- |
+| Client address | A [Caddy access log](https://caddyserver.com/docs/caddyfile/directives/log) for an unauthenticated sign-in-page request shows `request.client_ip` matching the trace address and `request.remote_ip` belonging to Cloudflare. |
+| Browser | Sign-in, sign-out, and ordinary API requests work without an interactive Cloudflare challenge. |
+| Executor | Sign-in and the control connection remain available; a safe test flow reports its state and result. |
+| Project Manager | Sign-in and a test Package upload complete. |
+| Files | Representative uploads and downloads, including expected large files, complete successfully. |
+
+Use an existing access log when available. Otherwise enable request logging for the check, then remove it after verification.
+
+#### Restrict origin access
+
+For an origin whose web traffic must all pass through Cloudflare, restrict public TCP 80 and 443 to the [official Cloudflare IPv4 and IPv6 ranges](https://developers.cloudflare.com/fundamentals/concepts/cloudflare-ip-addresses/). Keep SSH and any separately required management access. This restriction is not for the LAN deployment branch; assess other sites before applying it to a shared server.
+
+Add and verify the Cloudflare allow rules before removing unrestricted web-port rules. Keep an SSH session open and confirm a second connection works. With a default-deny firewall such as [UFW](https://manpages.debian.org/trixie/ufw/ufw.8.en.html), remove all broader rules that would still allow direct web access; rule names and management ports depend on the host. Keep Console's published port bound to loopback.
+
+After applying the restriction, normal hostname access must still succeed. From an external client, force the hostname to the origin IP while retaining certificate validation, replacing both example values:
+
+```bash
+curl -4 -I --noproxy '*' --connect-timeout 5 --max-time 15 --resolve console.example.com:443:203.0.113.10 https://console.example.com/platform/sign-in
+```
+
+This direct-origin request should time out or be refused. If proxied access breaks, restore the previous web allow rules through the retained SSH session and investigate. Restore suitable direct-access rules before switching back to DNS only.
+
+Keep Cloudflare-to-origin TCP 80 available for Caddy's HTTP-01 certificate renewal, and TCP 443 for HTTPS. Allow `/.well-known/acme-challenge/` through without caching, challenges, or rewrites that prevent Caddy from answering. See [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https).
+
+Maintain both the firewall allowlist and Caddy's trusted ranges when Cloudflare changes its published networks.
 
 ### Apply the configuration
 
@@ -286,6 +331,107 @@ Verify the following before opening the service to users:
 - Complete an email-based account operation and confirm delivery.
 - Connect Executor and Project Manager and perform a Console operation from an RPA flow, including Python certificate validation for internal CA deployments.
 - Complete a manual backup and rehearse restoration.
+
+## Host monitoring
+
+Optional host monitoring records CPU, memory, and network usage every minute and retains 15 days of history. Install the supplied [monitoring templates](monitoring/) separately on the Linux host.
+
+### Install the services
+
+The following `linux-amd64` example uses Prometheus 3.13.5 LTS and node_exporter 1.12.1 from the [official downloads](https://prometheus.io/download/). Keep `prometheus` and `promtool` from the same archive. For other versions, update the filenames, URLs, and official SHA-256 values together.
+
+```bash
+mkdir -p ~/liberrpa-monitoring-install
+cd ~/liberrpa-monitoring-install
+curl -fL https://github.com/prometheus/prometheus/releases/download/v3.13.5/prometheus-3.13.5.linux-amd64.tar.gz -o prometheus-3.13.5.linux-amd64.tar.gz
+curl -fL https://github.com/prometheus/node_exporter/releases/download/v1.12.1/node_exporter-1.12.1.linux-amd64.tar.gz -o node_exporter-1.12.1.linux-amd64.tar.gz
+printf '%s  %s\n' '0388822ace519c5a3a8ef556a541ce1b536e21d872f82deded465bd27a5a0699' 'prometheus-3.13.5.linux-amd64.tar.gz' | sha256sum --check
+printf '%s  %s\n' 'b51d8a76aa2a9156a55d501aca6276fae09e262259a5e4e831d2c2222f084e63' 'node_exporter-1.12.1.linux-amd64.tar.gz' | sha256sum --check
+```
+
+Continue only when both checks report `OK`:
+
+```bash
+tar -xzf prometheus-3.13.5.linux-amd64.tar.gz
+tar -xzf node_exporter-1.12.1.linux-amd64.tar.gz
+sudo install -m 755 prometheus-3.13.5.linux-amd64/prometheus prometheus-3.13.5.linux-amd64/promtool node_exporter-1.12.1.linux-amd64/node_exporter /usr/local/bin/
+
+cd ~/liberrpa-console
+mkdir -p monitoring
+curl -fL https://raw.githubusercontent.com/HUHARED/LiberRPA/console-v0.1.0-dev/djangoConsole/monitoring/prometheus.example.yml -o monitoring/prometheus.example.yml
+curl -fL https://raw.githubusercontent.com/HUHARED/LiberRPA/console-v0.1.0-dev/djangoConsole/monitoring/host.rules.yml -o monitoring/host.rules.yml
+curl -fL https://raw.githubusercontent.com/HUHARED/LiberRPA/console-v0.1.0-dev/djangoConsole/monitoring/prometheus.service -o monitoring/prometheus.service
+curl -fL https://raw.githubusercontent.com/HUHARED/LiberRPA/console-v0.1.0-dev/djangoConsole/monitoring/node_exporter.service -o monitoring/node_exporter.service
+```
+
+Use the Console release tag selected earlier. After all four template downloads succeed:
+
+```bash
+sudo install -d -m 755 /etc/liberrpa-console/monitoring
+sudo install -m 644 monitoring/prometheus.example.yml /etc/liberrpa-console/monitoring/prometheus.yml
+sudo install -m 644 monitoring/host.rules.yml /etc/liberrpa-console/monitoring/host.rules.yml
+sudo install -m 644 monitoring/prometheus.service /etc/systemd/system/liberrpa-prometheus.service
+sudo install -m 644 monitoring/node_exporter.service /etc/systemd/system/liberrpa-node-exporter.service
+promtool check config /etc/liberrpa-console/monitoring/prometheus.yml
+```
+
+After the configuration and referenced rules pass validation, enable both services:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now liberrpa-node-exporter liberrpa-prometheus
+systemctl is-active liberrpa-node-exporter liberrpa-prometheus
+systemctl is-enabled liberrpa-node-exporter liberrpa-prometheus
+sudo ss -ltnp '( sport = :9090 or sport = :9100 )'
+```
+
+Both services should be `active` and `enabled`. Prometheus must listen only on `127.0.0.1:9090` and node_exporter on `127.0.0.1:9100`; do not publish these ports. Monitoring continues independently of Console restarts; its data is not included in Console backups.
+
+### Verify and query
+
+```bash
+promtool check ready --url=http://127.0.0.1:9090
+promtool query instant http://127.0.0.1:9090 'up{job="liberrpa-host"}'
+promtool query instant http://127.0.0.1:9090 'liberrpa_host_cpu_percent'
+```
+
+The target's `up` value must be `1`. Allow two or three minutes for CPU and network rate samples. Empty results are not zero usage.
+
+To use the built-in query page, open an SSH forward from the administrator's computer, replacing `operator@server`:
+
+```bash
+ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9090:127.0.0.1:9090 operator@server
+```
+
+Keep that connection open and visit `http://127.0.0.1:9090`. Query these metrics as a table or graph:
+
+| Metric | Meaning |
+| --- | --- |
+| `liberrpa_host_cpu_percent` | Host CPU usage averaged across all cores, from 0 to 100%. |
+| `liberrpa_host_memory_percent` | Used memory percentage calculated from `MemAvailable`. |
+| `liberrpa_host_network_receive_bytes_per_second` | Receive rate for each network device. |
+| `liberrpa_host_network_transmit_bytes_per_second` | Transmit rate for each network device. |
+
+Select the relevant network device; adding physical, bridge, and virtual interfaces can count traffic more than once. One-minute sampling may miss short spikes. These templates provide history without CPU or memory alerts.
+
+For minute-level CPU history over the last day:
+
+```bash
+monitorStart=$(date -Is -d '1 day ago')
+monitorEnd=$(date -Is)
+promtool query range --start="$monitorStart" --end="$monitorEnd" --step=1m http://127.0.0.1:9090 'last_over_time(liberrpa_host_cpu_percent[1m])'
+```
+
+Use timestamps with a UTC offset for fixed intervals. Query long histories in daily segments, or at most one week per request, to stay within query limits. See the [promtool reference](https://prometheus.io/docs/prometheus/latest/command-line/promtool/) for other queries.
+
+Inspect monitoring logs or disk use with:
+
+```bash
+sudo journalctl -u liberrpa-prometheus -u liberrpa-node-exporter --since "30 minutes ago" --no-pager -n 100
+sudo du -sh /var/lib/liberrpa-prometheus
+```
+
+After changing the monitoring configuration or rules, validate with `promtool check config` as above, then run `sudo systemctl restart liberrpa-prometheus`. Changes to service units also require `sudo systemctl daemon-reload` before restarting the affected service.
 
 ## Operate the instance
 
@@ -420,7 +566,7 @@ Restoration replaces the whole instance. It does not undo RPA effects in externa
 
 ### 1. Select the backup and matching image
 
-Use the exact Console version recorded in `manifest.json`; restoration also checks Django's major/minor version. Prefer the original image digest. Restore an older backup with its matching image before upgrading it.
+Use the exact Console version recorded in `manifest.json`. Prefer the original image digest. Restore an older backup with its matching image before upgrading it.
 
 ```bash
 backupDir="/srv/liberrpa-console-backups/<completed-backup-directory>"
@@ -457,7 +603,7 @@ Then restore the backup:
 sudo docker run --rm --pull never --network none --tmpfs /run --env-file .env --mount "type=bind,source=$restoreDir,target=/data" --mount "type=bind,source=$backupDir,target=/restore-source,readonly" "$restoreImage" offline python /app/restore_console.py /restore-source --target /data/config --database-host 127.0.0.1 --database-port 5432 --database-name liberrpa_console --database-user liberrpa_console --password-file /restore-source/config/secrets/database-password.txt
 ```
 
-Continue only after `Restore completed in maintenance mode`. On failure, preserve the existing data and inspect the error; do not bypass markers or start a partially restored directory.
+Continue only after `Restore completed in maintenance mode`. If restoration fails, retain the existing data and resolve the error before starting the restored instance.
 
 ### 3. Switch to the restored data
 
@@ -492,7 +638,7 @@ Backups are disabled after restoration. Re-enable them and complete a new manual
 
 ## Build from source
 
-For custom or unpublished versions, use a complete checkout with Django migrations and frontend assets, including `frontend/public/LiberRPA_icon_v3_color_Console.svg`. From `djangoConsole`:
+For custom or unpublished versions, use a complete source checkout, including Django migrations and frontend assets. From `djangoConsole`:
 
 ```bash
 sudo docker build --progress=plain -t liberrpa-console:local .
