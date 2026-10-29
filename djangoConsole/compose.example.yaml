@@ -1,4 +1,3 @@
-# FileName: compose.example.yaml
 services:
   console:
     image: ${CONSOLE_IMAGE:?Set CONSOLE_IMAGE in .env to a versioned image or digest.}
