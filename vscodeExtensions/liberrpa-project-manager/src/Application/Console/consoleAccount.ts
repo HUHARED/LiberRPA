@@ -24,6 +24,7 @@ import {
 } from "../../Adapter/Console/packagePublishing";
 import type { ConsoleCredentialSnapshot } from "../../Adapter/Console/consoleContextBridge";
 
+const STR_DEFAULT_CONSOLE_URL = "https://console.liberrpa.com";
 const STR_ADDRESS_KEY = "console.url";
 const STR_EMAIL_KEY = "console.email";
 const STR_SESSION_KEY = "console.editorSession";
@@ -53,8 +54,14 @@ export class ConsoleAccount implements vscode.Disposable {
   private readonly initialization: Promise<boolean>;
   private state: ConsoleAccountState;
 
+  private getConfiguredUrl(): string {
+    return (
+      this.context.globalState.get<string>(STR_ADDRESS_KEY, "") || STR_DEFAULT_CONSOLE_URL
+    );
+  }
+
   private getRememberedEmail(url: string): string {
-    return url !== "" && url === this.context.globalState.get<string>(STR_ADDRESS_KEY, "")
+    return url === this.getConfiguredUrl()
       ? this.context.globalState.get<string>(STR_EMAIL_KEY, "")
       : "";
   }
@@ -157,7 +164,7 @@ export class ConsoleAccount implements vscode.Disposable {
         return CredentialLoadResult.Unchanged;
       }
       if (strCredential === undefined) {
-        const strUrl = this.context.globalState.get<string>(STR_ADDRESS_KEY, "");
+        const strUrl = this.getConfiguredUrl();
         const strMessage =
           this.credential === null
             ? this.state.message
@@ -286,7 +293,7 @@ export class ConsoleAccount implements vscode.Disposable {
   }
 
   public constructor(private readonly context: vscode.ExtensionContext) {
-    const strUrl = context.globalState.get<string>(STR_ADDRESS_KEY, "");
+    const strUrl = this.getConfiguredUrl();
     this.state = {
       url: strUrl,
       rememberedEmail: this.getRememberedEmail(strUrl),

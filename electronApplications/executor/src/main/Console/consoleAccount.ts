@@ -35,7 +35,9 @@ import {
   stopConsoleControl,
 } from "./consoleControl";
 
-let strConsoleUrl = "";
+const STR_DEFAULT_CONSOLE_URL = "https://console.liberrpa.com";
+
+let strConsoleUrl = STR_DEFAULT_CONSOLE_URL;
 let strRememberedEmail = "";
 let strToken = "";
 let sessionInfo: ConsoleSessionInfo | null = null;
@@ -267,7 +269,8 @@ export function startConsoleAccount(onChanged: () => void): void {
         "Console account",
       );
       const strSavedUrl = ensureString(dictAccount.consoleUrl, "Console URL");
-      strConsoleUrl = strSavedUrl === "" ? "" : normalizeConsoleUrl(strSavedUrl);
+      strConsoleUrl =
+        strSavedUrl === "" ? STR_DEFAULT_CONSOLE_URL : normalizeConsoleUrl(strSavedUrl);
       strRememberedEmail = ensureString(dictAccount.email, "Remembered email");
       const strEncryptedToken = ensureString(
         dictAccount.encryptedToken,
