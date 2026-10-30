@@ -245,11 +245,11 @@ export async function readPackageMetadata(packagePath: string): Promise<PackageC
   return buildPackageDetails(flowManifest, packageManifest, runtimeSettings);
 }
 
-export async function validatePackageLiberrpaRequirement(
+export async function checkPackageLiberrpaRequirement(
   packagePath: string,
   pythonEnvironmentPath: string,
-): Promise<void> {
-  await execFileAsync(
+): Promise<string | undefined> {
+  const { stdout } = await execFileAsync(
     path.join(pythonEnvironmentPath, "python.exe"),
     [
       "-I",
@@ -259,12 +259,18 @@ export async function validatePackageLiberrpaRequirement(
       [
         "import importlib.metadata, json, sys",
         "from packaging.specifiers import SpecifierSet",
+        "from packaging.version import Version",
         "with open(sys.argv[1], encoding='utf-8-sig') as manifestFile:",
         "    dictManifest = json.load(manifestFile)",
-        "strVersion = importlib.metadata.version('liberrpa')",
         "strRequirement = dictManifest['requiresLiberrpa']",
-        "if strVersion not in SpecifierSet(strRequirement):",
-        "    sys.exit(f'Installed liberrpa {strVersion} does not satisfy {strRequirement}')",
+        "if not isinstance(strRequirement, str) or '===' in strRequirement:",
+        "    raise ValueError('Invalid flow.json requiresLiberrpa.')",
+        "specifierObj = SpecifierSet(strRequirement)",
+        "if not specifierObj:",
+        "    raise ValueError('flow.json requiresLiberrpa cannot be empty.')",
+        "strVersion = importlib.metadata.version('liberrpa')",
+        "if Version(strVersion) not in specifierObj:",
+        "    print(f'Installed liberrpa {strVersion} does not satisfy {strRequirement}.')",
       ].join("\n"),
       path.join(packagePath, STR_FLOW_MANIFEST_FILE_NAME),
     ],
@@ -275,4 +281,5 @@ export async function validatePackageLiberrpaRequirement(
       windowsHide: true,
     },
   );
+  return stdout.trim() || undefined;
 }

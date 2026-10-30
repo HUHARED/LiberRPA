@@ -50,7 +50,7 @@ import { recoverPackageDeletions } from "./Package/packageDeletion";
 import { startRdpSessionManager, stopRdpSessionManager } from "./Rdp/rdpSession";
 import { registerExecutorIpc } from "./IPC/ipc";
 import { sendMainMessage } from "./IPC/mainMessage";
-import { onRunHistoryChanged, onRunActivityChanged } from "./Run/lifecycle";
+import { onRunHistoryChanged, onRunActivityChanged, onRunWarning } from "./Run/lifecycle";
 import {
   isRecoveredProcessPresent,
   stopRecoveredRunObservation,
@@ -287,6 +287,9 @@ void app
     });
     onRunHistoryChanged((historyId) => {
       sendMessageToRenderer({ type: "runHistoryChanged", data: { historyId } });
+    });
+    onRunWarning((message) => {
+      sendMessageToRenderer({ type: "runWarning", data: { message } });
     });
     onJobQueueChanged((arrItem) => {
       sendMessageToRenderer({

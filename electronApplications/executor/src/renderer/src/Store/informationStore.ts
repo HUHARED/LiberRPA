@@ -22,8 +22,8 @@ export const useInformationStore = defineStore("information", {
     };
   },
   actions: {
-    showAlertMessage(message: string): void {
-      loggerRenderer.error(message);
+    showAlertMessage(message: string, logLevel: "error" | "warn" = "error"): void {
+      loggerRenderer[logLevel](message);
       this.information = message;
       this.showAlert = true;
       this.alertRevision += 1;

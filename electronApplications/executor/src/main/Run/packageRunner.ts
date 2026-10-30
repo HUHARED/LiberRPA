@@ -22,12 +22,13 @@ import { getEffectiveProjectLogFolderPath } from "../Config/executorConfig";
 import { getPythonEnvironmentPath } from "../Config/environment";
 import { dbInsertRunHistory, dbUpdateRunHistory } from "../Database/runHistoryRepository";
 import { getDatabase } from "../Database/connection";
-import { validatePackageLiberrpaRequirement } from "../Package/packageMetadata";
+import { checkPackageLiberrpaRequirement } from "../Package/packageMetadata";
 import { getLocalPackageFolderPath } from "../FileSystem/executorFiles";
 import { loggerMain } from "../Logging/logger";
 import {
   notifyRunHistoryChanged,
   notifyRunActivityChanged,
+  notifyRunWarning,
   notifyRunFinished,
 } from "./lifecycle";
 import {
@@ -214,7 +215,10 @@ async function spawnAndTrackRun(
   const strPythonEnvironmentPath = getPythonEnvironmentPath(
     runConfig.python_environment_name,
   );
-  await validatePackageLiberrpaRequirement(strPackagePath, strPythonEnvironmentPath);
+  const strLiberrpaWarning = await checkPackageLiberrpaRequirement(
+    strPackagePath,
+    strPythonEnvironmentPath,
+  );
   ensureRunMayStart();
   loggerMain.info(
     `Use Python environment '${runConfig.python_environment_name}' for ${runConfig.project_name}-${runConfig.project_version}.`,
@@ -226,6 +230,11 @@ async function spawnAndTrackRun(
   const floatStartedAt = performance.now();
   // This call already owns one starting slot; all other starts and actual Runs still count.
   context.beforeSpawn?.(hasActiveRun(true), strStartedAt);
+  if (strLiberrpaWarning !== undefined) {
+    const strMessage = `${runConfig.project_name}-${runConfig.project_version} in Python environment '${runConfig.python_environment_name}': ${strLiberrpaWarning} The Run will be attempted.`;
+    loggerMain.warn(strMessage);
+    notifyRunWarning(strMessage);
+  }
   const { processPy, diagnosticOutput, getProcessError } = spawnPythonProcess({
     detail: runConfig,
     packagePath: strPackagePath,

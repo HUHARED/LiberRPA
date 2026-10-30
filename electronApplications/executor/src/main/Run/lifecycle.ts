@@ -17,6 +17,8 @@ const setRunHistoryChangedListener = new Set<RunHistoryChangedListener>();
 
 const setRunActivityListener = new Set<() => void>();
 
+const setRunWarningListener = new Set<(message: string) => void>();
+
 const setRunFinishedListener = new Set<RunFinishedListener>();
 
 export function onRunHistoryChanged(listener: RunHistoryChangedListener): () => void {
@@ -46,6 +48,20 @@ export function notifyRunActivityChanged(): void {
       listener();
     } catch (e: unknown) {
       loggerMain.error(`Run-activity listener failed: ${getErrorMessage(e)}`);
+    }
+  }
+}
+
+export function onRunWarning(listener: (message: string) => void): void {
+  setRunWarningListener.add(listener);
+}
+
+export function notifyRunWarning(message: string): void {
+  for (const listener of setRunWarningListener) {
+    try {
+      listener(message);
+    } catch (e: unknown) {
+      loggerMain.error(`Run warning listener failed: ${getErrorMessage(e)}`);
     }
   }
 }

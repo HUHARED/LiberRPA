@@ -180,6 +180,10 @@ export type MainMessage =
       data: { historyId: number };
     }
   | {
+      type: "runWarning";
+      data: { message: string };
+    }
+  | {
       type: "jobQueueChanged";
       data: {
         items: JobQueueItem[];

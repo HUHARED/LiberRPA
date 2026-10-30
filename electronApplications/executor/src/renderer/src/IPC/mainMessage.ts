@@ -36,6 +36,11 @@ export function registerMainMessageListener(): void {
           break;
         }
 
+        case "runWarning": {
+          useInformationStore().showAlertMessage(message.data.message, "warn");
+          break;
+        }
+
         case "jobQueueChanged": {
           const jobQueueStore = useJobQueueStore();
           jobQueueStore.setJobQueue(message.data.items);

@@ -17,7 +17,7 @@ import strPackageArchiveWorkerPath from "../Package/packageArchiveWorker?moduleP
 import type { PackageArchiveArgs } from "../Package/packageArchiveWorker";
 import {
   readPackageMetadata,
-  validatePackageLiberrpaRequirement,
+  checkPackageLiberrpaRequirement,
 } from "../Package/packageMetadata";
 import { dbSelectConsolePackageId, dbSaveConsolePackage } from "./packageRepository";
 import { requestConsole } from "./consoleApi";
@@ -221,7 +221,7 @@ export async function prepareConsolePackage(
   }
   await promisePreparation;
   abortPreparation.signal.throwIfAborted();
-  await validatePackageLiberrpaRequirement(
+  await checkPackageLiberrpaRequirement(
     strPackagePath,
     getPythonEnvironmentPath(environmentName),
   );

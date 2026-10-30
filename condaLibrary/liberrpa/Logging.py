@@ -45,7 +45,10 @@ from logging.handlers import RotatingFileHandler
 import logging
 import sys
 from functools import wraps
+from importlib.metadata import version as get_package_version
 import ctypes
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 from pathvalidate import sanitize_filepath
 from collections.abc import Callable
 from typing import Any, Literal, cast, TypeVar
@@ -790,6 +793,39 @@ class Logger:
         self.error_pretty(get_exception_info(ex=exObj))
 
 
+def _warn_project_liberrpa_requirement() -> None:
+    pathManifest = Path(STR_PROJECT_ROOT) / "flow.json"
+    if not pathManifest.exists():
+        return None
+
+    manifestValue = json.loads(pathManifest.read_text(encoding="utf-8"))
+    if not isinstance(manifestValue, dict):
+        raise ValueError("flow.json must contain a JSON object.")
+
+    strRequirement = manifestValue.get("requiresLiberrpa")
+    if (
+        not isinstance(strRequirement, str)
+        or not strRequirement
+        or strRequirement != strRequirement.strip()
+    ):
+        raise ValueError(
+            "flow.json requiresLiberrpa must be a non-empty, trimmed string."
+        )
+    if "===" in strRequirement:
+        raise ValueError("The arbitrary equality operator '===' is not supported.")
+
+    specifierObj = SpecifierSet(strRequirement)
+    if not specifierObj:
+        raise ValueError("flow.json requiresLiberrpa cannot be an empty version range.")
+
+    versionObj = Version(get_package_version("liberrpa"))
+    if versionObj not in specifierObj:
+        Log.warning(
+            f"Installed liberrpa {versionObj} is outside the range declared by flow.json requiresLiberrpa ({strRequirement}). "
+            "Execution will continue, but compatibility is not guaranteed."
+        )
+
+
 # Log is a variable but I hope user treat it as a module, so use UpperCamelCase to match other LiberRPA modules' convention.
 Log = Logger()
 
@@ -815,6 +851,9 @@ else:
 
 boolIsAdmin = ctypes.windll.shell32.IsUserAnAdmin() != 0
 Log.debug(f"Running as Admin: {boolIsAdmin}")
+
+if PROCESS_NAME == "MainProcess" and os.getenv("LogFolderName") is None:
+    _warn_project_liberrpa_requirement()
 
 
 if __name__ == "__main__":
