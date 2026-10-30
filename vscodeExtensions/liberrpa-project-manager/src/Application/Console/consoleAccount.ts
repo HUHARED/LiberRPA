@@ -87,8 +87,8 @@ export class ConsoleAccount implements vscode.Disposable {
 
   private async clearSession(message: string): Promise<void> {
     this.sessionRevision += 1;
-    this.clearLocalSession(message);
     await this.context.secrets.delete(STR_SESSION_KEY);
+    this.clearLocalSession(message);
   }
 
   private applySession(account: EditorSessionInfo): void {
@@ -265,11 +265,12 @@ export class ConsoleAccount implements vscode.Disposable {
     }
   }
 
-  private async revokeSession(): Promise<void> {
+  private async signOutSession(): Promise<string> {
     if (this.credential === null) {
-      return;
+      return "";
     }
     const intSessionRevision = this.sessionRevision;
+    let strMessage = "";
     try {
       await requestConsole(
         this.credential.url,
@@ -278,18 +279,19 @@ export class ConsoleAccount implements vscode.Disposable {
         {},
       );
     } catch (e: unknown) {
-      if (
-        !(e instanceof ConsoleRequestError) ||
-        e.status !== 401 ||
-        e.code !== "editor_authentication_required"
-      ) {
+      if (!(e instanceof ConsoleRequestError)) {
         throw e;
+      }
+      if (e.status !== 401 || e.code !== "editor_authentication_required") {
+        strMessage =
+          "Signed out on this computer. Sign-out could not be confirmed by the previous Console.";
       }
     }
     if (intSessionRevision !== this.sessionRevision) {
       throw new Error("The Console session changed in another Editor window. Try again.");
     }
-    await this.clearSession("");
+    await this.clearSession(strMessage);
+    return strMessage;
   }
 
   public constructor(private readonly context: vscode.ExtensionContext) {
@@ -356,15 +358,18 @@ export class ConsoleAccount implements vscode.Disposable {
       if (strUrl === this.state.url) {
         return;
       }
-      // Revoke the old session only after anonymous validation succeeds.
-      await this.revokeSession();
+      // Sign out of the old session only after anonymous validation succeeds.
+      const strMessage = await this.signOutSession();
       await this.context.globalState.update(STR_EMAIL_KEY, "");
       await this.context.globalState.update(STR_ADDRESS_KEY, strUrl);
       this.state = {
         ...this.state,
         url: strUrl,
         rememberedEmail: "",
-        message: "Console address saved. Sign in to connect.",
+        message:
+          strMessage === ""
+            ? "Console address saved. Sign in to connect."
+            : `Console address saved. ${strMessage} Sign in to connect.`,
       };
       this.publishState();
     });
@@ -425,7 +430,7 @@ export class ConsoleAccount implements vscode.Disposable {
 
   public async signOut(): Promise<void> {
     await this.runOperation(async () => {
-      await this.revokeSession();
+      await this.signOutSession();
     });
   }
 

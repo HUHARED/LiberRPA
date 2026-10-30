@@ -68,11 +68,11 @@ function writeAccount(consoleUrl: string, token: string, email: string): void {
 
 function clearSession(message = ""): void {
   stopConsoleControl();
+  writeAccount(strConsoleUrl, "", strRememberedEmail);
   strToken = "";
   sessionInfo = null;
   connection = ConsoleConnection.SignedOut;
   strMessage = message;
-  writeAccount(strConsoleUrl, "", strRememberedEmail);
 }
 
 function isInvalidSession(e: unknown): boolean {
@@ -125,6 +125,16 @@ async function revokeSession(): Promise<void> {
     if (!isInvalidSession(e)) {
       throw e;
     }
+  }
+}
+
+async function revokeSessionForSignOut(): Promise<string> {
+  // NOTE: Login cleanup and shutdown must keep using revokeSession() directly.
+  try {
+    await revokeSession();
+    return "";
+  } catch {
+    return "Signed out on this computer. Sign-out could not be confirmed by the previous Console. If the Executor is still associated there, use Unassociate in that Console.";
   }
 }
 
@@ -307,14 +317,17 @@ export async function saveConsoleAddress(consoleUrl: string): Promise<ConsoleAcc
     stopConsoleControl();
     try {
       // Only the old address receives the old credential, after anonymous validation succeeds.
-      await revokeSession();
+      const strSignOutMessage = await revokeSessionForSignOut();
       writeAccount(strNewUrl, "", "");
       strConsoleUrl = strNewUrl;
       strRememberedEmail = "";
       strToken = "";
       sessionInfo = null;
       connection = ConsoleConnection.SignedOut;
-      strMessage = "Console address saved. Sign in to connect.";
+      strMessage =
+        strSignOutMessage === ""
+          ? "Console address saved. Sign in to connect."
+          : `Console address saved. ${strSignOutMessage} Sign in to connect.`;
     } finally {
       endConsoleAccountTransition();
     }
@@ -417,8 +430,8 @@ export async function signOutConsole(): Promise<ConsoleAccountState> {
     beginConsoleAccountTransition();
     stopConsoleControl();
     try {
-      await revokeSession();
-      clearSession();
+      const strSignOutMessage = await revokeSessionForSignOut();
+      clearSession(strSignOutMessage);
     } finally {
       endConsoleAccountTransition();
     }
