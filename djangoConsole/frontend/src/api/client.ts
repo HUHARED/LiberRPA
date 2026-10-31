@@ -14,6 +14,7 @@ interface ApiRequestOptions {
 const INT_REQUEST_TIMEOUT_MS = 15000;
 let strCsrfToken: string | null = null;
 let intCsrfRevision = 0;
+let intSessionRevision = 0;
 let csrfRequest: Promise<string> | null = null;
 let handleSessionInvalidated: (() => void) | null = null;
 
@@ -25,6 +26,11 @@ export function setCsrfToken(token: string | null): void {
   intCsrfRevision += 1;
   strCsrfToken = token;
   csrfRequest = null;
+}
+
+export function invalidateSessionRequests(): void {
+  intSessionRevision += 1;
+  setCsrfToken(null);
 }
 
 async function fetchApi(
@@ -150,10 +156,17 @@ export async function requestApi<TResponse = unknown>(
   if (!path.startsWith("/") || path.startsWith("//") || /[\\\r\n]/.test(path)) {
     throw new Error("API paths must be relative to this Console instance.");
   }
+  const intRequestSessionRevision = intSessionRevision;
   const strToken =
     options.method === "POST" || options.method === "PUT"
       ? await getCsrfToken()
       : undefined;
+  // A refreshed CSRF token must not move an earlier mutation into another session.
+  if (strToken !== undefined && intRequestSessionRevision !== intSessionRevision) {
+    throw new ApiError("Your session changed. Please try again.", {
+      code: "session_changed",
+    });
+  }
   // Do not replay mutations after a network or CSRF failure; the user keeps control of retries.
   return (await fetchApi(path, options, strToken)) as TResponse;
 }

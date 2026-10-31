@@ -9,7 +9,7 @@ import {
   signInPlatform,
   signOut,
 } from "../api/account";
-import { setCsrfToken } from "../api/client";
+import { setCsrfToken, invalidateSessionRequests } from "../api/client";
 import { ApiError, getApiError } from "../api/errors";
 
 import type {
@@ -56,15 +56,18 @@ export const useSessionStore = defineStore("session", {
   },
   actions: {
     clearSession(notice: SessionNotice = null): void {
-      this.intRevision += 1;
-      mapRefreshTask.delete(this.$state);
+      // Reconfirming anonymous access must not invalidate pending registration or sign-in requests.
+      if (this.status !== "anonymous" || this.session !== null) {
+        this.intRevision += 1;
+        mapRefreshTask.delete(this.$state);
+        invalidateSessionRequests();
+      }
       this.session = null;
       this.access = null;
       this.issue = null;
       this.unavailable = false;
       this.status = "anonymous";
       this.notice = notice;
-      setCsrfToken(null);
     },
 
     finishAccountSignOut(notice: "password_changed" | "account_deleted"): void {
@@ -95,6 +98,7 @@ export const useSessionStore = defineStore("session", {
         this.session?.user.is_platform_admin !== currentSession.user.is_platform_admin
       ) {
         // A different account must not inherit the previous account's mounted pages.
+        invalidateSessionRequests();
         if (this.status === "authenticated") this.status = "unknown";
 
         this.access = null;
@@ -215,7 +219,7 @@ export const useSessionStore = defineStore("session", {
       this.access = null;
       this.issue = null;
       this.unavailable = false;
-      setCsrfToken(null);
+      invalidateSessionRequests();
       this.status = "unknown";
       await this.refreshSession();
     },
