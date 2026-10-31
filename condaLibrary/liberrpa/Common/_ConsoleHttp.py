@@ -11,6 +11,7 @@ from email.utils import parsedate_to_datetime
 import json
 import math
 import os
+import threading
 import time
 from typing import Any
 
@@ -22,6 +23,7 @@ INT_MAX_JSON_BYTES = 2 * 1024 * 1024
 _SET_RETRY_STATUS_CODE = frozenset({408, 429, 500, 502, 503, 504})
 _TUPLE_RETRY_DELAY_SECONDS = (1.0, 3.0)
 _FLOAT_MAX_RETRY_WAIT_SECONDS = 30.0
+_threadLocal = threading.local()
 
 
 class ConsoleError(RuntimeError):
@@ -166,6 +168,16 @@ def read_json_response(
     return responseValue
 
 
+def _get_http_session() -> requests.Session:
+    httpSession: requests.Session | None = getattr(_threadLocal, "httpSession", None)
+    if httpSession is None:
+        httpSession = requests.Session()
+        # Keep .netrc from replacing the Console credential; load CA settings explicitly.
+        httpSession.trust_env = False
+        _threadLocal.httpSession = httpSession
+    return httpSession
+
+
 @contextmanager
 def open_response(
     method: str,
@@ -185,24 +197,24 @@ def open_response(
         **(headers or {}),
     }
     try:
-        with requests.Session() as httpSession:
-            # Keep .netrc from replacing the Console credential; load CA settings explicitly.
-            httpSession.trust_env = False
-            with httpSession.request(
-                method,
-                f"{consoleContext.consoleUrl}/api/v1/{path}",
-                data=body,
-                headers=dictHeaders,
-                verify=(
-                    os.environ.get("REQUESTS_CA_BUNDLE")
-                    or os.environ.get("CURL_CA_BUNDLE")
-                    or True
-                ),
-                timeout=(10, 60),
-                allow_redirects=False,
-                stream=True,
-            ) as response:
-                yield response
+        httpSession = _get_http_session()
+        # Reuse connections without carrying response cookies into later bearer requests.
+        httpSession.cookies.clear()
+        with httpSession.request(
+            method,
+            f"{consoleContext.consoleUrl}/api/v1/{path}",
+            data=body,
+            headers=dictHeaders,
+            verify=(
+                os.environ.get("REQUESTS_CA_BUNDLE")
+                or os.environ.get("CURL_CA_BUNDLE")
+                or True
+            ),
+            timeout=(10, 60),
+            allow_redirects=False,
+            stream=True,
+        ) as response:
+            yield response
     except requests.RequestException:
         raise ConsoleError(
             "connection_error",
