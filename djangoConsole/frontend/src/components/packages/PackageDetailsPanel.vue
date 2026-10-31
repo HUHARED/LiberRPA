@@ -72,7 +72,7 @@
               tabindex="-1"
               type="error"
               variant="tonal"
-              class="mb-4 flex-shrink-0">
+              class="mb-4 flex-0-0">
               {{ strEditError }}
             </v-alert>
 

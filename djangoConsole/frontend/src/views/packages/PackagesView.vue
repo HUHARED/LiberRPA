@@ -46,7 +46,7 @@
       </v-btn>
     </div>
 
-    <v-alert v-if="strError" type="error" variant="tonal" class="mb-4 flex-shrink-0">
+    <v-alert v-if="strError" type="error" variant="tonal" class="mb-4 flex-0-0">
       {{ strError }}
     </v-alert>
 
