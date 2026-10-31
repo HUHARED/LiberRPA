@@ -35,6 +35,7 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       proxy: proxyOptions,
     },
-    build: { target: "es2022" },
+    // NOTE: Keep assetsDir aligned with nginx.conf; /assets is a page route.
+    build: { target: "es2022", assetsDir: "static" },
   };
 });
