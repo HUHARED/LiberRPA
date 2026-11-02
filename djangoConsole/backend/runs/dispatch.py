@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from console_project.constants import INT_DISPLAY_NAME_SNAPSHOT_MAX_LENGTH
@@ -26,19 +27,18 @@ from organizations.permissions import require_organization_business_available
 from packages.contracts import PackagePreparationState, RunConflictPolicy
 from operations.maintenance import ServiceMaintenanceError, require_service_normal
 
-from .contracts import JobState, AssignmentState, ACTIVE_ASSIGNMENT_STATES
+from .contracts import JobState, AssignmentState, ACTIVE_ASSIGNMENT_STATES, RunStatus
 from .models import Job, ExecutorWorkState, Assignment, DispatchControl
 from .control_notifications import notify_executor_control
 from .browser_events import notify_job_changed, notify_jobs_changed
 from .worker_state import require_control_service
+from .executor_state import INT_WORK_STATE_MAX_AGE_SECONDS
 from .services import (
     has_job_source_access,
     finish_job,
     mark_job_needs_review,
     revoke_job_source_access,
 )
-
-_INT_WORK_STATE_MAX_AGE_SECONDS = 45
 
 _INT_PERMIT_SECONDS = 15
 _INT_START_EVIDENCE_TOLERANCE_SECONDS = 5
@@ -290,7 +290,7 @@ def _advance_job(
         and dictWork[entry.id].session_id == dictSession[entry.id].id
         and dictWork[entry.id].reported_at >= control.cycle_started_at
         and dictWork[entry.id].reported_at
-        >= currentTime - timedelta(seconds=_INT_WORK_STATE_MAX_AGE_SECONDS)
+        >= currentTime - timedelta(seconds=INT_WORK_STATE_MAX_AGE_SECONDS)
     ]
     if not listReady:
         if control.recovery_until and currentTime < control.recovery_until:
@@ -464,7 +464,7 @@ def run_control_tick() -> None:
     DispatchControl.objects.filter(pk=1).update(last_tick_at=timezone.now())
     listOrganizationId = list(
         Job.objects
-        .exclude(state=JobState.FINISHED)
+        .filter(~Q(state=JobState.FINISHED) | Q(runs__status=RunStatus.RUNNING))
         .values_list("request__organization_id", flat=True)
         .distinct()
     )
@@ -532,7 +532,7 @@ def issue_start_permit(session: ExecutorSession, assignmentId: uuid.UUID) -> Ass
         reported_at__gte=control.cycle_started_at,
     ).first()
     if work is None or work.reported_at < currentTime - timedelta(
-        seconds=_INT_WORK_STATE_MAX_AGE_SECONDS
+        seconds=INT_WORK_STATE_MAX_AGE_SECONDS
     ):
         raise ValidationError(
             "Report current work state before requesting start permission.",

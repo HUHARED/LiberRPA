@@ -28,7 +28,14 @@ from notifications.models import RunEmailRecipient
 from packages.contracts import RUN_PRIORITY_ORDER
 from schedules.models import Schedule
 
-from .contracts import JobTargetType, JobState, ACTIVE_ASSIGNMENT_STATES, RunStatus
+from .contracts import (
+    JobTargetType,
+    JobState,
+    ACTIVE_ASSIGNMENT_STATES,
+    RUN_UNCONFIRMED_EXIT_STATUSES,
+    RUN_ENDED_STATUSES,
+    RunStatus,
+)
 from .models import Job, Assignment, Run
 
 _INT_MAX_SELECTED_RUNS = 20000
@@ -162,7 +169,7 @@ def build_job_payload(
         ),
         "can_stop": job.stop_requested_at is None
         and job.state in (JobState.RUNNING, JobState.NEEDS_REVIEW)
-        and (activeRun is None or activeRun.status == RunStatus.RUNNING),
+        and (activeRun is None or activeRun.status in RUN_UNCONFIRMED_EXIT_STATUSES),
         "can_close": job.state == JobState.NEEDS_REVIEW,
     }
     if details:
@@ -194,7 +201,8 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
     job = run.job
     assignment = run.assignment
     boolActiveRun = (
-        run.status == RunStatus.RUNNING and assignment.state in ACTIVE_ASSIGNMENT_STATES
+        run.status in RUN_UNCONFIRMED_EXIT_STATUSES
+        and assignment.state in ACTIVE_ASSIGNMENT_STATES
     )
     boolStopRequested = boolActiveRun and (
         job.stop_requested_at is not None or assignment.stop_requested_at is not None
@@ -217,7 +225,7 @@ def build_run_payload(run: Run, *, details: bool = False) -> dict[str, object]:
         "reason": run.reason,
         "outputs_status": run.outputs_status,
         "stop_requested": boolStopRequested,
-        "can_rerun": run.status != RunStatus.RUNNING,
+        "can_rerun": run.status in RUN_ENDED_STATUSES,
         "can_stop": boolActiveRun
         and job.state != JobState.FINISHED
         and not boolStopRequested,

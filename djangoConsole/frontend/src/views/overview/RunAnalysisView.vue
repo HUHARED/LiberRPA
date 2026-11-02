@@ -184,7 +184,7 @@
       <v-card-title>Runs by Executor</v-card-title>
 
       <v-data-table-server
-        :headers="ARR_EXECUTOR_HEADER"
+        :headers="arrExecutorHeader"
         :items="arrExecutorRow"
         :items-length="statistics.executors.total_count"
         :items-per-page="statistics.executors.page_size"
@@ -232,7 +232,6 @@ import { getRunStatistics, type RunStatisticsFilters } from "@/api/overview";
 import { getRunDepartments, type RunDepartmentInfo } from "@/api/runs";
 import { getApiError } from "@/api/errors";
 import {
-  RunStatus,
   INT_MAX_RUN_STATISTICS_DAYS,
   type RunStatisticsResponse,
 } from "@/api/generated/browserApi";
@@ -256,19 +255,6 @@ const ARR_DATE_RANGE_OPTION = [
   { value: DateRange.Last30Days, title: "Last 30 Days" },
   { value: DateRange.Custom, title: "Custom" },
 ];
-const ARR_ENDED_STATUS = Object.values(RunStatus).filter(
-  (status) => status !== RunStatus.Running,
-);
-const ARR_EXECUTOR_HEADER = [
-  { title: "Executor", key: "name" },
-  { title: "Total", key: "total_count", align: "end" as const },
-  ...ARR_ENDED_STATUS.map((status) => ({
-    title: RUN_STATUS_LABELS[status],
-    key: status,
-    align: "end" as const,
-  })),
-  { title: "Run Time", key: "duration_seconds", align: "end" as const },
-];
 const INT_DAY_MS = 86_400_000;
 
 const sessionStore = useSessionStore();
@@ -290,6 +276,17 @@ const boolLoading = ref(false);
 const strError = ref("");
 let intLoadRevision = 0;
 let intExecutorPage = 1;
+
+const arrExecutorHeader = computed(() => [
+  { title: "Executor", key: "name" },
+  { title: "Total", key: "total_count", align: "end" as const },
+  ...(statistics.value?.results ?? []).map((result) => ({
+    title: RUN_STATUS_LABELS[result.status],
+    key: result.status,
+    align: "end" as const,
+  })),
+  { title: "Run Time", key: "duration_seconds", align: "end" as const },
+]);
 
 const arrExecutorRow = computed(() =>
   (statistics.value?.executors.entries ?? []).map((executor) => ({
@@ -318,10 +315,10 @@ const chartData = computed<ChartData<"bar">>(() => {
   );
   return {
     labels: arrDate,
-    datasets: ARR_ENDED_STATUS.map((status) => ({
-      label: RUN_STATUS_LABELS[status],
-      data: arrDate.map((strDate) => mapDailyResult.get(strDate)?.get(status) ?? 0),
-      backgroundColor: theme.current.value.colors[RUN_STATUS_COLORS[status]],
+    datasets: (response?.results ?? []).map((result) => ({
+      label: RUN_STATUS_LABELS[result.status],
+      data: arrDate.map((strDate) => mapDailyResult.get(strDate)?.get(result.status) ?? 0),
+      backgroundColor: theme.current.value.colors[RUN_STATUS_COLORS[result.status]],
     })),
   };
 });

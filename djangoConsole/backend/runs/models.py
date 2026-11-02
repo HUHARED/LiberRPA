@@ -24,6 +24,8 @@ from .contracts import (
     AssignmentState,
     ACTIVE_ASSIGNMENT_STATES,
     RunStatus,
+    RUN_UNCONFIRMED_EXIT_STATUSES,
+    RUN_ENDED_STATUSES,
     OutputsStatus,
     RecordingStatus,
     RunEventKind,
@@ -257,15 +259,12 @@ class Run(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
-                    models.Q(status=RunStatus.RUNNING, ended_at__isnull=True)
+                    models.Q(
+                        status__in=RUN_UNCONFIRMED_EXIT_STATUSES, ended_at__isnull=True
+                    )
                     | models.Q(status=RunStatus.INTERRUPTED)
                     | models.Q(
-                        status__in=[
-                            RunStatus.COMPLETED,
-                            RunStatus.ERROR,
-                            RunStatus.CANCELED,
-                            RunStatus.TIMED_OUT,
-                        ],
+                        status__in=RUN_ENDED_STATUSES,
                         ended_at__isnull=False,
                     )
                 ),

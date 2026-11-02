@@ -24,6 +24,7 @@ from .contracts import (
     ACTIVE_ASSIGNMENT_STATES,
     JobControlAction,
     RunStatus,
+    RUN_UNCONFIRMED_EXIT_STATUSES,
 )
 from .models import Job, ExecutorWorkState, Assignment, Run
 from .control_notifications import notify_executor_control
@@ -85,6 +86,9 @@ def finish_job(job: Job, reason: str, *, notify: bool = False) -> None:
 
 def mark_job_needs_review(job: Job, assignment: Assignment, *, reason: str) -> None:
     """Create a personal notification only when this Job enters review, within the caller's transaction."""
+    Run.objects.filter(assignment=assignment, status=RunStatus.RUNNING).update(
+        status=RunStatus.UNCONFIRMED, reason=reason[:2000]
+    )
     if job.state == JobState.FINISHED or job.closed_at is not None:
         return
     boolStateChanged = job.state != JobState.NEEDS_REVIEW
@@ -95,6 +99,29 @@ def mark_job_needs_review(job: Job, assignment: Assignment, *, reason: str) -> N
         from notifications.run_events import notify_job_needs_review
 
         notify_job_needs_review(job, assignment)
+
+
+def confirm_run_running(run: Run) -> None:
+    """Apply current execution evidence without reopening a closed Job or sending Run mail."""
+    if run.status not in RUN_UNCONFIRMED_EXIT_STATUSES:
+        return
+    if run.status == RunStatus.UNCONFIRMED:
+        run.status = RunStatus.RUNNING
+        run.reason = ""
+        run.save(update_fields=["status", "reason"])
+    assignment = run.assignment
+    assignment.state = AssignmentState.RUNNING
+    assignment.reason = ""
+    assignment.save(update_fields=["state", "reason"])
+    job = run.job
+    if job.closed_at is None and job.state != JobState.FINISHED:
+        job.state = JobState.STOPPING if job.stop_requested_at else JobState.RUNNING
+        job.reason = (
+            STR_SOURCE_ACCESS_REVOKED_REASON
+            if job.source_access_revoked_at is not None
+            else ""
+        )
+        job.save(update_fields=["state", "reason"])
 
 
 def revoke_job_source_access(job: Job, currentTime: datetime) -> bool:
@@ -190,7 +217,7 @@ def update_jobs_for_revoked_sessions(sessionIds: list[uuid.UUID]) -> None:
             if job.state != JobState.FINISHED:
                 job.stop_requested_at = job.stop_requested_at or currentTime
                 job.save(update_fields=["stop_requested_at"])
-                mark_job_needs_review(job, assignment, reason=assignment.reason)
+            mark_job_needs_review(job, assignment, reason=assignment.reason)
     for job in Job.objects.filter(
         target_session_id__in=sessionIds,
         state__in=(JobState.WAITING, JobState.WAITING_RETRY),
@@ -231,7 +258,7 @@ def control_job(job: Job, action: JobControlAction, *, run: Run | None = None) -
             notify_executor_control(executorId)
         notify_job_changed(job)
         return True
-    if run is not None and run.status != RunStatus.RUNNING:
+    if run is not None and run.status not in RUN_UNCONFIRMED_EXIT_STATUSES:
         raise ValidationError("This Run is no longer running.", code="run_already_ended")
     assignmentQuery = Assignment.objects.filter(
         job=job, state__in=ACTIVE_ASSIGNMENT_STATES

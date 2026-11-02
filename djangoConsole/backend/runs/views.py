@@ -48,7 +48,7 @@ from packages.models import Package
 
 from .contracts import (
     JobState,
-    RunStatus,
+    RUN_ENDED_STATUSES,
     JobControlAction,
     JobCreationRequest,
     JobControlRequest,
@@ -343,7 +343,7 @@ def rerun_options(
 ) -> JsonResponse:
     access = _get_access(request, authentication, write=False)
     run = get_visible_runs(access).get(pk=workId)
-    if run.status == RunStatus.RUNNING:
+    if run.status not in RUN_ENDED_STATUSES:
         raise ValidationError(
             "This Run has not been confirmed as ended.", code="run_not_ended"
         )

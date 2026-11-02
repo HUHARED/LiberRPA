@@ -41,6 +41,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"Entered at: {format_instance_time(status.enteredAt)}")
                 self.stdout.write(f"Active jobs: {status.activeJobs}")
                 self.stdout.write(f"Running runs: {status.runningRuns}")
+                self.stdout.write(f"Unconfirmed runs: {status.unconfirmedRuns}")
                 self.stdout.write(f"Jobs needing review: {status.jobsNeedingReview}")
                 self.stdout.write(f"Can resume: {'yes' if status.canResume else 'no'}")
                 if status.resumeBlockReason:

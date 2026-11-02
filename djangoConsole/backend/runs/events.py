@@ -16,6 +16,7 @@ from .contracts import (
     JobState,
     AssignmentState,
     RunStatus,
+    RUN_UNCONFIRMED_EXIT_STATUSES,
     OutputsStatus,
     RunEventKind,
     RunNotStartedReason,
@@ -29,12 +30,13 @@ from .contracts import (
 from .control_notifications import notify_executor_control
 from .browser_events import notify_job_changed
 from .dispatch import get_start_evidence_not_before
+from .executor_state import has_current_run_report
 from .models import Assignment, Run, RunEvent
 from .services import (
-    STR_SOURCE_ACCESS_REVOKED_REASON,
     has_job_source_access,
     finish_job,
     mark_job_needs_review,
+    confirm_run_running,
 )
 
 _INT_RETRY_SECONDS = 60
@@ -124,7 +126,17 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             )
         run, boolCreated = Run.objects.get_or_create(
             id=assignment.run_id,
-            defaults={"job": job, "assignment": assignment, "started_at": startedAt},
+            defaults={
+                "job": job,
+                "assignment": assignment,
+                "started_at": startedAt,
+                "status": RunStatus.UNCONFIRMED
+                if assignment.state == AssignmentState.NEEDS_REVIEW
+                else RunStatus.RUNNING,
+                "reason": assignment.reason
+                if assignment.state == AssignmentState.NEEDS_REVIEW
+                else "",
+            },
         )
         if boolCreated:
             job.attempt_count = max(job.attempt_count, assignment.attempt_number)
@@ -195,19 +207,12 @@ def receive_event(session: ExecutorSession, event: WorkEvent) -> None:
             assignment.reason = run.reason
             assignment.save(update_fields=["state", "reason"])
             mark_job_needs_review(job, assignment, reason=run.reason)
-        elif event.kind == RunEventKind.STARTED and run.status == RunStatus.RUNNING:
-            assignment.state = AssignmentState.RUNNING
-            assignment.save(update_fields=["state"])
-            if job.closed_at is None:
-                job.state = (
-                    JobState.STOPPING if job.stop_requested_at else JobState.RUNNING
-                )
-                job.reason = (
-                    STR_SOURCE_ACCESS_REVOKED_REASON
-                    if job.source_access_revoked_at is not None
-                    else ""
-                )
-                job.save(update_fields=["state", "reason"])
+        elif (
+            event.kind == RunEventKind.STARTED
+            and run.status in RUN_UNCONFIRMED_EXIT_STATUSES
+        ):
+            if run.status == RunStatus.RUNNING or has_current_run_report(session, run.id):
+                confirm_run_running(run)
     elif event.kind == RunEventKind.PREPARATION_FAILED:
         if assignment.permit_expires_at is not None:
             raise ValidationError(

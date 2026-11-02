@@ -18,7 +18,11 @@ from django.utils import timezone
 from console_project.constants import INT_LIST_PAGE_SIZE
 from organizations.permissions import OrganizationAccessContext
 
-from .contracts import RunStatus, INT_MAX_RUN_STATISTICS_DAYS
+from .contracts import (
+    RunStatus,
+    RUN_ENDED_STATUSES,
+    INT_MAX_RUN_STATISTICS_DAYS,
+)
 from .models import Run
 from .queries import get_visible_runs
 
@@ -119,14 +123,13 @@ def get_run_statistics(access: OrganizationAccessContext, query: QueryDict) -> d
             "Select dates within the supported calendar range."
         ) from None
 
-    runQuery = (
-        runQuery
-        .filter(ended_at__isnull=False, ended_at__gte=fromTime, ended_at__lt=untilTime)
-        .exclude(status=RunStatus.RUNNING)
-        .order_by()
-    )
-    listEndedStatus = [status for status in RunStatus if status != RunStatus.RUNNING]
-    dictResultCount = dict.fromkeys(listEndedStatus, 0)
+    runQuery = runQuery.filter(
+        status__in=RUN_ENDED_STATUSES,
+        ended_at__isnull=False,
+        ended_at__gte=fromTime,
+        ended_at__lt=untilTime,
+    ).order_by()
+    dictResultCount = dict.fromkeys(RUN_ENDED_STATUSES, 0)
     dictDailyCount: dict[date, dict[RunStatus, int]] = {}
     totalDuration = timedelta()
     dailyQuery = (
@@ -140,7 +143,7 @@ def get_run_statistics(access: OrganizationAccessContext, query: QueryDict) -> d
         endedDate = entry["date"]
         status = RunStatus(entry["status"])
         if endedDate not in dictDailyCount:
-            dictDailyCount[endedDate] = dict.fromkeys(listEndedStatus, 0)
+            dictDailyCount[endedDate] = dict.fromkeys(RUN_ENDED_STATUSES, 0)
         dictDailyCount[endedDate][status] = entry["count"]
         dictResultCount[status] += entry["count"]
         totalDuration += entry["duration"]
@@ -154,7 +157,7 @@ def get_run_statistics(access: OrganizationAccessContext, query: QueryDict) -> d
             duration=Sum(F("ended_at") - F("started_at")),
             **{
                 f"{status}_count": Count("id", filter=Q(status=status))
-                for status in listEndedStatus
+                for status in RUN_ENDED_STATUSES
             },
         )
         .order_by("-total_count", "assignment__executor__name", "assignment__executor_id")
@@ -169,7 +172,7 @@ def get_run_statistics(access: OrganizationAccessContext, query: QueryDict) -> d
             "duration_seconds": entry["duration"].total_seconds(),
             "results": [
                 {"status": status, "count": entry[f"{status}_count"]}
-                for status in listEndedStatus
+                for status in RUN_ENDED_STATUSES
             ],
         }
         for entry in page.object_list

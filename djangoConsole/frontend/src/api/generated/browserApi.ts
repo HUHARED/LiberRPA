@@ -186,7 +186,13 @@ export type OrdinaryAssetType = "text" | "integer" | "number" | "boolean" | "jso
 export type RunConflictPolicy = "skip" | "wait" | "concurrent";
 export type OutputsStatus = "waiting" | "complete" | "partial" | "unavailable";
 export type RunStatus =
-  "running" | "completed" | "error" | "canceled" | "timed_out" | "interrupted";
+  | "running"
+  | "unconfirmed"
+  | "completed"
+  | "error"
+  | "canceled"
+  | "timed_out"
+  | "interrupted";
 export type OrganizationLimit =
   | "maxMembersPerOrganization"
   | "maxDepartmentsPerOrganization"
@@ -2501,6 +2507,7 @@ export const JobState = {
 } as const satisfies Record<string, JobState>;
 export const RunStatus = {
   Running: "running",
+  Unconfirmed: "unconfirmed",
   Completed: "completed",
   Error: "error",
   Canceled: "canceled",

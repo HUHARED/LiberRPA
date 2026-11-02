@@ -62,7 +62,7 @@ from organizations.http import get_request_access
 from organizations.permissions import AccessChannel
 from organizations.rate_limits import RequestBudget, request_budget
 
-from .contracts import RunStatus, RecordingStatus, RunFileKind, RunFileRequest
+from .contracts import RUN_ENDED_STATUSES, RecordingStatus, RunFileKind, RunFileRequest
 from .models import Run, RunFileTransfer
 from .queries import get_visible_runs
 from .control_notifications import notify_executor_control
@@ -125,7 +125,7 @@ class RunFileAvailability(TypedDict):
 def build_run_file_availability(run: Run) -> dict[RunFileKind, RunFileAvailability]:
     """Check whether a download can be requested; the Executor that ran the project checks the actual files."""
     strCommonReason = ""
-    if run.status == RunStatus.RUNNING:
+    if run.status not in RUN_ENDED_STATUSES:
         strCommonReason = (
             "Original files are available after this Run's process has exited."
         )
@@ -362,7 +362,7 @@ def _authorize_source(authorizationHeader: str, ticket: TransferTicket) -> None:
         if (
             run.assignment.session_id != ticket.sessionId
             or run.assignment.actor_id != access.actorId
-            or run.status == RunStatus.RUNNING
+            or run.status not in RUN_ENDED_STATUSES
         ):
             raise PermissionDenied("The original Run's process must have exited.")
 

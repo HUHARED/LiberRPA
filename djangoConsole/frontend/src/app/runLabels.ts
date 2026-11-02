@@ -89,6 +89,7 @@ export const JOB_STATE_COLORS: Record<JobState, string> = {
 };
 export const RUN_STATUS_LABELS: Record<RunStatus, string> = {
   running: "Running",
+  unconfirmed: "Unconfirmed",
   completed: "Completed",
   error: "Error",
   canceled: "Canceled",
@@ -97,6 +98,7 @@ export const RUN_STATUS_LABELS: Record<RunStatus, string> = {
 };
 export const RUN_STATUS_COLORS: Record<RunStatus, string> = {
   [RunStatus.Running]: "success",
+  [RunStatus.Unconfirmed]: "warning",
   [RunStatus.Completed]: "inactive",
   [RunStatus.Error]: "error",
   [RunStatus.Canceled]: "warning",

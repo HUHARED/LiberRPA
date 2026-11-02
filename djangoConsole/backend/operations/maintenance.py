@@ -37,6 +37,7 @@ class MaintenanceStatus:
     enteredAt: datetime | None
     activeJobs: int
     runningRuns: int
+    unconfirmedRuns: int
     jobsNeedingReview: int
     canResume: bool
     resumeBlockReason: str
@@ -93,11 +94,16 @@ def load_maintenance_status() -> MaintenanceStatus:
         active=Count("pk", filter=~Q(state=JobState.FINISHED)),
         review=Count("pk", filter=Q(state=JobState.NEEDS_REVIEW)),
     )
+    dictRunCount = Run.objects.aggregate(
+        running=Count("pk", filter=Q(status=RunStatus.RUNNING)),
+        unconfirmed=Count("pk", filter=Q(status=RunStatus.UNCONFIRMED)),
+    )
     return MaintenanceStatus(
         state=ServiceState.MAINTENANCE if boolMaintenance else ServiceState.NORMAL,
         enteredAt=enteredAt,
         activeJobs=dictJobCount["active"],
-        runningRuns=Run.objects.filter(status=RunStatus.RUNNING).count(),
+        runningRuns=dictRunCount["running"],
+        unconfirmedRuns=dictRunCount["unconfirmed"],
         jobsNeedingReview=dictJobCount["review"],
         canResume=boolMaintenance and not strResumeBlockReason,
         resumeBlockReason=strResumeBlockReason,

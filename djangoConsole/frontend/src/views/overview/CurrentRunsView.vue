@@ -110,7 +110,7 @@
 
       <v-divider />
 
-      <div class="d-flex align-center justify-space-between pa-3">
+      <div class="d-flex align-center justify-space-between flex-wrap ga-3 pa-3">
         <span>{{ page.total_count }} runs</span>
         <v-pagination
           v-if="page.total_pages > 1"

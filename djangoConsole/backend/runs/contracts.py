@@ -8,7 +8,7 @@ import json
 import uuid
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Annotated, Literal, Self, cast
+from typing import Annotated, Literal, Self, cast, get_args
 
 from django.db.models import TextChoices
 from pydantic import (
@@ -80,12 +80,16 @@ ACTIVE_ASSIGNMENT_STATES = (
 
 class RunStatus(TextChoices):
     RUNNING = "running", "Running"
+    UNCONFIRMED = "unconfirmed", "Unconfirmed"
     COMPLETED = "completed", "Completed"
     ERROR = "error", "Error"
     CANCELED = "canceled", "Canceled"
     TIMED_OUT = "timed_out", "Timed Out"
     # NOTE: Interrupted confirms process exit even when its exact end time is unknown.
     INTERRUPTED = "interrupted", "Interrupted"
+
+
+RUN_UNCONFIRMED_EXIT_STATUSES = (RunStatus.RUNNING, RunStatus.UNCONFIRMED)
 
 
 type RunEndedStatus = Literal[
@@ -95,6 +99,9 @@ type RunEndedStatus = Literal[
     RunStatus.TIMED_OUT,
     RunStatus.INTERRUPTED,
 ]
+
+
+RUN_ENDED_STATUSES: tuple[RunStatus, ...] = get_args(RunEndedStatus.__value__)
 
 
 INT_MAX_RUN_STATISTICS_DAYS = 366

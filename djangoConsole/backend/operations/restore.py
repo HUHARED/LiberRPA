@@ -33,7 +33,12 @@ from shared_files.contracts import UploadState
 from shared_files.models import UploadSession
 from file_storage.models import StoredBlobState, StoredBlob, DownloadSession
 from schedules.models import SchedulerState
-from runs.contracts import JobState, AssignmentState
+from runs.contracts import (
+    JobState,
+    AssignmentState,
+    RunStatus,
+    RUN_UNCONFIRMED_EXIT_STATUSES,
+)
 from runs.models import (
     Job,
     ExecutorWorkState,
@@ -134,6 +139,9 @@ def sanitize_restored_database(manifest: BackupManifest, restoredAt: datetime) -
             AssignmentState.NEEDS_REVIEW,
         )
     ).update(state=AssignmentState.NEEDS_REVIEW, reason=_STR_RESTORE_REASON)
+    Run.objects.filter(status__in=RUN_UNCONFIRMED_EXIT_STATUSES).update(
+        status=RunStatus.UNCONFIRMED, reason=_STR_RESTORE_REASON
+    )
     jobs = Job.objects.exclude(state=JobState.FINISHED)
     jobs.update(source_access_revoked_at=restoredAt, retry_at=None)
     jobs = jobs.alias(
