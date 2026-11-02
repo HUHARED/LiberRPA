@@ -35,7 +35,7 @@ The tour normally completes in a few minutes. When `interactive=false`, it skips
 
 Before running the example, prepare:
 
-- an initialized LiberRPA 0.3.x environment and the bundled Editor;
+- an initialized LiberRPA environment and the bundled Editor (tested with LiberRPA 0.4.0);
 - Microsoft Excel;
 - TCP port `1984`, or another available value for the `localWebPort` Custom Project Argument.
 
@@ -58,7 +58,7 @@ The example uses a local web page and local files. It does not depend on a publi
 
 The extracted Project already contains its resolved `_Components` folder and `components.lock.json`. The downloadable example includes the materialized dependencies for reproducibility; normal source repositories should commit `components.lock.json` but not `_Components/`.
 
-![1788576052164](md_images/FeatureTour/1788576052164.png)
+![1788576052164](./md_images/FeatureTour/1788576052164.png)
 
 ## Workflow
 
@@ -122,7 +122,7 @@ Browser Automation  │
 
 The Flow uses all five node types supported by the Flowchart: `Start`, `SubStart`, `Block`, `Choose`, and `End`. It also demonstrates Normal, True, False, and Exception Lines.
 
-Video recording is enabled by default. After the Flow finishes, LiberRPA Local Server takes additional time to compress the recording. This step can use significant CPU, especially for longer recordings or on lower-performance systems.
+Video recording is enabled by default.
 
 ## Flowchart and Python Blocks
 
