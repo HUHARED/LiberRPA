@@ -1,7 +1,7 @@
 {
   "name": "liberrpa-chrome-extension",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,6 +23,6 @@
     "globals": "^17.6.0",
     "typescript": "^5.2.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^5.2.0"
+    "vite": "^7.3.7"
   }
 }
