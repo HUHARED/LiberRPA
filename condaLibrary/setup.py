@@ -25,7 +25,7 @@ https://github.com/HUHARED/LiberRPA
 
 setup(
     name="liberrpa",
-    version="0.3.0",
+    version="0.4.0",
     description="The core Python library of LiberRPA.",
     long_description=_LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
