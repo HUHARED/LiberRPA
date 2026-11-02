@@ -72,7 +72,7 @@ def _is_user_admin() -> bool:
         return False
 
 
-def get_system_data() -> dict[str, Any]:
+def _get_system_data() -> dict[str, Any]:
     try:
         dictUserInfo = {
             "Username": getpass.getuser(),
@@ -207,7 +207,7 @@ def _update_daily_data() -> None:
     # Do update and save date file.
     if not os.path.isfile(strDatePath):
         Path(strSystemDataPath).write_text(
-            data=json.dumps(get_system_data(), indent=4, ensure_ascii=False),
+            data=json.dumps(_get_system_data(), indent=4, ensure_ascii=False),
             encoding="utf-8",
         )
 
@@ -224,7 +224,7 @@ def _update_daily_data() -> None:
     strDate = Path(strDatePath).read_text(encoding="utf-8")
     if strDate != strToday:
         Path(strSystemDataPath).write_text(
-            data=json.dumps(get_system_data(), indent=4, ensure_ascii=False),
+            data=json.dumps(_get_system_data(), indent=4, ensure_ascii=False),
             encoding="utf-8",
         )
 
