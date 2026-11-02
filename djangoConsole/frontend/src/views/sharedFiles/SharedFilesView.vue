@@ -208,7 +208,7 @@
             @click="download(item.path)" />
 
           <v-btn
-            v-tooltip:bottom="'Copy Path'"
+            v-tooltip:bottom="'Copy Path as Quoted String'"
             variant="text"
             size="small"
             aria-label="Copy Path"
@@ -441,7 +441,7 @@ async function copyPath(path: string): Promise<void> {
   strActionError.value = "";
   strMessage.value = "";
   try {
-    await navigator.clipboard.writeText(path);
+    await navigator.clipboard.writeText(JSON.stringify(path));
     if (intCurrentRevision === intRevision) strMessage.value = "Path copied.";
   } catch {
     if (intCurrentRevision === intRevision)

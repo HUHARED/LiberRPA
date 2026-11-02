@@ -140,7 +140,7 @@
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1">
           <v-btn
-            v-tooltip:bottom="'Copy Path'"
+            v-tooltip:bottom="'Copy Path as Quoted String'"
             variant="text"
             size="small"
             aria-label="Copy Path"
@@ -345,7 +345,7 @@ async function copyPath(value: string): Promise<void> {
   strMessage.value = "";
   savedQueue.value = null;
   try {
-    await navigator.clipboard.writeText(value);
+    await navigator.clipboard.writeText(JSON.stringify(value));
     if (intCurrentRevision === intRevision) strMessage.value = "Path copied.";
   } catch {
     if (intCurrentRevision === intRevision)

@@ -39,6 +39,9 @@
 
   <p class="text-body-2 text-medium-emphasis mb-4">
     Current member emails are available automatically. Other addresses require verification.
+    Use Recipient ID in the API's
+    <code>recipient_ids</code>
+    field.
   </p>
 
   <v-row class="mb-4">
@@ -59,6 +62,19 @@
   </v-row>
 
   <v-data-table :headers="ARR_HEADER" :items="arrFiltered" :loading="boolLoading">
+    <template #item.id="{ item }">
+      <div class="d-flex align-center ga-1">
+        <span class="text-no-wrap">{{ item.id }}</span>
+        <v-btn
+          v-tooltip:bottom="'Copy Recipient ID with double quotes'"
+          size="small"
+          variant="text"
+          aria-label="Copy Recipient ID"
+          icon="mdi-content-copy"
+          @click="copyRecipientId(item.id)" />
+      </div>
+    </template>
+
     <template #item.status="{ item }">
       <v-chip :color="DICT_STATUS_COLOR[item.status]" size="small" variant="tonal">
         {{ DICT_STATUS_LABEL[item.status] }}
@@ -296,6 +312,7 @@ const ARR_STATUS = [
 
 const ARR_HEADER = [
   { title: "Email", key: "email" },
+  { title: "Recipient ID", key: "id", sortable: false },
   { title: "Status", key: "status" },
   { title: "Notes", key: "notes" },
   { title: "Actions", key: "actions", sortable: false },
@@ -346,6 +363,20 @@ async function load(): Promise<void> {
     if (intCurrentRequest === intLoadRequest) strError.value = getApiError(e).message;
   } finally {
     if (intCurrentRequest === intLoadRequest) boolLoading.value = false;
+  }
+}
+
+async function copyRecipientId(id: string): Promise<void> {
+  if (boolUnmounted) return;
+  strError.value = "";
+  strSuccess.value = "";
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(id));
+    if (!boolUnmounted) strSuccess.value = "Recipient ID copied with double quotes.";
+  } catch {
+    if (!boolUnmounted)
+      strError.value =
+        "Could not copy the Recipient ID. Copy it from the table and add double quotes.";
   }
 }
 

@@ -50,7 +50,7 @@
 
     <v-tabs v-model="strTab" :disabled="boolBusy" show-arrows class="flex-shrink-0 mx-4">
       <v-tab value="settings">Settings</v-tab>
-      <v-tab value="metadata">Package</v-tab>
+      <v-tab value="metadata">Information</v-tab>
       <v-tab value="preparation">Preparation</v-tab>
       <v-tab value="references">References</v-tab>
     </v-tabs>

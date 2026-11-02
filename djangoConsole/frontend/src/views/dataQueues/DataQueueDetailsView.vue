@@ -66,6 +66,7 @@
         </p>
 
         <v-btn
+          v-tooltip:bottom="'Copy Path as Quoted String'"
           variant="tonal"
           prepend-icon="mdi-content-copy"
           class="mt-4"
@@ -550,7 +551,7 @@ async function copyPath(): Promise<void> {
   strActionError.value = "";
   strMessage.value = "";
   try {
-    await navigator.clipboard.writeText(page.value.queue.path);
+    await navigator.clipboard.writeText(JSON.stringify(page.value.queue.path));
     if (intCurrentRevision === intRevision) strMessage.value = "Path copied.";
   } catch {
     if (intCurrentRevision === intRevision)
