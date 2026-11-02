@@ -1,6 +1,6 @@
 {
   "name": "ui-analyzer",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "UI Analyzer is an Electron-based client designed to quickly selecting UI elements and build the corresponding selectors (formatted as several specific dictionary) required for RPA operations.",
   "main": "./out/main/index.js",
   "author": "Jiyan Hu",
@@ -29,7 +29,7 @@
     "@types/lodash": "^4.17.25",
     "@types/node": "^24.13.3",
     "@vitejs/plugin-vue": "^6.0.8",
-    "electron": "^43.4.1",
+    "electron": "^43.8.4",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "eslint": "^10.9.0",
