@@ -45,9 +45,9 @@ LiberRPA: Create a New Project
 Then:
 
 1. Select the parent folder where the new Project should be created.
-2. Select **Flow Project** and the **Minimalist** template.
+2. Select `Flow Project` and the `Minimalist` template.
 3. Enter the required Project information.
-4. Review the settings and click **Confirm**.
+4. Review the settings and click `Confirm`.
 
 The new Project opens in a separate LiberRPA Editor window.
 
@@ -63,7 +63,7 @@ project.flow
 
 from the Project root.
 
-A new Flow Project starts with a single **Start** node.
+A new Flow Project starts with a single `Start` node.
 
 The Flowchart represents high-level process structure. Detailed implementation logic belongs in Python files used by Block nodes.
 
@@ -71,7 +71,7 @@ The Flowchart represents high-level process structure. Detailed implementation l
 
 ## 3. Add Your First Block
 
-Drag a **Block** node from the Node Panel onto the Flowchart.
+Drag a `Block` node from the Node Panel onto the Flowchart.
 
 Configure a description such as:
 
@@ -85,7 +85,7 @@ and set its Python file path to:
 HelloLiberRPA.py
 ```
 
-Connect the **Start** node to the Block.
+Connect the `Start` node to the Block.
 
 Your Flow should now be conceptually equivalent to:
 
@@ -119,13 +119,7 @@ if __name__ == "__main__":
     main()
 ```
 
-Keep the generated structure and replace:
-
-```python
-raise NotImplementedError()
-```
-
-with your implementation:
+Keep the generated structure and update `main()` as follows:
 
 ```python
 def main() -> None:
@@ -169,9 +163,9 @@ and the process should then finish.
 
 ### Run from the Start node
 
-You can also click the execution button inside the **Start** node.
+You can also click the execution button inside the `Start` node.
 
-The button follows the Flowchart **Execute Mode** setting. The default Flow Project template starts in **Debug** mode.
+The button follows the Flowchart `Execute Mode` setting. The default Flow Project template starts in `Debug` mode.
 
 ### Run only one Block
 
@@ -231,7 +225,7 @@ For advanced Flow behavior, including Exception Lines, subprocess entry points, 
 
 ## 6. Insert a LiberRPA Snippet
 
-Open **LiberRPA Snippets Tree** in the Editor.
+Open `LiberRPA Snippets Tree` in the Editor.
 
 Snippets can be inserted by:
 
@@ -281,24 +275,12 @@ For details, see [LiberRPA Snippets Tree](../vscodeExtensions/liberrpa-snippets-
 
 The basic LiberRPA development workflow is:
 
-```text
-Design the high-level process in Flowchart
-                  │
-                  ▼
-Write implementation logic in Python
-                  │
-                  ▼
-Run an individual Block while developing
-                  │
-                  ▼
-Run or debug the complete Flow
-                  │
-                  ▼
-Inspect results and logs
-                  │
-                  ▼
-Modify and repeat
-```
+1. Design the high-level process in Flowchart.
+2. Write implementation logic in Python.
+3. Run an individual Block while developing.
+4. Run or debug the complete Flow.
+5. Inspect results and logs.
+6. Modify and repeat.
 
 The same model continues to work as a Project becomes larger: the Flowchart remains focused on process structure while Python files contain detailed implementation logic.
 
@@ -341,15 +323,26 @@ When a Flow Project is ready for deployment:
 
 1. Run `LiberRPA: Package Project`.
 2. Create the versioned `.rpa.zip` Package.
-3. Install it in LiberRPA Executor.
+3. Install it under `Packages` in LiberRPA Executor.
 4. Review and save the local Run Settings.
-5. Use `Run Now` or create a Schedule.
+5. Use `Run` or create a Schedule.
+
+For central management, create or join an organization on the free public service at [console.liberrpa.com](https://console.liberrpa.com). If your organization hosts its own Console, use that address instead.
+
+Sign in through `LiberRPA: Console` in Project Manager and enable `Publish to Console` when packaging. You can also upload the Package through the Console website. Then choose the target Executors and start the work or create a Schedule in Console.
 
 See:
 
 - [Project Packaging](../vscodeExtensions/liberrpa-project-manager/README.md#package-a-flow-project)
 - [LiberRPA Executor](../electronApplications/executor/README.md)
+- [LiberRPA Console](../djangoConsole/README.md)
 - [Executor Lifecycle Example](../electronApplications/executor/ExecutorLifecycleExample.md)
+
+### Use shared Console resources
+
+Projects can read Assets, process Data Queue items, and exchange Shared Files through Console. Sign in through `LiberRPA: Console` before starting the Project.
+
+See [Connect to Console](../vscodeExtensions/liberrpa-project-manager/README.md#connect-to-console) for setup and the [Python Console reference](./Reference.md#console) for the functions available to your Project.
 
 ### Continue with the Feature Tour
 

@@ -10,7 +10,7 @@ The `liberrpa` package is also published on PyPI for advanced use cases such as 
 
 ## Python Version
 
-LiberRPA 0.3.0 requires:
+LiberRPA 0.4.0 requires:
 
 ```text
 Python >=3.13,<3.14

@@ -1,6 +1,6 @@
 # Python Environment
 
-LiberRPA 0.3.0 uses a standard **Python 3.13** environment for Project development and execution.
+LiberRPA 0.4.0 uses a standard **Python 3.13** environment for Project development and execution.
 
 Normal users do not need to build this environment manually. The official LiberRPA release package includes a prepared environment, and LiberRPA Editor is configured to use it automatically.
 
@@ -41,7 +41,7 @@ ${env:LiberRPA}\envs\pyenv\default\python.exe
 
 as its default Python interpreter.
 
-LiberRPA 0.3.0 requires:
+LiberRPA 0.4.0 requires:
 
 ```text
 Python >=3.13,<3.14
@@ -85,7 +85,7 @@ LiberRPA maintains two different environment specifications because they serve d
 
 ### `envs/environment.yml`
 
-This is the  **human-maintained environment specification** .
+This is the **human-maintained environment specification**.
 
 It lists the direct third-party packages that LiberRPA intentionally requires.
 
@@ -144,7 +144,7 @@ After creation, verify the Python version:
 envs\pyenv\default\python.exe --version
 ```
 
-The result for LiberRPA 0.3.0 should be Python 3.13.x.
+The result for LiberRPA 0.4.0 should be Python 3.13.x.
 
 ### Why use a prefix instead of only the YAML environment name?
 
@@ -243,7 +243,7 @@ For an official release, build the corresponding `liberrpa` package and install 
 For example:
 
 ```bat
-envs\pyenv\default\python.exe -m pip install --no-deps condaLibrary\dist\liberrpa-0.3.0-py3-none-any.whl
+envs\pyenv\default\python.exe -m pip install --no-deps condaLibrary\dist\liberrpa-0.4.0-py3-none-any.whl
 ```
 
 The installed `liberrpa` version should match the LiberRPA release.
@@ -289,7 +289,7 @@ envs/environment.yml
 
 when a required package cannot reasonably be supplied through the standard Conda source used by LiberRPA.
 
-For 0.3.0, this currently includes packages such as:
+For 0.4.0, this currently includes packages such as:
 
 ```text
 easyocr
@@ -324,7 +324,7 @@ This catches undeclared dependencies that may have been present accidentally in 
 
 ## Release Environment Snapshot
 
-Before publishing a LiberRPA release, generate a snapshot from the  **final tested standard environment** , not from an arbitrary development environment.
+Before publishing a LiberRPA release, generate a snapshot from the **final tested standard environment**, not from an arbitrary development environment.
 
 From a Conda shell:
 
@@ -346,7 +346,7 @@ The snapshot is intended to record what was actually tested.
 
 Before committing it, confirm that the export also contains the expected pip-installed packages.
 
-For 0.3.0 this should include, among others:
+For 0.4.0 this should include, among others:
 
 ```text
 easyocr
@@ -367,7 +367,7 @@ After building or modifying the standard environment, perform at least the follo
 envs\pyenv\default\python.exe --version
 ```
 
-Expected for 0.3.0:
+Expected for 0.4.0:
 
 ```text
 Python 3.13.x
@@ -382,7 +382,7 @@ envs\pyenv\default\python.exe -c "import importlib.metadata; print(importlib.met
 Expected:
 
 ```text
-0.3.0
+0.4.0
 ```
 
 ### Basic import

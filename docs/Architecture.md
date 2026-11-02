@@ -27,25 +27,29 @@ For a first-use tutorial, see [Getting Started](./GettingStarted.md).
 
 ## Architecture Overview
 
-LiberRPA separates **development**, **Project source**, and **execution** while keeping them part of one toolchain.
+LiberRPA separates **development**, **Project source**, **execution**, and **central management** while keeping them part of one toolchain.
 
 At the user level, the main workflow is:
 
 ```mermaid
-flowchart LR
-    A["LiberRPA Editor<br/>Flowchart<br/>Python<br/>UI Analyzer<br/>Snippets<br/>Project Manager"]
-    B["Flow Project<br/>Python + project.flow"]
+flowchart TD
+    A["LiberRPA Editor"]
+    B["Flow Project"]
     C["Reusable Components"]
-    D[".rpa.zip"]
-    E["LiberRPA Executor<br/>Run<br/>Schedule<br/>Queue<br/>History<br/>Logs"]
-    F["LiberRPA Console<br/>(planned)"]
+    D["Project Package (.rpa.zip)"]
+    E["LiberRPA Executor"]
+    F["LiberRPA Console"]
 
     C --> B
     A --> B
     B --> D
-    D --> E
-    F -. central management .-> E
+    D -->|Local install| E
+    D -->|Upload| F
+    F -->|Dispatch work| E
+    E -->|Report results| F
 ```
+
+Editor and Executor can be used locally. Console adds shared resources and central management; Projects still run on Executor computers.
 
 The main design separation is:
 
@@ -91,6 +95,8 @@ LiberRPA Editor
 ```
 
 Project Manager can initialize a new Project as a Git repository when Git is installed and the selected template contains `.gitignore`. The bundled Editor disables VS Code's built-in Git interface by default, but command-line Git and external clients remain available; users can enable the VS Code interface in Editor settings.
+
+Project Manager also connects Editor to Console. Its signed-in account is used for Package uploads and for Console resource access from newly launched Python processes.
 
 The standard Python interpreter is:
 
@@ -345,12 +351,13 @@ Only MainProcess performs Project-level Flow cleanup and publishes the final Exe
 
 For Executor-managed Runs, Python publishes runtime state through the temporary Executor Run State file. Executor maps the result into its own Run History:
 
-- `completed` becomes **Completed** when the Python process exits normally;
-- `error`, or an unexpected Python process exit, becomes **Error**;
-- `terminated` becomes **Canceled** or **Timed Out** according to the Executor termination reason;
-- a stale **Running** record found after an unexpected Executor or system termination becomes **Interrupted** during the next Executor startup.
+- `completed` becomes `Completed` when the Python process exits normally;
+- `error` becomes `Error` when Python reports it through the normal run lifecycle;
+- `terminated` becomes `Canceled` or `Timed Out` according to the Executor termination reason;
+- an unexpected process exit without a requested stop becomes `Interrupted`;
+- after an Executor restart, unfinished local Runs become `Interrupted`. Console Runs are checked for a recoverable result or an existing Python process before their final status is determined.
 
-**Interrupted** is therefore an Executor recovery result rather than a Python Flow result.
+`Interrupted` is an Executor status, not a Python Flow result. An unknown final result or end time remains unknown; a restart does not establish when the automation actually stopped.
 
 ---
 
@@ -524,21 +531,11 @@ Project Manager converts a development Flow Project into an immutable deployment
 <name>_<version>.rpa.zip
 ```
 
-Architecturally, packaging is the boundary between the editable development workspace and the Project installed by Executor.
+Architecturally, packaging is the boundary between the editable development workspace and the Project installed by Executor, either locally or through Console.
 
 The Package stores the Project content directly at the archive root and includes Package metadata plus the materialized `_Components` required at runtime. Development-only entries and generated caches are handled according to Project Manager's packaging rules.
 
-```text
-Development Project
-        │
-        │ resolve Components and package
-        ▼
-   .rpa.zip Package
-        │
-        │ install by Project name and version
-        ▼
-      Executor
-```
+The same `.rpa.zip` can be installed locally in Executor or uploaded to Console. Project Manager can upload the generated Package directly to a Console department. Executor downloads the Package from Console when preparing its work.
 
 A generated Package should not be edited manually. Change the source Project, increase its version, and create another Package instead.
 
@@ -576,10 +573,12 @@ The local execution layer provides:
 
 - manual and Cron-based scheduled Runs;
 - per-version Run Settings and Custom Arguments;
-- Run Queue conflict policies;
+- local Job queuing, retries, and conflict policies;
 - Run History;
 - cancellation and timeout handling;
 - access to Project logs and recordings.
+
+When connected to Console, Executor also receives central work, prepares its Packages, and reports Run results and logs. Local and Console Packages are stored separately. Console controls its own Schedules and Jobs; Executor's local Scheduler controls local schedules.
 
 The Python Flow runtime reports:
 
@@ -594,16 +593,17 @@ Executor presents those results through its own lifecycle states:
 
 | Executor state | Meaning |
 | --- | --- |
-| **Running** | The Run is active. |
-| **Completed** | Python reported successful completion and exited normally. |
-| **Error** | Python reported an error or exited unexpectedly. |
-| **Canceled** | Executor terminated the Run in response to cancellation. |
-| **Timed Out** | Executor terminated the Run after its timeout expired. |
-| **Interrupted** | Executor started with a stale Run still recorded as running from a previous session. |
+| `Running` | The Run is active. |
+| `Completed` | Python reported successful completion and exited normally. |
+| `Error` | Python reported an execution error through the normal run lifecycle. |
+| `Canceled` | Executor terminated the Run in response to cancellation. |
+| `Timed Out` | Executor terminated the Run after its timeout expired. |
+| `Interrupted` | The process exited unexpectedly, or recovery could not obtain its final result. |
+| `Unknown` | A Console Run needs recovery checks before Executor can confirm its result. |
 
-Executor keeps installed Packages, Project metadata, Schedules, Run History, active-run coordination, and settings in separate local stores according to their responsibilities.
+Executor keeps installed Packages, Project metadata, local Schedules, Run History, Console work state, active-run coordination, and settings in separate local stores according to their responsibilities. Console keeps its own central records, including Job status and reports from Executors.
 
-For the complete Package limits, Run Settings, Scheduler and Run Queue behavior, status handling, logs, retention, data paths, and known issues, see [LiberRPA Executor](../electronApplications/executor/README.md).
+For the complete Package limits, Run Settings, Scheduler and Job Queue behavior, status handling, logs, retention, data paths, and known issues, see [LiberRPA Executor](../electronApplications/executor/README.md).
 
 ---
 
@@ -641,12 +641,13 @@ The following files and directories represent different architectural responsibi
 | `components.lock.json` | Exact Component resolution and integrity information. |
 | Component Repository | Authoritative local collection of Component Wheels. |
 | `.liberrpa-package.json` | Package-only metadata, including the Version Summary. |
-| `.rpa.zip` | Immutable deployment Package passed from Project Manager to Executor. |
+| `.rpa.zip` | Immutable deployment Package passed from Project Manager to Executor, locally or through Console. |
 | `envs/pyenv/default/` | Standard LiberRPA Python runtime environment. |
 | `configFiles/basic.jsonc` | Common local LiberRPA configuration. |
 | `WebSocketAuth.json` | Local communication authentication tokens. |
-| `ExecutorPackage/` | Installed versioned Flow Project Packages. |
-| `ExecutorData.db` | Installed Project metadata, Schedules, and Run History. |
+| `Packages/Local/` | Packages installed for local execution. |
+| `Packages/Console/` | Packages prepared for Console work. |
+| `ExecutorData.db` | Local Project metadata, Schedules, Run History, and Console work state. |
 | `ExecutorRunState/` | Temporary coordination state for active Executor-managed Runs. |
 | `configFiles/Executor.jsonc` | Local Executor configuration. |
 
@@ -656,26 +657,31 @@ The architecture deliberately keeps these responsibilities separate instead of s
 
 ## Console
 
-LiberRPA Console is planned but is not part of LiberRPA 0.3.0.
+LiberRPA Console provides central management for organizations, departments, Executors, Packages, Schedules, Jobs, and shared resources. It has a Vue web interface, a Django backend, and a PostgreSQL database. Background services handle scheduling, dispatch, email, cleanup, and backups.
 
-Editor and Executor currently support a complete local workflow:
+### Client responsibilities
 
-```text
-Develop
-    ↓
-Test / Debug
-    ↓
-Resolve Components
-    ↓
-Package
-    ↓
-Import
-    ↓
-Run / Schedule
-```
+| Client | Role |
+| --- | --- |
+| **Browser** | Manage organization resources, start and control work, and inspect results. Platform administrators use separate pages to manage the service. |
+| **Project Manager** | Sign Editor in, upload Project Packages, and provide the account context for Python development runs. |
+| **Executor** | Associate a Windows client with an Executor record, receive work, run Python, and report progress and results. |
+| **Python Project** | Use `liberrpa.Console` to access permitted Assets, Data Queues, and Shared Files. |
 
-Console is intended for scenarios where local Executor management is no longer sufficient, particularly central management involving multiple Executors and shared automation resources.
+Console uses HTTP APIs for operations and file transfers. Executor maintains a WebSocket control connection for availability checks and control updates. Python resource requests go directly to Console using the account supplied by the launching Editor or Executor; they do not pass through LiberRPA Local Server.
 
-The exact Console architecture should be documented once its design and implementation are sufficiently stable.
+### Jobs and Runs
 
-Until then, Console should be treated as a future product boundary rather than an existing dependency of Editor or Executor.
+A manual request, API request, or Schedule trigger creates Jobs in Console. A Job tracks dispatch and any retries. A Run records one actual execution attempt on an Executor.
+
+Console selects an eligible target and coordinates Package preparation and permission to start. Executor runs the Package using its local Python environment and sends results and logs back to Console. Python environment installation and Windows application setup remain responsibilities of the Executor computer.
+
+Console can request that work stop, but a lost connection does not prove the process has stopped. Jobs whose outcomes cannot be confirmed may require review. This is why central Job status, individual Run results, and the actual process state are tracked separately.
+
+### Account and resource access
+
+Organizations hold separate members and resources. Within an organization, department roles control access; organization administrators have access across its departments. Platform administration is separate from the organization's workspace.
+
+A Python process uses the Console identity associated with its launch. It does not switch to a different account when the user changes the Editor or Executor sign-in later.
+
+For normal use, see the [Console user guide](../djangoConsole/README.md). For server setup and platform management, see [Deployment](../djangoConsole/DEPLOYMENT.md) and [Platform Administration](../djangoConsole/ADMINISTRATION.md). Python operations are listed in the [Python Console reference](./Reference.md#console).

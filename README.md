@@ -4,17 +4,19 @@
 
 # LiberRPA
 
-**Open-source, code-first RPA toolchain for Windows, built for professional automation developers with Python, visual process design, reusable Components, and local execution.**
+**Open-source, code-first RPA toolchain for Windows, built for professional automation developers with Python, visual process design, reusable Components, local execution, and a free public Console.**
 
 > **Production automation is software. Build it like software.**
 
 LiberRPA combines the specialized tooling of an RPA platform with familiar software-engineering practices. It provides visual process orchestration, UI inspection, automation APIs, reusable Components, debugging, packaging, logging, scheduling, and execution while keeping detailed automation logic in Python.
 
-**[Download](https://sourceforge.net/projects/liberrpa/files/LiberRPA-0.3.0-win-x64.7z/download) · [Getting Started](#getting-started) · [Documentation](#documentation) · [Community](#community--support)**
+**[Download](https://sourceforge.net/projects/liberrpa/files/LiberRPA-0.4.0-win-x64.7z/download) · [Open Console](https://console.liberrpa.com) · [Getting Started](#getting-started) · [Documentation](#documentation) · [Community](#community--support)**
 
-> **Current release: 0.3.0**
+> **Current release: 0.4.0**
 >
 > **Project maturity: Alpha.** LiberRPA is under active development and has not yet been validated across a large external production user base.
+>
+> A note from the developer: I am building LiberRPA for the long term. I take user feedback seriously and will do my best to respond promptly. If another tool handles something better, [tell me about your use case](#community--support). I will consider improvements and new features based on those needs.
 
 ## Contents
 
@@ -81,6 +83,12 @@ Its automation logic is Python, its source is open, and development takes place 
 
 LiberRPA does not assume that AI removes the need for software-engineering knowledge. It simply avoids placing unnecessary proprietary abstractions between developers, their code, and the tools they choose to use.
 
+### Free tools and a free public Console
+
+LiberRPA has no per-developer or per-robot license fees. You can also use the public [Console](https://console.liberrpa.com) for free, without deploying a server.
+
+The public service's limits are set to support frequent use by most users. They protect the shared service from abuse. There are no paid tiers. You can also host Console yourself when you need your own server or a private network.
+
 ---
 
 ## Who It Is For
@@ -139,22 +147,24 @@ LiberRPA is organized around three main product areas:
 
 * **Editor** — develop, debug, test, manage, and package RPA Projects.
 * **Executor** — install versioned Project Packages, run them manually or on schedules, and inspect local execution history.
-* **Console** — planned central management for multiple Executors and shared resources.
+* **Console** — manage Executors, Packages, Schedules, shared resources, and results through a web application.
 
 ```mermaid
 flowchart LR
-    A["LiberRPA Editor<br/>Flowchart<br/>Python<br/>UI Analyzer<br/>Snippets<br/>Project Manager"]
+    A["LiberRPA Editor"]
     B["Flow Project<br/>Python + project.flow"]
     C["Reusable Components"]
     D[".rpa.zip"]
-    E["LiberRPA Executor<br/>Run · Schedule · Queue<br/>History · Logs"]
-    F["LiberRPA Console<br/>(planned)"]
+    E["LiberRPA Executor"]
+    F["LiberRPA Console"]
 
     C --> B
     A --> B
     B --> D
     D --> E
-    F -. central management .-> E
+    D -->|Publish or upload| F
+    F -->|Dispatch work| E
+    E -->|Report results| F
 ```
 
 ### Editor
@@ -184,11 +194,31 @@ It supports:
 
 * validated, versioned Package installation;
 * manual and Cron-based scheduled execution;
-* Run Queue conflict policies;
-* Run History, cancellation, and timeouts;
+* Job Queue conflict policies;
+* connecting to Console and receiving centrally managed work;
+* Run History, cancellation, timeouts, and retries;
 * local log and recording access.
 
 Detailed Run Settings, Scheduler behavior, queue states, retention, and RDP Session support are documented in the [Executor guide](./electronApplications/executor/README.md).
+
+### Console
+
+[LiberRPA Console](./djangoConsole/README.md) gives your team one place to manage automation across Windows Executors.
+
+Use it to:
+
+* organize members and control department access;
+* publish Packages from Project Manager or upload them in the browser;
+* run work on selected Executors or an Executor Group;
+* create Schedules and review Jobs, Run results, logs, and recordings;
+* share Assets, Data Queues, and files between Projects;
+* receive notifications and run emails, or start work through the API.
+
+Use the free public service at [console.liberrpa.com](https://console.liberrpa.com). Create an organization or join one through an invitation, then connect your Windows Executors. You do not need to deploy a server.
+
+If you want to host Console yourself, see [Deployment](./djangoConsole/DEPLOYMENT.md) for the Linux server setup and [Platform Administration](./djangoConsole/ADMINISTRATION.md) for managing your own instance.
+
+For example, a developer can publish and schedule a daily report Project in Console. Operators can start extra runs when needed, and the team can check the results in the browser.
 
 ### Supporting services
 
@@ -215,7 +245,8 @@ For the internal architecture, see [Architecture](./docs/Architecture.md).
 | **Reusable logic**      | Versioned Components with dependency management, exact locks, local repositories, and generated Snippets.                                       |
 | **Logging**             | Human-readable and structured machine-readable logs with runtime context.                                                                       |
 | **Execution recording** | Optional execution video with log-derived subtitles for troubleshooting.                                                                        |
-| **Packaging**           | Flow Projects can be packaged as `.rpa.zip` files for Executor.                                                                               |
+| **Packaging**           | Package a Flow Project for a local Executor or publish it to Console.                                                                               |
+| **Team management**     | Console manages department access, Executors, shared resources, Schedules, and execution results. |
 | **Local operation**     | Development and execution can operate locally without a LiberRPA-hosted cloud service.                                                          |
 | **Portability**         | An initialized LiberRPA environment can be copied between compatible Windows computers.                                                         |
 
@@ -223,10 +254,10 @@ For the internal architecture, see [Architecture](./docs/Architecture.md).
 
 ## Getting Started
 
-LiberRPA 0.3.0 targets Windows and includes its standard Python 3.13 environment in the official release package. Microsoft Visual Studio Code itself is prepared during initialization rather than redistributed in the release archive.
+LiberRPA 0.4.0 targets Windows and includes its standard Python 3.13 environment in the official release package. Microsoft Visual Studio Code itself is prepared during initialization rather than redistributed in the release archive.
 
 1. Download the current supported Windows release from SourceForge:
-   **[Download LiberRPA 0.3.0](https://sourceforge.net/projects/liberrpa/files/LiberRPA-0.3.0-win-x64.7z/download)**
+   **[Download LiberRPA 0.4.0](https://sourceforge.net/projects/liberrpa/files/LiberRPA-0.4.0-win-x64.7z/download)**
 2. Extract the archive and run:
    ```text
    InitLiberRPA.exe
@@ -240,9 +271,11 @@ LiberRPA 0.3.0 targets Windows and includes its standard Python 3.13 environment
    ```text
    LiberRPA: Create a New Project
    ```
-   and create a **Minimalist Flow Project**.
+   and create a `Minimalist Flow Project`.
 
 SourceForge hosts only the current supported binary release. Older binary packages are not retained there; source history remains available in this Git repository.
+
+To use Console, open the free public service at [console.liberrpa.com](https://console.liberrpa.com) and follow its [user guide](./djangoConsole/README.md).
 
 For the complete first-Project walkthrough, including running and debugging a Flow, see [Getting Started](./docs/GettingStarted.md).
 
@@ -268,18 +301,17 @@ The table below compares broad development approaches. Individual RPA products a
 | **Unusual requirements**    | Depends on platform extension mechanisms                       | Directly programmable         | Direct Python and compatible Python libraries  |
 | **Reusable logic**          | Product-specific libraries/components                          | Packages or modules           | Versioned Components                           |
 | **Project packaging**       | Usually integrated                                             | Must be designed as needed    | `.rpa.zip`                                   |
-| **Execution & scheduling**  | Usually integrated                                             | External or custom            | Executor                                       |
-| **Central orchestration**   | Common in enterprise platforms                                 | External or custom            | Console planned                                |
+| **Execution & scheduling**  | Usually integrated                                             | External or custom            | Executor and Console                                       |
+| **Central orchestration**   | Common in enterprise platforms                                 | External or custom            | Free public Console or your own instance       |
 | **Licensing model**         | Product-dependent; commonly proprietary/commercial             | Library-dependent             | AGPL-3.0-or-later; no LiberRPA license fee     |
 
 ---
 
 ## Current Limitations
 
-LiberRPA 0.3.0 is alpha software. Important current limitations include:
+LiberRPA 0.4.0 is alpha software. Important current limitations include:
 
 * **Limited external production validation.** The project has not yet been tested across a large external user base.
-* **No central Console yet.** Development, packaging, scheduling, and execution are available locally, but central management of multiple Executors is not yet implemented.
 * **Browser edge cases.** HTML automation currently has limited support for iframes and Shadow DOM, and Chrome-controlled internal pages cannot be automated through the extension.
 * **Display-dependent automation.** Coordinate- and image-based operations can be affected by Windows resolution, DPI scaling, and application rendering. A 100% display scale is recommended where maximum consistency is required.
 * **Integrated environment size.** The standard distribution contains a broad Python environment and several development and execution tools, so it is larger than a minimal project-specific Python setup.
@@ -290,21 +322,9 @@ Component-specific limitations are documented in the corresponding documentation
 
 ## Roadmap
 
-### LiberRPA Console
-
-The main planned product area is **LiberRPA Console**, intended for scenarios requiring central management beyond a single Executor.
-
-Its scope is expected to include areas such as:
-
-* Executor management;
-* shared resources;
-* deployment coordination;
-* task and execution monitoring;
-* other central orchestration requirements.
-
 ### Continued improvement
 
-Editor, Executor, automation APIs, selector strategies, and developer tooling will continue to evolve from practical use cases and user feedback.
+Editor, Executor, Console, automation APIs, selector strategies, and developer tooling will continue to evolve from practical use cases and user feedback.
 
 New functionality should solve a clear engineering or automation problem rather than being added only because a technology or feature is fashionable.
 
@@ -336,6 +356,15 @@ New functionality should solve a clear engineering or automation problem rather 
 * [Executor](./electronApplications/executor/README.md)
 * [Local Server](./docs/LocalServer.md)
 
+### Console
+
+* [Open the Free Public Console](https://console.liberrpa.com)
+* [Console User Guide](./djangoConsole/README.md)
+* [Console HTTP API](./djangoConsole/API.md)
+* [Deploy Your Own Console](./djangoConsole/DEPLOYMENT.md)
+* [Platform Administration for Your Own Instance](./djangoConsole/ADMINISTRATION.md)
+* [Python Console API](./docs/Reference.md#console)
+
 ### Reference
 
 * [Architecture](./docs/Architecture.md)
@@ -345,19 +374,13 @@ New functionality should solve a clear engineering or automation problem rather 
 
 ## Community & Support
 
-LiberRPA is currently maintained by one developer.
-
-Technical feedback therefore has a short path to the person designing and implementing the project, although no support response time or SLA can be guaranteed.
-
-If another RPA product or automation library handles a particular workflow, selector, API, or execution scenario better, concrete examples are especially useful. They can be analyzed directly against LiberRPA's implementation and may influence future releases.
+LiberRPA is currently maintained by one developer, so your feedback goes directly to the person designing and building it.
 
 * [**GitHub Issues**](https://github.com/HUHARED/LiberRPA/issues) — reproducible bugs and concrete feature requests
 * [**GitHub Discussions**](https://github.com/HUHARED/LiberRPA/discussions) — technical questions, design discussions, and longer-form ideas
 * [**Reddit**](https://www.reddit.com/r/LiberRPA/) — releases, use cases, community discussion, and broader RPA topics
 * [**Telegram**](https://t.me/liberrpa) — lightweight and real-time community communication
 * **Email** — direct or private contact at `mailwork.hu@gmail.com`
-
-Feedback from people building real automation is one of the most useful inputs for LiberRPA's development.
 
 ---
 

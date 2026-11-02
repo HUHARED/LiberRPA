@@ -4,16 +4,31 @@ All notable changes to LiberRPA will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/) (SemVer) and uses version numbers in the format MAJOR.MINOR.PATCH.
 
-## [Unreleased]
-
-> **Component pre-release:** LiberRPA Snippets Tree `0.3.1` was published as an optional VS Code Marketplace pre-release on 2026-09-09. It is compatible with LiberRPA `0.3.0`.
+## [0.4.0] - 2026-11-02
 
 ### Added
 
+- **LiberRPA Console**
+  - Add a web application for organization and department access, Executors and Executor Groups, Packages, Schedules, Jobs, and Run results.
+  - Add shared Assets, Data Queues, Shared Files, API keys, notifications, and run email.
+  - Add platform administration and a Linux deployment with backup and recovery tools.
+- **LiberRPA Project Manager**
+  - Connect Editor to Console and publish Project Packages directly to a selected department.
+- **Executor**
+  - Connect to Console, prepare centrally managed Packages, receive work, and report results.
+  - Add retry settings and Console work alongside local work in the Job Queue and Run History.
+- **Python Library**
+  - Add Console functions for Assets, Data Queues, and Shared Files.
 - **LiberRPA Snippets Tree**
   - Support expression-style snippet insertion. ([723dab5](https://github.com/HUHARED/LiberRPA/commit/723dab50eda0a30c78c04f32d0fe8e0544ffeecf))
   - Add nested CustomArgs key completion. ([7262271](https://github.com/HUHARED/LiberRPA/commit/72622711dc84650d5750c16a57a5b79e2fd2ae63))
   - Add managed import updates for Python paste. ([68d6f2d](https://github.com/HUHARED/LiberRPA/commit/68d6f2d8fa4b47efe5ebfd560d021981b6c6b33a))
+
+### Changed
+
+- Limit Custom Project Arguments to 100 entries across Flowchart, Project Manager, Executor, and Console.
+- Save execution recordings without an additional compression step after the run.
+- Update the user guides for Console integration, current Executor workflows, and recording behavior.
 
 ### Fixed
 
@@ -28,7 +43,7 @@ This project adheres to [Semantic Versioning](https://semver.org/) (SemVer) and 
 
 ### Upgrade Notes
 
-- **LiberRPA Snippets Tree `0.3.1` pre-release**
+- **LiberRPA Snippets Tree**
   - Users upgrading from the LiberRPA `0.3.0` Editor configuration should remove or comment out the following binding in `Editor\data\user-data\User\keybindings.json`:
     ```jsonc
     // Enable Python Paste And Indent for Python (Ctrl+V)

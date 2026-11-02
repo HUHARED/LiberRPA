@@ -62,7 +62,7 @@ Instead, the Local Server owns or coordinates functionality that benefits from a
 
 ## Startup and Lifecycle
 
-LiberRPA Local Server is distributed as part of the `liberrpa` Python package rather than as a separate PyInstaller/Nuitka executable.
+LiberRPA Local Server is distributed as part of the `liberrpa` Python package.
 
 The standard release starts it with the Python interpreter included in the LiberRPA environment.
 
@@ -93,14 +93,6 @@ Start in:
 `pythonw.exe` is used for the normal release startup so that the persistent Local Server can run without opening a console window.
 
 The server therefore normally starts when the current Windows user signs in.
-
-The working directory:
-
-```text
-%LiberRPA%\exeFiles\LiberRPALocalServer\
-```
-
-is intentionally retained even though it does not contain a separate Local Server executable.
 
 ### Manual startup
 
@@ -140,7 +132,7 @@ While running, LiberRPA Local Server creates a system-tray icon named:
 LiberRPA Local Server
 ```
 
-The tray menu currently provides an **Exit** command.
+The tray menu currently provides an `Exit` command.
 
 During UI Analyzer indication, the tray icon temporarily changes to indicate that an element-selection operation is active.
 
@@ -395,7 +387,7 @@ This prevents abandoned display areas from remaining on screen after the origina
 
 ## Execution Recording
 
-LiberRPA Local Server provides the screen-recording service used when **Record Video** is enabled in Flowchart or in an Executor Project/Schedule Run configuration.
+LiberRPA Local Server provides the screen-recording service used when `Record Video` is enabled in Flowchart, Executor, or Console run settings. Keep Local Server running until the recording has finished.
 
 Recording runs in a separate thread so that starting the recorder does not block the requesting Python process.
 
@@ -408,8 +400,9 @@ The current implementation:
 3. records the primary desktop at 5 frames per second;
 4. continues while the target Project process ID exists;
 5. stops FFmpeg after that process exits;
-6. generates log-based subtitles when the expected human-readable Project log is available;
-7. attempts a second compression pass and keeps the compressed file only when it is smaller than the original recording.
+6. finishes saving the video and generates log-based subtitles when the expected human-readable Project log is available.
+
+Allow Local Server to finish saving the files before opening or copying them.
 
 The main output is:
 
@@ -488,7 +481,7 @@ Local Server logs can be useful for diagnosing:
 
 ### Local Server is not running
 
-Check for the **LiberRPA Local Server** system-tray icon.
+Check for the `LiberRPA Local Server` system-tray icon.
 
 If it is not present, start LiberRPA Local Server using the standard LiberRPA shortcut or startup configuration.
 

@@ -4,7 +4,7 @@ LiberRPA Editor is a preconfigured portable VS Code environment for LiberRPA dev
 
 LiberRPA's portable settings, keybindings, and installed extensions are kept under `Editor/data`. Selected extensions are installed there by `InitLiberRPA.exe` when they are missing.
 
-LiberRPA 0.3.0 uses VS Code 1.121.0 for clean Editor setup. An existing recognized Editor is kept rather than automatically replaced. For download verification, retry instructions, and offline preparation, see [Installation](./Installation.md#editor-setup).
+LiberRPA uses VS Code 1.121.0 for clean Editor setup. An existing recognized Editor is kept rather than automatically replaced. For download verification, retry instructions, and offline preparation, see [Installation](./Installation.md#editor-setup).
 
 It combines the normal VS Code and Python development experience with:
 
@@ -22,6 +22,7 @@ For creating and running your first Flow Project, see [Getting Started](./Gettin
 
 - [Python Environment](#python-environment)
 - [LiberRPA Extensions](#liberrpa-extensions)
+- [Using Console](#using-console)
 - [Selected Development Extensions](#selected-development-extensions)
 - [Editor Settings](#editor-settings)
 - [Workspace Trust and Project Safety](#workspace-trust-and-project-safety)
@@ -86,7 +87,8 @@ Provides Project lifecycle and dependency-management functionality, including:
 - Component Repository operations;
 - dependency resolution and repair;
 - Component publishing;
-- Flow Project packaging.
+- Flow Project packaging;
+- Console sign-in and Package uploads.
 
 See [LiberRPA Project Manager](../vscodeExtensions/liberrpa-project-manager/README.md).
 
@@ -104,6 +106,22 @@ See [LiberRPA Snippets Tree](../vscodeExtensions/liberrpa-snippets-tree/README.m
 
 ---
 
+## Using Console
+
+Connect Editor to Console when you want to upload Packages or use shared Assets, Data Queues, and Shared Files while developing a Project.
+
+Use the free public service at [console.liberrpa.com](https://console.liberrpa.com). If your organization hosts its own Console, use that address instead.
+
+Press `Ctrl+Shift+P` and run `LiberRPA: Console`. Follow [Connect to Console](../vscodeExtensions/liberrpa-project-manager/README.md#connect-to-console) to sign in and check your account access.
+
+After signing in or changing accounts, start a new Python run. If you run Python from an Editor terminal, open a new terminal first.
+
+Local Projects that do not use Console resources can run without a Console connection.
+
+See [Project Manager](../vscodeExtensions/liberrpa-project-manager/README.md) for Package uploads and connection settings, the [Console user guide](../djangoConsole/README.md) for workspace pages, and the [Python Console reference](./Reference.md#console) for Python functions.
+
+---
+
 ## Selected Development Extensions
 
 LiberRPA selects the following third-party VS Code extensions for general development work. `InitLiberRPA.exe` attempts to install them from the Visual Studio Marketplace when they are missing; supporting extensions required by these extensions are handled automatically by VS Code.
@@ -117,8 +135,6 @@ Supporting extensions required by the Python extension are installed automatical
 ### Ruff
 
 Provides Python linting and formatting.
-
-LiberRPA uses Ruff instead of maintaining separate Black Formatter and isort integrations.
 
 ### Jupyter
 
@@ -165,7 +181,7 @@ Improves automatic Python indentation when pressing Enter.
 
 ### Python Paste and Indent
 
-Adjusts indentation when Python code blocks are pasted.
+Provides a paste command that adjusts indentation.
 
 ### Select Line Status Bar
 
@@ -186,8 +202,6 @@ LiberRPA Editor's user settings are stored in:
 Most settings are normal VS Code or extension settings.
 
 You can inspect their built-in descriptions directly through the VS Code Settings interface.
-
-The bundled configuration is intended to provide useful defaults rather than prevent customization.
 
 You may change Editor settings according to your own development preferences.
 
@@ -270,7 +284,7 @@ This avoids automatically modifying Python source while the developer is still e
 
 To format the current file manually, use:
 
-**Format Document**
+`Format Document`
 
 Project-specific Ruff rules are controlled by the Project's:
 
@@ -326,7 +340,6 @@ Important LiberRPA Editor keybindings include:
 | `Ctrl+Shift+Tab`   | Switch to the previous editor tab.                                                 |
 | `Ctrl+Tab`         | Switch to the next editor tab.                                                     |
 | `Ctrl+D`           | Delete the current line.                                                           |
-| `Ctrl+V` in Python | Paste Python code with indentation adjustment provided by Python Paste and Indent. |
 
 Some standard VS Code shortcuts are disabled or replaced to support these bindings.
 

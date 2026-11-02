@@ -2,7 +2,7 @@
 
 If the images are not displayed, [view this README on GitHub](https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-project-manager/README.md).
 
-**LiberRPA Project Manager** is part of LiberRPA. It helps you create LiberRPA Projects, publish reusable Components, manage Component dependencies, and package Flow Projects for LiberRPA Executor.
+**LiberRPA Project Manager** is part of LiberRPA. It helps you create LiberRPA Projects, publish reusable Components, manage Component dependencies, and package Flow Projects for LiberRPA Executor or [Console](../../djangoConsole/README.md). It also connects Editor to your Console account so you can use shared resources while developing a Project.
 
 > **Note:**
 >
@@ -29,6 +29,7 @@ If the images are not displayed, [view this README on GitHub](https://github.com
 - [Import Component Wheels](#import-component-wheels)
 - [Rebuild Component Repository Index](#rebuild-component-repository-index)
 - [Manage Components in a Project](#manage-components-in-a-project)
+- [Connect to Console](#connect-to-console)
 - [Package a Flow Project](#package-a-flow-project)
 - [Requirements](#requirements)
 
@@ -39,14 +40,14 @@ If the images are not displayed, [view this README on GitHub](https://github.com
 ### Create a Project
 
 1. Press `Ctrl+Shift+P` and run `LiberRPA: Create a New Project`.
-   ![1740223397190](md_images/README/1740223397190.png)
+   ![1740223397190](./md_images/README/1740223397190.png)
 2. Select the parent folder in which the new Project folder will be created.
-   ![1786678368303](md_images/README/1786678368303.png)
+   ![1786678368303](./md_images/README/1786678368303.png)
 3. Select the Project type and template, then enter the required Project information.
-   ![1786679449846](md_images/README/1786679449846.png)
+   ![1786679449846](./md_images/README/1786679449846.png)
 4. Review the settings and click `Confirm`.
 5. The new Project opens in a separate VS Code window.
-   ![1786679866046](md_images/README/1786679866046.png)
+   ![1786679866046](./md_images/README/1786679866046.png)
 
 If the selected template contains `.gitignore` and Git is available, Project Manager also initializes a Git repository.
 
@@ -67,7 +68,7 @@ The template folder name must keep the matching prefix:
 
 Keep the required Project files and structure for the selected Project type. Other files and folders may be added as needed.
 
-![1786679958479](md_images/README/1786679958479.png)
+![1786679958479](./md_images/README/1786679958479.png)
 
 ### Component Repository
 
@@ -183,7 +184,7 @@ Before publishing, save the Project, review public names and docstrings, and res
 
 Open the Command Palette and run `LiberRPA: Publish Component`.
 
-![1786693971281](md_images/README/1786693971281.png)
+![1786693971281](./md_images/README/1786693971281.png)
 
 The first publication uses two steps so that generated Snippets can be reviewed before the Wheel is created.
 
@@ -191,7 +192,7 @@ The first publication uses two steps so that generated Snippets can be reviewed 
 
 Review the Project and source scan summary, then click `Publish Component`.
 
-![1786694798272](md_images/README/1786694798272.png)
+![1786694798272](./md_images/README/1786694798272.png)
 
 If `_Snippets/snippets.jsonc` does not exist, LiberRPA creates:
 
@@ -244,17 +245,17 @@ Use `LiberRPA: Import Component Wheels` to copy external LiberRPA Component Whee
 
 Import and Add are separate operations:
 
-* **Import Component Wheels** makes an external Wheel available in the local Repository.
-* **Add** records a Component as a dependency of the current Project.
+* `Import Component Wheels` makes an external Wheel available in the local Repository.
+* `Add` records a Component as a dependency of the current Project.
 
 Importing a Wheel does not modify the current Project.
 
 #### Import the Wheels
 
 1. Run `LiberRPA: Manage Components` and click `Import Wheels`.
-   ![1787113555410](md_images/README/1787113555410.png)
+   ![1787113555410](./md_images/README/1787113555410.png)
    You can also run `LiberRPA: Import Component Wheels` directly.
-   ![1787113044425](md_images/README/1787113044425.png)
+   ![1787113044425](./md_images/README/1787113044425.png)
 2. Select one or more Wheel files stored outside the active Component Repository.
    Example Wheels:
    * [`exampledelay-1.0.0-py313-none-any.whl`](./Example/exampledelay-1.0.0-py313-none-any.whl)
@@ -275,7 +276,7 @@ Run `LiberRPA: Rebuild Component Repository Index` when Project Manager reports 
 
 1. Open the Command Palette.
 2. Run `LiberRPA: Rebuild Component Repository Index`.
-   ![1787115234692](md_images/README/1787115234692.png)
+   ![1787115234692](./md_images/README/1787115234692.png)
 3. Review the completion message and any warnings.
 4. Refresh or reopen Manage Components if it is already open.
 
@@ -292,8 +293,8 @@ Do not edit `components.lock.json` or `_Components` manually.
 #### Open Manage Components
 
 1. Press `Ctrl+Shift+P` and run `LiberRPA: Manage Components`.
-   ![1786854288116](md_images/README/1786854288116.png)
-   ![1786879225841](md_images/README/1786879225841.png)
+   ![1786854288116](./md_images/README/1786854288116.png)
+   ![1786879225841](./md_images/README/1786879225841.png)
 2. Review the lock, `_Components`, environment, repair, and direct dependency states shown on the page.
 
 The `Import Wheels` button opens the Repository operation described in [Import Component Wheels](#import-component-wheels).
@@ -315,9 +316,9 @@ Use `Add` to add a new direct Component dependency.
 
 1. Select the Component and review its PEP 440 `Version requirement`.
 2. Click `Preview changes`.
-   ![1786866825326](md_images/README/1786866825326.png)
+   ![1786866825326](./md_images/README/1786866825326.png)
 3. Review the plan and click `Confirm changes`.
-   ![1786866851256](md_images/README/1786866851256.png)
+   ![1786866851256](./md_images/README/1786866851256.png)
 
 Project Manager records the direct requirement, resolves a compatible dependency closure, and rebuilds `_Components`.
 
@@ -329,9 +330,9 @@ Use `Update` to search for newer versions that still satisfy the current require
 
 1. Select one or more Components.
 2. Click `Preview changes`.
-   ![1786871015949](md_images/README/1786871015949.png)
+   ![1786871015949](./md_images/README/1786871015949.png)
 3. Review the resolved version changes and click `Confirm changes`.
-   ![1786871154707](md_images/README/1786871154707.png)
+   ![1786871154707](./md_images/README/1786871154707.png)
 
 `Update` does not change the version requirements stored in the Project Manifest.
 
@@ -340,10 +341,10 @@ Use `Update` to search for newer versions that still satisfy the current require
 Use `Change requirement` to edit the allowed PEP 440 range of a direct dependency.
 
 1. Select a direct dependency and enter the new requirement.
-   ![1786873208323](md_images/README/1786873208323.png)
+   ![1786873208323](./md_images/README/1786873208323.png)
 2. Click `Preview changes`.
 3. Review the requirement and resolved version changes, then click `Confirm changes`.
-   ![1786871340162](md_images/README/1786871340162.png)
+   ![1786871340162](./md_images/README/1786871340162.png)
 
 Changing a requirement may keep, upgrade, or downgrade the resolved version. If the current version remains valid, use `Update` afterward when you explicitly want a newer permitted version.
 
@@ -352,10 +353,10 @@ Changing a requirement may keep, upgrade, or downgrade the resolved version. If 
 Use `Remove` to remove a direct Component dependency.
 
 1. Select the dependency.
-   ![1786871432080](md_images/README/1786871432080.png)
+   ![1786871432080](./md_images/README/1786871432080.png)
 2. Preview the changes.
 3. Review the direct and resolved removals, then click `Confirm changes`.
-   ![1786871448859](md_images/README/1786871448859.png)
+   ![1786871448859](./md_images/README/1786871448859.png)
 
 Transitive Components that are no longer required are removed automatically. Existing Python imports and calls are not removed; update affected source files yourself.
 
@@ -363,7 +364,7 @@ Transitive Components that are no longer required are removed automatically. Exi
 
 Use `Repair _Components` when `components.lock.json` is valid but `_Components` is missing or damaged.
 
-![1786879363824](md_images/README/1786879363824.png)
+![1786879363824](./md_images/README/1786879363824.png)
 
 Repair rebuilds `_Components` from the exact Wheels and SHA-256 values recorded in the lock file. It does not change the Project Manifest, lock file, or resolved versions.
 
@@ -371,11 +372,11 @@ Repair rebuilds `_Components` from the exact Wheels and SHA-256 values recorded 
 
 Use `Resolve dependencies` when `components.lock.json` is missing, invalid, or stale.
 
-![1786879120795](md_images/README/1786879120795.png)
+![1786879120795](./md_images/README/1786879120795.png)
 
 Project Manager resolves the current Manifest requirements again, creates a new lock file, and rebuilds `_Components`.
 
-![1786879145368](md_images/README/1786879145368.png)
+![1786879145368](./md_images/README/1786879145368.png)
 
 The new resolved versions may differ from an older lock file because resolution uses the current Component Repository.
 
@@ -418,11 +419,40 @@ To run it:
 4. Open `project.flow`.
 5. [Debug or run the Project](https://github.com/HUHARED/LiberRPA/blob/main/vscodeExtensions/liberrpa-flowchart/README.md#execute-mode).
 
-The archive is a final-state snapshot. It does not replay Add, Update, Change Requirement, or Remove operations.
-
 When debugging the expected Component error, enable `User Uncaught Exceptions`, press `F5` after the debugger pauses, and allow the Flowchart to continue through its Exception Line.
 
 `Repair _Components` requires the exact Wheel recorded in `components.lock.json`. `Resolve dependencies` resolves the current requirement again and may select another compatible version.
+
+### Connect to Console
+
+Connect Editor when your Project needs Console Assets, Data Queues, or Shared Files, or when you want to publish a Package directly to Console. Local Project creation, Component management, and packaging are also available without a Console account.
+
+Use the free public service at [console.liberrpa.com](https://console.liberrpa.com). Create your organization or accept an invitation there before signing in through Project Manager. If your organization hosts its own Console, use that address instead.
+
+#### Sign In
+
+1. Press `Ctrl+Shift+P` and run `LiberRPA: Console`.
+   ![1793347825500](./md_images/README/1793347825500.png)
+2. Click `Change Address`, enter your Console URL, and click `Validate and Save`.
+   ![1793347893409](./md_images/README/1793347893409.png)
+3. Click `Sign In` and enter your organization account's email address and password.
+   ![1793347950501](./md_images/README/1793347950501.png)
+4. Check the `Account`, `Organization`, and `Account Departments` shown on the page.
+   ![1793347971952](./md_images/README/1793347971952.png)
+
+`Check Connection` refreshes the account and department details. The displayed connection result is from the last check. If access has changed or a request fails, check again and read the message on the page.
+
+Use `Sign Out` before changing accounts. Changing the Console address also requires signing in again.
+
+#### Use Console Resources in a Project
+
+Sign in before starting a Python run that uses Console. After signing in, changing accounts, or changing the Console address, start a new run. If you run Python from a VS Code terminal, create a new terminal first.
+
+An existing Python run does not switch to a newly selected account. Finish work that needs Console before signing out or changing accounts.
+
+Your account's department permissions determine which resources the Project can use. Use the full resource paths shown in Console. See the [Console user guide](../../djangoConsole/README.md) for managing resources and the [Python Console reference](../../docs/Reference.md#console) for the available functions.
+
+Browser and Executor sign-in are separate from Editor sign-in.
 
 ### Package a Flow Project
 
@@ -430,22 +460,37 @@ Use LiberRPA Project Manager to create an `.rpa.zip` deployment Package from the
 
 The generated Package contains the Flow Project files required for installation and execution in LiberRPA Executor. The Project contents are stored directly at the archive root.
 
+The same Package can also be published to Console to run on connected Executors.
+
 #### Create the Package
 
 1. Open the Flow Project as the only workspace folder.
 2. Run `LiberRPA: Package Project`.
-   ![1787118343892](md_images/README/1787118343892.png)
-   ![1787138345544](md_images/README/1787138345544.png)
+   ![1787118343892](./md_images/README/1787118343892.png)
+   ![1793348279053](./md_images/README/1793348279053.png)
 3. Review the Project information and Component dependency state. Resolve any blocking issue shown on the page.
 4. Optionally enter a one-line `Version summary`. It is stored only in the generated Package and does not modify `flow.json`.
 5. Review the output folder. The default is the parent folder of the current Flow Project; click `Browse` to select another existing folder.
 6. Choose whether to include the optional Project-root entries described below.
-7. Review the generated `<name>_<version>.rpa.zip` filename and click `Package Project`.
-8. Review the file count, folder count, uncompressed size, and archive size. Click `Reveal` to show the Package in File Explorer.
+7. To upload it immediately, enable `Publish to Console` and select a `Publishing department`. See [Publish to Console](#publish-to-console) below.
+8. Review the generated `<name>_<version>.rpa.zip` filename and click `Package Project`.
+9. Review the file count, folder count, uncompressed size, and archive size. Click `Reveal` to show the Package in File Explorer. If Console publishing is enabled, also check that the upload succeeded.
 
-Project Manager validates the Project, dependency state, environment, output folder, and target filename before packaging.
+Project Manager validates the Project, dependency state, environment, output folder, and target filename before packaging. A Flow Project can contain up to 100 Custom Arguments; see [Flowchart](../liberrpa-flowchart/README.md) for their rules.
 
 Treat the generated Package as an immutable deployment artifact. Executor installs Packages by Project name and version and does not overwrite an existing name/version pair. After changing the Project, increase `flow.json.version` and create another Package.
+
+#### Publish to Console
+
+Sign in through [Connect to Console](#connect-to-console) before enabling `Publish to Console`. Your account needs `Developer` access to the publishing department, or `OrgAdmin` access. Only departments where you can publish are listed.
+
+Project Manager creates the local `.rpa.zip` first, then uploads it to the selected department. If the upload fails, the local Package is still available. Read the error and use `Retry upload` after resolving the problem. You can also upload the file through the `Packages` page in Console.
+
+After a successful upload, open `Packages` in Console and check the version and run settings, including the Python environment used by the target Executors. Publishing makes the Package available; start it with `Run` or create a Schedule when it is ready.
+
+![1793348846393](./md_images/README/1793348846393.png)
+
+Console applies its Package and storage limits to the upload. If your department list or account access changes, return to the Console command, check the connection, and refresh the packaging page.
 
 #### Optional Package Contents
 
@@ -455,7 +500,7 @@ The following Project-root entries are excluded by default because Executor does
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `.vscode/` | The packaged Project will also be opened in VS Code and should retain Project-specific editor and run/debug settings.                                |
 | `_Test/`   | Test scripts, sample data, or verification files are required for deployment validation or troubleshooting.                                          |
-| `.git`     | An intentional source-control transfer is required.`.git` may contain the complete Repository history and substantially increase the Package size. |
+| `.git`     | An intentional source-control transfer is required. `.git` may contain the complete Repository history and substantially increase the Package size. |
 
 Review `_Test` for credentials, customer data, and environment-specific values before including it.
 
@@ -469,7 +514,7 @@ The output folder must exist, use an absolute path, and be outside the source Pr
 
 Project Manager never overwrites an existing `.rpa.zip`. Change the Project name or version, select another output folder, or move the previous Package when another archive is required.
 
-After the Package is created, it can be installed and executed through [LiberRPA Executor](../../electronApplications/executor/README.md).
+After the Package is created, it can be installed and executed through [LiberRPA Executor](../../electronApplications/executor/README.md). See [Console](../../djangoConsole/README.md#packages) for shared Package management and scheduling.
 
 ## Requirements
 

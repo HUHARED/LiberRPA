@@ -20,7 +20,7 @@ If the images are not displayed, [view this README on GitHub](https://github.com
 >
 > This setting does not change the Python runtime log level used by a Flow Project or an individual Block.
 
-![1740302097535](md_images/README/1740302097535.png)
+![1740302097535](./md_images/README/1740302097535.png)
 
 The `project.flow` JSON document stores:
 
@@ -31,7 +31,7 @@ The `project.flow` JSON document stores:
 
 LiberRPA Flowchart is implemented as a [VS Code custom editor](https://code.visualstudio.com/api/extension-guides/custom-editors). You can also open `project.flow` with the text editor and use normal VS Code features such as [Timeline](https://code.visualstudio.com/docs/sourcecontrol/overview#_timeline-view).
 
-![1740311326677](md_images/README/1740311326677.png)
+![1740311326677](./md_images/README/1740311326677.png)
 
 ## Contents
 
@@ -51,7 +51,7 @@ LiberRPA Flowchart is implemented as a [VS Code custom editor](https://code.visu
 
 1. Press `Ctrl+Shift+P` to open the Command Palette.
 2. Run `Preferences: File Icon Theme`.
-3. Select **VSCode Great Icons with LiberRPA Flowchart File**.
+3. Select `VSCode Great Icons with LiberRPA Flowchart File`.
 
 This gives `.flow` files the LiberRPA Flowchart icon. It is only a visual enhancement and does not affect Project behavior.
 
@@ -63,7 +63,7 @@ When you click or hover over a node, four anchors appear.
 
 Drag an anchor to another node to create a line. The connection must follow the [Link Rules](#link-rules).
 
-![1740310630113](md_images/README/1740310630113.png)![1740310650278](md_images/README/1740310650278.png)![1740310668391](md_images/README/1740310668391.png)![1740310693259](md_images/README/1740310693259.png)![1740310706782](md_images/README/1740310706782.png)
+![1740310630113](./md_images/README/1740310630113.png)![1740310650278](./md_images/README/1740310650278.png)![1740310668391](./md_images/README/1740310668391.png)![1740310693259](./md_images/README/1740310693259.png)![1740310706782](./md_images/README/1740310706782.png)
 
 ### Start Node
 
@@ -73,13 +73,13 @@ Click the `⊳` icon in the Start node to run or debug the complete Flow Project
 
 ### SubStart Node
 
-Drag a `SubStart` node from the **Node Panel** into the Flowchart.
+Drag a `SubStart` node from the `Node Panel` into the Flowchart.
 
 Each SubStart creates a separate auxiliary Python process when the complete Flow Project runs.
 
-Click the node to open **Node Info** and edit its description.
+Click the node to open `Node Info` and edit its description.
 
-![1740303373902](md_images/README/1740303373902.png)
+![1740303373902](./md_images/README/1740303373902.png)
 
 A SubStart process has its own memory. Changes to `CustomArgs` and other ordinary Python objects are not automatically synchronized with MainProcess.
 
@@ -93,9 +93,9 @@ During normal Project exit, unfinished SubStart processes are terminated rather 
 
 ### Block Node
 
-Drag a `Block` node from the **Node Panel** into the Flowchart, then edit its description and Python file path.
+Drag a `Block` node from the `Node Panel` into the Flowchart, then edit its description and Python file path.
 
-![1740304044081](md_images/README/1740304044081.png)
+![1740304044081](./md_images/README/1740304044081.png)
 
 #### Python file path rules
 
@@ -122,7 +122,7 @@ When the Flow reaches the Block, LiberRPA imports the Python module and calls `m
 
 #### Open or create the Python file
 
-Click ![1740304294046](md_images/README/1740304294046.png) in a Block node to open its Python file.
+Click ![1740304294046](./md_images/README/1740304294046.png) in a Block node to open its Python file.
 
 If the file does not exist, LiberRPA creates it with a default script containing `main()`.
 
@@ -134,8 +134,8 @@ Click `⊳` in a Block node to run or debug only that Block according to the cur
 
 A Block can have:
 
-- one **Normal Line**;
-- one **Exception Line**.
+- one `Normal Line`;
+- one `Exception Line`.
 
 When the complete Flow Project runs:
 
@@ -146,22 +146,22 @@ When the complete Flow Project runs:
 
 See [Project Context](../../condaLibrary/README.md#project-context) for `PrjArgs` and `CustomArgs`.
 
-![1740304582323](md_images/README/1740304582323.png)
+![1740304582323](./md_images/README/1740304582323.png)
 
 ### Choose Node
 
-Drag a `Choose` node from the **Node Panel**, then edit its description and condition.
+Drag a `Choose` node from the `Node Panel`, then edit its description and condition.
 
 The condition is evaluated as a Python expression through [`eval()`](https://docs.python.org/3/library/functions.html#eval).
 
 Use `CustomArgs["key"]` to access a Custom Project Argument.
 
-![1740306458764](md_images/README/1740306458764.png)
+![1740306458764](./md_images/README/1740306458764.png)
 
 A Choose node can have:
 
-- one **True Line**;
-- one **False Line**.
+- one `True Line`;
+- one `False Line`.
 
 When the complete Flow Project runs:
 
@@ -169,7 +169,7 @@ When the complete Flow Project runs:
 - a false condition follows the False Line;
 - if the corresponding line does not exist, that process ends automatically.
 
-![1740306549704](md_images/README/1740306549704.png)
+![1740306549704](./md_images/README/1740306549704.png)
 
 ### End Node
 
@@ -211,16 +211,16 @@ LiberRPA validates a line when it is created. If a rule is broken, the Flowchart
 
 The Flowchart stores these values in `project.flow`.
 
-Project Manager includes them in the Package as initial defaults. Executor can then save local Run Settings for each installed Project version and separate Run Options and Custom Arguments for each Schedule without changing the packaged source Project.
+Project Manager includes them in the Package as initial defaults. Executor can then save local Run Settings for each installed Project version and separate Run Options and Custom Arguments for each Schedule without changing the packaged source Project. [Console](../../djangoConsole/README.md) also lets you adjust run settings and create Schedules for connected Executors.
 
 ### Execute Mode
 
 `Execute Mode` controls the action of the `⊳` button on Start and Block nodes:
 
-- **Run** — execute without the Python debugger;
-- **Debug** — execute with the Python debugger, allowing breakpoints, stepping, and variable inspection.
+- `Run` — execute without the Python debugger;
+- `Debug` — execute with the Python debugger, allowing breakpoints, stepping, and variable inspection.
 
-![1787029830140](md_images/README/1787029830140.png)
+![1787029830140](./md_images/README/1787029830140.png)
 
 This setting does not change the standard VS Code shortcuts used while `project.flow` is the active editor:
 
@@ -235,7 +235,7 @@ To pause at the original exception location, open `Run and Debug → BREAKPOINTS
 
 `Raised Exceptions` is not recommended for normal Flow debugging because it can also pause on exceptions intentionally raised and handled inside Python, third-party libraries, or LiberRPA.
 
-![1787029369244](md_images/README/1787029369244.png)
+![1787029369244](./md_images/README/1787029369244.png)
 
 ### Log Level
 
@@ -249,11 +249,11 @@ This setting is separate from the diagnostic log level of the VS Code extension.
 >
 > Detailed runtime logging, especially at `DEBUG` or `VERBOSE`, can include function calls, Flow transitions, subprocess names, and initial Custom Argument values.
 >
-> Logging is not a secret-redaction mechanism. Executor startup can record applied arguments before the final runtime log level is applied. Selecting a less verbose level therefore does not guarantee that argument values are absent from logs.
+> Logging is not a secret-redaction mechanism. Selecting a less verbose level does not guarantee that argument values are absent from logs.
 >
 > Choose a level that balances troubleshooting and confidentiality. Restrict access to logs and recordings, and inspect them before sharing. For stricter requirements, customize the relevant logging statements instead of relying on the log level alone.
 
-![1740307077172](md_images/README/1740307077172.png)
+![1740307077172](./md_images/README/1740307077172.png)
 
 ### Record Video
 
@@ -267,7 +267,7 @@ in the Run log folder.
 
 Recording is provided by [LiberRPA Local Server](../../docs/LocalServer.md#execution-recording).
 
-![1740307313698](md_images/README/1740307313698.png)
+![1740307313698](./md_images/README/1740307313698.png)
 
 When the required Project log is available, Local Server also generates:
 
@@ -277,11 +277,11 @@ video_record.srt
 
 from `human_read_MainProcess.log`.
 
-![1740307426364](md_images/README/1740307426364.png)
+![1740307426364](./md_images/README/1740307426364.png)
 
 The Editor log root is configured through `configFiles/basic.jsonc`. Executor can use that default or select another Project Log Folder.
 
-After the Flow finishes, Local Server may spend additional time compressing the recording. This can use significant CPU, especially for long recordings or on lower-performance systems.
+Recording captures the primary monitor and stops when the Flow's main process ends. Allow Local Server to finish saving the video and subtitles before opening or copying them.
 
 ### Stop Shortcut
 
@@ -289,7 +289,7 @@ When enabled for a complete Flow Project, press `Ctrl+F12` to terminate the runn
 
 This option does not apply to running an individual Block.
 
-![1740308423164](md_images/README/1740308423164.png)
+![1740308423164](./md_images/README/1740308423164.png)
 
 ### Highlight UI
 
@@ -297,15 +297,15 @@ When enabled, LiberRPA briefly highlights supported target elements before manip
 
 It applies to most functions in `Mouse`, `Keyboard`, `Window`, and `UiInterface`.
 
-![1740308644288](md_images/README/1740308644288.png)
+![1740308644288](./md_images/README/1740308644288.png)
 
 ---
 
 ## Custom Project Arguments
 
-Define arguments in the **Custom Project Arguments** area.
+Define up to **100 arguments** in the `Custom Project Arguments` area. The same limit applies when packaging with Project Manager and running through Executor or Console.
 
-![1740309307537](md_images/README/1740309307537.png)
+![1740309307537](./md_images/README/1740309307537.png)
 
 Each argument consists of a string key and a JSON-deserializable value.
 
@@ -321,7 +321,7 @@ Empty-string keys are allowed.
 
 Duplicate keys are also allowed while editing. The Flowchart highlights duplicates as a warning. At runtime, the last value with the same key takes effect.
 
-![1787996355979](md_images/README/1787996355979.png)
+![1787996355979](./md_images/README/1787996355979.png)
 
 ### Value
 
@@ -352,11 +352,11 @@ For example:
 customer_name = CustomArgs["customerName"]
 ```
 
-![1740309273810](md_images/README/1740309273810.png)
+![1740309273810](./md_images/README/1740309273810.png)
 
-![1740309284626](md_images/README/1740309284626.png)
+![1740309284626](./md_images/README/1740309284626.png)
 
-![1740309294818](md_images/README/1740309294818.png)
+![1740309294818](./md_images/README/1740309294818.png)
 
 ---
 
@@ -366,7 +366,7 @@ Drag the panel divider to adjust the width of the right-side panels.
 
 Use a wider panel for longer descriptions, conditions, paths, keys, or values. For extensive text, editing elsewhere and pasting the result may be more convenient.
 
-![resize](md_images/README/resize.gif)
+![resize](./md_images/README/resize.gif)
 
 ---
 
@@ -375,13 +375,8 @@ Use a wider panel for longer descriptions, conditions, paths, keys, or values. F
 - Dragging a node from the Node Panel may occasionally fail.
 - Node shortcuts may occasionally be unresponsive.
 
-These issues have been reduced by avoiding repeated LogicFlow initialization and duplicated drag listeners. If dragging or shortcuts still feel unstable, click the Flowchart canvas once to restore focus.
+If dragging or shortcuts feel unstable, click the Flowchart canvas once to restore focus.
 
 - Long node text and input values may be truncated because nodes and input fields have limited width.
 - Orthogonal lines may not always be routed as cleanly as expected, and overlapping lines can reduce readability. Prefer straight connections where practical. When a Flow is difficult to read, reposition the nodes or use different connection anchors.
-- Flow Project debugging may not pause on Block exceptions by default:
-  - a Block or Component exception may be caught by the Flow runtime so that the Flow can continue through an Exception Line;
-  - enable `User Uncaught Exceptions` under `Run and Debug → BREAKPOINTS` when you need to inspect such exceptions;
-  - `Raised Exceptions` is not recommended for normal Flow debugging because it can also pause on intentionally handled exceptions;
-  - `User Uncaught Exceptions` may occasionally pause inside generated or third-party code that the debugger classifies as user code;
-  - when an internal handled exception pauses execution, press `F5` to continue.
+- Flow Project debugging may not pause on Block exceptions by default. See [Execute Mode](#execute-mode) for the debugger settings. If `User Uncaught Exceptions` pauses on a handled exception inside generated or third-party code, press `F5` to continue.

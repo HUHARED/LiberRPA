@@ -4,6 +4,10 @@ This document explains how to install and initialize LiberRPA, prepare it for of
 
 For creating and running your first automation Project, see [Getting Started](./GettingStarted.md).
 
+This guide covers the Windows tools. You can use the free public Console at [console.liberrpa.com](https://console.liberrpa.com) without setting up a server. If you want to host your own Console, follow the separate [Linux deployment guide](../djangoConsole/DEPLOYMENT.md).
+
+This guide covers LiberRPA 0.4.0. See the [release notes](./CHANGELOG.md#040---2026-11-02) for changes.
+
 ## Contents
 
 * [Download and Extract](#download-and-extract)
@@ -23,7 +27,7 @@ For creating and running your first automation Project, see [Getting Started](./
 
 Download the current supported LiberRPA Windows release from SourceForge:
 
-**[Download LiberRPA 0.3.0](https://sourceforge.net/projects/liberrpa/files/LiberRPA-0.3.0-win-x64.7z/download)**
+**[Download LiberRPA 0.4.0](https://sourceforge.net/projects/liberrpa/files/LiberRPA-0.4.0-win-x64.7z/download)**
 
 SourceForge hosts only the current supported binary release. Older binary packages are not retained there; source history remains available on GitHub.
 
@@ -36,7 +40,7 @@ LiberRPA-<version>-win-x64.7z
 For example:
 
 ```text
-LiberRPA-0.3.0-win-x64.7z
+LiberRPA-0.4.0-win-x64.7z
 ```
 
 SourceForge displays the SHA-256 hash directly on the release download page.
@@ -44,7 +48,7 @@ SourceForge displays the SHA-256 hash directly on the release download page.
 To verify a downloaded archive from Command Prompt:
 
 ```bat
-certutil -hashfile LiberRPA-0.3.0-win-x64.7z SHA256
+certutil -hashfile LiberRPA-0.4.0-win-x64.7z SHA256
 ```
 
 Compare the reported value with the SHA-256 published for the same file. SHA-256 verifies that the archive matches the published file; it is not a Windows publisher signature, so unsigned executables may still be shown as coming from an unknown publisher.
@@ -54,7 +58,7 @@ Extract the archive to a local directory where your Windows account has normal r
 For example:
 
 ```text
-D:\Tools\LiberRPA_0.3.0\
+D:\Tools\LiberRPA_0.4.0\
 ```
 
 LiberRPA is designed to operate from its extracted directory and does not need to be installed under `Program Files`.
@@ -117,7 +121,7 @@ Initialization currently performs the following operations:
 
 LiberRPA Editor uses Microsoft Visual Studio Code in portable mode. The Microsoft VS Code program files are not included in the LiberRPA release archive.
 
-For LiberRPA 0.3.0, a clean Editor setup downloads **VS Code 1.121.0 for Windows x64** directly from Microsoft. Before downloading, the initializer shows the version, download source, Microsoft license, and privacy statement, and asks for confirmation.
+A clean Editor setup downloads **VS Code 1.121.0 for Windows x64** directly from Microsoft. Before downloading, the initializer shows the version, download source, Microsoft license, and privacy statement, and asks for confirmation.
 
 The initializer checks the ZIP against the SHA256 returned by Microsoft's download service, verifies the expected version and build, and checks the downloaded `Code.exe` publisher signature through Windows before installing the program files under `Editor/`. It does not continue with an unverified download.
 
@@ -308,6 +312,8 @@ If the target computer will be completely offline and requires browser automatio
 
 After the environment and required integrations have been prepared, normal LiberRPA development and local execution do not require a LiberRPA-hosted cloud service.
 
+Console features require a connection to the service you use. The public Console requires internet access; a Console hosted by your organization can be on its private network.
+
 Individual automation Projects may still require internet access if they interact with external websites, APIs, email servers, cloud services, or other network resources.
 
 ---
@@ -318,12 +324,13 @@ Individual automation Projects may still require internet access if they interac
 
 The LiberRPA root directory can be moved to another local directory.
 
-After moving it:
+To move the LiberRPA root directory:
 
 1. Close all LiberRPA applications.
-2. Run `InitLiberRPA.exe` from the new root directory.
-3. If asked to replace the current `LiberRPA` environment variable, answer `y`.
-4. Restart LiberRPA applications.
+2. Move the root directory to its new location.
+3. Run `InitLiberRPA.exe` from the new root directory.
+4. If asked to replace the current `LiberRPA` environment variable, answer `y`.
+5. Restart LiberRPA applications.
 
 This refreshes environment information, Native Messaging configuration, local authentication, and Windows shortcuts for the new location.
 
@@ -336,6 +343,14 @@ Copy the complete LiberRPA root directory and run `InitLiberRPA.exe` on the dest
 Do not rely on Windows shortcuts, environment variables, or Native Messaging configuration copied or recreated manually from the original computer.
 
 Executor stores its operational database, installed Packages, and Project logs outside the LiberRPA root. Copying only the root directory does not transfer that data. See [Move Executor Data to Another Computer](../electronApplications/executor/README.md#move-executor-data-to-another-computer) when installed Projects, Schedules, Run History, logs, or recordings must also be preserved.
+
+### Reconnect to Console on another computer
+
+On the destination computer, sign in to Console separately in Project Manager and Executor.
+
+In Executor, select an available record for the destination computer. When replacing an existing computer, finish or stop its work first, then sign out or have an authorized member unassociate its record in Console before reusing it. Use separate Executor records if both computers will remain in service.
+
+After signing in through Project Manager, start a new Python run. Create a new VS Code terminal if you run Python from the terminal.
 
 ### Update to a newer release
 
@@ -368,7 +383,7 @@ Contains the main LiberRPA applications, development environment, configuration 
 Example:
 
 ```text
-D:\Tools\LiberRPA_0.3.0\
+D:\Tools\LiberRPA_0.4.0\
 ```
 
 Deleting the root directory removes the corresponding release files, but does not remove all user-level LiberRPA integration or data.
@@ -386,14 +401,15 @@ This directory may contain data such as:
 ```text
 AppData\
 ComponentRepository\
-ExecutorPackage\
+Packages\Local\
+Packages\Console\
 ExecutorRunState\
 NativeMessaging\
 OutputLog\
 WebSocketAuth.json
 ```
 
-and other data created by LiberRPA tools. Executor's Waiting Queue is held only in memory and is not stored in this directory.
+and other data created by LiberRPA tools. `Packages\Local` holds locally installed Packages; `Packages\Console` holds Packages prepared for Console work. Executor's local Job Queue and pending retries are held in memory. Console keeps its own Jobs on the server.
 
 The default Component Repository is:
 
@@ -537,7 +553,7 @@ For Python runtime dependencies and environment construction, see:
 
 ## Uninstallation
 
-LiberRPA 0.3.0 does not currently provide a dedicated uninstaller.
+LiberRPA does not currently provide a dedicated uninstaller.
 
 Because the main application is portable, it can be removed manually.
 
@@ -606,7 +622,7 @@ If another LiberRPA release should remain active, initialize that release instea
 Delete the release directory, for example:
 
 ```text
-D:\Tools\LiberRPA_0.3.0\
+D:\Tools\LiberRPA_0.4.0\
 ```
 
 ### 6. Decide whether to keep user data

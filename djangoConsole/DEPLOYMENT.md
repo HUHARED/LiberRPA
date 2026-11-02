@@ -1,6 +1,10 @@
 # Deploy LiberRPA Console
 
+This guide is for people who want to host their own Console. To use the free public service, open [console.liberrpa.com](https://console.liberrpa.com) and follow the [Console user guide](./README.md). No server setup is needed for the public service.
+
 This guide deploys Console on one Linux server with Docker Compose and a host HTTPS reverse proxy. The image includes PostgreSQL and all Console services. Python, Node.js, and PostgreSQL are not required on the host.
+
+After deployment, use [Platform Administration](./ADMINISTRATION.md) to manage organizations, usage limits, email issues, and platform audit records in the browser.
 
 - [Requirements](#requirements)
 - [Install Console](#install-console)
@@ -97,7 +101,7 @@ sudo install -d -m 755 /srv/liberrpa-console /srv/liberrpa-console-backups
 
 The data directory must be empty; the backup directory need not be. Initialization sets ownership and permissions. With `create_host_path: false`, missing bind-mount sources are errors.
 
-If you customize the Docker network, keep its gateway aligned with the trusted upstream address in [deployment/haproxy.cfg](deployment/haproxy.cfg).
+If you customize the Docker network, keep its gateway aligned with the trusted upstream address in [deployment/haproxy.cfg](./deployment/haproxy.cfg).
 
 ### 4. Configure the instance and SMTP password
 
@@ -110,7 +114,7 @@ Edit `bootstrap/Console.jsonc`:
 
 Set `supportEmail` and the SMTP host, port, security, username, and sender using the provider's settings. Keep `debug` false.
 
-Keep the supplied database, storage, secret-file, and `fileTransferProxy` settings, which refer to paths and services inside the image. Leave `limits` as `{}` unless overriding a default from `LimitsConfig` in [backend/console_project/config.py](backend/console_project/config.py).
+Keep the supplied database, storage, secret-file, and `fileTransferProxy` settings, which refer to paths and services inside the image. Leave `limits` as `{}` unless overriding a default from `LimitsConfig` in [backend/console_project/config.py](./backend/console_project/config.py).
 
 Leave `backup` as `null` for initialization, then configure it under [Back up](#back-up).
 
@@ -243,7 +247,7 @@ Import the CA into browsers with separate trust stores. Repeat for other client 
 
 ### Cloudflare proxy (optional)
 
-For a public hostname, point its A/AAAA record at the origin server and set the record to **Proxied**. Use a valid origin certificate and [Full (strict)](https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/full-strict/) encryption. Trust visitor-IP headers only from Cloudflare, and forward one verified address to Console. Replace the example hostname and merge global options with any existing global block:
+For a public hostname, point its A/AAAA record at the origin server and set the record to `Proxied`. Use a valid origin certificate and [Full (strict)](https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/full-strict/) encryption. Trust visitor-IP headers only from Cloudflare, and forward one verified address to Console. Replace the example hostname and merge global options with any existing global block:
 
 ```caddyfile
 {
@@ -334,7 +338,7 @@ Verify the following before opening the service to users:
 
 ## Host monitoring
 
-Optional host monitoring records CPU, memory, and network usage every minute and retains 15 days of history. Install the supplied [monitoring templates](monitoring/) separately on the Linux host.
+Optional host monitoring records CPU, memory, and network usage every minute and retains 15 days of history. Install the supplied [monitoring templates](./monitoring/) separately on the Linux host.
 
 ### Install the services
 
@@ -435,6 +439,18 @@ After changing the monitoring configuration or rules, validate with `promtool ch
 
 ## Operate the instance
 
+For browser-based administration, see [Platform Administration](./ADMINISTRATION.md). The following sections cover operations that require access to the server.
+
+### Reset the platform administrator password
+
+Run this command from the Compose directory in an interactive terminal:
+
+```bash
+sudo docker compose exec --user liberrpa console python /app/backend/manage.py reset_platform_admin_password
+```
+
+Enter the new password twice. The command invalidates existing platform administrator sessions. Sign in again at `/platform/sign-in` as `admin`.
+
 ### Logs
 
 Container diagnostic logs use standard output/error:
@@ -454,7 +470,21 @@ sudo journalctl -u caddy --since "30 minutes ago"
 
 The `local` logging driver rotates logs at `50m` per file with up to ten files per container. Retention depends on volume, not elapsed days. Export needed diagnostics before removing or recreating a container. Do not edit Docker's internal log files.
 
-Diagnostic timestamps are UTC. Audit records and Run logs are stored separately in the database and follow their own retention settings.
+Console application diagnostic timestamps are UTC. Other services in the container may use their own timestamp format and time zone. Audit records and Run logs are stored separately in the database and follow their own retention settings.
+
+### Automatic cleanup and capacity checks
+
+The container runs cleanup and capacity checks automatically. File cleanup runs every minute; history cleanup and capacity checks run every hour, starting when the services start. Check their health with `instance_status`.
+
+Console queues email notices to `supportEmail` when the file-storage disk has less than 10 GiB free. It also queues notices to organization administrators when stored files, queue items or data, Run logs, or Run History reach 80% or 100% of their limits. These notices do not stop running work. Review actual usage and remove unneeded data through Console.
+
+To check capacity now:
+
+```bash
+sudo docker compose exec --user liberrpa console python /app/backend/manage.py check_capacity
+```
+
+This command can queue email notices. It does not delete data or change limits.
 
 ### Configuration changes
 
@@ -475,6 +505,16 @@ sudo docker compose up -d --no-build --pull never --force-recreate --wait --wait
 Persistent data remains in the bind mounts. Check `instance_status` after either operation.
 
 ### Maintenance mode
+
+To help choose a quiet time for maintenance, inspect recent running activity:
+
+```bash
+sudo docker compose exec --user liberrpa console python /app/backend/manage.py run_activity
+```
+
+The table shows average concurrent Runs for each UTC hour over the last 14 complete UTC days. It uses retained Runs with known end times and separately reports Runs whose end times are unknown. Check current work as well; a quiet hour in this table does not mean it is safe to stop the service.
+
+Enter maintenance and inspect the current state:
 
 ```bash
 sudo docker compose exec --user liberrpa console python /app/backend/manage.py maintenance enter
@@ -519,6 +559,8 @@ sudo docker compose exec --user liberrpa console python /app/backend/manage.py b
 `request` queues work; it does not wait for completion. Record the returned ID and check until that backup reports `Succeeded`.
 
 A completed backup is a UUID-named directory without hyphens under the host backup path. Preserve the whole directory: `manifest.json`, `database.dump`, configuration, secrets, and stored files. An unfinished `.partial` directory is not a usable backup. Keep protected off-server copies and record the matching image tag/digest.
+
+Original logs, videos, and subtitles on Executor computers are outside the Console backup. Back up those computers separately if you need to keep these files.
 
 Console backups exclude host deployment files. Back up `compose.yaml`, `.env`, `/etc/caddy/Caddyfile`, and Caddy's data directory `/var/lib/caddy/.local/share/caddy` separately. These include private keys; preserving an internal CA avoids replacing trust on every client after server loss.
 
@@ -623,7 +665,11 @@ sudo docker compose exec --user liberrpa console python /app/backend/manage.py i
 sudo docker compose exec --user liberrpa console python /app/backend/manage.py maintenance status
 ```
 
-The restored instance starts in maintenance. Sessions and API keys are revoked; clients must authenticate again and API keys must be replaced. Pending email is not replayed. Review jobs needing attention before resuming; restrict browser access to administrators if needed for this review.
+The restored instance starts in maintenance. Sessions and API keys are revoked. Sign in again, select an Executor in each Executor client, and replace API keys used by other applications. Old verification and invitation links are invalid. Pending email is not replayed.
+
+Old waiting work and retries do not resume. Review Jobs marked `Needs Review` against the original Executor and any external systems they used. Schedules continue only with future triggers after you resume service.
+
+Also check changes made after the backup, such as passwords, permissions, organization suspension, and Data Queue claims. These changes may have been lost. Client history is not imported to fill the gap. Restrict browser access to administrators if needed for this review.
 
 After recovery and review:
 
