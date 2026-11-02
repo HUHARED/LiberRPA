@@ -14,7 +14,6 @@ import sys
 import time
 from collections.abc import Generator, Iterable
 from contextlib import contextmanager
-from http.client import HTTPConnection
 from pathlib import Path
 
 from cryptography.fernet import Fernet
@@ -309,24 +308,6 @@ def _run_application(command: list[str]) -> None:
     os.execvp(command[0], command)
 
 
-def _check_health() -> None:
-    # Keep the proxy, running application and database in the probe; never reread pending configuration.
-    connection = HTTPConnection("127.0.0.1", 52100, timeout=3)
-    try:
-        connection.request(
-            "GET",
-            "/api/health/database/",
-            headers={"X-Forwarded-For": "127.0.0.1"},
-        )
-        response = connection.getresponse()
-        if response.status != 200:
-            raise DeploymentError(
-                f"Console readiness check returned HTTP {response.status}."
-            )
-    finally:
-        connection.close()
-
-
 def main() -> None:
     logging.config.dictConfig(build_logging_config("INFO"))
     if sys.platform == "linux":
@@ -350,12 +331,8 @@ def main() -> None:
     application = subparsers.add_parser("run")
     application.add_argument("command", nargs=argparse.REMAINDER)
     subparsers.add_parser("serve")
-    subparsers.add_parser("health")
     args = parser.parse_args()
     os.umask(0o077)
-    if args.action == "health":
-        _check_health()
-        return
     _LOGGER.info("Deployment action: %s.", args.action)
     if args.action == "run":
         if not args.command:
