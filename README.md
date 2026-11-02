@@ -121,6 +121,7 @@ LiberRPA is designed to help such teams:
 * use broadly available Python skills instead of depending entirely on expertise in one proprietary RPA platform;
 * package projects for deployment into client environments;
 * reduce RPA platform licensing costs.
+* share configuration values, files, and work queues across projects through Console;
 
 ### Organizations using automation
 
@@ -130,8 +131,9 @@ For organizations operating automation, LiberRPA provides:
 * locally controlled execution;
 * easier technical review and handover;
 * reduced dependence on proprietary workflow formats;
-* access to the Python and general software-development ecosystem;
 * no per-developer or per-robot LiberRPA license fee.
+* central management of Executors, schedules, and run results through Console;
+* department-based access to automation and shared resources;
 
 ### Not a no-code product
 
@@ -245,8 +247,8 @@ For the internal architecture, see [Architecture](./docs/Architecture.md).
 | **Reusable logic**      | Versioned Components with dependency management, exact locks, local repositories, and generated Snippets.                                       |
 | **Logging**             | Human-readable and structured machine-readable logs with runtime context.                                                                       |
 | **Execution recording** | Optional execution video with log-derived subtitles for troubleshooting.                                                                        |
-| **Packaging**           | Package a Flow Project for a local Executor or publish it to Console.                                                                               |
-| **Team management**     | Console manages department access, Executors, shared resources, Schedules, and execution results. |
+| **Packaging**           | Package a Flow Project for a local Executor or publish it to Console.                                                                           |
+| **Team management**     | Console manages department access, Executors, shared resources, Schedules, and execution results.                                               |
 | **Local operation**     | Development and execution can operate locally without a LiberRPA-hosted cloud service.                                                          |
 | **Portability**         | An initialized LiberRPA environment can be copied between compatible Windows computers.                                                         |
 
@@ -262,6 +264,7 @@ LiberRPA 0.4.0 targets Windows and includes its standard Python 3.13 environment
    ```text
    InitLiberRPA.exe
    ```
+
    Keep the computer online for the initial Editor setup.
 3. After initialization, open:
    ```text
@@ -271,6 +274,7 @@ LiberRPA 0.4.0 targets Windows and includes its standard Python 3.13 environment
    ```text
    LiberRPA: Create a New Project
    ```
+
    and create a `Minimalist Flow Project`.
 
 SourceForge hosts only the current supported binary release. Older binary packages are not retained there; source history remains available in this Git repository.
@@ -301,7 +305,7 @@ The table below compares broad development approaches. Individual RPA products a
 | **Unusual requirements**    | Depends on platform extension mechanisms                       | Directly programmable         | Direct Python and compatible Python libraries  |
 | **Reusable logic**          | Product-specific libraries/components                          | Packages or modules           | Versioned Components                           |
 | **Project packaging**       | Usually integrated                                             | Must be designed as needed    | `.rpa.zip`                                   |
-| **Execution & scheduling**  | Usually integrated                                             | External or custom            | Executor and Console                                       |
+| **Execution & scheduling**  | Usually integrated                                             | External or custom            | Executor and Console                           |
 | **Central orchestration**   | Common in enterprise platforms                                 | External or custom            | Free public Console or your own instance       |
 | **Licensing model**         | Product-dependent; commonly proprietary/commercial             | Library-dependent             | AGPL-3.0-or-later; no LiberRPA license fee     |
 
@@ -380,7 +384,7 @@ LiberRPA is currently maintained by one developer, so your feedback goes directl
 * [**GitHub Discussions**](https://github.com/HUHARED/LiberRPA/discussions) — technical questions, design discussions, and longer-form ideas
 * [**Reddit**](https://www.reddit.com/r/LiberRPA/) — releases, use cases, community discussion, and broader RPA topics
 * [**Telegram**](https://t.me/liberrpa) — lightweight and real-time community communication
-* **Email** — direct or private contact at `mailwork.hu@gmail.com`
+* **Email** — contact the developer at `mailwork.hu@gmail.com`
 
 ---
 
