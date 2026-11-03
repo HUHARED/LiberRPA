@@ -14,9 +14,11 @@ LiberRPA combines the specialized tooling of an RPA platform with familiar softw
 
 > **Current release: 0.4.0**
 >
-> **Project maturity: Alpha.** LiberRPA is under active development and has not yet been validated across a large external production user base.
+> **Project maturity: Alpha.** The alpha label mainly reflects limited real-world use beyond the developer's own testing. Broader use and feedback are still needed to check reliability across different tasks and environments.
 >
-> A note from the developer: I am building LiberRPA for the long term. I take user feedback seriously and will do my best to respond promptly. If another tool handles something better, [tell me about your use case](#community--support). I will consider improvements and new features based on those needs.
+> A note from the developer:
+> I have delivered RPA projects at consulting firms, used several commercial RPA platforms extensively, and researched many others. Based on that experience, I believe LiberRPA already offers most of the features available in commercial RPA platforms, and more in some areas.
+> I take user feedback seriously and will do my best to respond promptly. If another tool handles something better, [tell me about your use case](#community--support). Your suggestion might make it into a future release.
 
 ## Contents
 
@@ -261,16 +263,19 @@ LiberRPA 0.4.0 targets Windows and includes its standard Python 3.13 environment
 1. Download the current supported Windows release from SourceForge:
    **[Download LiberRPA 0.4.0](https://sourceforge.net/projects/liberrpa/files/LiberRPA-0.4.0-win-x64.7z/download)**
 2. Extract the archive and run:
+
    ```text
    InitLiberRPA.exe
    ```
 
    Keep the computer online for the initial Editor setup.
 3. After initialization, open:
+
    ```text
    Editor/Code.exe
    ```
 4. Press `Ctrl+Shift+P`, run:
+
    ```text
    LiberRPA: Create a New Project
    ```
@@ -325,6 +330,10 @@ Component-specific limitations are documented in the corresponding documentation
 ---
 
 ## Roadmap
+
+### Firefox extension
+
+I plan to bring the Chrome extension's browser automation features to Firefox.
 
 ### Continued improvement
 
